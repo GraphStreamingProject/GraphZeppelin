@@ -9,3 +9,4 @@ longer term tasks:
 - making different sketches combinable
 - making sure each sketch (log^2 collection of buckets) is only ever sampled from ONCE
 - testing output correctness and distribution uniformity. also testing memory usage
+- some amount of optimization
