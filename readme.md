@@ -22,3 +22,5 @@ Notes for future optimization:
 - Two ways the algorithm can fail: if the buckets are all bad
 - Is c-test affected by guessing of mu? If so, should we check buckets in a particular order?
 
+- Make script to automate installation of xxhash
+- Modify generation of random number r to use the xxhash seed
