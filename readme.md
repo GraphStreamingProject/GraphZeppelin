@@ -16,3 +16,7 @@ Notes for future optimization:
 - xxHash is non-trivial to install. Should maybe figure out a way to streamline/automate installation process
 - The c variable for each bucket seems inefficient to compute, since you need to compute r^i, where i = O(N)
 - Can the algorithm ever return a false positive (i.e. an index whose entry is actually zero)? If so, is the probability of this affected by the guessing of phi (the number of nonzero entries?
+
+10/12/20:
+- Find existing implementation of modular exponentiation
+- Two ways the algorithm can fail: if the buckets are all bad
