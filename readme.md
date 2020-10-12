@@ -20,3 +20,5 @@ Notes for future optimization:
 10/12/20:
 - Find existing implementation of modular exponentiation
 - Two ways the algorithm can fail: if the buckets are all bad
+- Is c-test affected by guessing of mu? If so, should we check buckets in a particular order?
+
