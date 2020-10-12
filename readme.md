@@ -24,3 +24,16 @@ Notes for future optimization:
 - Make script to automate installation of xxhash
 - Modify generation of random number r to use the xxhash seed
 - Use correct types to achieve platform independence
+- implement the following "API" for modularity:
+    l_0 sketch object initialized with the following values:
+
+    - n, integer which is length of the vector to be sketched.
+    - seed, a random seed which will be the source of the algorithm's randomness. (this may need to be fixed later - we may need more random bits for large values of n than a constant-size seed can give us.)  we need this so we can combine sketches for distributed stuff.
+
+    and with methods
+
+    - update() which processes a single stream update and adds it to the sketch.
+    - query() which returns a random sample if possible and otherwise raises an error.
+    later we will want the ability to add two sketches together.
+
+    and stream_update object as well, which is just a data container object with index, value attributes.
