@@ -10,3 +10,6 @@ longer term tasks:
 - making sure each sketch (log^2 collection of buckets) is only ever sampled from ONCE
 - testing output correctness and distribution uniformity. also testing memory usage
 - some amount of optimization
+
+Notes for future optimization:
+- Miller-Rabin vs Fermat vs AKS (for primality testing)?
