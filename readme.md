@@ -14,4 +14,4 @@ longer term tasks:
 Notes for future optimization:
 - Miller-Rabin vs Fermat vs AKS (for primality testing)? Currently using AKS
 - xxHash is non-trivial to install. Should maybe figure out a way to streamline/automate installation process
-
+- The c variable for each bucket seems inefficient to compute, since you need to compute r^i, where i = O(N)
