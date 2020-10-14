@@ -6,4 +6,6 @@ CMakeFiles/l0sampling.dir/l0sampling.cpp.o
  /home/abiyaz/graphalgo/bucket.h
  /home/abiyaz/graphalgo/l0sampling.cpp
  /home/abiyaz/graphalgo/prime_generator.h
+ /home/abiyaz/graphalgo/sketch.h
+ /home/abiyaz/graphalgo/update.h
  /usr/local/include/xxhash.h

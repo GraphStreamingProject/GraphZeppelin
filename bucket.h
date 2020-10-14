@@ -1,26 +1,33 @@
 #pragma once
 #include <xxhash.h>
+#include <iostream>
+#include <string>
+using namespace std;
 
-struct bucket{
-	int a,b,c;
-	XXH64_hash_t seed;
-	long long guess_nonzero = 1;
-	long long r = -1;
+struct Bucket{
+	long a = 0;
+  long b = 0;
+  long c = 0;
+	XXH64_hash_t bucket_seed;
+	long guess_nonzero = 1;
+	long r = -1;
+  std::string stuff = "";
 
-	bucket(long long random_prime): a(0),b(0),c(0),seed(rand()){
-		r = rand() % random_prime;
-	}
+  bool contains(long index){
+    XXH64_hash_t hash = XXH64(&index, 8, bucket_seed);
+    if (hash % guess_nonzero == 0)
+      return true;
+    return false;
+  }
 
-	bool contains(int index){
-	 XXH64_hash_t hash = XXH64(&index, 64, seed);
-	 if (hash % guess_nonzero == 0){
-		 return true;
-	 }
-	 return false;;
-	}
-
-	void set_guess(int guess){
+	void set_guess(long guess) {
 		guess_nonzero = guess;
 		//cout << "Guess: " << guess_nonzero << endl;
 	}
+
+  void set_seed(long bucket_id, long sketch_seed,long random_prime){
+    bucket_seed = XXH64(&bucket_id ,8, sketch_seed);
+    r = bucket_seed % random_prime;
+    //cout << "r : " << r << endl;
+  }
 };

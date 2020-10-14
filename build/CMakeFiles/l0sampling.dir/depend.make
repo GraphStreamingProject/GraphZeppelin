@@ -5,5 +5,7 @@ CMakeFiles/l0sampling.dir/l0sampling.cpp.o: ../aks.h
 CMakeFiles/l0sampling.dir/l0sampling.cpp.o: ../bucket.h
 CMakeFiles/l0sampling.dir/l0sampling.cpp.o: ../l0sampling.cpp
 CMakeFiles/l0sampling.dir/l0sampling.cpp.o: ../prime_generator.h
+CMakeFiles/l0sampling.dir/l0sampling.cpp.o: ../sketch.h
+CMakeFiles/l0sampling.dir/l0sampling.cpp.o: ../update.h
 CMakeFiles/l0sampling.dir/l0sampling.cpp.o: /usr/local/include/xxhash.h
 
