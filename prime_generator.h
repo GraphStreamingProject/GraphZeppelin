@@ -2,8 +2,8 @@
 #include "aks.h"
 
 namespace PrimeGenerator{
-  int power(int x, unsigned int y, int p){
-      int res = 1;
+  long power(long  x, unsigned long  y, long  p){
+      long int res = 1;
       x = x % p;
       while (y > 0)
       {
@@ -15,7 +15,7 @@ namespace PrimeGenerator{
       return res;
   }
   //Generates a prime nuumber greater than or equal to n
-  int generate_prime(int n){
+  unsigned long generate_prime(unsigned long n){
   	if (n % 2 == 0){
   		n++;
   	}
