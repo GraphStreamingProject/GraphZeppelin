@@ -19,3 +19,4 @@ Things to think about down the road:
 - Miller-Rabin vs Fermat vs AKS (for primality testing)? Currently using AKS
 - The c variable for each bucket seems inefficient to compute, since you need to compute r^i, where i = O(N)
 - Can the algorithm ever return a false positive (i.e. an index whose entry is actually zero)? If so, is the probability of this affected by the guessing of phi (the number of nonzero entries?
+- Which streaming library are we comparing our work to? Consider looking into Spark or Flink
