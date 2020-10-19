@@ -19,7 +19,7 @@ namespace PrimeGenerator{
   	if (n % 2 == 0){
   		n++;
   	}
-  	while(!AKS::IsPrime(n)){
+    while(!AKS::IsPrime(n)){
   		n += 2;
   	}
   	return n;
