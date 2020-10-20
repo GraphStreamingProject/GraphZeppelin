@@ -15,6 +15,7 @@ struct Sketch{
   const int n;
   std::vector<Bucket> buckets;
   const unsigned long random_prime;
+  boolean already_quered = false;
 
   //Initialize a sketch of a vector of size n
 public:
@@ -36,12 +37,17 @@ public:
 			if (buckets[j].contains(update.index)){
 				buckets[j].a += update.delta;
 				buckets[j].b += update.delta*update.index;
-				buckets[j].c += update.delta*PrimeGenerator::power(buckets[j].r,update.index,random_prime);
+				buckets[j].c += (update.delta*PrimeGenerator::power(buckets[j].r,update.index,random_prime))%random_prime;
 			}
 		}
   }
 
   Update query(){
+    if (already_quered){
+      std::cerr << "This sketch has already been sampled!\n";
+      exit(1);
+    }
+    already_quered = true;
     for (int i = 0; i < buckets.size(); i++){
   		Bucket& b = buckets[i];
   		if ( b.a != 0 && b.b % b.a == 0 && (b.c - b.a*PrimeGenerator::power(b.r,b.b/b.a,random_prime))% random_prime == 0  ){
@@ -55,6 +61,7 @@ public:
   }
 
   friend Sketch operator+ (const Sketch &sketch1, const Sketch &sketch2);
+  friend Sketch operator* (const Sketch &sketch1, long scaling_factor );
 };
 
 Sketch operator+ (const Sketch &sketch1, const Sketch &sketch2){
@@ -66,7 +73,18 @@ Sketch operator+ (const Sketch &sketch1, const Sketch &sketch2){
     Bucket& b = result.buckets[i];
     b.a = sketch1.buckets[i].a + sketch2.buckets[i].a;
     b.b = sketch1.buckets[i].b + sketch2.buckets[i].b;
-    b.c = sketch1.buckets[i].c + sketch2.buckets[i].c;
+    b.c = (sketch1.buckets[i].c + sketch2.buckets[i].c)%result.random_prime;
+  }
+  return result;
+}
+
+Sketch operator* (const Sketch &sketch1, long scaling_factor){
+  Sketch result = Sketch(sketch1.n,sketch1.seed);
+  for (int i = 0; i < result.buckets.size(); i++){
+    Bucket& b = result.buckets[i];
+    b.a = sketch1.buckets[i].a * scaling_factor;
+    b.b = sketch1.buckets[i].b * scaling_factor;
+    b.c = (sketch1.buckets[i].c * scaling_factor)% result.random_prime;
   }
   return result;
 }
