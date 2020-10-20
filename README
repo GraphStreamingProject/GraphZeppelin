@@ -4,7 +4,7 @@ Completed tasks:
 - add in c code: note that p must be prime and larger than poly(n) = n^2
 - write code to guess mu (/ phi) instead of assuming it
 - make the code modular
-- making different sketches combinable
+- making different sketches combinable, supports both addition and integer multiplication
 - making sure each sketch (log^2 collection of buckets) is only ever sampled from ONCE
 
 Tasks to be done:
