@@ -5,10 +5,10 @@ Completed tasks:
 - write code to guess mu (/ phi) instead of assuming it
 - make the code modular
 - making different sketches combinable
+- making sure each sketch (log^2 collection of buckets) is only ever sampled from ONCE
 
 Tasks to be done:
 - script that installs everything in one go and runs all the tests
-- making sure each sketch (log^2 collection of buckets) is only ever sampled from ONCE <== add bit to sketch object to test whether sketch has been sampled
 - testing output correctness and distribution uniformity.
 - testing memory usage 
 - some amount of optimization
