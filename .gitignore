@@ -30,3 +30,12 @@
 *.exe
 *.out
 *.app
+
+/build
+/CMakeFiles
+*.cmake
+/compile_commands.json
+/Makefile
+/Cmake_Test
+/CMakeCache.txt
+.remote-sync.json
