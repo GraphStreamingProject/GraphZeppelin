@@ -15,7 +15,7 @@ struct Sketch{
   const int n;
   std::vector<Bucket> buckets;
   const unsigned long random_prime;
-  boolean already_quered = false;
+  bool already_quered = false;
 
   //Initialize a sketch of a vector of size n
 public:
