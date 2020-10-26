@@ -21,7 +21,6 @@ struct Bucket{
    * @return true if the index is NOT hashed to zero.
    */
   bool contains(long index){
-    // TODO: verify independence of hash functions based on independence of seeds
     XXH64_hash_t hash = XXH64(&index, 8, bucket_seed);
     if (hash % guess_nonzero == 0)
       return true;

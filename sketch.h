@@ -39,7 +39,7 @@ public:
 
   /**
    * Update a sketch based on information about one of its indices.
-   * @param update the edge update.
+   * @param update the point update.
    */
   void update(Update update ){
     for (unsigned int j = 0; j < buckets.size(); j++){
@@ -53,9 +53,9 @@ public:
 
   /**
    * Function to query a sketch.
-   * @return an edge in the form of an Update.
+   * @return an index in the form of an Update.
    * Raises an error if the sketch has already been queried or if there are no
-   * good buckets to choose an edge from.
+   * good buckets to choose an index from.
    */
   Update query(){
     if (already_quered){
