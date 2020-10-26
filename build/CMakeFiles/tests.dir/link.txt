@@ -1,1 +1,0 @@
-/usr/bin/c++   -W -Wall -O3 -std=c++11  -rdynamic CMakeFiles/tests.dir/tests.cpp.o  -o tests -Wl,-rpath,/usr/local/lib /usr/local/lib/libxxhash.so.0.8.0 -lcriterion 

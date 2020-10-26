@@ -1,1 +1,0 @@
-/usr/bin/c++   -W -Wall -O3 -std=c++11  -rdynamic CMakeFiles/simple.dir/simple.cpp.o  -o simple -lcriterion 

@@ -25,4 +25,8 @@ cmake ..
 make
 
 #to run, simply do:
+<<<<<<< HEAD
+=======
+./l0sampling
+>>>>>>> d1ab12581f7e9708c5507070b367163e2d5765aa
 ./tests
