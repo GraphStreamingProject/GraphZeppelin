@@ -10,6 +10,11 @@
 #include "bucket.h"
 using namespace std;
 
+/**
+ * An implementation of a "sketch" as defined in the L0 algorithm.
+ * Note a sketch may only be queried once. Attempting to query multiple times will
+ * raise an error.
+ */
 struct Sketch{
   const long seed;
   const int n;
@@ -32,6 +37,10 @@ public:
   	}
   }
 
+  /**
+   * Update a sketch based on information about one of its indices.
+   * @param update the edge update.
+   */
   void update(Update update ){
     for (unsigned int j = 0; j < buckets.size(); j++){
 			if (buckets[j].contains(update.index)){
@@ -42,6 +51,12 @@ public:
 		}
   }
 
+  /**
+   * Function to query a sketch.
+   * @return an edge in the form of an Update.
+   * Raises an error if the sketch has already been queried or if there are no
+   * good buckets to choose an edge from.
+   */
   Update query(){
     if (already_quered){
       std::cerr << "This sketch has already been sampled!\n";

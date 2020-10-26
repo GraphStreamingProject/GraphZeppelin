@@ -76,6 +76,9 @@ namespace AKS{
 		return p;
 	}
 
+	/**
+	 * Function to calculate n to the power e, mod m.
+	 */
 	static unsigned int Powm(unsigned int n, unsigned int e, unsigned int m)
 	{
 		unsigned int r = 1;
@@ -92,6 +95,9 @@ namespace AKS{
 		return r;
 	}
 
+	/**
+	 * Function to calculate the inverse of n, mod m
+	 */
 	static unsigned int Inv(unsigned int n, unsigned int m)
 	{
 		unsigned int a = n, b = m;
