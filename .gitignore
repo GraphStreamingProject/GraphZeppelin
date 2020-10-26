@@ -39,3 +39,7 @@
 /Cmake_Test
 /CMakeCache.txt
 .remote-sync.json
+
+#Doxygen docs
+/docs/
+

@@ -25,16 +25,16 @@ struct Sketch{
   //Initialize a sketch of a vector of size n
 public:
   Sketch(int n, long seed): n(n), seed(seed), random_prime(PrimeGenerator::generate_prime(n*n)) {
-    std::cout << "Prime: " << random_prime << std::endl;
-    const int num_buckets = log2(n);
-    std::cout << "Number of buckets: " << num_buckets << std::endl;
-    buckets = std::vector<Bucket>(num_buckets*(num_buckets+1));
-    for (unsigned int i = 0; i < num_buckets; ++i){
-      for (unsigned int j = 0; j < num_buckets+1; ++j){
-        buckets[i*(num_buckets+1)+j].set_guess(1 << j);
-        buckets[i*(num_buckets+1)+j].set_seed(i*(num_buckets+1)+j,seed,random_prime);
-      }
-    }
+  	//std::cout << "Prime: " << random_prime << std::endl;
+    const int num_buckets = 2*log2(n);
+  	//std::cout << "Number of buckets: " << num_buckets << std::endl;
+  	buckets = std::vector<Bucket>(num_buckets*(log2(n)+1));
+  	for (unsigned int i = 0; i < num_buckets; ++i){
+  		for (unsigned int j = 0; j < log2(n)+1; ++j){
+  			buckets[i*(log2(n)+1)+j].set_guess(1 << j);
+        buckets[i*(log2(n)+1)+j].set_seed(i*(log2(n)+1)+j,seed,random_prime);
+  		}
+  	}
   }
 
   /**

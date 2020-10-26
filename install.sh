@@ -3,7 +3,7 @@ set -ex
 
 #install xxhash
 git clone https://github.com/Cyan4973/xxHash.git
-cd XXHash
+cd xxHash
 mkdir build
 cd build
 cmake ../cmake_unofficial
@@ -25,5 +25,4 @@ cmake ..
 make
 
 #to run, simply do:
-./l0sampling
 ./tests
