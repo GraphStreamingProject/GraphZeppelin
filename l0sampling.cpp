@@ -9,9 +9,9 @@ using namespace std;
 
 int main(){
 	srand (time(NULL));
-	const long n = 1000000;
-	const long updates = 100;
-	const long updates2 = 100;
+	const long n = 1000;
+	const long updates = 1000;
+	const long updates2 = 1000;
 	int vect[n] = {0};
 	int vect2[n] = {0};
 

@@ -30,3 +30,9 @@
 *.exe
 *.out
 *.app
+
+.remote-sync.json
+build/
+
+# Doxygen docs
+/docs/
