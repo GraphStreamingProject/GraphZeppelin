@@ -10,6 +10,11 @@
 #include "bucket.h"
 using namespace std;
 
+/**
+ * An implementation of a "sketch" as defined in the L0 algorithm.
+ * Note a sketch may only be queried once. Attempting to query multiple times will
+ * raise an error.
+ */
 struct Sketch{
   const long seed;
   const int n;
@@ -32,16 +37,26 @@ public:
   	}
   }
 
+  /**
+   * Update a sketch based on information about one of its indices.
+   * @param update the point update.
+   */
   void update(Update update ){
     for (unsigned int j = 0; j < buckets.size(); j++){
-			if (buckets[j].contains(update.index)){
-				buckets[j].a += update.delta;
-				buckets[j].b += update.delta*update.index;
-				buckets[j].c += (update.delta*PrimeGenerator::power(buckets[j].r,update.index,random_prime))%random_prime;
-			}
-		}
+      if (buckets[j].contains(update.index)){
+        buckets[j].a += update.delta;
+        buckets[j].b += update.delta*update.index;
+        buckets[j].c += (update.delta*PrimeGenerator::power(buckets[j].r,update.index,random_prime))%random_prime;
+      }
+    }
   }
 
+  /**
+   * Function to query a sketch.
+   * @return an index in the form of an Update.
+   * Raises an error if the sketch has already been queried or if there are no
+   * good buckets to choose an index from.
+   */
   Update query(){
     if (already_quered){
       std::cerr << "This sketch has already been sampled!\n";
@@ -49,13 +64,13 @@ public:
     }
     already_quered = true;
     for (int i = 0; i < buckets.size(); i++){
-  		Bucket& b = buckets[i];
-  		if ( b.a != 0 && b.b % b.a == 0 && (b.c - b.a*PrimeGenerator::power(b.r,b.b/b.a,random_prime))% random_prime == 0  ){
-  			//cout << "Passed all tests: " << "b.a: " << b.a << " b.b: " << b.b << " b.c: " << b.c << " Guess: " << b.guess_nonzero << " r: " << b.r << endl;
+      Bucket& b = buckets[i];
+      if ( b.a != 0 && b.b % b.a == 0 && (b.c - b.a*PrimeGenerator::power(b.r,b.b/b.a,random_prime))% random_prime == 0  ){
+        //cout << "Passed all tests: " << "b.a: " << b.a << " b.b: " << b.b << " b.c: " << b.c << " Guess: " << b.guess_nonzero << " r: " << b.r << endl;
         //cout << "String: " << b.stuff << endl;
         return {b.b/b.a,b.a};
-  		}
-  	}
+      }
+    }
     std::cerr << "Found no good bucket!\n";
     exit(1);
   }

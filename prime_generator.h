@@ -16,12 +16,12 @@ namespace PrimeGenerator{
   }
   //Generates a prime nuumber greater than or equal to n
   unsigned long generate_prime(unsigned long n){
-  	if (n % 2 == 0){
-  		n++;
-  	}
+    if (n % 2 == 0){
+      n++;
+    }
     while(!AKS::IsPrime(n)){
-  		n += 2;
-  	}
-  	return n;
+      n += 2;
+    }
+    return n;
   }
 }
