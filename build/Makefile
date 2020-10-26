@@ -124,17 +124,17 @@ l0sampling/fast:
 .PHONY : l0sampling/fast
 
 #=============================================================================
-# Target rules for targets named simple
+# Target rules for targets named tests
 
 # Build rule for target.
-simple: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 simple
-.PHONY : simple
+tests: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 tests
+.PHONY : tests
 
 # fast build rule for target.
-simple/fast:
-	$(MAKE) -f CMakeFiles/simple.dir/build.make CMakeFiles/simple.dir/build
-.PHONY : simple/fast
+tests/fast:
+	$(MAKE) -f CMakeFiles/tests.dir/build.make CMakeFiles/tests.dir/build
+.PHONY : tests/fast
 
 l0sampling.o: l0sampling.cpp.o
 
@@ -163,32 +163,32 @@ l0sampling.cpp.s:
 	$(MAKE) -f CMakeFiles/l0sampling.dir/build.make CMakeFiles/l0sampling.dir/l0sampling.cpp.s
 .PHONY : l0sampling.cpp.s
 
-simple.o: simple.cpp.o
+tests.o: tests.cpp.o
 
-.PHONY : simple.o
+.PHONY : tests.o
 
 # target to build an object file
-simple.cpp.o:
-	$(MAKE) -f CMakeFiles/simple.dir/build.make CMakeFiles/simple.dir/simple.cpp.o
-.PHONY : simple.cpp.o
+tests.cpp.o:
+	$(MAKE) -f CMakeFiles/tests.dir/build.make CMakeFiles/tests.dir/tests.cpp.o
+.PHONY : tests.cpp.o
 
-simple.i: simple.cpp.i
+tests.i: tests.cpp.i
 
-.PHONY : simple.i
+.PHONY : tests.i
 
 # target to preprocess a source file
-simple.cpp.i:
-	$(MAKE) -f CMakeFiles/simple.dir/build.make CMakeFiles/simple.dir/simple.cpp.i
-.PHONY : simple.cpp.i
+tests.cpp.i:
+	$(MAKE) -f CMakeFiles/tests.dir/build.make CMakeFiles/tests.dir/tests.cpp.i
+.PHONY : tests.cpp.i
 
-simple.s: simple.cpp.s
+tests.s: tests.cpp.s
 
-.PHONY : simple.s
+.PHONY : tests.s
 
 # target to generate assembly for a file
-simple.cpp.s:
-	$(MAKE) -f CMakeFiles/simple.dir/build.make CMakeFiles/simple.dir/simple.cpp.s
-.PHONY : simple.cpp.s
+tests.cpp.s:
+	$(MAKE) -f CMakeFiles/tests.dir/build.make CMakeFiles/tests.dir/tests.cpp.s
+.PHONY : tests.cpp.s
 
 # Help Target
 help:
@@ -199,13 +199,13 @@ help:
 	@echo "... rebuild_cache"
 	@echo "... edit_cache"
 	@echo "... l0sampling"
-	@echo "... simple"
+	@echo "... tests"
 	@echo "... l0sampling.o"
 	@echo "... l0sampling.i"
 	@echo "... l0sampling.s"
-	@echo "... simple.o"
-	@echo "... simple.i"
-	@echo "... simple.s"
+	@echo "... tests.o"
+	@echo "... tests.i"
+	@echo "... tests.s"
 .PHONY : help
 
 

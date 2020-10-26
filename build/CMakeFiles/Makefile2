@@ -97,39 +97,39 @@ clean: CMakeFiles/l0sampling.dir/clean
 .PHONY : clean
 
 #=============================================================================
-# Target rules for target CMakeFiles/simple.dir
+# Target rules for target CMakeFiles/tests.dir
 
 # All Build rule for target.
-CMakeFiles/simple.dir/all:
-	$(MAKE) -f CMakeFiles/simple.dir/build.make CMakeFiles/simple.dir/depend
-	$(MAKE) -f CMakeFiles/simple.dir/build.make CMakeFiles/simple.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/abiyaz/graphalgo/build/CMakeFiles --progress-num=3,4 "Built target simple"
-.PHONY : CMakeFiles/simple.dir/all
+CMakeFiles/tests.dir/all:
+	$(MAKE) -f CMakeFiles/tests.dir/build.make CMakeFiles/tests.dir/depend
+	$(MAKE) -f CMakeFiles/tests.dir/build.make CMakeFiles/tests.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/abiyaz/graphalgo/build/CMakeFiles --progress-num=3,4 "Built target tests"
+.PHONY : CMakeFiles/tests.dir/all
 
 # Include target in all.
-all: CMakeFiles/simple.dir/all
+all: CMakeFiles/tests.dir/all
 
 .PHONY : all
 
 # Build rule for subdir invocation for target.
-CMakeFiles/simple.dir/rule: cmake_check_build_system
+CMakeFiles/tests.dir/rule: cmake_check_build_system
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/abiyaz/graphalgo/build/CMakeFiles 2
-	$(MAKE) -f CMakeFiles/Makefile2 CMakeFiles/simple.dir/all
+	$(MAKE) -f CMakeFiles/Makefile2 CMakeFiles/tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/abiyaz/graphalgo/build/CMakeFiles 0
-.PHONY : CMakeFiles/simple.dir/rule
+.PHONY : CMakeFiles/tests.dir/rule
 
 # Convenience name for target.
-simple: CMakeFiles/simple.dir/rule
+tests: CMakeFiles/tests.dir/rule
 
-.PHONY : simple
-
-# clean rule for target.
-CMakeFiles/simple.dir/clean:
-	$(MAKE) -f CMakeFiles/simple.dir/build.make CMakeFiles/simple.dir/clean
-.PHONY : CMakeFiles/simple.dir/clean
+.PHONY : tests
 
 # clean rule for target.
-clean: CMakeFiles/simple.dir/clean
+CMakeFiles/tests.dir/clean:
+	$(MAKE) -f CMakeFiles/tests.dir/build.make CMakeFiles/tests.dir/clean
+.PHONY : CMakeFiles/tests.dir/clean
+
+# clean rule for target.
+clean: CMakeFiles/tests.dir/clean
 
 .PHONY : clean
 

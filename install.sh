@@ -25,5 +25,4 @@ cmake ..
 make
 
 #to run, simply do:
-./l0sampling
 ./tests
