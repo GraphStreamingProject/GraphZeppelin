@@ -1,14 +1,16 @@
 #include  <criterion/criterion.h>
+#include <cstdlib>
+#include <iostream>
 #include "sketch.h"
 #include "testing_vector.h"
 #include "update.h"
-#include <cstdlib>
 
 Test(sketch_test_suite, testing_sketch_addition){
 	srand (time(NULL));
-	for (int i = 0; i < 1; i++){
-		const unsigned long vect_size = 100;
-		const unsigned long num_updates = 100;
+	for (int i = 0; i < 1000; i++){
+		std::cout << "Test number: " << i << std::endl;
+		const unsigned long vect_size = 1000;
+		const unsigned long num_updates = 1000;
 		Sketch sketch = Sketch(vect_size,rand());
 		Testing_Vector test_vector = Testing_Vector(vect_size,num_updates);
 		for (unsigned long j = 0; j < num_updates; j++){
