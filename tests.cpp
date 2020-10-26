@@ -1,5 +1,4 @@
 #include  <criterion/criterion.h>
-<<<<<<< HEAD
 #include "sketch.h"
 #include "testing_vector.h"
 #include "update.h"
@@ -20,13 +19,4 @@ Test(sketch_test_suite, testing_sketch_addition){
 			cr_assert(0);
 		}
 	}
-=======
-
-Test(misc, failing){
-	cr_assert(0);
-}
-
-Test(misc, passing){
->>>>>>> d1ab12581f7e9708c5507070b367163e2d5765aa
-	cr_assert(1);
 }
