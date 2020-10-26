@@ -33,3 +33,6 @@
 
 .remote-sync.json
 build/
+
+# Doxygen docs
+/docs/
