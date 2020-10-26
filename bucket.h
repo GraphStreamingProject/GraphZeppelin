@@ -37,9 +37,6 @@ struct Bucket{
 		//cout << "Guess: " << guess_nonzero << endl;
 	}
 
-  /**
-   * 
-   */
   void set_seed(long bucket_id, long sketch_seed,long random_prime){
     bucket_seed = XXH64(&bucket_id ,8, sketch_seed);
     r = bucket_seed % random_prime;
