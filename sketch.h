@@ -25,16 +25,16 @@ struct Sketch{
   //Initialize a sketch of a vector of size n
 public:
   Sketch(int n, long seed): n(n), seed(seed), random_prime(PrimeGenerator::generate_prime(n*n)) {
-  	std::cout << "Prime: " << random_prime << std::endl;
+    std::cout << "Prime: " << random_prime << std::endl;
     const int num_buckets = log2(n);
-  	std::cout << "Number of buckets: " << num_buckets << std::endl;
-  	buckets = std::vector<Bucket>(num_buckets*(num_buckets+1));
-  	for (unsigned int i = 0; i < num_buckets; ++i){
-  		for (unsigned int j = 0; j < num_buckets+1; ++j){
-  			buckets[i*(num_buckets+1)+j].set_guess(1 << j);
+    std::cout << "Number of buckets: " << num_buckets << std::endl;
+    buckets = std::vector<Bucket>(num_buckets*(num_buckets+1));
+    for (unsigned int i = 0; i < num_buckets; ++i){
+      for (unsigned int j = 0; j < num_buckets+1; ++j){
+        buckets[i*(num_buckets+1)+j].set_guess(1 << j);
         buckets[i*(num_buckets+1)+j].set_seed(i*(num_buckets+1)+j,seed,random_prime);
-  		}
-  	}
+      }
+    }
   }
 
   /**
@@ -43,12 +43,12 @@ public:
    */
   void update(Update update ){
     for (unsigned int j = 0; j < buckets.size(); j++){
-			if (buckets[j].contains(update.index)){
-				buckets[j].a += update.delta;
-				buckets[j].b += update.delta*update.index;
-				buckets[j].c += (update.delta*PrimeGenerator::power(buckets[j].r,update.index,random_prime))%random_prime;
-			}
-		}
+      if (buckets[j].contains(update.index)){
+        buckets[j].a += update.delta;
+        buckets[j].b += update.delta*update.index;
+        buckets[j].c += (update.delta*PrimeGenerator::power(buckets[j].r,update.index,random_prime))%random_prime;
+      }
+    }
   }
 
   /**
@@ -64,13 +64,13 @@ public:
     }
     already_quered = true;
     for (int i = 0; i < buckets.size(); i++){
-  		Bucket& b = buckets[i];
-  		if ( b.a != 0 && b.b % b.a == 0 && (b.c - b.a*PrimeGenerator::power(b.r,b.b/b.a,random_prime))% random_prime == 0  ){
-  			//cout << "Passed all tests: " << "b.a: " << b.a << " b.b: " << b.b << " b.c: " << b.c << " Guess: " << b.guess_nonzero << " r: " << b.r << endl;
+      Bucket& b = buckets[i];
+      if ( b.a != 0 && b.b % b.a == 0 && (b.c - b.a*PrimeGenerator::power(b.r,b.b/b.a,random_prime))% random_prime == 0  ){
+        //cout << "Passed all tests: " << "b.a: " << b.a << " b.b: " << b.b << " b.c: " << b.c << " Guess: " << b.guess_nonzero << " r: " << b.r << endl;
         //cout << "String: " << b.stuff << endl;
         return {b.b/b.a,b.a};
-  		}
-  	}
+      }
+    }
     std::cerr << "Found no good bucket!\n";
     exit(1);
   }
