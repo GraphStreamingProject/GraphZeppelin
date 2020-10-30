@@ -13,8 +13,6 @@ jobs:
     # cross-platform coverage.
     # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
     runs-on: ubuntu-latest
-    env:
-      xxHash_DIR: ${{runner.workspace}}/xxHash/build
 
     steps:
     - uses: actions/checkout@v2
@@ -27,6 +25,8 @@ jobs:
     - name: Install xxHash
       shell: bash
       working-directory: ${{runner.workspace}}
+      env:
+        xxHash_DIR: ${{runner.workspace}}/xxHash/build
       run: |
         git clone https://github.com/Cyan4973/xxHash.git
         cd xxHash
