@@ -34,6 +34,7 @@ jobs:
         cd build
         cmake ../cmake_unofficial
         cmake --build .
+        echo $xxHash_DIR
 
     - name: Configure CMake
       # Use a bash shell so we can use the same syntax for environment variable
