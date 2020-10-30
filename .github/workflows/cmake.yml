@@ -32,6 +32,13 @@ jobs:
         cd build
         cmake ../cmake_unofficial
         cmake --build .
+      
+    - name: Install Criterion
+      shell: bash
+      run: |
+        add-apt-repository -y ppa:snaipewastaken/ppa
+        apt-get update
+        apt-get install criterion-dev
 
     - name: Configure CMake
       # Use a bash shell so we can use the same syntax for environment variable
