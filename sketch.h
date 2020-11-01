@@ -53,9 +53,9 @@ public:
 
   /**
    * Function to query a sketch.
+   * If there are no good buckets, returns index -1, delta 0
+   * Raises an error if the sketch has already been queried.
    * @return an index in the form of an Update.
-   * Raises an error if the sketch has already been queried or if there are no
-   * good buckets to choose an index from.
    */
   Update query(){
     if (already_quered){
@@ -71,8 +71,8 @@ public:
         return {b.b/b.a,b.a};
       }
     }
-    std::cerr << "Found no good bucket!\n";
-    exit(1);
+    //Found no good bucket, return index -1 and value 0
+    return {-1, 0};
   }
 
   friend Sketch operator+ (const Sketch &sketch1, const Sketch &sketch2);
