@@ -10,7 +10,5 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -W -Wall -O3 -std=c++11")
 
 find_package(xxHash 0.7 CONFIG REQUIRED)
 
-add_executable(l0sampling l0sampling.cpp)
 add_executable(tests tests.cpp)
-target_link_libraries(l0sampling PRIVATE xxHash::xxhash)
 target_link_libraries(tests PRIVATE xxHash::xxhash criterion)
