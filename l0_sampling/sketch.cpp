@@ -4,8 +4,8 @@
 #include <vector>
 #include <iostream>
 #include <string>
-#include "prime_generator.h"
-#include "sketch.h"
+#include "../include/prime_generator.h"
+#include "../include/sketch.h"
 
 Sketch::Sketch(int n, long seed): n(n), seed(seed), random_prime(PrimeGenerator::generate_prime(n*n)) {
   //std::cout << "Prime: " << random_prime << std::endl;

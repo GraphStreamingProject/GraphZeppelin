@@ -1,6 +1,6 @@
 #pragma once
 #include <vector>
-#include "update.h"
+#include "../../include/update.h"
 /* This class takes as input N and P and
 generates a random stream of P updates to a vector of length N. It then processes
 those updates to the vector and makes both the updates and the processed vector
