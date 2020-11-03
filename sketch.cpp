@@ -9,7 +9,7 @@
 
 Sketch::Sketch(int n, long seed): n(n), seed(seed), random_prime(PrimeGenerator::generate_prime(n*n)) {
   //std::cout << "Prime: " << random_prime << std::endl;
-  const int num_buckets = 5*log2(n);
+  const int num_buckets = (log2(n)+1);
   //std::cout << "Number of buckets: " << num_buckets << std::endl;
   buckets = std::vector<Bucket>(num_buckets*(log2(n)+1));
   for (unsigned int i = 0; i < num_buckets; ++i){
@@ -22,10 +22,11 @@ Sketch::Sketch(int n, long seed): n(n), seed(seed), random_prime(PrimeGenerator:
 
 void Sketch::update(Update update ) {
   for (unsigned int j = 0; j < buckets.size(); j++){
-    if (buckets[j].contains(update.index)){
+    if (buckets[j].contains(update.index+1)){
       buckets[j].a += update.delta;
-      buckets[j].b += update.delta*update.index;
-      buckets[j].c += (update.delta*PrimeGenerator::power(buckets[j].r,update.index,random_prime))%random_prime;
+      buckets[j].b += update.delta*(update.index+1); // deals with updates whose indices are 0
+      buckets[j].c += (update.delta*PrimeGenerator::power(buckets[j].r,update.index+1,random_prime))%random_prime;
+      buckets[j].c = (buckets[j].c + random_prime)%random_prime;
     }
   }
 }
@@ -41,7 +42,7 @@ Update Sketch::query(){
     if ( b.a != 0 && b.b % b.a == 0 && (b.c - b.a*PrimeGenerator::power(b.r,b.b/b.a,random_prime))% random_prime == 0  ){
       //cout << "Passed all tests: " << "b.a: " << b.a << " b.b: " << b.b << " b.c: " << b.c << " Guess: " << b.guess_nonzero << " r: " << b.r << endl;
       //cout << "String: " << b.stuff << endl;
-      return {b.b/b.a,b.a};
+      return {b.b/b.a - 1,b.a}; // 0-index adjustment
     }
   }
   std::cerr << "Found no good bucket!\n";
