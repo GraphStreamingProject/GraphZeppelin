@@ -18,11 +18,9 @@ find_package(GTest REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
 
 add_executable(tests
+    test/test_runner.cpp
     test/sketch_test.cpp
     l0_sampling/sketch.cpp
     l0_sampling/update.cpp
     )
-target_link_libraries(tests xxHash::xxhash criterion ${GTEST_LIBRARIES} pthread)
-
-include(CTest)
-add_test(testing_suite tests)
+target_link_libraries(tests xxHash::xxhash ${GTEST_LIBRARIES} pthread)

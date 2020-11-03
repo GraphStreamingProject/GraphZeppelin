@@ -1,9 +1,9 @@
-#include <criterion/criterion.h>
+#include <gtest/gtest.h>
 #include "../include/sketch.h"
 #include "util/testing_vector.h"
 #include "../include/update.h"
 
-Test(sketch_test_suite, GIVEN_only_index_zero_updated_THEN_it_works) {
+TEST(SketchTestSuite, GIVENonlyIndexZeroUpdatedTHENitWorks) {
   // GIVEN only the index 0 is updated
   srand(time(NULL));
   int vec_size = 1000;
@@ -23,11 +23,27 @@ Test(sketch_test_suite, GIVEN_only_index_zero_updated_THEN_it_works) {
   // THEN it works
   Update res = sketch.query();
   Update exp {0,delta};
-  cr_assert(res == exp, "Res: {%d,%d}. Actual delta: %d",res.index, res.delta, delta);
-  cout << "Passed: GIVEN_only_index_zero_updated_THEN_it_works" << endl;
+  ASSERT_EQ(res, exp) << "Expected: " << exp << "\nActual: " << res;
 }
 
-Test(sketch_test_suite, WHEN_many_sketches_are_sampled_THEN_all_of_them_are_nonzero) {
+TEST(SketchTestSuite, TestingSketchAddition){
+  srand (time(NULL));
+  for (int i = 0; i < 1000; i++){
+    const unsigned long vect_size = 1000;
+    const unsigned long num_updates = 1000;
+    Sketch sketch = Sketch(vect_size,rand());
+    Testing_Vector test_vector = Testing_Vector(vect_size,num_updates);
+    for (unsigned long j = 0; j < num_updates; j++){
+      sketch.update(test_vector.get_update(j));
+    }
+    Update result = sketch.query();
+    if (test_vector.get_entry(result.index) == 0 || test_vector.get_entry(result.index) != result.delta ){
+      ASSERT_FALSE(0) << "Failed on test " << i;
+    }
+  }
+}
+
+TEST(SketchTestSuite, WHENmanySketchesAreSampledTHENallOfThemAreNonzero) {
   srand(time(NULL));
   int n = 100000;
   int vec_size = 1000;
@@ -49,29 +65,10 @@ Test(sketch_test_suite, WHEN_many_sketches_are_sampled_THEN_all_of_them_are_nonz
       }
     }
     if (!failed_flag) {
-      cr_assert(true, "All sketches were nonzero");
-      cout << "Passed: WHEN_many_sketches_are_sampled_THEN_all_of_them_are_nonzero" << endl;
       return;
     }
   }
-  cr_assert(false, "Test failed twice in a row");
+  ASSERT_FALSE(0) << "Test failed twice in a row";
   // TODO: create probabilistic scoring system; if probability of the event we test
   // becomes below some threshhold, fail
-}
-
-Test(sketch_test_suite, testing_sketch_addition){
-  srand (time(NULL));
-  for (int i = 0; i < 1000; i++){
-    const unsigned long vect_size = 1000;
-    const unsigned long num_updates = 1000;
-    Sketch sketch = Sketch(vect_size,rand());
-    Testing_Vector test_vector = Testing_Vector(vect_size,num_updates);
-    for (unsigned long j = 0; j < num_updates; j++){
-      sketch.update(test_vector.get_update(j));
-    }
-    Update result = sketch.query();
-    if (test_vector.get_entry(result.index) == 0 || test_vector.get_entry(result.index) != result.delta ){
-      cr_assert(0, "Failed on test %d", i);
-    }
-  }
 }
