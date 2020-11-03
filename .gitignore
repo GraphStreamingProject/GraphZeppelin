@@ -40,5 +40,8 @@
 /CMakeCache.txt
 .remote-sync.json
 
+#Intellij
+/.idea
+
 #Doxygen docs
 /docs/
