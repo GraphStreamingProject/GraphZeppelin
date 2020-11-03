@@ -36,12 +36,12 @@ jobs:
     - name: Install libgtest-dev
       shell: bash
       run: |
-        sudo add-get install libgtest-dev
+        sudo apt-get install libgtest-dev
         cd /usr/src/gtest
         sudo cmake CMakeLists.txt
         sudo make
         sudo cp *.a /usr/lib
-    
+
     - name: Configure CMake
       # Use a bash shell so we can use the same syntax for environment variable
       # access regardless of the host operating system
