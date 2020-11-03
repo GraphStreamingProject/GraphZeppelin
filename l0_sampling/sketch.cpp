@@ -33,8 +33,7 @@ void Sketch::update(Update update ) {
 
 Update Sketch::query(){
   if (already_quered){
-    std::cerr << "This sketch has already been sampled!\n";
-    exit(1);
+    throw MultipleQueryException();
   }
   already_quered = true;
   for (int i = 0; i < buckets.size(); i++){
@@ -45,8 +44,7 @@ Update Sketch::query(){
       return {b.b/b.a - 1,b.a}; // 0-index adjustment
     }
   }
-  std::cerr << "Found no good bucket!\n";
-  exit(1);
+  throw NoGoodBucketException();
 }
 
 Sketch operator+ (const Sketch &sketch1, const Sketch &sketch2){

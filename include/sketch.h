@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <exception>
 #include "update.h"
 #include "bucket.h"
 using namespace std;
@@ -28,12 +29,25 @@ public:
 
   /**
    * Function to query a sketch.
-   * @return an index in the form of an Update.
-   * Raises an error if the sketch has already been queried or if there are no
-   * good buckets to choose an index from.
+   * @return                        an index in the form of an Update.
+   * @throws MultipleQueryException if the sketch has already been queried.
+   * @throws NoGoodBucketException  if there are no good buckets to choose an
+   *                                index from.
    */
   Update query();
 
   friend Sketch operator+ (const Sketch &sketch1, const Sketch &sketch2);
   friend Sketch operator* (const Sketch &sketch1, long scaling_factor );
+};
+
+class MultipleQueryException : public exception {
+  virtual const char* what() const throw() {
+    return "This sketch has already been sampled!";
+  }
+};
+
+class NoGoodBucketException : public exception {
+  virtual const char* what() const throw() {
+    return "Found no good bucket!";
+  }
 };

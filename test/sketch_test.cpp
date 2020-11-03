@@ -3,6 +3,12 @@
 #include "util/testing_vector.h"
 #include "../include/update.h"
 
+TEST(SketchTestSuite, TestExceptions) {
+  Sketch sketch = Sketch(10,rand());
+  ASSERT_THROW(sketch.query(), NoGoodBucketException);
+  ASSERT_THROW(sketch.query(), MultipleQueryException);
+}
+
 TEST(SketchTestSuite, GIVENonlyIndexZeroUpdatedTHENitWorks) {
   // GIVEN only the index 0 is updated
   srand(time(NULL));
@@ -36,7 +42,12 @@ TEST(SketchTestSuite, TestingSketchAddition){
     for (unsigned long j = 0; j < num_updates; j++){
       sketch.update(test_vector.get_update(j));
     }
-    Update result = sketch.query();
+    Update result;
+    try {
+      result = sketch.query();
+    } catch (exception& e) {
+      ASSERT_FALSE(0) << "Failed on test " << i << "due to: " << e.what();
+    }
     if (test_vector.get_entry(result.index) == 0 || test_vector.get_entry(result.index) != result.delta ){
       ASSERT_FALSE(0) << "Failed on test " << i;
     }
