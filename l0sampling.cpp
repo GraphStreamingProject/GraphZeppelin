@@ -3,8 +3,8 @@
 #include <cstdlib>
 #include <vector>
 #include <stdio.h>
-#include "update.h"
-#include "sketch.h"
+#include "include/update.h"
+#include "include/sketch.h"
 using namespace std;
 
 int main(){

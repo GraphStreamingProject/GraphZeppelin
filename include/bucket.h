@@ -8,13 +8,12 @@ using namespace std;
  * Represents a bucket in a sketch.
  */
 struct Bucket{
-  long a = 0;
-  long b = 0;
-  long c = 0;
+  long long int a = 0;
+  long long int b = 0;
+  long long int c = 0;
   XXH64_hash_t bucket_seed;
   long guess_nonzero = 1;
-  long r = -1;
-  std::string stuff = "";
+  long long int r = -1;
 
   /**
    * Checks whether the hash associated with the Bucket hashes the index to 0.

@@ -22,6 +22,26 @@ jobs:
       # We'll use this as our working directory for all subsequent commands
       run: cmake -E make_directory ${{runner.workspace}}/build
 
+    - name: Install xxHash
+      shell: bash
+      working-directory: ${{runner.workspace}}
+      run: |
+        git clone https://github.com/Cyan4973/xxHash.git
+        cd xxHash
+        mkdir build
+        cd build
+        cmake ../cmake_unofficial
+        cmake --build .
+      
+    - name: Install libgtest-dev
+      shell: bash
+      run: |
+        sudo apt-get install libgtest-dev
+        cd /usr/src/gtest
+        sudo cmake CMakeLists.txt
+        sudo make
+        sudo cp *.a /usr/lib
+
     - name: Configure CMake
       # Use a bash shell so we can use the same syntax for environment variable
       # access regardless of the host operating system
@@ -30,7 +50,12 @@ jobs:
       # Note the current convention is to use the -S and -B options here to specify source 
       # and build directories, but this is only available with CMake 3.13 and higher.  
       # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
-      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+      env:
+        xxHash_DIR: ${{runner.workspace}}/xxHash/build
+      run: |
+        echo $xxHash_DIR
+        ls $xxHash_DIR
+        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE
 
     - name: Build
       working-directory: ${{runner.workspace}}/build
@@ -43,4 +68,4 @@ jobs:
       shell: bash
       # Execute tests defined by the CMake configuration.  
       # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
-      run: ctest -C $BUILD_TYPE
+      run: ./tests

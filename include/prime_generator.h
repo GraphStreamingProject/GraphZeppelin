@@ -1,9 +1,12 @@
 #pragma once
 #include "aks.h"
 
+typedef long long int ll;
+typedef unsigned long long int ull;
+
 namespace PrimeGenerator{
-  long power(long  x, unsigned long  y, long  p){
-      long int res = 1;
+  ll power(ll x, ull y, ull p){
+      ll res = 1;
       x = x % p;
       while (y > 0)
       {
@@ -15,7 +18,7 @@ namespace PrimeGenerator{
       return res;
   }
   //Generates a prime nuumber greater than or equal to n
-  unsigned long generate_prime(unsigned long n){
+  ull generate_prime(ull n){
     if (n % 2 == 0){
       n++;
     }
