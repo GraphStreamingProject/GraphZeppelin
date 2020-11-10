@@ -7,110 +7,40 @@ set(CMAKE_CXX_EXTENSIONS ON)
 project(test)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  message("Adding GNU flags")
+  message("Adding GNU compiler flags")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -W -Wall -O3")
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-  message("Adding MSVC flags")
+  message("Adding MSVC compiler flags")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Wall /O2")
 else()
   message("${CMAKE_CXX_COMPILER_ID} not recognized, no flags added")
 endif()
 
-find_package(xxHash 0.7 CONFIG QUIET)
-if (TARGET xxHash::xxhash)
-  message("Found installation of xxHash, using it")
-else ()
-  message("No installation of xxHash found, automatically downloading")
-  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/xxHash-download/CMakeLists.txt
-    "cmake_minimum_required(VERSION 2.8.11)\n"
-    "project(xxHash-download NONE)\n"
-    "include(ExternalProject)\n"
-    "ExternalProject_Add(xxHash\n"
-    "  GIT_REPOSITORY    https://github.com/Cyan4973/xxHash.git\n"
-    "  GIT_TAG           v0.8.0\n"
-    "  SOURCE_DIR        \"${CMAKE_CURRENT_BINARY_DIR}/xxHash-src\"\n"
-    "  BINARY_DIR        \"${CMAKE_CURRENT_BINARY_DIR}/xxHash-build\"\n"
-    "  CONFIGURE_COMMAND \"\"\n"
-    "  BUILD_COMMAND     \"\"\n"
-    "  INSTALL_COMMAND   \"\"\n"
-    "  TEST_COMMAND      \"\"\n"
-    ")"
-  )
-  execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
-    RESULT_VARIABLE result
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/xxHash-download
-  )
-  if(result)
-    message(FATAL_ERROR "CMake step for xxHash failed: ${result}")
-  endif()
-  execute_process(COMMAND ${CMAKE_COMMAND} --build .
-    RESULT_VARIABLE result
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/xxHash-download
-  )
-  if(result)
-    message(FATAL_ERROR "Build step for xxHash failed: ${result}")
-  endif()
+include(FindOrDownloadPackage.cmake)
 
-  # Add xxHash directly to our build. This defines the xxhash target.
-  add_subdirectory(
-    ${CMAKE_CURRENT_BINARY_DIR}/xxHash-src/cmake_unofficial
-    ${CMAKE_CURRENT_BINARY_DIR}/xxHash-build
-    EXCLUDE_FROM_ALL
-  )
-  #Add aliases to target
-  add_library(xxHash::xxhash ALIAS xxhash)
-endif()
+find_or_download_package(
+  PKG xxHash
+  VERSION 0.7
+  SOURCE_DIR cmake_unofficial
+  TARGETS xxhash
+  DOWNLOAD
+    GIT_REPOSITORY "https://github.com/Cyan4973/xxHash.git"
+    GIT_TAG "v0.8.0"
+)
 
-find_package(GTest CONFIG QUIET)
-if (TARGET GTest::gtest_main)
-  message("Found installation of GTest, using it")
-else ()
-  message("No installation of GTest found, automatically downloading")
-  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/googletest-download/CMakeLists.txt
-    "cmake_minimum_required(VERSION 2.8.11)\n"
-    "project(googletest-download NONE)\n"
-    "include(ExternalProject)\n"
-    "ExternalProject_Add(googletest\n"
-    "  GIT_REPOSITORY    https://github.com/google/googletest.git\n"
-    "  GIT_TAG           release-1.10.0\n"
-    "  SOURCE_DIR        \"${CMAKE_CURRENT_BINARY_DIR}/googletest-src\"\n"
-    "  BINARY_DIR        \"${CMAKE_CURRENT_BINARY_DIR}/googletest-build\"\n"
-    "  CONFIGURE_COMMAND \"\"\n"
-    "  BUILD_COMMAND     \"\"\n"
-    "  INSTALL_COMMAND   \"\"\n"
-    "  TEST_COMMAND      \"\"\n"
-    ")"
-  )
-  execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
-    RESULT_VARIABLE result
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googletest-download
-  )
-  if(result)
-    message(FATAL_ERROR "CMake step for googletest failed: ${result}")
-  endif()
-  execute_process(COMMAND ${CMAKE_COMMAND} --build .
-    RESULT_VARIABLE result
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googletest-download
-  )
-  if(result)
-    message(FATAL_ERROR "Build step for googletest failed: ${result}")
-  endif()
-  # Prevent overriding the parent project's compiler/linker
-  # settings on Windows
+#As specified in the googletest docs, need to set
+#gtest_force_shared_crt for windows visual studio.
+if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-
-  # Add googletest directly to our build. This defines the gtest and gtest_main targets.
-  add_subdirectory(
-    ${CMAKE_CURRENT_BINARY_DIR}/googletest-src
-    ${CMAKE_CURRENT_BINARY_DIR}/googletest-build
-    EXCLUDE_FROM_ALL
-  )
-  #Add aliases to targets
-  add_library(GTest::gtest ALIAS gtest)
-  add_library(GTest::gtest_main ALIAS gtest_main)
-  add_library(GTest::gmock ALIAS gmock)
-  add_library(GTest::gmock_main ALIAS gmock_main)
 endif()
+
+find_or_download_package(
+  PKG GTest
+  TARGETS gtest gtest_main gmock gmock_main
+  DOWNLOAD
+    GIT_REPOSITORY "https://github.com/google/googletest.git"
+    GIT_TAG "release-1.10.0"
+)
 
 #add_executable(main main.cpp)
 add_executable(l0sampling
@@ -126,4 +56,4 @@ add_executable(tests
   l0_sampling/sketch.cpp
   l0_sampling/update.cpp
 )
-target_link_libraries(tests xxHash::xxhash GTest::gtest pthread)
+target_link_libraries(tests PRIVATE xxHash::xxhash GTest::gtest)
