@@ -37,6 +37,7 @@ public:
   Update query();
 
   friend Sketch operator+ (const Sketch &sketch1, const Sketch &sketch2);
+  friend Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2);
   friend Sketch operator* (const Sketch &sketch1, long scaling_factor );
 };
 

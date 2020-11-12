@@ -61,6 +61,20 @@ Sketch operator+ (const Sketch &sketch1, const Sketch &sketch2){
   return result;
 }
 
+Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2) {
+  assert (sketch1.n == sketch2.n);
+  assert (sketch1.seed == sketch2.seed);
+  assert (sketch1.random_prime == sketch2.random_prime);
+  for (int i = 0; i < sketch1.buckets.size(); i++){
+    sketch1.buckets[i].a += sketch2.buckets[i].a;
+    sketch1.buckets[i].b += sketch2.buckets[i].b;
+    sketch1.buckets[i].c += sketch2.buckets[i].c;
+    sketch1.buckets[i].c %= sketch1.random_prime;
+  }
+  return sketch1;
+}
+
+
 Sketch operator* (const Sketch &sketch1, long scaling_factor){
   Sketch result = Sketch(sketch1.n,sketch1.seed);
   for (int i = 0; i < result.buckets.size(); i++){
