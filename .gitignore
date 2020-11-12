@@ -42,6 +42,7 @@
 
 #Intellij
 /.idea
+/cmake-build-debug
 
 #Doxygen docs
 /docs/

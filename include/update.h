@@ -6,7 +6,7 @@
  */
 struct Update{
   // the position in the vector that is changed
-  long index;
+  unsigned long long int index;
   // the magnitude of the change
   long delta;
 

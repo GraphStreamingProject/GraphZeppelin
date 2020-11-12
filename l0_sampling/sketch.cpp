@@ -7,9 +7,9 @@
 #include "../include/prime_generator.h"
 #include "../include/sketch.h"
 
-Sketch::Sketch(int n, long seed): n(n), seed(seed), random_prime(PrimeGenerator::generate_prime(n*n)) {
+Sketch::Sketch(unsigned long long int n, long seed): n(n), seed(seed), random_prime(PrimeGenerator::generate_prime(n*n)) {
   //std::cout << "Prime: " << random_prime << std::endl;
-  const int num_buckets = (log2(n)+1);
+  const unsigned long long int num_buckets = (log2(n)+1);
   //std::cout << "Number of buckets: " << num_buckets << std::endl;
   buckets = std::vector<Bucket>(num_buckets*(log2(n)+1));
   for (unsigned int i = 0; i < num_buckets; ++i){

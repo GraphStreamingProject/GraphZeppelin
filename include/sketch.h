@@ -12,14 +12,14 @@ using namespace std;
  */
 class Sketch {
   const long seed;
-  const int n;
+  const unsigned long long int n;
   std::vector<Bucket> buckets;
-  const long long int random_prime;
+  const unsigned long long int random_prime;
   bool already_quered = false;
 
   //Initialize a sketch of a vector of size n
 public:
-  Sketch(int n, long seed);
+  Sketch(unsigned long long int n, long seed);
 
   /**
    * Update a sketch based on information about one of its indices.
