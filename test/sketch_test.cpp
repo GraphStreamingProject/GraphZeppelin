@@ -78,6 +78,7 @@ TEST(SketchTestSuite, WHENmanySketchesAreSampledTHENallOfThemAreNonzero) {
     if (!failed_flag) {
       return;
     }
+    std::cout << "Failed once" << std::endl;
   }
   ASSERT_FALSE(0) << "Test failed twice in a row";
   // TODO: create probabilistic scoring system; if probability of the event we test

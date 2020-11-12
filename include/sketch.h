@@ -14,7 +14,7 @@ class Sketch {
   const long seed;
   const unsigned long long int n;
   std::vector<Bucket> buckets;
-  const unsigned long long int random_prime;
+  const long long int random_prime;
   bool already_quered = false;
 
   //Initialize a sketch of a vector of size n
