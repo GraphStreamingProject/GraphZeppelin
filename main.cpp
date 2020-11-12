@@ -1,18 +1,35 @@
-// main.cpp
-#include <xxhash.h>
-#include <stdio.h>
-#include <cstdlib>
-#include <time.h>
 #include <iostream>
-using namespace std;
+#include <limits>
+#include <boost/multiprecision/cpp_int.hpp>
 
-// int main()
-// {
-//     size_t const bufferSize = 10;
-//     void* const buffer = malloc(bufferSize);
-//     XXH64_hash_t hash = XXH64(buffer, bufferSize, time(NULL));
-//     XXH64_hash_t hash2 = XXH64(buffer, bufferSize, 0);
-//     printf("%llu\n",hash);
-//     cout << hash2 << endl;
-//     return 0;
-// }
+// #include "include/graph.h"
+// #include "include/graph_w.h"
+
+
+using cpp_int = boost::multiprecision::cpp_int;
+
+int main() {
+  unsigned long long ULLMAX = std::numeric_limits<unsigned long long>::max();
+  cpp_int num_nodes; std::cin >> num_nodes;
+  // if (num_nodes > ULLMAX) {
+  //   // use special (slower) 128-bit integer types
+  //   Graph_w g{num_nodes};
+  //   vector<set<Node_w>> res = g.connected_components();
+  //   cout << res.size() << endl;
+  //   for (auto s : res) {
+  //     cout << s.size() << endl;
+  //     for (auto n : s) cout << n << " ";
+  //     cout << endl;
+  //   }
+  // } else {
+  //   // use normal 64-bit integer types
+  //   Graph g{num_nodes};
+  //   vector<set<Node>> res = g.connected_components();
+  //   cout << res.size() << endl;
+  //   for (auto s : res) {
+  //     cout << s.size() << endl;
+  //     for (auto n : s) cout << n << " ";
+  //     cout << endl;
+  //   }
+  // }
+}
