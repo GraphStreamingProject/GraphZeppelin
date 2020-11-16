@@ -5,7 +5,7 @@
 
 TEST(SketchTestSuite, TestExceptions) {
   Sketch sketch = Sketch(10,rand());
-  ASSERT_THROW(sketch.query(), NoGoodBucketException);
+  ASSERT_THROW(sketch.query(), AllBucketsZeroException);
   ASSERT_THROW(sketch.query(), MultipleQueryException);
 }
 

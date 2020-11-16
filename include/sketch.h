@@ -40,6 +40,13 @@ public:
   friend Sketch operator* (const Sketch &sketch1, long scaling_factor );
 };
 
+class AllBucketsZeroException : public exception {
+public:
+  virtual const char* what() const throw() {
+    return "All buckets zero";
+  }
+};
+
 class MultipleQueryException : public exception {
   virtual const char* what() const throw() {
     return "This sketch has already been sampled!";
