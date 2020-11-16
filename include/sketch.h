@@ -41,12 +41,14 @@ public:
 };
 
 class MultipleQueryException : public exception {
+public:
   virtual const char* what() const throw() {
     return "This sketch has already been sampled!";
   }
 };
 
 class NoGoodBucketException : public exception {
+public:
   virtual const char* what() const throw() {
     return "Found no good bucket!";
   }
