@@ -38,7 +38,9 @@ Update Sketch::query(){
   already_quered = true;
   for (int i = 0; i < buckets.size(); i++){
     Bucket& b = buckets[i];
-    if ( b.a != 0 && b.b % b.a == 0 && (b.c - b.a*PrimeGenerator::power(b.r,b.b/b.a,random_prime))% random_prime == 0  ){
+    if ( b.a != 0 && b.b % b.a == 0 && (b.c - b.a*PrimeGenerator::power(b.r,b.b/b.a,random_prime))% random_prime == 0
+      //Additional checks
+      && 0 < b.b/b.a && b.b/b.a <= n && b.contains(b.b/b.a)){
       //cout << "Passed all tests: " << "b.a: " << b.a << " b.b: " << b.b << " b.c: " << b.c << " Guess: " << b.guess_nonzero << " r: " << b.r << endl;
       //cout << "String: " << b.stuff << endl;
       return {b.b/b.a - 1,b.a}; // 0-index adjustment
@@ -70,4 +72,21 @@ Sketch operator* (const Sketch &sketch1, long scaling_factor){
     b.c = (sketch1.buckets[i].c * scaling_factor)% result.random_prime;
   }
   return result;
+}
+
+std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
+  os << sketch.random_prime << std::endl;
+  for (unsigned i = 0; i < sketch.buckets.size(); i++){
+    const Bucket& bucket = sketch.buckets[i];
+    for (unsigned j = 0; j < sketch.n; j++) {
+      os << bucket.contains(j+1) ? '1' : '0';
+    }
+    os << std::endl
+      << "a:" << bucket.a << std::endl
+      << "b:" << bucket.b << std::endl
+      << "c:" << bucket.c << std::endl
+      << (bucket.a != 0 && bucket.b % bucket.a == 0 && (bucket.c - bucket.a*PrimeGenerator::power(bucket.r, bucket.b/bucket.a, sketch.random_prime)) % sketch.random_prime == 0 ? "good" : "bad")
+      << std::endl;
+  }
+  return os;
 }

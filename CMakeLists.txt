@@ -80,13 +80,13 @@ if(NOT GTest_FOUND)
 endif()
 
 #Find or download boost
-find_package(Boost 1.70.0)
+find_package(Boost 1.66.0)
 if(NOT Boost_FOUND)
   #Download boost
   download_project(
     PROJ boost
     GIT_REPOSITORY "https://github.com/boostorg/boost.git"
-    GIT_TAG "boost-1.70.0"
+    GIT_TAG "boost-1.66.0"
   )
 
   #Run bootstrap according to OS version
@@ -116,7 +116,7 @@ if(NOT Boost_FOUND)
 
   #Set BOOST_ROOT in cache to what we just downloaded, FindBoost again
   set(BOOST_ROOT "${boost_SOURCE_DIR}" CACHE STRING "" FORCE)
-  find_package(Boost 1.70.0)
+  find_package(Boost 1.66.0)
 endif()
 include_directories("${Boost_INCLUDE_DIR}")
 

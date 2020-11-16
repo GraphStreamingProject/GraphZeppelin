@@ -38,6 +38,7 @@ public:
 
   friend Sketch operator+ (const Sketch &sketch1, const Sketch &sketch2);
   friend Sketch operator* (const Sketch &sketch1, long scaling_factor );
+  friend std::ostream& operator<< (std::ostream &os, const Sketch &sketch);
 };
 
 class MultipleQueryException : public exception {
