@@ -43,6 +43,7 @@ jobs:
     - name: Install GTest
       if: steps.GTestCache.cache-hit != true
       shell: bash
+      working-directory: ${{runner.workspace}}
       run: |
         git clone -b release-1.10.0 https://github.com/google/googletest.git
         mkdir GTest-build
