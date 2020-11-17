@@ -24,7 +24,7 @@ jobs:
         key: xxHashCache
 
     - uses: actions/cache@v2
-      id: xxHashCache
+      id: GTestCache
       with:
         path: ${{runner.workspace}}/googletest
         key: GTestCache
