@@ -15,89 +15,81 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-#    - uses: actions/checkout@v2
-    - name: Contents of usr local
-      run: ls -R /usr/local
+    - uses: actions/checkout@v2
 
-#    - uses: actions/cache@v2
-#      id: xxHashCache
-#      with:
-#        path: ${{runner.workspace}}/xxHash-build/
-#        key: xxHashCache
+    - uses: actions/cache@v2
+      id: installedDependencyCache
+      with:
+        path: ${{runner.workspace}}/install
+        key: installedDependencyCache
 
-#    - name: Install xxHash
-#      if: steps.xxHashCache.cache-hit != true
-#      shell: bash
-#      working-directory: ${{runner.workspace}}
-#      run: |
-#        git clone -b v0.8.0 https://github.com/Cyan4973/xxHash.git
-#        mkdir xxHash-build
-#        cd xxHash-build
-#        cmake ../xxHash/cmake_unofficial
-#        cmake --build .
+    - name: Install xxHash
+      if: steps.installedDependencyCache.cache-hit != true
+      shell: bash
+      working-directory: ${{runner.workspace}}
+      run: |
+        git clone -b v0.8.0 https://github.com/Cyan4973/xxHash.git
+        cd xxHash
+        mkdir build
+        cd build
+        cmake -DCMAKE_INSTALL_PREFIX=${{runner.workspace}}/install ../cmake_unofficial
+        cmake --build . --target install
 
-#    - uses: actions/cache@v2
-#      id: GTestCache
-#      with:
-#        path: ${{runner.workspace}}/GTest-build
-#        key: GTestCache
+    - name: Install GTest
+      if: steps.installedDependency.cache-hit != true
+      shell: bash
+      working-directory: ${{runner.workspace}}
+      run: |
+        git clone -b release-1.10.0 https://github.com/google/googletest.git
+        cd googletest
+        mkdir build
+        cd build
+        cmake -DCMAKE_INSTALL_PREFIX=${{runner.workspace}}/install ..
+        cmake --build . --target install
 
-#    - name: Install GTest
-#      if: steps.GTestCache.cache-hit != true
-#      shell: bash
-#      working-directory: ${{runner.workspace}}
-#      run: |
-#        git clone -b release-1.10.0 https://github.com/google/googletest.git
-#        mkdir GTest-build
-#        cd GTest-build
-#        cmake ../googletest
-#        cmake --build .
+    - uses: actions/cache@v2
+      id: BoostCache
+      with:
+        path: ${{runner.workspace}}/boost
+        key: BoostCache
 
-#    - uses: actions/cache@v2
-#      id: BoostCache
-#      with:
-#        path: ${{runner.workspace}}/boost
-#        key: BoostCache
+    - name: Install Boost
+      if: steps.BoostCache.cache-hit != true
+      shell: bash
+      working-directory: ${{runner.workspace}}
+      run: |
+        git clone --recursive -b boost-1.66.0 "https://github.com/boostorg/boost.git"
+        cd boost
+        ./bootstrap.sh
+        ./b2 headers
 
-#    - name: Install Boost
-#      if: steps.Boost.cache-hit != true
-#      shell: bash
-#      working-directory: ${{runner.workspace}}
-#      run: |
-#        git clone --recursive -b boost-1.66.0 "https://github.com/boostorg/boost.git"
-#        cd boost
-#        ls
-#        ./bootstrap.sh
-#        ./b2 headers
+    - name: Create Build Environment
+      # Some projects don't allow in-source building, so create a separate build directory
+      # We'll use this as our working directory for all subsequent commands
+      run: cmake -E make_directory ${{runner.workspace}}/build
 
-#    - name: Create Build Environment
-#      # Some projects don't allow in-source building, so create a separate build directory
-#      # We'll use this as our working directory for all subsequent commands
-#      run: cmake -E make_directory ${{runner.workspace}}/build
+    - name: Configure CMake
+      # Use a bash shell so we can use the same syntax for environment variable
+      # access regardless of the host operating system
+      shell: bash
+      working-directory: ${{runner.workspace}}/build
+      # Note the current convention is to use the -S and -B options here to specify source 
+      # and build directories, but this is only available with CMake 3.13 and higher.  
+      # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
+      env:
+        
+        BOOST_ROOT: ${{runner.workspace}}/boost
+      run: cmake -DCMAKE_INSTALL_PREFIX=${{runner.workspace}}/install -DCMAKE_BUILD_TYPE=$BUILD_TYPE $GITHUB_WORKSPACE
 
-#    - name: Configure CMake
-#      # Use a bash shell so we can use the same syntax for environment variable
-#      # access regardless of the host operating system
-#      shell: bash
-#      working-directory: ${{runner.workspace}}/build
-#      # Note the current convention is to use the -S and -B options here to specify source 
-#      # and build directories, but this is only available with CMake 3.13 and higher.  
-#      # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
-#      env:
-#        xxHash_DIR: ${{runner.workspace}}/xxHash-build
-#        GTest_DIR: ${{runner.workspace}}/GTest-build/googletest/generated
-#        BOOST_ROOT: ${{runner.workspace}}/boost
-#      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+    - name: Build
+      working-directory: ${{runner.workspace}}/build
+      shell: bash
+      # Execute the build.  You can specify a specific target with "--target <NAME>"
+      run: cmake --build . --config $BUILD_TYPE
 
-#    - name: Build
-#      working-directory: ${{runner.workspace}}/build
-#      shell: bash
-#      # Execute the build.  You can specify a specific target with "--target <NAME>"
-#      run: cmake --build . --config $BUILD_TYPE
-
-#    - name: Test
-#      working-directory: ${{runner.workspace}}/build
-#      shell: bash
-#      # Execute tests defined by the CMake configuration.  
-#      # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
-#      run: ./tests
+    - name: Test
+      working-directory: ${{runner.workspace}}/build
+      shell: bash
+      # Execute tests defined by the CMake configuration.  
+      # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
+      run: ./tests
