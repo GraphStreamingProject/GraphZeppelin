@@ -23,12 +23,6 @@ jobs:
         path: ${{runner.workspace}}/xxHash-build/
         key: xxHashCache
 
-    - uses: actions/cache@v2
-      id: GTestCache
-      with:
-        path: ${{runner.workspace}}/GTest-build
-        key: GTestCache
-
     - name: Install xxHash
       if: steps.xxHashCache.cache-hit != true
       shell: bash
@@ -40,6 +34,12 @@ jobs:
         cmake ../xxHash/cmake_unofficial
         cmake --build .
 
+    - uses: actions/cache@v2
+      id: GTestCache
+      with:
+        path: ${{runner.workspace}}/GTest-build
+        key: GTestCache
+
     - name: Install GTest
       if: steps.GTestCache.cache-hit != true
       shell: bash
@@ -50,6 +50,22 @@ jobs:
         cd GTest-build
         cmake ../googletest
         cmake --build .
+
+    - uses: actions/cache@v2
+      id: BoostCache
+      with:
+        path: ${{runner.workspace}}/boost
+        key: BoostCache
+
+    - name: Install Boost
+      if: steps.Boost.cache-hit != true
+      shell: bash
+      working-directory: ${{runner.workspace}}
+      run: |
+        git clone --recursive -b boost-1.66.0 "https://github.com/boostorg/boost.git"
+        cd boost
+        ./boostrap.sh
+        ./b2 headers
 
     - name: Create Build Environment
       # Some projects don't allow in-source building, so create a separate build directory
@@ -67,12 +83,8 @@ jobs:
       env:
         xxHash_DIR: ${{runner.workspace}}/xxHash-build
         GTest_DIR: ${{runner.workspace}}/GTest-build/googletest/generated
-      run: |
-        echo $xxHash_DIR
-        ls $xxHash_DIR
-        echo $GTest_DIR
-        ls $GTest_DIR
-        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+        BOOST_ROOT: ${{runner.workspace}}/boost
+      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE
 
     - name: Build
       working-directory: ${{runner.workspace}}/build
