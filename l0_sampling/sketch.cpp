@@ -36,15 +36,24 @@ Update Sketch::query(){
     throw MultipleQueryException();
   }
   already_quered = true;
+  bool all_buckets_zero = true;
   for (int i = 0; i < buckets.size(); i++){
     Bucket& b = buckets[i];
-    if ( b.a != 0 && b.b % b.a == 0 && (b.c - b.a*PrimeGenerator::power(b.r,b.b/b.a,random_prime))% random_prime == 0  ){
+    if (b.a != 0 || b.b != 0 || b.c != 0) {
+      all_buckets_zero = false;
+    }
+    if (b.a != 0 && b.b % b.a == 0 && (b.c - b.a*PrimeGenerator::power(b.r,b.b/b.a,random_prime))% random_prime == 0
+      && 0 < b.b/b.a && b.b/b.a <= n && b.contains(b.b/b.a)) {
       //cout << "Passed all tests: " << "b.a: " << b.a << " b.b: " << b.b << " b.c: " << b.c << " Guess: " << b.guess_nonzero << " r: " << b.r << endl;
       //cout << "String: " << b.stuff << endl;
       return {b.b/b.a - 1,b.a}; // 0-index adjustment
     }
   }
-  throw NoGoodBucketException();
+  if (all_buckets_zero) {
+    throw AllBucketsZeroException();
+  } else {
+    throw NoGoodBucketException();
+  }
 }
 
 Sketch operator+ (const Sketch &sketch1, const Sketch &sketch2){
