@@ -69,43 +69,12 @@ TEST(SketchTestSuite, GIVENonlyIndexZeroUpdatedTHENitWorks) {
 }
 
 /**
- * Makes sure sketch addition works
+ * Make sure sketch sampling works
  */
-/*
-TEST(SketchTestSuite, TestingSketchAddition){
-  srand (time(NULL));
-  for (int i = 0; i < 10000; i++){
-    const unsigned long vect_size = 1000;
-    const unsigned long num_updates = 100;
-    const long seed = rand();
-    Sketch sketch1 = Sketch(vect_size, seed);
-    Sketch sketch2 = Sketch(vect_size, seed);
-    Testing_Vector test_vector1 = Testing_Vector(vect_size, num_updates);
-    Testing_Vector test_vector2 = Testing_Vector(vect_size, num_updates);
-    for (unsigned long j = 0; j < num_updates; j++){
-      sketch1.update(test_vector1.get_update(j));
-      sketch2.update(test_vector2.get_update(j));
-    }
-    Sketch sketchsum = sketch1 + sketch2;
-    Update result;
-    try {
-      result = sketchsum.query();
-    } catch (exception& e) {
-      ASSERT_FALSE(0) << "Failed on test " << i << "due to: " << e.what();
-    }
-    ASSERT_EQ(test_vector1.get_entry(result.index) + test_vector2.get_entry(result.index), result.delta)
-      << "Failed on test " << i;
-  }
-}
-*/
-
-TEST(SketchTestSuite, test_sketch_fail_probability) {
-  srand (time(NULL));
-  const unsigned long num_sketches = 1000;
-  const double max_fail_probability = 0;
-  const unsigned long vec_size = 10;
-  const unsigned long num_updates = 10;
-  
+void test_sketch_sample(unsigned long num_sketches,
+  unsigned long vec_size, unsigned long num_updates,
+  double max_sample_fail_prob, double max_bucket_fail_prob)
+{
   unsigned long all_bucket_failures = 0;
   unsigned long sample_incorrect_failures = 0;
   for (unsigned long i = 0; i < num_sketches; i++) {
@@ -122,23 +91,99 @@ TEST(SketchTestSuite, test_sketch_fail_probability) {
       if (res.delta != test_vec.get_entry(res.index)) {
         //Undetected sample error
         sample_incorrect_failures++;
-        EXPECT_EQ(res.delta, test_vec.get_entry(res.index))
-          << "Sample incorrect" << std::endl;
+      }
+    } catch (AllBucketsZeroException& e) {
+      //All buckets being 0 implies that the whole vector should be 0
+      bool vec_zero = true;
+      for (unsigned long j = 0; vec_zero && j < vec_size; j++) {
+        if (test_vec.get_entry(j) != 0) {
+          vec_zero = false;
+        }
+      }
+      if (!vec_zero) {
+        sample_incorrect_failures++;
       }
     } catch (NoGoodBucketException& e) {
       //No good bucket
       all_bucket_failures++;
-      EXPECT_TRUE(0) << "All buckets failed" << std::endl;
     } catch (MultipleQueryException& e) {
       //Multiple queries shouldn't happen, but if we do get here fail test
-      ASSERT_TRUE(0) << e.what();
+      FAIL() << e.what();
     }
   }
-  EXPECT_LT(all_bucket_failures, max_fail_probability * num_sketches)
+  EXPECT_LE(sample_incorrect_failures, max_sample_fail_prob * num_sketches)
     << "Sample incorrect " << sample_incorrect_failures << '/' << num_sketches
-    << " times (expected less than " << max_fail_probability << ')';
-  EXPECT_LT(all_bucket_failures, max_fail_probability * num_sketches)
+    << " times (expected less than " << max_sample_fail_prob << ')';
+  EXPECT_LE(all_bucket_failures, max_bucket_fail_prob * num_sketches)
     << "All buckets failed " << all_bucket_failures << '/' << num_sketches
-    << " times (expected less than " << max_fail_probability << ')';
+    << " times (expected less than " << max_bucket_fail_prob << ')';
 }
 
+TEST(SketchTestSuite, TestSketchSample) {
+  srand (time(NULL));
+  test_sketch_sample(10000, 100, 100, 0.005, 0.005);
+  test_sketch_sample(1000, 1000, 1000, 0.001, 0.001);
+  test_sketch_sample(1000, 10000, 10000, 0.001, 0.001);
+}
+
+/**
+ * Make sure sketch addition works
+ */
+void test_sketch_addition(unsigned long num_sketches,
+  unsigned long vec_size, unsigned long num_updates,
+  double max_sample_fail_prob, double max_bucket_fail_prob)
+{
+  unsigned long all_bucket_failures = 0;
+  unsigned long sample_incorrect_failures = 0;
+  for (int i = 0; i < num_sketches; i++){
+    const long seed = rand();
+    Sketch sketch1 = Sketch(vec_size, seed);
+    Sketch sketch2 = Sketch(vec_size, seed);
+    Testing_Vector test_vec1 = Testing_Vector(vec_size, num_updates);
+    Testing_Vector test_vec2 = Testing_Vector(vec_size, num_updates);
+
+    for (unsigned long j = 0; j < num_updates; j++){
+      sketch1.update(test_vec1.get_update(j));
+      sketch2.update(test_vec2.get_update(j));
+    }
+    Sketch sketchsum = sketch1 + sketch2;
+    try {
+      Update res = sketchsum.query();
+      ASSERT_NE(res.delta, 0) << "Sample is zero";
+      ASSERT_LT(res.index, vec_size) << "Sampled index out of bounds";
+      if (res.delta != test_vec1.get_entry(res.index) + test_vec2.get_entry(res.index)) {
+        sample_incorrect_failures++;
+      }
+    } catch (AllBucketsZeroException& e) {
+      //All buckets being 0 implies that the whole vector should be 0
+      bool vec_zero = true;
+      for (unsigned long j = 0; vec_zero && j < vec_size; j++) {
+        if (test_vec1.get_entry(j) + test_vec2.get_entry(j) != 0) {
+          vec_zero = false;
+        }
+      }
+      if (!vec_zero) {
+        sample_incorrect_failures++;
+      }
+    } catch (NoGoodBucketException& e) {
+      //No good bucket
+      all_bucket_failures++;
+    } catch (MultipleQueryException& e) {
+      //Multiple queries shouldn't happen, but if we do get here fail test
+      FAIL() << e.what();
+    }
+  }
+  EXPECT_LE(sample_incorrect_failures, max_sample_fail_prob * num_sketches)
+    << "Sample incorrect " << sample_incorrect_failures << '/' << num_sketches
+    << " times (expected less than " << max_sample_fail_prob << ')';
+  EXPECT_LE(all_bucket_failures, max_bucket_fail_prob * num_sketches)
+    << "All buckets failed " << all_bucket_failures << '/' << num_sketches
+    << " times (expected less than " << max_bucket_fail_prob << ')';
+}
+
+TEST(SketchTestSuite, TestSketchAddition){
+  srand (time(NULL));
+  test_sketch_addition(10000, 100, 100, 0.005, 0.005);
+  test_sketch_addition(1000, 1000, 1000, 0.001, 0.001);
+  test_sketch_addition(1000, 10000, 10000, 0.001, 0.001);
+}
