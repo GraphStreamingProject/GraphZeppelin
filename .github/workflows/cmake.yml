@@ -20,13 +20,13 @@ jobs:
     - uses: actions/cache@v2
       id: xxHashCache
       with:
-        path: ${{runner.workspace}}/xxHash
+        path: ${{runner.workspace}}/xxHash-build/
         key: xxHashCache
 
     - uses: actions/cache@v2
       id: GTestCache
       with:
-        path: ${{runner.workspace}}/googletest
+        path: ${{runner.workspace}}/GTest-build
         key: GTestCache
 
     - name: Install xxHash
@@ -35,10 +35,9 @@ jobs:
       working-directory: ${{runner.workspace}}
       run: |
         git clone -b v0.8.0 https://github.com/Cyan4973/xxHash.git
-        cd xxHash
-        mkdir build
-        cd build
-        cmake ../cmake_unofficial
+        mkdir xxHash-build
+        cd xxHash-build
+        cmake ../xxHash/cmake_unofficial
         cmake --build .
 
     - name: Install GTest
@@ -46,10 +45,9 @@ jobs:
       shell: bash
       run: |
         git clone -b release-1.10.0 https://github.com/google/googletest.git
-        cd googletest
-        mkdir build
-        cd build
-        cmake ..
+        mkdir GTest-build
+        cd GTest-build
+        cmake ../googletest
         cmake --build .
 
     - name: Create Build Environment
@@ -66,12 +64,9 @@ jobs:
       # and build directories, but this is only available with CMake 3.13 and higher.  
       # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
       env:
-        xxHash_DIR: ${{runner.workspace}}/xxHash/build
-        GTest_DIR: ${{runner.workspace}}/googletest/build
-      run: |
-        echo $xxHash_DIR
-        ls $xxHash_DIR
-        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+        xxHash_DIR: ${{runner.workspace}}/xxHash-build
+        GTest_DIR: ${{runner.workspace}}/GTest-build/googletest/generated
+      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE
 
     - name: Build
       working-directory: ${{runner.workspace}}/build
