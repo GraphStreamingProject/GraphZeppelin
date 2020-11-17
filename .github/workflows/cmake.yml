@@ -18,13 +18,13 @@ jobs:
     - uses: actions/checkout@v2
 
     - uses: actions/cache@v2
-      id: installedDependencyCache
+      id: InstalledDependencyCache
       with:
         path: ${{runner.workspace}}/install
-        key: installedDependencyCache
+        key: InstalledDependencyCache
 
     - name: Install xxHash
-      if: steps.installedDependencyCache.cache-hit != true
+      if: steps.InstalledDependencyCache.outputs.cache-hit != true
       shell: bash
       working-directory: ${{runner.workspace}}
       run: |
@@ -36,7 +36,7 @@ jobs:
         cmake --build . --target install
 
     - name: Install GTest
-      if: steps.installedDependency.cache-hit != true
+      if: steps.InstalledDependencyCache.outputs.cache-hit != true
       shell: bash
       working-directory: ${{runner.workspace}}
       run: |
@@ -54,7 +54,7 @@ jobs:
         key: BoostCache
 
     - name: Install Boost
-      if: steps.BoostCache.cache-hit != true
+      if: steps.BoostCache.outputs.cache-hit != true
       shell: bash
       working-directory: ${{runner.workspace}}
       run: |
@@ -73,11 +73,10 @@ jobs:
       # access regardless of the host operating system
       shell: bash
       working-directory: ${{runner.workspace}}/build
-      # Note the current convention is to use the -S and -B options here to specify source 
-      # and build directories, but this is only available with CMake 3.13 and higher.  
+      # Note the current convention is to use the -S and -B options here to specify source
+      # and build directories, but this is only available with CMake 3.13 and higher.
       # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
       env:
-        
         BOOST_ROOT: ${{runner.workspace}}/boost
       run: cmake -DCMAKE_INSTALL_PREFIX=${{runner.workspace}}/install -DCMAKE_BUILD_TYPE=$BUILD_TYPE $GITHUB_WORKSPACE
 
@@ -90,6 +89,6 @@ jobs:
     - name: Test
       working-directory: ${{runner.workspace}}/build
       shell: bash
-      # Execute tests defined by the CMake configuration.  
+      # Execute tests defined by the CMake configuration.
       # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
       run: ./tests
