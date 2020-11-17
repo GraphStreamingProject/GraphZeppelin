@@ -64,7 +64,8 @@ jobs:
       run: |
         git clone --recursive -b boost-1.66.0 "https://github.com/boostorg/boost.git"
         cd boost
-        ./boostrap.sh
+        ls
+        ./bootstrap.sh
         ./b2 headers
 
     - name: Create Build Environment
