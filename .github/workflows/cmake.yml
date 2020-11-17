@@ -24,7 +24,7 @@ jobs:
         key: InstalledDependencyCache
 
     - name: Install xxHash
-      if: steps.InstalledDependencyCache.outputs.cache-hit != true
+      if: steps.InstalledDependencyCache.outputs.cache-hit != 'true'
       shell: bash
       working-directory: ${{runner.workspace}}
       run: |
@@ -36,7 +36,7 @@ jobs:
         cmake --build . --target install
 
     - name: Install GTest
-      if: steps.InstalledDependencyCache.outputs.cache-hit != true
+      if: steps.InstalledDependencyCache.outputs.cache-hit != 'true'
       shell: bash
       working-directory: ${{runner.workspace}}
       run: |
@@ -54,7 +54,7 @@ jobs:
         key: BoostCache
 
     - name: Install Boost
-      if: steps.BoostCache.outputs.cache-hit != true
+      if: steps.BoostCache.outputs.cache-hit != 'true'
       shell: bash
       working-directory: ${{runner.workspace}}
       run: |
