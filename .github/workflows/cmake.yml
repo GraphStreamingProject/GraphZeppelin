@@ -17,30 +17,45 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
-    - name: Create Build Environment
-      # Some projects don't allow in-source building, so create a separate build directory
-      # We'll use this as our working directory for all subsequent commands
-      run: cmake -E make_directory ${{runner.workspace}}/build
+    - uses: actions/cache@v2
+      id: xxHashCache
+      with:
+        path: ${{runner.workspace}}/xxHash
+        key: xxHashCache
+
+    - uses: actions/cache@v2
+      id: xxHashCache
+      with:
+        path: ${{runner.workspace}}/googletest
+        key: GTestCache
 
     - name: Install xxHash
+      if: steps.xxHashCache.cache-hit != true
       shell: bash
       working-directory: ${{runner.workspace}}
       run: |
-        git clone https://github.com/Cyan4973/xxHash.git
+        git clone -b v0.8.0 https://github.com/Cyan4973/xxHash.git
         cd xxHash
         mkdir build
         cd build
         cmake ../cmake_unofficial
         cmake --build .
-      
-    - name: Install libgtest-dev
+
+    - name: Install GTest
+      if: steps.GTestCache.cache-hit != true
       shell: bash
       run: |
-        sudo apt-get install libgtest-dev
-        cd /usr/src/gtest
-        sudo cmake CMakeLists.txt
-        sudo make
-        sudo cp *.a /usr/lib
+        git clone -b release-1.10.0 https://github.com/google/googletest.git
+        cd googletest
+        mkdir build
+        cd build
+        cmake ..
+        cmake --build .
+
+    - name: Create Build Environment
+      # Some projects don't allow in-source building, so create a separate build directory
+      # We'll use this as our working directory for all subsequent commands
+      run: cmake -E make_directory ${{runner.workspace}}/build
 
     - name: Configure CMake
       # Use a bash shell so we can use the same syntax for environment variable
@@ -52,6 +67,7 @@ jobs:
       # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
       env:
         xxHash_DIR: ${{runner.workspace}}/xxHash/build
+        GTest_DIR: ${{runner.workspace}}/googletest/build
       run: |
         echo $xxHash_DIR
         ls $xxHash_DIR
