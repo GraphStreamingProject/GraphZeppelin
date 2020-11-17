@@ -4,9 +4,45 @@
 #include "../include/update.h"
 
 TEST(SketchTestSuite, TestExceptions) {
-  Sketch sketch = Sketch(10,rand());
-  ASSERT_THROW(sketch.query(), AllBucketsZeroException);
-  ASSERT_THROW(sketch.query(), MultipleQueryException);
+  Sketch sketch1 = Sketch(10,rand());
+  ASSERT_THROW(sketch1.query(), AllBucketsZeroException);
+  ASSERT_THROW(sketch1.query(), MultipleQueryException);
+
+  /*
+   * Use deterministic sketch
+   * This generates the following buckets:
+   * 1111111111
+   * 1001010011
+   * 0100000100
+   * 0000000000
+   * 1111111111
+   * 0010100111
+   * 0111100000
+   * 0000110101
+   * 1111111111
+   * 0101011010
+   * 0000000010
+   * 0000000000
+   * 1111111111
+   * 0000000010
+   * 0000011000
+   * 0000000000
+   * 0100000000
+   *
+   * To find a set of indicies where no good buckets exist, repeatedly
+   * eliminate the index of a good bucket until no good buckets exist.
+   *
+   * Once we have our indicies, try deltas until all buckets are not good.
+   */
+  Sketch sketch2 = Sketch(10, 1);
+  sketch2.update({0, 1});
+  sketch2.update({2, 1});
+  sketch2.update({3, 1});
+  sketch2.update({4, 1});
+  sketch2.update({5, 1});
+  sketch2.update({6, 1});
+  sketch2.update({9, 1});
+  ASSERT_THROW(sketch2.query(), NoGoodBucketException);
 }
 
 TEST(SketchTestSuite, GIVENonlyIndexZeroUpdatedTHENitWorks) {
