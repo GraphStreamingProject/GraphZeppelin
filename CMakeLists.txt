@@ -1,8 +1,6 @@
 #TODO: write FindxxHash for libxxhash-dev compatibility?
 #Cmake for xxHash is unofficial, so libxxhash-dev doesn't have xxHashConfig.cmake
 
-#TODO: Make autodownloading an option, instead of default.
-
 cmake_minimum_required(VERSION 3.1)
 
 set(CMAKE_CXX_STANDARD 11)
@@ -100,8 +98,7 @@ find_package(Boost 1.66.0)
 if(NOT Boost_FOUND)
   if(NOT AUTODOWNLOAD)
     message(FATAL_ERROR "Boost not found.\n"
-      "${Boost_ERROR_REASON}\n"
-      "Set BOOST_ROOT to a directory where boost is installed\n"
+      "Set BOOST_ROOT to a directory where Boost is installed\n"
       "or use -DAUTODOWNLOAD:BOOL=ON to automatically download")
   else()
     #Download boost
