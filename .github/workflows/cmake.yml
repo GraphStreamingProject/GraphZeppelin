@@ -76,7 +76,7 @@ jobs:
         echo $xxHash_DIR
         ls $xxHash_DIR
         cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE
-
+    
     - name: Build
       working-directory: ${{runner.workspace}}/build
       shell: bash
