@@ -31,8 +31,8 @@ ull nondirectional_non_self_edge_pairing_fn(ull i, ull j) {
   }
 
   ull jm = j-1;
-  if (j%2 == 0) j>>=1;
-  else jm>>=1;
+  if (j%2 == 0) j>>=1u;
+  else jm>>=1u;
   if (ULLMAX/j < jm)
     throw std::overflow_error("Computation would overflow unsigned long long max");
   j*=jm;
@@ -46,8 +46,8 @@ pair<ull, ull> inv_nondir_non_self_edge_pairing_fn(ull idx) {
   eidx = sqrt(eidx)+1;
   eidx/=2;
   ull i,j = (ull) eidx;
-  if (j%2 == 0) i = idx-(j>>1)*(j-1);
-  else i = idx-j*((j-1)>>1);
+  if (j%2 == 0) i = idx-(j>>1u)*(j-1);
+  else i = idx-j*((j-1)>>1u);
   return {i, j};
 }
 
@@ -61,8 +61,8 @@ ull cantor_pairing_fn(ull i, ull j) {
   if (j < ULLMAX && ULLMAX - i < j+1)
     throw std::overflow_error("Computation would overflow unsigned long long max");
   ull am = i+j, bm = i+j+1;
-  if (am % 2 == 0) am>>=1;
-  else bm>>=1;
+  if (am % 2 == 0) am>>=1u;
+  else bm>>=1u;
   if (ULLMAX/am < bm)
     throw std::overflow_error("Computation would overflow unsigned long long max");
   am*=bm;
@@ -71,7 +71,8 @@ ull cantor_pairing_fn(ull i, ull j) {
   return am+j;
 }
 
-Supernode::Supernode(ull n, long seed): idx(0), logn(log2(n)), sketches(log2(n)) {
+Supernode::Supernode(ull n, long seed): sketches(log2(n)), idx(0), logn(log2
+(n)) {
   // generate logn sketches for each supernode (read: node)
   srand(seed);
   long r = rand();
@@ -84,7 +85,7 @@ boost::optional<Edge> Supernode::sample() {
   Update query;
   try {
     query = sketches[idx]->query();
-  } catch (NoGoodBucketException &e) {
+  } catch (AllBucketsZeroException &e) {
     ++idx;
     return {};
   }
