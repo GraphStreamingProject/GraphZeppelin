@@ -72,9 +72,8 @@ TEST(SketchTestSuite, GIVENonlyIndexZeroUpdatedTHENitWorks) {
  * Make sure sketch sampling works
  */
 void test_sketch_sample(unsigned long num_sketches,
-  unsigned long vec_size, unsigned long num_updates,
-  double max_sample_fail_prob, double max_bucket_fail_prob)
-{
+    unsigned long vec_size, unsigned long num_updates,
+    double max_sample_fail_prob, double max_bucket_fail_prob) {
   unsigned long all_bucket_failures = 0;
   unsigned long sample_incorrect_failures = 0;
   for (unsigned long i = 0; i < num_sketches; i++) {
@@ -130,9 +129,8 @@ TEST(SketchTestSuite, TestSketchSample) {
  * Make sure sketch addition works
  */
 void test_sketch_addition(unsigned long num_sketches,
-  unsigned long vec_size, unsigned long num_updates,
-  double max_sample_fail_prob, double max_bucket_fail_prob)
-{
+    unsigned long vec_size, unsigned long num_updates,
+    double max_sample_fail_prob, double max_bucket_fail_prob) {
   unsigned long all_bucket_failures = 0;
   unsigned long sample_incorrect_failures = 0;
   for (int i = 0; i < num_sketches; i++){
