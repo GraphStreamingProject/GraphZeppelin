@@ -39,4 +39,18 @@ public:
   long get_entry(unsigned long i){
     return (*vect)[i];
   }
+
+  friend std::ostream& operator<< (std::ostream &os, const Testing_Vector &vec);
 };
+
+ostream& operator<<(ostream& os, const Testing_Vector& vec) {
+  for (unsigned long i = 0; i < vec.num_updates; i++) {
+    os << vec.stream[i] << std::endl;
+  }
+  vector<long> vect = *(vec.vect);
+  for (auto val : vect) {
+    os << val  << ',';
+  }
+  os << std::endl;
+  return os;
+}

@@ -19,7 +19,7 @@ struct Bucket{
    * Checks whether the hash associated with the Bucket hashes the index to 0.
    * @return true if the index is NOT hashed to zero.
    */
-  bool contains(long index){
+  bool contains(long index) const {
     XXH64_hash_t hash = XXH64(&index, 8, bucket_seed);
     if (hash % guess_nonzero == 0)
       return true;
@@ -37,7 +37,8 @@ struct Bucket{
 
   void set_seed(long bucket_id, long sketch_seed,long random_prime){
     bucket_seed = XXH64(&bucket_id ,8, sketch_seed);
-    r = bucket_seed % random_prime;
+    //Do not use r in {-1, 0, 1}, they make the c test less effective
+    r = 2 + bucket_seed % (random_prime - 3);
     //cout << "r : " << r << endl;
   }
 };
