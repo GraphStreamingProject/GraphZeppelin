@@ -92,6 +92,7 @@ std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
       << "a:" << bucket.a << std::endl
       << "b:" << bucket.b << std::endl
       << "c:" << bucket.c << std::endl
+      << "r:" << bucket.r << std::endl
       << (bucket.a != 0 && bucket.b % bucket.a == 0 && (bucket.c - bucket.a*PrimeGenerator::power(bucket.r, bucket.b/bucket.a, sketch.random_prime)) % sketch.random_prime == 0 ? "good" : "bad")
       << std::endl;
   }
