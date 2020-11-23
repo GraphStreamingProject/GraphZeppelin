@@ -39,21 +39,25 @@ public:
   friend Sketch operator+ (const Sketch &sketch1, const Sketch &sketch2);
   friend Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2);
   friend Sketch operator* (const Sketch &sketch1, long scaling_factor );
+  friend std::ostream& operator<< (std::ostream &os, const Sketch &sketch);
 };
 
 class AllBucketsZeroException : public exception {
+public:
   virtual const char* what() const throw() {
     return "All buckets zero";
   }
 };
 
 class MultipleQueryException : public exception {
+public:
   virtual const char* what() const throw() {
     return "This sketch has already been sampled!";
   }
 };
 
 class NoGoodBucketException : public exception {
+public:
   virtual const char* what() const throw() {
     return "Found no good bucket!";
   }

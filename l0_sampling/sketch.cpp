@@ -93,3 +93,21 @@ Sketch operator* (const Sketch &sketch1, long scaling_factor){
   }
   return result;
 }
+
+std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
+  os << sketch.random_prime << std::endl;
+  for (unsigned i = 0; i < sketch.buckets.size(); i++){
+    const Bucket& bucket = sketch.buckets[i];
+    for (unsigned j = 0; j < sketch.n; j++) {
+      os << bucket.contains(j+1) ? '1' : '0';
+    }
+    os << std::endl
+      << "a:" << bucket.a << std::endl
+      << "b:" << bucket.b << std::endl
+      << "c:" << bucket.c << std::endl
+      << "r:" << bucket.r << std::endl
+      << (bucket.a != 0 && bucket.b % bucket.a == 0 && (bucket.c - bucket.a*PrimeGenerator::power(bucket.r, bucket.b/bucket.a, sketch.random_prime)) % sketch.random_prime == 0 ? "good" : "bad")
+      << std::endl;
+  }
+  return os;
+}

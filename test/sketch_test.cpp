@@ -48,7 +48,7 @@ TEST(SketchTestSuite, GIVENonlyIndexZeroUpdatedTHENitWorks) {
   // GIVEN only the index 0 is updated
   srand(time(NULL));
   int vec_size = 1000;
-  int num_updates = 100;
+  int num_updates = 1000;
   int delta = 0, d;
   Sketch sketch = Sketch(vec_size, rand());
   for (int i=0;i<num_updates-1;++i) {
@@ -64,58 +64,124 @@ TEST(SketchTestSuite, GIVENonlyIndexZeroUpdatedTHENitWorks) {
   // THEN it works
   Update res = sketch.query();
   Update exp {0,delta};
-  ASSERT_EQ(res, exp) << "Expected: " << exp << "\nActual: " << res;
+  ASSERT_EQ(res, exp) << "Expected: " << exp << std::endl << "Actual: " << res;
 }
 
-TEST(SketchTestSuite, TestingSketchAddition){
-  srand (time(NULL));
-  for (int i = 0; i < 1000; i++){
-    const unsigned long vect_size = 1000;
-    const unsigned long num_updates = 1000;
-    Sketch sketch = Sketch(vect_size,rand());
-    Testing_Vector test_vector = Testing_Vector(vect_size,num_updates);
+/**
+ * Make sure sketch sampling works
+ */
+void test_sketch_sample(unsigned long num_sketches,
+    unsigned long vec_size, unsigned long num_updates,
+    double max_sample_fail_prob, double max_bucket_fail_prob) {
+  unsigned long all_bucket_failures = 0;
+  unsigned long sample_incorrect_failures = 0;
+  for (unsigned long i = 0; i < num_sketches; i++) {
+    Testing_Vector test_vec = Testing_Vector(vec_size, num_updates);
+    Sketch sketch = Sketch(vec_size, rand());
     for (unsigned long j = 0; j < num_updates; j++){
-      sketch.update(test_vector.get_update(j));
+      sketch.update(test_vec.get_update(j));
     }
-    Update result;
     try {
-      result = sketch.query();
-    } catch (exception& e) {
-      ASSERT_FALSE(0) << "Failed on test " << i << "due to: " << e.what();
-    }
-    if (test_vector.get_entry(result.index) == 0 || test_vector.get_entry(result.index) != result.delta ){
-      ASSERT_FALSE(0) << "Failed on test " << i;
+      Update res = sketch.query();
+      //Multiple queries shouldn't happen, but if we do get here fail test
+      ASSERT_NE(res.delta, 0) << "Sample is zero";
+      ASSERT_LT(res.index, vec_size) << "Sampled index out of bounds";
+      if (res.delta != test_vec.get_entry(res.index)) {
+        //Undetected sample error
+        sample_incorrect_failures++;
+      }
+    } catch (AllBucketsZeroException& e) {
+      //All buckets being 0 implies that the whole vector should be 0
+      bool vec_zero = true;
+      for (unsigned long j = 0; vec_zero && j < vec_size; j++) {
+        if (test_vec.get_entry(j) != 0) {
+          vec_zero = false;
+        }
+      }
+      if (!vec_zero) {
+        sample_incorrect_failures++;
+      }
+    } catch (NoGoodBucketException& e) {
+      //No good bucket
+      all_bucket_failures++;
+    } catch (MultipleQueryException& e) {
+      //Multiple queries shouldn't happen, but if we do get here fail test
+      FAIL() << e.what();
     }
   }
+  EXPECT_LE(sample_incorrect_failures, max_sample_fail_prob * num_sketches)
+    << "Sample incorrect " << sample_incorrect_failures << '/' << num_sketches
+    << " times (expected less than " << max_sample_fail_prob << ')';
+  EXPECT_LE(all_bucket_failures, max_bucket_fail_prob * num_sketches)
+    << "All buckets failed " << all_bucket_failures << '/' << num_sketches
+    << " times (expected less than " << max_bucket_fail_prob << ')';
 }
 
-TEST(SketchTestSuite, WHENmanySketchesAreSampledTHENallOfThemAreNonzero) {
-  srand(time(NULL));
-  int n = 100000;
-  int vec_size = 1000;
-  int num_updates = 100;
-  int times = 2;
+TEST(SketchTestSuite, TestSketchSample) {
+  srand (time(NULL));
+  test_sketch_sample(10000, 100, 100, 0.005, 0.005);
+  test_sketch_sample(1000, 1000, 1000, 0.001, 0.001);
+  test_sketch_sample(1000, 10000, 10000, 0.001, 0.001);
+}
 
-  while (times--) {
-    bool failed_flag = 0;
-    Testing_Vector test_vec = Testing_Vector(vec_size,num_updates);
-    for (int i=0;i<n;++i) {
-      Sketch sketch = Sketch(vec_size,rand());
-      for (int j=0;j<num_updates;++j) {
-        sketch.update(test_vec.get_update(j));
-      }
-      Update res = sketch.query();
-      if (res.delta == 0 || test_vec.get_entry(res.index) != res.delta) {
-        failed_flag = 1;
-        break;
-      }
+/**
+ * Make sure sketch addition works
+ */
+void test_sketch_addition(unsigned long num_sketches,
+    unsigned long vec_size, unsigned long num_updates,
+    double max_sample_fail_prob, double max_bucket_fail_prob) {
+  unsigned long all_bucket_failures = 0;
+  unsigned long sample_incorrect_failures = 0;
+  for (int i = 0; i < num_sketches; i++){
+    const long seed = rand();
+    Sketch sketch1 = Sketch(vec_size, seed);
+    Sketch sketch2 = Sketch(vec_size, seed);
+    Testing_Vector test_vec1 = Testing_Vector(vec_size, num_updates);
+    Testing_Vector test_vec2 = Testing_Vector(vec_size, num_updates);
+
+    for (unsigned long j = 0; j < num_updates; j++){
+      sketch1.update(test_vec1.get_update(j));
+      sketch2.update(test_vec2.get_update(j));
     }
-    if (!failed_flag) {
-      return;
+    Sketch sketchsum = sketch1 + sketch2;
+    try {
+      Update res = sketchsum.query();
+      ASSERT_NE(res.delta, 0) << "Sample is zero";
+      ASSERT_LT(res.index, vec_size) << "Sampled index out of bounds";
+      if (res.delta != test_vec1.get_entry(res.index) + test_vec2.get_entry(res.index)) {
+        sample_incorrect_failures++;
+      }
+    } catch (AllBucketsZeroException& e) {
+      //All buckets being 0 implies that the whole vector should be 0
+      bool vec_zero = true;
+      for (unsigned long j = 0; vec_zero && j < vec_size; j++) {
+        if (test_vec1.get_entry(j) + test_vec2.get_entry(j) != 0) {
+          vec_zero = false;
+        }
+      }
+      if (!vec_zero) {
+        sample_incorrect_failures++;
+      }
+    } catch (NoGoodBucketException& e) {
+      //No good bucket
+      all_bucket_failures++;
+    } catch (MultipleQueryException& e) {
+      //Multiple queries shouldn't happen, but if we do get here fail test
+      FAIL() << e.what();
     }
     std::cout << "Failed once" << std::endl;
   }
-  ASSERT_FALSE(0) << "Test failed twice in a row";
-  // TODO: create probabilistic scoring system; if probability of the event we test
-  // becomes below some threshhold, fail
+  EXPECT_LE(sample_incorrect_failures, max_sample_fail_prob * num_sketches)
+    << "Sample incorrect " << sample_incorrect_failures << '/' << num_sketches
+    << " times (expected less than " << max_sample_fail_prob << ')';
+  EXPECT_LE(all_bucket_failures, max_bucket_fail_prob * num_sketches)
+    << "All buckets failed " << all_bucket_failures << '/' << num_sketches
+    << " times (expected less than " << max_bucket_fail_prob << ')';
+}
+
+TEST(SketchTestSuite, TestSketchAddition){
+  srand (time(NULL));
+  test_sketch_addition(10000, 100, 100, 0.005, 0.005);
+  test_sketch_addition(1000, 1000, 1000, 0.001, 0.001);
+  test_sketch_addition(1000, 10000, 10000, 0.001, 0.001);
 }
