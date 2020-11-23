@@ -6,7 +6,7 @@ Graph::Graph(unsigned long long int num_nodes): num_nodes(num_nodes) {
   representatives = new set<Node>();
   supernodes = new Supernode*[num_nodes];
   parent = new Node[num_nodes];
-  time_t seed = time(NULL);
+  time_t seed = time(nullptr);
   for (Node i=0;i<num_nodes;++i) {
     representatives->insert(i);
     supernodes[i] = new Supernode(num_nodes,seed);
@@ -22,16 +22,25 @@ Graph::~Graph() {
 }
 
 void Graph::update(GraphUpdate upd) {
+  if (UPDATE_LOCKED) throw UpdateLockedException();
+  Edge &edge = upd.first;
+  // ensure lhs < rhs
+  if (edge.first > edge.second) {
+    edge.first^=edge.second;
+    edge.second^=edge.first;
+    edge.first^=edge.second;
+  }
   if (upd.second == INSERT) {
-    supernodes[upd.first.first]->update({upd.first, 1});
-    supernodes[upd.first.second]->update({upd.first, -1});
+    supernodes[edge.first]->update({edge, 1});
+    supernodes[edge.second]->update({edge, -1});
   } else {
-    supernodes[upd.first.first]->update({upd.first, -1});
-    supernodes[upd.first.second]->update({upd.first, 1});
+    supernodes[edge.first]->update({edge, -1});
+    supernodes[edge.second]->update({edge, 1});
   }
 }
 
 vector<set<Node>> Graph::connected_components() {
+  UPDATE_LOCKED = true; // disallow updating the graph after we run the alg
   bool modified;
   do {
     modified = false;
@@ -56,13 +65,13 @@ vector<set<Node>> Graph::connected_components() {
       }
       supernodes[i]->merge(*supernodes[n]);
     }
-    if (removed.size()) modified = true;
+    if (!removed.empty()) modified = true;
     for (Node i : removed) representatives->erase(i);
   } while (modified);
   map<Node, set<Node>> temp;
   for (Node i=0;i<num_nodes;++i)
     temp[get_parent(i)].insert(i);
-  vector<set<Node>> retval;
+  vector<set<Node>> retval(temp.size());
   for (auto it : temp) retval.push_back(it.second);
   return retval;
 }

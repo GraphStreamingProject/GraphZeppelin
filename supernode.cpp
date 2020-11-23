@@ -1,75 +1,8 @@
-#include <iostream>
-#include <iomanip>
 #include <stdexcept>
-#include <limits>
 #include <cmath>
 #include <boost/multiprecision/cpp_int.hpp>
-#include <boost/multiprecision/cpp_dec_float.hpp>
 #include "include/supernode.h"
-
-typedef long long int ll;
-typedef unsigned long long int ull;
-
-using uint128_t = boost::multiprecision::uint128_t;
-
-const ull ULLMAX = std::numeric_limits<ull>::max();
-
-/**
- * A function Z_+ x Z_+ -> Z_+ that implements a non-self-edge pairing function
- * that does not respect order of inputs.
- * That is, (2,2) would not be a valid input. (1,3) and (3,1) would be treated as
- * identical inputs.
- * @return i + j*(j-1)/2
- * @throws overflow_error if there would be an overflow in computing the function.
- */
-ull nondirectional_non_self_edge_pairing_fn(ull i, ull j) {
-  // swap i,j if necessary
-  if (i > j) {
-    i^=j;
-    j^=i;
-    i^=j;
-  }
-
-  ull jm = j-1;
-  if (j%2 == 0) j>>=1u;
-  else jm>>=1u;
-  if (ULLMAX/j < jm)
-    throw std::overflow_error("Computation would overflow unsigned long long max");
-  j*=jm;
-  if (ULLMAX-j < i)
-    throw std::overflow_error("Computation would overflow unsigned long long max");
-  return i+j;
-}
-
-pair<ull, ull> inv_nondir_non_self_edge_pairing_fn(ull idx) {
-  uint128_t eidx = 8*(uint128_t)idx + 1;
-  eidx = sqrt(eidx)+1;
-  eidx/=2;
-  ull i,j = (ull) eidx;
-  if (j%2 == 0) i = idx-(j>>1u)*(j-1);
-  else i = idx-j*((j-1)>>1u);
-  return {i, j};
-}
-
-/**
- * Implementation of the Cantor diagonal pairing function.
- * @throws overflow_error if there would be an overflow in computing the function.
- */
-ull cantor_pairing_fn(ull i, ull j) {
-  if (ULLMAX - i < j)
-    throw std::overflow_error("Computation would overflow unsigned long long max");
-  if (j < ULLMAX && ULLMAX - i < j+1)
-    throw std::overflow_error("Computation would overflow unsigned long long max");
-  ull am = i+j, bm = i+j+1;
-  if (am % 2 == 0) am>>=1u;
-  else bm>>=1u;
-  if (ULLMAX/am < bm)
-    throw std::overflow_error("Computation would overflow unsigned long long max");
-  am*=bm;
-  if (ULLMAX - am < j)
-    throw std::overflow_error("Computation would overflow unsigned long long max");
-  return am+j;
-}
+#include "include/util.h"
 
 Supernode::Supernode(ull n, long seed): sketches(log2(n)), idx(0), logn(log2
 (n)) {

@@ -42,7 +42,6 @@ public:
 };
 
 class AllBucketsZeroException : public exception {
-public:
   virtual const char* what() const throw() {
     return "All buckets zero";
   }

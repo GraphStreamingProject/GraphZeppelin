@@ -12,7 +12,7 @@ add_executable(main
     supernode.cpp
     l0_sampling/sketch.cpp
     l0_sampling/update.cpp
-    )
+        util.cpp)
 target_link_libraries(main PRIVATE xxHash::xxhash)
 
 
@@ -23,7 +23,7 @@ add_executable(l0sampling
     l0sampling.cpp
     l0_sampling/sketch.cpp
     l0_sampling/update.cpp
-    )
+        util.cpp)
 target_link_libraries(l0sampling PRIVATE xxHash::xxhash)
 
 
@@ -36,5 +36,5 @@ add_executable(tests
     test/sketch_test.cpp
     l0_sampling/sketch.cpp
     l0_sampling/update.cpp
-    )
+        test/graph_test.cpp test/supernode_test.cpp util.cpp test/util_test.cpp)
 target_link_libraries(tests xxHash::xxhash ${GTEST_LIBRARIES} pthread)
