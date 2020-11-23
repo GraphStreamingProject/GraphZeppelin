@@ -159,6 +159,7 @@ add_executable(l0sampling
   l0sampling.cpp
   l0_sampling/sketch.cpp
   l0_sampling/update.cpp
+  util.cpp
 )
 target_link_libraries(l0sampling PRIVATE xxHash::xxhash)
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
