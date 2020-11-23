@@ -10,8 +10,8 @@ typedef std::pair<Node, Node> Edge;
  * box without needing to worry about implementing l_0.
  */
 class Supernode {
-  // collection of logn sketches to query from, since we can't query from one
-  // sketch more than once
+  /* collection of logn sketches to query from, since we can't query from one
+     sketch more than once */
   vector<Sketch*> sketches;
   int idx;
   int logn;
@@ -24,7 +24,12 @@ public:
 
   /**
    * Function to sample an edge from the cut of a supernode.
-   * @return an edge in the cut, otherwise None.
+   * @return                        an edge in the cut, otherwise None.
+   * @throws OutOfQueriesException  if the sketch collection has been sampled
+   *                                too many times.
+   * @throws NoGoodBucketException  if no "good" bucket can be found,
+   *                                according to the specification of L0
+   *                                sampling.
    */
   boost::optional<Edge> sample();
 

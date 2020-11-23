@@ -46,7 +46,10 @@ vector<set<Node>> Graph::connected_components() {
     modified = false;
     vector<Node> removed;
     for (Node i: (*representatives)) {
-      if (parent[i] != i) continue;
+      if (parent[i] != i) {
+        representatives->erase(i);
+        continue;
+      }
       boost::optional<Edge> edge = supernodes[i]->sample();
       if (!edge.is_initialized()) continue;
 

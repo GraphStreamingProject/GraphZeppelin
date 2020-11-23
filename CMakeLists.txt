@@ -144,12 +144,13 @@ include_directories("${Boost_INCLUDE_DIR}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -W -Wall -O3 -std=c++11 -g")
 
 add_executable(main 
-    main.cpp
-    graph.cpp
-    supernode.cpp
-    l0_sampling/sketch.cpp
-    l0_sampling/update.cpp
-        util.cpp)
+  main.cpp
+  graph.cpp
+  supernode.cpp
+  l0_sampling/sketch.cpp
+  l0_sampling/update.cpp
+  util.cpp
+)
 target_link_libraries(main PRIVATE xxHash::xxhash)
 
 
@@ -165,8 +166,14 @@ target_link_libraries(l0sampling PRIVATE xxHash::xxhash)
 
 add_executable(tests
   test/test_runner.cpp
+  test/graph_test.cpp
   test/sketch_test.cpp
+  test/supernode_test.cpp
+  test/util_test.cpp
+  graph.cpp
+  supernode.cpp
   l0_sampling/sketch.cpp
   l0_sampling/update.cpp
+  util.cpp
 )
 target_link_libraries(tests PRIVATE xxHash::xxhash GTest::gtest)

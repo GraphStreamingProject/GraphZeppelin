@@ -8,9 +8,7 @@ typedef unsigned long long int ull;
  * @param d         the double to cast.
  * @param epsilon   optional parameter representing the epsilon to use.
  */
-unsigned long long int double_to_ull(double d, double epsilon = 0.00000001) {
-  return (unsigned long long) (d + epsilon);
-}
+unsigned long long int double_to_ull(double d, double epsilon = 0.00000001);
 
 /**
  * A function N x N -> N that implements a non-self-edge pairing function
