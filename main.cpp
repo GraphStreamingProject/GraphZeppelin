@@ -6,7 +6,7 @@
 
 using cpp_int = boost::multiprecision::cpp_int;
 
-int not_main() {
+int main() {
   unsigned long long ULLMAX = std::numeric_limits<unsigned long long>::max();
   cpp_int num_nodes; std::cin >> num_nodes;
   // if (num_nodes > ULLMAX) {
@@ -30,18 +30,5 @@ int not_main() {
   //     cout << endl;
   //   }
   // }
-  return 0;
-}
-
-int main() {
-  unsigned long long int num_nodes = 1000;
-  Graph g{num_nodes};
-  for (unsigned i=1;i<num_nodes;++i) {
-    for (unsigned j = i*2;j<num_nodes;j+=i) {
-      g.update({{i,j}, INSERT});
-    }
-  }
-  vector<set<Node>> res = g.connected_components();
-  cout << res.size() << endl;
   return 0;
 }
