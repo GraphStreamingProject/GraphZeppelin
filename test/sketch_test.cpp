@@ -169,7 +169,6 @@ void test_sketch_addition(unsigned long num_sketches,
       //Multiple queries shouldn't happen, but if we do get here fail test
       FAIL() << e.what();
     }
-    std::cout << "Failed once" << std::endl;
   }
   EXPECT_LE(sample_incorrect_failures, max_sample_fail_prob * num_sketches)
     << "Sample incorrect " << sample_incorrect_failures << '/' << num_sketches
