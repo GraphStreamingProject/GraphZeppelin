@@ -46,10 +46,7 @@ vector<set<Node>> Graph::connected_components() {
     modified = false;
     vector<Node> removed;
     for (Node i: (*representatives)) {
-      if (parent[i] != i) {
-        representatives->erase(i);
-        continue;
-      }
+      if (parent[i] != i) continue;
       boost::optional<Edge> edge = supernodes[i]->sample();
       if (!edge.is_initialized()) continue;
 
@@ -74,8 +71,9 @@ vector<set<Node>> Graph::connected_components() {
   map<Node, set<Node>> temp;
   for (Node i=0;i<num_nodes;++i)
     temp[get_parent(i)].insert(i);
-  vector<set<Node>> retval(temp.size());
-  for (auto it : temp) retval.push_back(it.second);
+  vector<set<Node>> retval;
+  retval.reserve(temp.size());
+  for (const auto& it : temp) retval.push_back(it.second);
   return retval;
 }
 

@@ -24,7 +24,8 @@ public:
 
   /**
    * Function to sample an edge from the cut of a supernode.
-   * @return                        an edge in the cut, otherwise None.
+   * @return                        an edge in the cut, represented as an Edge
+   *                                with LHS <= RHS, otherwise None.
    * @throws OutOfQueriesException  if the sketch collection has been sampled
    *                                too many times.
    * @throws NoGoodBucketException  if no "good" bucket can be found,

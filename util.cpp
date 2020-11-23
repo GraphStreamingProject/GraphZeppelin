@@ -18,7 +18,7 @@ ull nondirectional_non_self_edge_pairing_fn(ull i, ull j) {
     i^=j;
   }
   ull jm = j-1ull;
-  if (j%2ull == 0ull) j>>=1ull;
+  if ((j & 1ull) == 0ull) j>>=1ull;
   else jm>>=1ull;
   if (ULLMAX/j < jm)
     throw std::overflow_error("Computation would overflow unsigned long long max");
@@ -33,7 +33,7 @@ std::pair<ull, ull> inv_nondir_non_self_edge_pairing_fn(ull idx) {
   eidx = sqrt(eidx)+1ull;
   eidx/=2ull;
   ull i,j = (ull) eidx;
-  if (j%2ull == 0ull) i = idx-(j>>1ull)*(j-1ull);
+  if ((j & 1ull) == 0ull) i = idx-(j>>1ull)*(j-1ull);
   else i = idx-j*((j-1ull)>>1ull);
   return {i, j};
 }
@@ -44,7 +44,7 @@ ull cantor_pairing_fn(ull i, ull j) {
   if (j < ULLMAX && ULLMAX - i < j+1ull)
     throw std::overflow_error("Computation would overflow unsigned long long max");
   ull am = i+j, bm = i+j+1ull;
-  if (am % 2ull == 0ull) am>>=1ull;
+  if ((am & 1ull) == 0ull) am>>=1ull;
   else bm>>=1ull;
   if (ULLMAX/am < bm)
     throw std::overflow_error("Computation would overflow unsigned long long max");

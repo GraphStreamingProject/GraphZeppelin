@@ -14,7 +14,6 @@ TEST(UtilTestSuite, TestNonDirectionalNonSEPairingFn) {
 }
 
 TEST(UtilTestSuite, TestNonDirectionNonSEPairingFnOverflow) {
-  std::cout << std::numeric_limits<ull>::max() << std::endl;
   std::pair<ull,ull> not_overflow {1ull<<31ull, 1ull<<32ull};
   ASSERT_EQ(not_overflow, inv_nondir_non_self_edge_pairing_fn
   (nondirectional_non_self_edge_pairing_fn(1ull<<31ull, 1ull<<32ull)));
