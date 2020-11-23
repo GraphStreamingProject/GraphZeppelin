@@ -117,7 +117,7 @@ void test_sketch_sample(unsigned long num_sketches,
     << " times (expected less than " << max_bucket_fail_prob << ')';
 }
 
-TEST(SketchTestSuite, DISABLED_TestSketchSample) {
+TEST(SketchTestSuite, TestSketchSample) {
   srand (time(NULL));
   test_sketch_sample(10000, 100, 100, 0.005, 0.005);
   test_sketch_sample(1000, 1000, 1000, 0.001, 0.001);
@@ -179,7 +179,7 @@ void test_sketch_addition(unsigned long num_sketches,
     << " times (expected less than " << max_bucket_fail_prob << ')';
 }
 
-TEST(SketchTestSuite, DISABLED_TestSketchAddition){
+TEST(SketchTestSuite, TestSketchAddition){
   srand (time(NULL));
   test_sketch_addition(10000, 100, 100, 0.005, 0.005);
   test_sketch_addition(1000, 1000, 1000, 0.001, 0.001);

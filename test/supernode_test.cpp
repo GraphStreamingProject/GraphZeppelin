@@ -3,7 +3,7 @@
 #include "../include/supernode.h"
 
 const long seed = 7000000001;
-const unsigned long long int num_nodes = 1000;
+const unsigned long long int num_nodes = 2000;
 
 class SupernodeTestSuite : public testing::Test {
 protected:
@@ -80,7 +80,7 @@ TEST_F(SupernodeTestSuite, TestSampleInsertGrinder) {
     for (int j = 0; j < (int) log2(num_nodes); ++j) {
       try {
         sampled = snodes[i].sample();
-        if (i >= 500 && prime[i]) {
+        if (i >= num_nodes/2 && prime[i]) {
           ASSERT_FALSE(sampled.is_initialized())
                             << "False positive in sample " << i;
         } else {
@@ -124,7 +124,7 @@ TEST_F(SupernodeTestSuite, TestSampleDeleteGrinder) {
     for (int j = 0; j < (int) log2(num_nodes); ++j) {
       try {
         sampled = snodes[i].sample();
-        if (i >= 500 && i % 2) {
+        if (i >= num_nodes/2 && i % 2) {
           ASSERT_FALSE(sampled.is_initialized())
                             << "False positive in sample " << i;
         } else {
