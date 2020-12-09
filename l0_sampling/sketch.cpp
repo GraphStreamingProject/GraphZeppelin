@@ -8,7 +8,8 @@
 #include "../include/sketch.h"
 #include "../include/util.h"
 
-Sketch::Sketch(unsigned long long int n, long seed): seed(seed), n(n), random_prime(PrimeGenerator::generate_prime(n*n)) {
+Sketch::Sketch(uint64_t n, long seed): seed(seed), n(n), random_prime
+(PrimeGenerator::generate_prime(n*n)) {
   const unsigned long long int num_buckets = double_to_ull(log2(n)+1);
   buckets = std::vector<Bucket>(num_buckets*(log2(n)+1));
   for (unsigned i = 0; i < num_buckets; ++i){

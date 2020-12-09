@@ -1,8 +1,5 @@
 #pragma once
 
-typedef long long int ll;
-typedef unsigned long long int ull;
-
 /**
  * Cast a double to unsigned long long with epsilon adjustment.
  * @param d         the double to cast.
@@ -18,17 +15,17 @@ unsigned long long int double_to_ull(double d, double epsilon = 0.00000001);
  * @return i + j*(j-1)/2
  * @throws overflow_error if there would be an overflow in computing the function.
  */
-ull nondirectional_non_self_edge_pairing_fn(ull i, ull j);
+uint64_t nondirectional_non_self_edge_pairing_fn(uint64_t i, uint64_t j);
 
 /**
  * Inverts the nondirectional non-SE pairing function.
  * @param idx
  * @return the pair, with left and right ordered lexicographically.
  */
-std::pair<ull, ull> inv_nondir_non_self_edge_pairing_fn(ull idx);
+std::pair<uint64_t , uint64_t> inv_nondir_non_self_edge_pairing_fn(uint64_t idx);
 
 /**
  * Implementation of the Cantor diagonal pairing function.
  * @throws overflow_error if there would be an overflow in computing the function.
  */
-ull cantor_pairing_fn(ull i, ull j);
+uint64_t cantor_pairing_fn(uint64_t i, uint64_t j);

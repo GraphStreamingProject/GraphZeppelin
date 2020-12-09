@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include "../include/util.h"
 
+typedef uint64_t ull;
 TEST(UtilTestSuite, TestNonDirectionalNonSEPairingFn) {
   std::pair<ull,ull> exp;
   for (int i = 0; i < 1000; ++i) {

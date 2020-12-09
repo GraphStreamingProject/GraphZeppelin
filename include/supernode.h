@@ -2,7 +2,7 @@
 #include <boost/optional.hpp>
 #include "sketch.h"
 
-typedef unsigned long long int Node;
+typedef uint64_t Node;
 typedef std::pair<Node, Node> Edge;
 
 /**
@@ -20,7 +20,7 @@ public:
    * @param n     the total number of nodes in the graph.
    * @param seed  the (fixed) seed value passed to each supernode.
    */
-  Supernode(unsigned long long int n, long seed);
+  Supernode(uint64_t n, long seed);
 
   /**
    * Function to sample an edge from the cut of a supernode.

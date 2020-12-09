@@ -4,6 +4,8 @@
 
 using uint128_t = boost::multiprecision::uint128_t;
 
+typedef uint64_t ull;
+
 const ull ULLMAX = std::numeric_limits<ull>::max();
 
 unsigned long long int double_to_ull(double d, double epsilon) {
@@ -13,9 +15,7 @@ unsigned long long int double_to_ull(double d, double epsilon) {
 ull nondirectional_non_self_edge_pairing_fn(ull i, ull j) {
   // swap i,j if necessary
   if (i > j) {
-    i^=j;
-    j^=i;
-    i^=j;
+    std::swap(i,j);
   }
   ull jm = j-1ull;
   if ((j & 1ull) == 0ull) j>>=1ull;

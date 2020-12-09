@@ -4,9 +4,6 @@
 #include <set>
 #include "supernode.h"
 
-typedef unsigned long long int Node;
-typedef std::pair<Node, Node> Edge;
-
 enum UpdateType {
   INSERT,
   DELETE,
@@ -15,8 +12,8 @@ enum UpdateType {
 typedef pair<Edge, UpdateType> GraphUpdate;
 
 class Graph{
-  const unsigned long long int num_nodes;
-  bool UPDATE_LOCKED = false;
+  const uint64_t num_nodes;
+  bool update_locked = false;
   // a set containing one "representative" from each supernode
   set<Node>* representatives;
   Supernode** supernodes;
@@ -25,7 +22,7 @@ class Graph{
   Node* parent;
   Node get_parent(Node node);
 public:
-  explicit Graph(unsigned long long int num_nodes);
+  explicit Graph(uint64_t num_nodes);
   ~Graph();
   void update(GraphUpdate upd);
 

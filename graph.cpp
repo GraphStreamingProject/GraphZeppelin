@@ -2,7 +2,7 @@
 #include <iostream>
 #include "include/graph.h"
 
-Graph::Graph(unsigned long long int num_nodes): num_nodes(num_nodes) {
+Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
   representatives = new set<Node>();
   supernodes = new Supernode*[num_nodes];
   parent = new Node[num_nodes];
@@ -22,13 +22,11 @@ Graph::~Graph() {
 }
 
 void Graph::update(GraphUpdate upd) {
-  if (UPDATE_LOCKED) throw UpdateLockedException();
+  if (update_locked) throw UpdateLockedException();
   Edge &edge = upd.first;
   // ensure lhs < rhs
   if (edge.first > edge.second) {
-    edge.first^=edge.second;
-    edge.second^=edge.first;
-    edge.first^=edge.second;
+    std::swap(edge.first,edge.second);
   }
   if (upd.second == INSERT) {
     supernodes[edge.first]->update({edge, 1});
@@ -40,7 +38,7 @@ void Graph::update(GraphUpdate upd) {
 }
 
 vector<set<Node>> Graph::connected_components() {
-  UPDATE_LOCKED = true; // disallow updating the graph after we run the alg
+  update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
   do {
     modified = false;
