@@ -1,7 +1,6 @@
 #include <gtest/gtest.h>
 #include "../include/sketch.h"
 #include "util/testing_vector.h"
-#include "../include/update.h"
 
 TEST(SketchTestSuite, TestExceptions) {
   Sketch sketch1 = Sketch(10,rand());

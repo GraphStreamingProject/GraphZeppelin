@@ -1,10 +1,8 @@
 #include <iostream>
 #include <limits>
 #include <boost/multiprecision/cpp_int.hpp>
-
-// #include "include/graph.h"
+#include "include/graph.h"
 // #include "include/graph_128.h"
-
 
 using cpp_int = boost::multiprecision::cpp_int;
 
@@ -32,4 +30,5 @@ int main() {
   //     cout << endl;
   //   }
   // }
+  return 0;
 }

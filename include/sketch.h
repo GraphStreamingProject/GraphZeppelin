@@ -12,14 +12,14 @@ using namespace std;
  */
 class Sketch {
   const long seed;
-  const int n;
+  const uint64_t n;
   std::vector<Bucket> buckets;
   const long long int random_prime;
   bool already_quered = false;
 
   //Initialize a sketch of a vector of size n
 public:
-  Sketch(int n, long seed);
+  Sketch(uint64_t n, long seed);
 
   /**
    * Update a sketch based on information about one of its indices.
@@ -37,6 +37,7 @@ public:
   Update query();
 
   friend Sketch operator+ (const Sketch &sketch1, const Sketch &sketch2);
+  friend Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2);
   friend Sketch operator* (const Sketch &sketch1, long scaling_factor );
   friend std::ostream& operator<< (std::ostream &os, const Sketch &sketch);
 };
