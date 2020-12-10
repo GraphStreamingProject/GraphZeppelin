@@ -174,12 +174,14 @@ add_executable(tests
   test/sketch_test.cpp
   test/supernode_test.cpp
   test/util_test.cpp
+  test/util/deterministic.cpp
+  test/util/graph_gen.cpp
   graph.cpp
   supernode.cpp
   l0_sampling/sketch.cpp
   l0_sampling/update.cpp
   util.cpp
-)
+        test/util/graph_gen_test.cpp)
 target_link_libraries(tests PRIVATE xxHash::xxhash GTest::gtest)
 # optimize if running on CI
 if (DEFINED ENV{CI})

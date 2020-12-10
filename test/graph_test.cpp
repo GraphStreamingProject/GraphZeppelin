@@ -1,5 +1,8 @@
 #include <gtest/gtest.h>
 #include "../include/graph.h"
+#include "util/deterministic.h"
+
+bool kruskal_run = false;
 
 TEST(GraphTestSuite, SmallGraphConnectivity) {
   unsigned long long int num_nodes = 1000;

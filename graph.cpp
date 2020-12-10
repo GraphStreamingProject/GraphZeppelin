@@ -1,6 +1,14 @@
+//
+// Created by victor on 12/9/20.
+//
+
 #include <map>
 #include <iostream>
 #include "include/graph.h"
+
+#ifdef VERIFY_SAMPLES_F
+#include "include/deterministic.h"
+#endif
 
 Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
   representatives = new set<Node>();
@@ -46,6 +54,12 @@ vector<set<Node>> Graph::connected_components() {
     for (Node i: (*representatives)) {
       if (parent[i] != i) continue;
       boost::optional<Edge> edge = supernodes[i]->sample();
+#ifdef VERIFY_SAMPLES_F
+      if (edge.is_initialized())
+        verify_edge(edge);
+      else
+        verify_cc(i);
+#endif
       if (!edge.is_initialized()) continue;
 
       Node n;
