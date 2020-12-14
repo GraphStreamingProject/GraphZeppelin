@@ -71,8 +71,20 @@ TEST(SketchTestSuite, GIVENonlyIndexZeroUpdatedTHENitWorks) {
  * Make sure sketch sampling works
  */
 void test_sketch_sample(unsigned long num_sketches,
-    unsigned long vec_size, unsigned long num_updates,
-    double max_sample_fail_prob, double max_bucket_fail_prob) {
+    unsigned long vec_size, unsigned long num_updates) {
+  /* We expect the all bucket failure probability to be 1/(n^c)
+   * Currently c is hardcoded to 1
+   */
+  double max_bucket_fail_prob = 1./vec_size;
+  /* When a bucket isn't good, it has at most n/p chance to give a bad sample
+   * p is currently selected to be the first prime greater than n^2
+   * When the first k buckets of a sketch are bad, theres a 1-(1-n/p)^k chance
+   * that one of the buckets fails and we get a bad sample
+   * I'm not 100% clear on the math behind this, but empirically
+   * sample_incorrect_failures seems to be less than all_bucket_failures
+   */
+  double max_sample_fail_prob = 1./vec_size;
+
   unsigned long all_bucket_failures = 0;
   unsigned long sample_incorrect_failures = 0;
   for (unsigned long i = 0; i < num_sketches; i++) {
@@ -109,27 +121,47 @@ void test_sketch_sample(unsigned long num_sketches,
       FAIL() << e.what();
     }
   }
-  EXPECT_LE(sample_incorrect_failures, max_sample_fail_prob * num_sketches)
+  EXPECT_LE((double) sample_incorrect_failures / num_sketches, max_sample_fail_prob)
     << "Sample incorrect " << sample_incorrect_failures << '/' << num_sketches
     << " times (expected less than " << max_sample_fail_prob << ')';
-  EXPECT_LE(all_bucket_failures, max_bucket_fail_prob * num_sketches)
+  EXPECT_LE((double) all_bucket_failures / num_sketches, max_bucket_fail_prob)
     << "All buckets failed " << all_bucket_failures << '/' << num_sketches
     << " times (expected less than " << max_bucket_fail_prob << ')';
 }
 
 TEST(SketchTestSuite, TestSketchSample) {
   srand (time(NULL));
-  test_sketch_sample(10000, 100, 100, 0.005, 0.005);
-  test_sketch_sample(1000, 1000, 1000, 0.001, 0.001);
-  test_sketch_sample(1000, 10000, 10000, 0.001, 0.001);
+  //General sampling tests
+  test_sketch_sample(10000, 100, 100);
+  test_sketch_sample(1000, 1000, 1000);
+  //For the sake of saving time, omitting this test
+//  test_sketch_sample(1000, 10000, 10000);
+  //The probability of failure should be low enough that in practice we have no failures
+  test_sketch_sample(1, 100000, 100000);
+  //Sparse vector test
+  test_sketch_sample(1, 1000000, 10000);
+  //Test when each index gets multiple updates
+  test_sketch_sample(1000, 100, 1000);
 }
 
 /**
  * Make sure sketch addition works
  */
 void test_sketch_addition(unsigned long num_sketches,
-    unsigned long vec_size, unsigned long num_updates,
-    double max_sample_fail_prob, double max_bucket_fail_prob) {
+    unsigned long vec_size, unsigned long num_updates) {
+  /* We expect the all bucket failure probability to be 1/(n^c)
+   * Currently c is hardcoded to 1
+   */
+  double max_bucket_fail_prob = 1./vec_size;
+  /* When a bucket isn't good, it has at most n/p chance to give a bad sample
+   * p is currently selected to be the first prime greater than n^2
+   * When the first k buckets of a sketch are bad, theres a 1-(1-n/p)^k chance
+   * that one of the buckets fails and we get a bad sample
+   * I'm not 100% clear on the math behind this, but empirically
+   * sample_incorrect_failures seems to be less than all_bucket_failures
+   */
+  double max_sample_fail_prob = 1./vec_size;
+
   unsigned long all_bucket_failures = 0;
   unsigned long sample_incorrect_failures = 0;
   for (int i = 0; i < num_sketches; i++){
@@ -180,7 +212,15 @@ void test_sketch_addition(unsigned long num_sketches,
 
 TEST(SketchTestSuite, TestSketchAddition){
   srand (time(NULL));
-  test_sketch_addition(10000, 100, 100, 0.005, 0.005);
-  test_sketch_addition(1000, 1000, 1000, 0.001, 0.001);
-  test_sketch_addition(1000, 10000, 10000, 0.001, 0.001);
+  //General addition tests
+  test_sketch_addition(10000, 100, 100);
+  test_sketch_addition(1000, 1000, 1000);
+  //For the sake of saving time, omitting this test
+//  test_sketch_addition(1000, 10000, 10000);
+  //The probability of failure should be low enough that in practice we have no failures
+  test_sketch_addition(1, 100000, 100000);
+  //Sparse vector test
+  test_sketch_addition(1, 1000000, 10000);
+  //Test when each index gets multiple updates
+  test_sketch_addition(1000, 100, 1000);
 }
