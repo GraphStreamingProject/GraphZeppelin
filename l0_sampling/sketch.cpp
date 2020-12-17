@@ -80,9 +80,9 @@ Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2) {
     sketch1.buckets[i].c += sketch2.buckets[i].c;
     sketch1.buckets[i].c %= sketch1.random_prime;
   }
+  sketch1.already_quered = sketch1.already_quered || sketch2.already_quered;
   return sketch1;
 }
-
 
 Sketch operator* (const Sketch &sketch1, long scaling_factor){
   Sketch result = Sketch(sketch1.n,sketch1.seed);
