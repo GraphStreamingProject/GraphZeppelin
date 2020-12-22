@@ -14,7 +14,7 @@ class Sketch {
   const long seed;
   const uint64_t n;
   std::vector<Bucket_Boruvka> buckets;
-  const long long int large_prime;
+  const uint128_t large_prime;
   bool already_quered = false;
 
   //Initialize a sketch of a vector of size n

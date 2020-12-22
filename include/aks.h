@@ -38,9 +38,12 @@ typedef unsigned long long  Tu64;
 
 #endif
 
-namespace AKS{
-  static bool IsPrime(unsigned int n)
-  {
+using boost::multiprecision::uint128_t;
+using boost::multiprecision::int128_t;
+
+namespace AKS {
+  // not an implementation of AKS
+  static bool IsPrime(unsigned int n) {
     if (n < 2) return false;
     if (n < 4) return true;
     if (n % 2 == 0) return false;
@@ -48,6 +51,20 @@ namespace AKS{
     const unsigned int iMax = (int)sqrt(n) + 1;
     unsigned int i;
     for (i = 3; i <= iMax; i += 2)
+      if (n % i == 0)
+        return false;
+
+    return true;
+  }
+
+  // also not an implementation of AKS
+  static bool IsPrime(uint128_t n) {
+    if (n < 2) return false;
+    if (n < 4) return true;
+    if (n % 2 == 0) return false;
+
+    const uint128_t iMax = sqrt(n) + 1;
+    for (uint128_t i = 3; i <= iMax; i += 2)
       if (n % i == 0)
         return false;
 

@@ -9,7 +9,7 @@
 #include "../include/util.h"
 
 Sketch::Sketch(uint64_t n, long seed): seed(seed), n(n), large_prime
-(PrimeGenerator::generate_prime(n*n)) {
+(PrimeGenerator::generate_prime((uint128_t)n*n)) {
   const unsigned long long int num_buckets = double_to_ull(log2(n)+1);
   buckets = std::vector<Bucket_Boruvka>(num_buckets * (log2(n) + 1));
 }
@@ -20,14 +20,13 @@ void Sketch::update(Update update ) {
     for (unsigned j = 0; j < log2(n)+1; ++j) {
       long bucket_id = i * (log2(n) + 1) + j;
       XXH64_hash_t bucket_seed = XXH64(&bucket_id, 8, seed);
-      ll r = 2 + bucket_seed % (large_prime - 3);
+      int128_t r = 2 + bucket_seed % (large_prime - 3);
       if (buckets[bucket_id].contains(update.index+1, bucket_seed, 1 << j)){
         buckets[bucket_id].a += update.delta;
         buckets[bucket_id].b += update.delta*(update.index+1); // deals with updates whose indices are 0
-        buckets[bucket_id].c += (update.delta*PrimeGenerator::power(r,update
-        .index+1, large_prime)) % large_prime;
-        buckets[bucket_id].c = (buckets[bucket_id].c + large_prime) %
-              large_prime;
+        buckets[bucket_id].c = static_cast<uint128_t>(buckets[bucket_id].c
+              + large_prime
+              + (update.delta*PrimeGenerator::power(r,(uint128_t) update.index+1, large_prime)) % large_prime);
       }
     }
   }
@@ -48,14 +47,21 @@ Update Sketch::query() {
       }
       long bucket_id = i * (log2(n) + 1) + j;
       XXH64_hash_t bucket_seed = XXH64(&bucket_id, 8, seed);
-      ll r = 2 + bucket_seed % (large_prime - 3);
-      if (b.a != 0 && b.b % b.a == 0 && (b.c - b.a*PrimeGenerator::power(r,
-                static_cast<ull>(b.b/b.a), large_prime)) % large_prime == 0
-            && 0 < b.b/b.a && b.b/b.a <= n && Bucket_Boruvka::contains(
-                static_cast<unsigned long long int>(b.b / b.a), bucket_seed,
-            1<<j)) {
-        return {(int64_t)(b.b/b.a - 1), (long)b.a}; // 0-index adjustment
-      }
+      uint128_t r = 2 + bucket_seed % (large_prime - 3);
+      try {
+        if (b.a != 0 && b.b % b.a == 0 &&
+            (b.c - b.a.toBoostInt128()
+            * PrimeGenerator::power(r,(b.b /b.a).toBoostUInt128(),large_prime))
+              % large_prime == 0
+            && b.b / b.a > 0 && b.b / b.a <= n && Bucket_Boruvka::contains(
+              (b.b / b.a).toBoostUInt128(), bucket_seed,
+              1 << j)) {
+          // TODO: update Update to return 128 bit types
+          return {(int64_t) (b.b / b.a - 1).toBoostInt128(),
+                  (long) b.a.toBoostInt128()}; //
+          // 0-index adjustment
+        }
+      } catch (InvalidUInt128CastException &e) {};
     }
   }
   if (all_buckets_zero) {
@@ -111,7 +117,7 @@ std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
     for (unsigned j = 0; j < log2(sketch.n)+1; ++j) {
       long bucket_id = i * (log2(sketch.n) + 1) + j;
       XXH64_hash_t bucket_seed = XXH64(&bucket_id, 8, sketch.seed);
-      ll r = 2 + bucket_seed % (sketch.large_prime - 3);
+      uint128_t r = 2 + bucket_seed % (sketch.large_prime - 3);
       const Bucket_Boruvka& bucket = sketch.buckets[i];
       for (unsigned k = 0; k < sketch.n; k++) {
         os << Bucket_Boruvka::contains(k+1,bucket_seed,1<<j) ? '1' : '0';
@@ -122,8 +128,8 @@ std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
          << "c:" << bucket.c << std::endl
          << "r:" << r << std::endl
          << (bucket.a != 0 && bucket.b % bucket.a == 0
-              && (bucket.c - bucket.a*PrimeGenerator::power(r, (ll)(bucket
-              .b/bucket.a), sketch.large_prime)) % sketch.large_prime == 0 ?
+              && (bucket.c - bucket.a.toBoostInt128()*PrimeGenerator::power(r, (bucket
+              .b/bucket.a).toBoostUInt128(), sketch.large_prime)) % sketch.large_prime == 0 ?
               "good" : "bad")
          << std::endl;
     }
