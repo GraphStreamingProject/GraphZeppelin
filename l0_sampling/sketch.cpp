@@ -1,6 +1,5 @@
-#include <math.h>
 #include <cmath>
-#include <assert.h>
+#include <cassert>
 #include <vector>
 #include <iostream>
 #include <string>
@@ -11,22 +10,24 @@
 Sketch::Sketch(uint64_t n, long seed): seed(seed), n(n), large_prime
 (PrimeGenerator::generate_prime((uint128_t)n*n)) {
   const unsigned long long int num_buckets = double_to_ull(log2(n)+1);
-  buckets = std::vector<Bucket_Boruvka>(num_buckets * (log2(n) + 1));
+  const unsigned long long int num_guesses = double_to_ull(log2(n)+1);
+  buckets = std::vector<Bucket_Boruvka>(num_buckets * num_guesses);
 }
 
 void Sketch::update(Update update ) {
   const unsigned long long int num_buckets = double_to_ull(log2(n)+1);
+  const unsigned long long int num_guesses = double_to_ull(log2(n)+1);
   for (unsigned i = 0; i < num_buckets; ++i) {
-    for (unsigned j = 0; j < log2(n)+1; ++j) {
-      long bucket_id = i * (log2(n) + 1) + j;
+    for (unsigned j = 0; j < num_guesses; ++j) {
+      long bucket_id = i * num_guesses + j;
       XXH64_hash_t bucket_seed = XXH64(&bucket_id, 8, seed);
-      int128_t r = 2 + bucket_seed % (large_prime - 3);
+      int128_t r = 2 +  bucket_seed % (large_prime - 3);
       if (buckets[bucket_id].contains(update.index+1, bucket_seed, 1 << j)){
         buckets[bucket_id].a += update.delta;
         buckets[bucket_id].b += update.delta*(update.index+1); // deals with updates whose indices are 0
-        buckets[bucket_id].c = static_cast<uint128_t>(buckets[bucket_id].c
+        buckets[bucket_id].c = static_cast<uint128_t>((buckets[bucket_id].c
               + large_prime
-              + (update.delta*PrimeGenerator::power(r,(uint128_t) update.index+1, large_prime)) % large_prime);
+              + update.delta*PrimeGenerator::power(r,(uint128_t) update.index+1, large_prime)) % large_prime);
       }
     }
   }
@@ -39,13 +40,14 @@ Update Sketch::query() {
   already_quered = true;
   bool all_buckets_zero = true;
   const unsigned long long int num_buckets = double_to_ull(log2(n)+1);
+  const unsigned long long int num_guesses = double_to_ull(log2(n)+1);
   for (unsigned i = 0; i < num_buckets; ++i) {
-    for (unsigned j = 0; j < log2(n)+1; ++j) {
-      Bucket_Boruvka& b = buckets[i*(log2(n)+1)+j];
+    for (unsigned j = 0; j < num_guesses; ++j) {
+      Bucket_Boruvka& b = buckets[i*num_guesses+j];
       if (b.a != 0 || b.b != 0 || b.c != 0) {
         all_buckets_zero = false;
       }
-      long bucket_id = i * (log2(n) + 1) + j;
+      long bucket_id = i * (long)(log2(n) + 1) + j;
       XXH64_hash_t bucket_seed = XXH64(&bucket_id, 8, seed);
       uint128_t r = 2 + bucket_seed % (large_prime - 3);
       try {

@@ -147,7 +147,7 @@ add_executable(main
   l0_sampling/sketch.cpp
   l0_sampling/update.cpp
   util.cpp
-        l0_sampling/int127.cpp include/int127.h)
+  l0_sampling/int127.cpp)
 target_link_libraries(main PRIVATE xxHash::xxhash)
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   target_compile_options(main PRIVATE -O3)
@@ -160,7 +160,7 @@ add_executable(l0sampling
   l0_sampling/sketch.cpp
   l0_sampling/update.cpp
   util.cpp
-        l0_sampling/int127.cpp include/int127.h)
+  l0_sampling/int127.cpp)
 target_link_libraries(l0sampling PRIVATE xxHash::xxhash)
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   target_compile_options(l0sampling PRIVATE -O3)
@@ -179,7 +179,8 @@ add_executable(tests
   l0_sampling/sketch.cpp
   l0_sampling/update.cpp
   util.cpp
-        l0_sampling/int127.cpp include/int127.h test/int127_test.cpp)
+  l0_sampling/int127.cpp
+  test/int127_test.cpp)
 target_link_libraries(tests PRIVATE xxHash::xxhash GTest::gtest)
 # optimize if running on CI
 if (DEFINED ENV{CI})
