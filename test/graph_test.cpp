@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include "../include/graph.h"
 
-TEST(GraphTestSuite, SmallGraphConnectivity) {
+TEST(GraphTestSuite, DISABLED_SmallGraphConnectivity) {
   unsigned long long int num_nodes = 1000;
   Graph g{num_nodes};
   for (unsigned i=1;i<num_nodes;++i) {
@@ -12,7 +12,7 @@ TEST(GraphTestSuite, SmallGraphConnectivity) {
   ASSERT_EQ(2, g.connected_components().size());
 }
 
-TEST(GraphTestSuite, IFconnectedComponentsAlgRunTHENupdateLocked) {
+TEST(GraphTestSuite, DISABLED_IFconnectedComponentsAlgRunTHENupdateLocked) {
   unsigned long long int num_nodes = 1000;
   Graph g{num_nodes};
   for (unsigned i=1;i<num_nodes;++i) {

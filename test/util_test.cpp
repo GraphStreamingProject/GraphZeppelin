@@ -2,7 +2,7 @@
 #include "../include/util.h"
 
 typedef uint64_t ull;
-TEST(UtilTestSuite, TestNonDirectionalNonSEPairingFn) {
+TEST(UtilTestSuite, DISABLED_TestNonDirectionalNonSEPairingFn) {
   std::pair<ull,ull> exp;
   for (int i = 0; i < 1000; ++i) {
     for (int j = 0; j < 1000; ++j) {
@@ -14,7 +14,7 @@ TEST(UtilTestSuite, TestNonDirectionalNonSEPairingFn) {
   }
 }
 
-TEST(UtilTestSuite, TestNonDirectionNonSEPairingFnOverflow) {
+TEST(UtilTestSuite, DISABLED_TestNonDirectionNonSEPairingFnOverflow) {
   std::pair<ull,ull> not_overflow {1ull<<31ull, 1ull<<32ull};
   ASSERT_EQ(not_overflow, inv_nondir_non_self_edge_pairing_fn
   (nondirectional_non_self_edge_pairing_fn(1ull<<31ull, 1ull<<32ull)));
