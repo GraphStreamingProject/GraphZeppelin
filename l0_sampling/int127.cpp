@@ -46,32 +46,34 @@ int127::int127(const int &other) {
   } else m_value = other;
 }
 
-void int127::operator=(const int127 &other) {
-  m_value = other.m_value;
-}
+int127& int127::operator=(const int127 &other) = default;
 
-void int127::operator=(const boost::multiprecision::int128_t &other) {
+int127& int127::operator=(const boost::multiprecision::int128_t &other) {
   if (abs(other) & high_bitmask)
     throw Int127OverflowException();
   if (other < 0) {
-    m_value = static_cast<uint128_t> (other + high_bitmask);
+    m_value = static_cast<uint128_t> ((-other) + high_bitmask);
   } else m_value = static_cast<uint128_t>(other);
+  return *this;
 }
 
-void int127::operator=(const unsigned long &other) {
+int127& int127::operator=(const unsigned long &other) {
   m_value = other;
+  return *this;
 }
 
-void int127::operator=(const long &other) {
+int127& int127::operator=(const long &other) {
   if (other < 0) {
     m_value = high_bitmask + (-other);
   } else m_value = other;
+  return *this;
 }
 
-void int127::operator=(const int &other) {
+int127& int127::operator=(const int &other) {
   if (other < 0) {
     m_value = high_bitmask + (-other);
   } else m_value = other;
+  return *this;
 }
 
 int127 operator+(const int127 &lhs, const int127 &rhs) {
@@ -89,11 +91,11 @@ int127 &operator+=(int127 &lhs, const int127 &rhs) {
   if (temp < 0) {
     lhs.m_value = static_cast<uint128_t> ((-temp) + high_bitmask);
   } else lhs.m_value = static_cast<uint128_t>(temp);
+  return lhs;
 }
 
 int127 operator/(const int127 &lhs, const int127 &rhs) {
   return {lhs.toBoostInt128() / rhs.toBoostInt128()};
-
 }
 
 int127 operator%(const int127& lhs, const int127& rhs) {

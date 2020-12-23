@@ -50,20 +50,16 @@ Update Sketch::query() {
       long bucket_id = i * (long)(log2(n) + 1) + j;
       XXH64_hash_t bucket_seed = XXH64(&bucket_id, 8, seed);
       uint128_t r = 2 + bucket_seed % (large_prime - 3);
-      try {
-        if (b.a != 0 && b.b % b.a == 0 &&
-            (b.c - b.a.toBoostInt128()
-            * PrimeGenerator::power(r,(b.b /b.a).toBoostUInt128(),large_prime))
-              % large_prime == 0
-            && b.b / b.a > 0 && b.b / b.a <= n && Bucket_Boruvka::contains(
-              (b.b / b.a).toBoostUInt128(), bucket_seed,
-              1 << j)) {
-          // TODO: update Update to return 128 bit types
-          return {(int64_t) (b.b / b.a - 1).toBoostInt128(),
-                  (long) b.a.toBoostInt128()}; //
-          // 0-index adjustment
-        }
-      } catch (InvalidUInt128CastException &e) {};
+      if (b.a != 0 && b.b % b.a == 0  && b.b / b.a > 0 && b.b / b.a <= n
+            && Bucket_Boruvka::contains((b.b / b.a).toBoostUInt128(), bucket_seed,1 << j)
+            && (static_cast<int128_t>(b.c) - b.a.toBoostInt128() *
+            PrimeGenerator::power
+            (r,(b.b /b.a).toBoostUInt128(),large_prime)) % large_prime == 0
+         ) {
+        // TODO: update Update to return 128 bit types
+        return {(int64_t) (b.b / b.a - 1).toBoostInt128(),
+                (long) b.a.toBoostInt128()}; // 0-index adjustment
+      }
     }
   }
   if (all_buckets_zero) {

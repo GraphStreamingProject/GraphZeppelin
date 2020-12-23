@@ -19,11 +19,11 @@ public:
   int127(const long& other);
   int127(const int& other);
 
-  void operator=(const int127& other);
-  void operator=(const int128_t& other);
-  void operator=(const unsigned long& other);
-  void operator=(const long& other);
-  void operator=(const int& other);
+  int127& operator=(const int127 &other);
+  int127& operator=(const int128_t& other);
+  int127& operator=(const unsigned long& other);
+  int127& operator=(const long& other);
+  int127& operator=(const int& other);
 
   friend int127 operator+(const int127& lhs, const int127& rhs);
   friend int127 operator-(const int127& lhs, const int127& rhs);
