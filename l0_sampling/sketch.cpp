@@ -47,7 +47,7 @@ Update Sketch::query() {
       if (b.a != 0 || b.b != 0 || b.c != 0) {
         all_buckets_zero = false;
       }
-      long bucket_id = i * (long)(log2(n) + 1) + j;
+      long bucket_id = i * num_guesses + j;
       XXH64_hash_t bucket_seed = XXH64(&bucket_id, 8, seed);
       uint128_t r = 2 + bucket_seed % (large_prime - 3);
       if (b.a != 0 && b.b % b.a == 0  && b.b / b.a > 0 && b.b / b.a <= n
