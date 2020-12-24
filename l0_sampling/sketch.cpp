@@ -7,16 +7,19 @@
 #include "../include/sketch.h"
 #include "../include/util.h"
 
+#define bucket_gen(x) double_to_ull(log2(x)+1)
+#define guess_gen(x) double_to_ull(log2(x)+2)
+
 Sketch::Sketch(uint64_t n, long seed): seed(seed), n(n), large_prime
 (PrimeGenerator::generate_prime((uint128_t)n*n)) {
-  const unsigned long long int num_buckets = double_to_ull(log2(n)+1);
-  const unsigned long long int num_guesses = double_to_ull(log2(n)+1);
+  const unsigned long long int num_buckets = bucket_gen(n);
+  const unsigned long long int num_guesses = guess_gen(n);
   buckets = std::vector<Bucket_Boruvka>(num_buckets * num_guesses);
 }
 
 void Sketch::update(Update update ) {
-  const unsigned long long int num_buckets = double_to_ull(log2(n)+1);
-  const unsigned long long int num_guesses = double_to_ull(log2(n)+1);
+  const unsigned long long int num_buckets = bucket_gen(n);
+  const unsigned long long int num_guesses = guess_gen(n);
   for (unsigned i = 0; i < num_buckets; ++i) {
     for (unsigned j = 0; j < num_guesses; ++j) {
       long bucket_id = i * num_guesses + j;
@@ -39,8 +42,8 @@ Update Sketch::query() {
   }
   already_quered = true;
   bool all_buckets_zero = true;
-  const unsigned long long int num_buckets = double_to_ull(log2(n)+1);
-  const unsigned long long int num_guesses = double_to_ull(log2(n)+1);
+  const unsigned long long int num_buckets = bucket_gen(n);
+  const unsigned long long int num_guesses = guess_gen(n);
   for (unsigned i = 0; i < num_buckets; ++i) {
     for (unsigned j = 0; j < num_guesses; ++j) {
       Bucket_Boruvka& b = buckets[i*num_guesses+j];
@@ -110,15 +113,16 @@ Sketch operator* (const Sketch &sketch1, long scaling_factor){
 
 std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
   os << sketch.large_prime << std::endl;
-  const unsigned long long int num_buckets = double_to_ull(log2(sketch.n)+1);
+  const unsigned long long int num_buckets = bucket_gen(sketch.n);
+  const unsigned long long int num_guesses = guess_gen(sketch.n);
   for (unsigned i = 0; i < num_buckets; ++i) {
-    for (unsigned j = 0; j < log2(sketch.n)+1; ++j) {
-      long bucket_id = i * (log2(sketch.n) + 1) + j;
+    for (unsigned j = 0; j < num_guesses; ++j) {
+      long bucket_id = i * num_guesses + j;
       XXH64_hash_t bucket_seed = XXH64(&bucket_id, 8, sketch.seed);
       uint128_t r = 2 + bucket_seed % (sketch.large_prime - 3);
       const Bucket_Boruvka& bucket = sketch.buckets[i];
       for (unsigned k = 0; k < sketch.n; k++) {
-        os << Bucket_Boruvka::contains(k+1,bucket_seed,1<<j) ? '1' : '0';
+        os << (Bucket_Boruvka::contains(k+1,bucket_seed,1<<j) ? '1' : '0');
       }
       os << std::endl
          << "a:" << bucket.a << std::endl
