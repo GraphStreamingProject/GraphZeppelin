@@ -1,8 +1,13 @@
-#pragma once
+#ifndef MAIN_GRAPH_H
+#define MAIN_GRAPH_H
 #include <cstdlib>
 #include <exception>
 #include <set>
 #include "supernode.h"
+
+#ifdef VERIFY_SAMPLES_F
+#include "../test/util/deterministic.h"
+#endif
 
 enum UpdateType {
   INSERT,
@@ -11,6 +16,10 @@ enum UpdateType {
 
 typedef pair<Edge, UpdateType> GraphUpdate;
 
+/**
+ * Undirected graph object with n nodes labelled 0 to n-1, no self-edges,
+ * multiple edges, or weights.
+ */
 class Graph{
   const uint64_t num_nodes;
   bool update_locked = false;
@@ -39,3 +48,5 @@ class UpdateLockedException : public exception {
            "already started";
   }
 };
+
+#endif //MAIN_GRAPH_H

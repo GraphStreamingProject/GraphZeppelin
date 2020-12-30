@@ -3,10 +3,7 @@
 #include <cstdlib>
 #include <vector>
 #include "graph_gen.h"
-
-#define INSERT 1
-#define DELETE 0
-#define endl '\n'
+#include "../../include/graph.h"
 
 using namespace std;
 
@@ -57,6 +54,7 @@ void transform() {
   fill(inserted, inserted+(n+1)*(n+1)+2, 0);
   for (int i = 0; i < m; ++i) {
     in >> a >> f >> s >> w;
+    --f; --s; // adjustment for 0-indexing
     full_m += w;
     if (w%2) cum_stream.push_back({f,s});
     while (w--) stream.push_back({{f,s},INSERT});
@@ -80,9 +78,9 @@ void transform() {
   for (int i = 0; i < full_m; ++i) {
     f = stream[i].first.first*n+stream[i].first.second;
     if (inserted[f] % 2) {
-      stream[i].second = DELETE;
-    } else {
       stream[i].second = INSERT;
+    } else {
+      stream[i].second = DELETE;
     }
     ++inserted[f];
   }

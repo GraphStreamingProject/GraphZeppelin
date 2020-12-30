@@ -3,10 +3,6 @@
 
 #include <set>
 #include "../../include/supernode.h"
-#define VERIFY_SAMPLES_F
-
-// TODO: test if can declare kruskal_run in graph_test
-extern bool kruskal_run;
 
 /**
  * Runs Kruskal's (deterministic) CC algo.
@@ -16,24 +12,42 @@ extern bool kruskal_run;
 std::vector<std::set<Node>> kruskal(const string& input_file = "cum_sample.txt");
 
 /**
- * Verifies an edge exists in the graph. Verifies that the edge is in the cut
- * of both the endpoints of the edge.
- * @param edge the edge to be tested.
- * @throws BadEdgeException if the edge does not satisfy both conditions.
- * @throws NoPrepException  if this function is called before kruskal() is
- *                          run on the graph.
+ * A plugin for the Graph class that runs Boruvka alongside the graph algorithm
+ * and verifies the edges and connected components that the graph algorithm
+ * generates.
  */
-void verify_edge(Edge edge);
+class GraphVerifier {
+  std::vector<std::set<Node>> kruskal_ref;
+  std::vector<std::set<Node>> boruvka_cc;
+  std::vector<std::set<Node>> det_graph;
+  Node* parent;
+  Node* size;
+public:
+  GraphVerifier(const string& input_file = "cum_sample.txt");
+  ~GraphVerifier();
+  /**
+   * Verifies an edge exists in the graph. Verifies that the edge is in the cut
+   * of both the endpoints of the edge.
+   * @param edge the edge to be tested.
+   * @param det_graph the adjacency list representation of the graph in question.
+   * @throws BadEdgeException if the edge does not satisfy both conditions.
+   */
+  void verify_edge(Edge edge);
 
-/**
- * Verifies the supernode of the given node is a (maximal) connected component.
- * That is, there are no edges in its cut.
- * @param node the node to be tested.
- * @throws NotCCException   if the supernode is not a connected component.
- * @throws NoPrepException  if this function is called before kruskal() is
- *                          run on the graph.
- */
-void verify_cc(Node node);
+  /**
+   * Verifies the supernode of the given node is a (maximal) connected component.
+   * That is, there are no edges in its cut.
+   * @param node the node to be tested.
+   * @throws NotCCException   if the supernode is not a connected component.
+   */
+  void verify_cc(Node node);
+
+  /**
+   * Verifies the connected components solution is correct. Compares
+   * retval against kruskal_ref.
+   */
+  void verify_soln(vector<set<Node>>& retval);
+};
 
 class BadEdgeException : public exception {
   virtual const char* what() const throw() {
@@ -45,13 +59,6 @@ class NotCCException : public exception {
   virtual const char* what() const throw() {
     return "The supernode is not a connected component. It has edges in its "
            "cut!";
-  }
-};
-
-class NoPrepException : public exception {
-  virtual const char* what() const throw() {
-    return "Cannot run verifier function without running Kruskal on this graph "
-           "stream first!";
   }
 };
 

@@ -1,16 +1,11 @@
-//
-// Created by victor on 12/9/20.
-//
-
 #include <map>
 #include <iostream>
 #include "include/graph.h"
 
-#ifdef VERIFY_SAMPLES_F
-#include "include/deterministic.h"
-#endif
-
 Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
+#ifdef VERIFY_SAMPLES_F
+  cout << "Verifying samples..." << endl;
+#endif
   representatives = new set<Node>();
   supernodes = new Supernode*[num_nodes];
   parent = new Node[num_nodes];
@@ -48,6 +43,9 @@ void Graph::update(GraphUpdate upd) {
 vector<set<Node>> Graph::connected_components() {
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
+#ifdef VERIFY_SAMPLES_F
+  GraphVerifier verifier {}; // default verifier
+#endif
   do {
     modified = false;
     vector<Node> removed;
@@ -56,9 +54,9 @@ vector<set<Node>> Graph::connected_components() {
       boost::optional<Edge> edge = supernodes[i]->sample();
 #ifdef VERIFY_SAMPLES_F
       if (edge.is_initialized())
-        verify_edge(edge);
+        verifier.verify_edge(edge.value());
       else
-        verify_cc(i);
+        verifier.verify_cc(i);
 #endif
       if (!edge.is_initialized()) continue;
 
@@ -86,6 +84,9 @@ vector<set<Node>> Graph::connected_components() {
   vector<set<Node>> retval;
   retval.reserve(temp.size());
   for (const auto& it : temp) retval.push_back(it.second);
+#ifdef VERIFY_SAMPLES_F
+  verifier.verify_soln(retval);
+#endif
   return retval;
 }
 

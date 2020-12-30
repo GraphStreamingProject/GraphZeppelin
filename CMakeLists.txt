@@ -181,8 +181,9 @@ add_executable(tests
   l0_sampling/sketch.cpp
   l0_sampling/update.cpp
   util.cpp
-        test/util/graph_gen_test.cpp)
+        test/util/graph_gen_test.cpp test/util/deterministic_test.cpp)
 target_link_libraries(tests PRIVATE xxHash::xxhash GTest::gtest)
+target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F)
 # optimize if running on CI
 if (DEFINED ENV{CI})
   message("Optimizing test suite for CI")
