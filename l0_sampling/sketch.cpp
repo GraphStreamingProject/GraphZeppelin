@@ -42,8 +42,8 @@ Update Sketch::query(){
     if (b.a != 0 || b.b != 0 || b.c != 0) {
       all_buckets_zero = false;
     }
-    if (b.a != 0 && b.b % b.a == 0 && (b.c - b.a*PrimeGenerator::power(b.r,b.b/b.a,random_prime))% random_prime == 0
-      && 0 < b.b/b.a && b.b/b.a <= n && b.contains(b.b/b.a)) {
+    if (b.a != 0 && b.b % b.a == 0 && b.b/b.a > 0 && b.b/b.a <= n && b.contains(b.b/b.a)
+      && (b.c - b.a*PrimeGenerator::power(b.r,b.b/b.a,random_prime))% random_prime == 0) {
       //cout << "Passed all tests: " << "b.a: " << b.a << " b.b: " << b.b << " b.c: " << b.c << " Guess: " << b.guess_nonzero << " r: " << b.r << endl;
       //cout << "String: " << b.stuff << endl;
       return {b.b/b.a - 1,b.a}; // 0-index adjustment
