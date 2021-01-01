@@ -6,8 +6,7 @@ size_t pos = fname.find_last_of("\\/");
 const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0,pos);
 
 TEST(DeterministicToolsTestSuite, TestKruskal) {
-  int ans = 78;
-  ASSERT_EQ(ans, kruskal(curr_dir+"/../res/multiples_graph_1024.txt").size());
+  ASSERT_EQ(78, kruskal(curr_dir+"/../res/multiples_graph_1024.txt").size());
 }
 
 TEST(DeterministicToolsTestSuite, TestEdgeVerifier) {

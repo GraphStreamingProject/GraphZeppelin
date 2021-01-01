@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <exception>
 #include <set>
+#include <fstream>
 #include "supernode.h"
 
 #ifdef VERIFY_SAMPLES_F
@@ -10,8 +11,8 @@
 #endif
 
 enum UpdateType {
-  INSERT,
-  DELETE,
+  INSERT = 0,
+  DELETE = 1,
 };
 
 typedef pair<Edge, UpdateType> GraphUpdate;
@@ -27,6 +28,10 @@ class Graph{
   set<Node>* representatives;
   Supernode** supernodes;
 
+#ifdef VERIFY_SAMPLES_F
+  std::string cum_in = "./cum_sample.txt";
+#endif
+
   // DSU representation of supernode relationship
   Node* parent;
   Node get_parent(Node node);
@@ -40,6 +45,15 @@ public:
    * @return a vector of the connected components in the graph.
    */
   vector<set<Node>> connected_components();
+
+#ifdef VERIFY_SAMPLES_F
+  /**
+   * Set the filepath to search for cumulative graph input.
+   */
+  void set_cum_in(const std::string& input_file) {
+    cum_in = input_file;
+  }
+#endif
 };
 
 class UpdateLockedException : public exception {

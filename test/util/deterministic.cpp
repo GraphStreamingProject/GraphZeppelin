@@ -100,6 +100,9 @@ void GraphVerifier::verify_cc(Node node) {
 }
 
 void GraphVerifier::verify_soln(vector<set<Node>> &retval) {
-  assert(kruskal_ref == retval);
+  vector<set<Node>> temp {retval};
+  sort(temp.begin(),temp.end());
+  sort(kruskal_ref.begin(),kruskal_ref.end());
+  assert(kruskal_ref == temp);
   cout << "Solution ok: " << retval.size() << " CCs found." << endl;
 }

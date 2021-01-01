@@ -44,7 +44,7 @@ vector<set<Node>> Graph::connected_components() {
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
 #ifdef VERIFY_SAMPLES_F
-  GraphVerifier verifier {}; // default verifier
+  GraphVerifier verifier {cum_in};
 #endif
   do {
     modified = false;

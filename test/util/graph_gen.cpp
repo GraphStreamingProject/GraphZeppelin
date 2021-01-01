@@ -1,7 +1,9 @@
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
+#include <utility>
 #include <vector>
+#include <map>
 #include "graph_gen.h"
 #include "../../include/graph.h"
 
@@ -11,29 +13,29 @@ void validate(int n, vector<pair<pair<int,int>,bool>>& stream,
               vector<pair<int,int>>& reduced_stream
 ) {
   bool inserted[(n + 1) * (n + 1) + 2];
-  fill(inserted, inserted + (n + 1) * (n + 1) + 2, 0);
+  fill(inserted, inserted + (n + 1) * (n + 1) + 2, DELETE);
   for (auto entry : stream) {
     if (inserted[entry.first.first*n+entry.first.second] == entry.second) {
-      throw "Invalid stream, no output written";
+      throw std::runtime_error("Invalid stream, no output written");
     }
     inserted[entry.first.first*n+entry.first.second] = !inserted[entry.first.first*n+entry.first.second];
   }
   unsigned num_cum = 0;
   for (int i = 0; i < (n + 1) * (n + 1) + 2; ++i) {
-    if (inserted[i]) ++num_cum;
+    if (inserted[i] == INSERT) ++num_cum;
   }
-  if (num_cum != reduced_stream.size()) throw "Mismatch with reduced stream, "
-                                              "no output written";
+  if (num_cum != reduced_stream.size()) throw std::runtime_error(
+        "Mismatch with reduced stream, no output written");
   cout << "Successful!" << endl;
 }
 
 /**
  * takes a sample.gr file of random type and transforms it into a stream with
  * insertions and deletions.
- * Writes stream output to sample.txt
- * Writes cumulative output to cum_sample.txt
+ * Writes stream output to file (default sample.txt)
+ * Writes cumulative output to file (default cum_sample.txt)
  */
-void transform() {
+void transform(GraphGenSettings settings) {
   srand(time(NULL));
   string str;
   ifstream in("./sample.gr");
@@ -48,21 +50,23 @@ void transform() {
   int f,s,w;
   int inserted[(n+1)*(n+1)+2];
   vector<pair<pair<int,int>,bool>> stream;
-  stream.reserve(m*3);
+  map<pair<int,int>,int> tot_edges;
   vector<pair<int,int>> cum_stream;
-  cum_stream.reserve(m);
-  fill(inserted, inserted+(n+1)*(n+1)+2, 0);
+  fill(inserted, inserted+(n+1)*(n+1)+2, DELETE);
   for (int i = 0; i < m; ++i) {
     in >> a >> f >> s >> w;
     --f; --s; // adjustment for 0-indexing
     full_m += w;
-    if (w%2) cum_stream.push_back({f,s});
+    tot_edges[{f,s}] += w;
     while (w--) stream.push_back({{f,s},INSERT});
   }
   in.close();
+  for (const auto& entry : tot_edges) {
+    if (entry.second % 2) cum_stream.push_back(entry.first);
+  }
 
   // write cumulative output
-  ofstream cum_out("./cum_sample.txt");
+  ofstream cum_out(settings.cum_out_file);
   cum_out << n << " " << cum_stream.size() << endl;
   for (auto entry : cum_stream) {
     cum_out << entry.first << " " << entry.second << endl;
@@ -77,17 +81,18 @@ void transform() {
 
   for (int i = 0; i < full_m; ++i) {
     f = stream[i].first.first*n+stream[i].first.second;
-    if (inserted[f] % 2) {
+    if (inserted[f] == DELETE) {
       stream[i].second = INSERT;
+      inserted[f] = INSERT;
     } else {
       stream[i].second = DELETE;
+      inserted[f] = DELETE;
     }
-    ++inserted[f];
   }
 
   validate(n, stream, cum_stream);
 
-  ofstream out("./sample.txt");
+  ofstream out(settings.out_file);
   out << n << " " << m << " " << full_m << endl;
   // output order: [type] [first node] [second node]
   for (auto edge : stream) {
@@ -98,19 +103,38 @@ void transform() {
   out.close();
 }
 
-void generate_stream() {
+/**
+ * Takes a settings struct and writes the corresponding config file to
+ * "./gtconfig"
+ */
+void generate_config(const GraphGenSettings& settings) {
+  ofstream out {"./gtconfig"};
+  out << "GRAPH_MODEL " << settings.graph_model << "\n";
+  out << "n " << settings.n << "\n";
+  out << "p " << settings.p << "\n";
+  out << "m " << settings.m << "\n";
+  out << "SELF_LOOPS 0\n";
+  out << "MAX_WEIGHT " << settings.max_appearances << "\n";
+  out << "MIN_WEIGHT 1\n";
+  out << "STORE_IN_MEMORY 1\n"
+         "SORT_EDGELISTS 0\n"
+         "SORT_TYPE 1\n"
+         "WRITE_TO_FILE 0" << endl;
+  out.close();
+}
+
+void generate_stream(GraphGenSettings settings) {
+  generate_config(settings);
   std::string fname = __FILE__;
   size_t pos = fname.find_last_of("\\/");
   std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
-  string cmd_str = curr_dir + "/GTgraph-random -c " +
-        curr_dir + "/gtgraph-random_config -o "
-                             "sample.gr";
+  string cmd_str = curr_dir + "/GTgraph-random -c ./gtconfig -o sample.gr";
   cout << "Running command:" << endl << cmd_str << endl;
   if (system(cmd_str.c_str())) {
     cout << "Could not generate graph. Aborting..." << endl;
     return;
   }
-  transform();
-  cout << "Graph written to: sample.txt" << endl;
-  cout << "Cumulative graph written to: cum_sample.txt" << endl;
+  transform(settings);
+  cout << "Graph written to: " << settings.out_file << endl;
+  cout << "Cumulative graph written to: " << settings.cum_out_file << endl;
 }
