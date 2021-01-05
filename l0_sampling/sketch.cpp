@@ -5,10 +5,6 @@
 #include <string>
 #include "../include/prime_generator.h"
 #include "../include/sketch.h"
-#include "../include/util.h"
-
-#define bucket_gen(x) double_to_ull(log2(x)+1)
-#define guess_gen(x) double_to_ull(log2(x)+2)
 
 Sketch::Sketch(uint64_t n, long seed): seed(seed), n(n), large_prime
 (PrimeGenerator::generate_prime((uint128_t)n*n)) {

@@ -3,6 +3,12 @@
 #include <exception>
 #include "update.h"
 #include "bucket.h"
+#include "util.h"
+#include <gtest/gtest_prod.h>
+
+#define bucket_gen(x) double_to_ull(log2(x)+1)
+#define guess_gen(x) double_to_ull(log2(x)+2)
+
 using namespace std;
 
 /**
@@ -16,6 +22,8 @@ class Sketch {
   std::vector<Bucket_Boruvka> buckets;
   const uint128_t large_prime;
   bool already_quered = false;
+
+  FRIEND_TEST(SketchTestSuite, TestExceptions);
 
   //Initialize a sketch of a vector of size n
 public:

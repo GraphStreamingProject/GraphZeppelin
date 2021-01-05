@@ -7,40 +7,41 @@ TEST(SketchTestSuite, TestExceptions) {
   ASSERT_THROW(sketch1.query(), AllBucketsZeroException);
   ASSERT_THROW(sketch1.query(), MultipleQueryException);
 
-  /*
-   * Use deterministic sketch
-   * This generates the following buckets:
-   * 1111111111
-   * 1001010011
-   * 0100000100
-   * 0000000000
-   * 1111111111
-   * 0010100111
-   * 0111100000
-   * 0000110101
-   * 1111111111
-   * 0101011010
-   * 0000000010
-   * 0000000000
-   * 1111111111
-   * 0000000010
-   * 0000011000
-   * 0000000000
-   * 0100000000
-   *
-   * To find a set of indicies where no good buckets exist, repeatedly
-   * eliminate the index of a good bucket until no good buckets exist.
-   *
-   * Once we have our indicies, try deltas until all buckets are not good.
+  /**
+   * Find a vector that makes no good buckets
    */
-  Sketch sketch2 = Sketch(10, 1);
-  sketch2.update({0, 1});
-  sketch2.update({2, 1});
-  sketch2.update({3, 1});
-  sketch2.update({4, 1});
-  sketch2.update({5, 1});
-  sketch2.update({6, 1});
-  sketch2.update({9, 1});
+  Sketch sketch2 = Sketch(100, 0);
+  std::vector<bool> vec_idx(sketch2.n, true);
+  unsigned long long num_buckets = bucket_gen(sketch2.n);
+  unsigned long long num_guesses = guess_gen(sketch2.n);
+  for (unsigned long long i = 0; i < num_buckets; ++i) {
+    for (unsigned long long j = 0; j < num_guesses;) {
+      long bucket_id = i * num_guesses + j;
+      XXH64_hash_t bucket_seed = XXH64(&bucket_id, 8, sketch2.seed);
+      uint64_t index = 0;
+      for (uint64_t k = 0; k < sketch2.n; ++k) {
+        if (vec_idx[k] && sketch2.buckets[bucket_id].contains(k + 1, bucket_seed, 1 << j)) {
+          if (index == 0) {
+            index = k + 1;
+          } else {
+            index = 0;
+            break;
+          }
+        }
+      }
+      if (index) {
+        vec_idx[index - 1] = false;
+        i = j = 0;
+      } else {
+        ++j;
+      }
+    }
+  }
+  for (uint64_t i = 0; i < sketch2.n; ++i) {
+    if (vec_idx[i]) {
+      sketch2.update({i, 1});
+    }
+  }
   ASSERT_THROW(sketch2.query(), NoGoodBucketException);
 }
 
