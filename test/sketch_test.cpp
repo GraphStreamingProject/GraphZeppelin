@@ -185,3 +185,47 @@ TEST(SketchTestSuite, TestSketchAddition){
   test_sketch_addition(1000, 1000, 1000, 0.001, 0.001);
   test_sketch_addition(1000, 10000, 10000, 0.001, 0.001);
 }
+
+/**
+ * Large sketch test
+ */
+void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
+  srand(time(NULL));
+  Sketch sketch = Sketch(vec_size, rand());
+  //Keep seed for replaying update stream later
+  unsigned long seed = rand();
+  srand(seed);
+  for (unsigned long j = 0; j < num_updates; j++){
+    sketch.update({(long) rand() % vec_size, rand() % 10 - 5});
+  }
+  try {
+    Update res = sketch.query();
+    //Multiple queries shouldn't happen, but if we do get here fail test
+    ASSERT_NE(res.delta, 0) << "Sample is zero";
+    ASSERT_LT(res.index, vec_size) << "Sampled index out of bounds";
+    //Replay update stream, keep track of the sampled index
+    srand(seed);
+    long actual_delta = 0;
+    for (unsigned long j = 0; j < num_updates; j++){
+      Update update = {(long) rand() % vec_size, rand() % 10 - 5};
+      if (update.index == res.index) {
+        actual_delta += update.delta;
+      }
+    }
+    //Undetected sample error, not likely to happen for large vectors
+    ASSERT_EQ(res.delta, actual_delta);
+  } catch (AllBucketsZeroException& e) {
+    //All buckets being 0 implies that the whole vector should be 0, not likely to happen for large vectors
+    FAIL() << "AllBucketsZeroException:" << e.what();
+  } catch (NoGoodBucketException& e) {
+    //No good bucket, not likely to happen for large vectors
+    FAIL() << "NoGoodBucketException:" << e.what();
+  } catch (MultipleQueryException& e) {
+    //Multiple queries shouldn't happen, but if we do get here fail test
+    FAIL() << "MultipleQueryException:" << e.what();
+  }
+}
+
+TEST(SketchTestSuite, TestSketchLarge) {
+  test_sketch_large(10000000, 1000000);
+}
