@@ -1,6 +1,6 @@
 #include <fstream>
 #include <map>
-#include "deterministic.h"
+#include "graph_verifier.h"
 
 //Node* parent;
 //Node* size;

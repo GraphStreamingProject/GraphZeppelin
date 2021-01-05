@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <fstream>
 #include "../include/graph.h"
-#include "util/deterministic.h"
+#include "util/graph_verifier.h"
 #include "util/graph_gen.h"
 
 TEST(GraphTestSuite, SmallGraphConnectivity) {
@@ -46,7 +46,7 @@ TEST(GraphTestSuite, IFconnectedComponentsAlgRunTHENupdateLocked) {
 
 TEST(GraphTestSuite, TestRandomGraphGeneration) {
   generate_stream();
-  GraphVerifier graphVerifier {"./cum_sample.txt"};
+  GraphVerifier graphVerifier {};
 }
 
 TEST(GraphTestSuite, TestCorrectnessOnSmallRandomGraphs) {

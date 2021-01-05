@@ -7,7 +7,7 @@
 #include "supernode.h"
 
 #ifdef VERIFY_SAMPLES_F
-#include "../test/util/deterministic.h"
+#include "../test/util/graph_verifier.h"
 #endif
 
 enum UpdateType {
@@ -27,11 +27,6 @@ class Graph{
   // a set containing one "representative" from each supernode
   set<Node>* representatives;
   Supernode** supernodes;
-
-#ifdef VERIFY_SAMPLES_F
-  std::string cum_in = "./cum_sample.txt";
-#endif
-
   // DSU representation of supernode relationship
   Node* parent;
   Node get_parent(Node node);
@@ -47,6 +42,8 @@ public:
   vector<set<Node>> connected_components();
 
 #ifdef VERIFY_SAMPLES_F
+  std::string cum_in = "./cum_sample.txt";
+
   /**
    * Set the filepath to search for cumulative graph input.
    */

@@ -1,5 +1,5 @@
-#ifndef TEST_DETERMINISTIC_H
-#define TEST_DETERMINISTIC_H
+#ifndef TEST_GRAPH_VERIFIER_H
+#define TEST_GRAPH_VERIFIER_H
 
 #include <set>
 #include "../../include/supernode.h"
@@ -23,7 +23,7 @@ class GraphVerifier {
   Node* parent;
   Node* size;
 public:
-  GraphVerifier(const string& input_file = "cum_sample.txt");
+  GraphVerifier(const string& input_file = "./cum_sample.txt");
   ~GraphVerifier();
   /**
    * Verifies an edge exists in the graph. Verifies that the edge is in the cut
@@ -62,4 +62,4 @@ class NotCCException : public exception {
   }
 };
 
-#endif //TEST_DETERMINISTIC_H
+#endif //TEST_GRAPH_VERIFIER_H
