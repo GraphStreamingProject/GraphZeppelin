@@ -3,6 +3,9 @@
 #include "include/graph.h"
 
 Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
+#ifdef VERIFY_SAMPLES_F
+  cout << "Verifying samples..." << endl;
+#endif
   representatives = new set<Node>();
   supernodes = new Supernode*[num_nodes];
   parent = new Node[num_nodes];
@@ -40,12 +43,21 @@ void Graph::update(GraphUpdate upd) {
 vector<set<Node>> Graph::connected_components() {
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
+#ifdef VERIFY_SAMPLES_F
+  GraphVerifier verifier {cum_in};
+#endif
   do {
     modified = false;
     vector<Node> removed;
     for (Node i: (*representatives)) {
       if (parent[i] != i) continue;
       boost::optional<Edge> edge = supernodes[i]->sample();
+#ifdef VERIFY_SAMPLES_F
+      if (edge.is_initialized())
+        verifier.verify_edge(edge.value());
+      else
+        verifier.verify_cc(i);
+#endif
       if (!edge.is_initialized()) continue;
 
       Node n;
@@ -72,6 +84,9 @@ vector<set<Node>> Graph::connected_components() {
   vector<set<Node>> retval;
   retval.reserve(temp.size());
   for (const auto& it : temp) retval.push_back(it.second);
+#ifdef VERIFY_SAMPLES_F
+  verifier.verify_soln(retval);
+#endif
   return retval;
 }
 

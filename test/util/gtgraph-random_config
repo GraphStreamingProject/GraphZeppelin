@@ -1,0 +1,16 @@
+# Random graph model to use: 
+# G(n, m) -- 1 (add exactly m edges choosing n pairs of vertices randomly)
+# G(n, p) -- 0 (Erdos-Renyi graph -- prob. of having an edge between any pair of vertices is p)
+GRAPH_MODEL 0
+n 1024
+p 0.03
+m 30000
+SELF_LOOPS 0
+MAX_WEIGHT 4
+MIN_WEIGHT 1
+STORE_IN_MEMORY 1
+SORT_EDGELISTS 0
+# Sorting alg. to use: 0 for counting sort (works only if n is 
+# less than 2^31 - 1), 1 for heap sort
+SORT_TYPE 1
+WRITE_TO_FILE 0
