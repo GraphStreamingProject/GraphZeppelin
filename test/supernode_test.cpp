@@ -44,8 +44,7 @@ vector<Edge>* SupernodeTestSuite::graph_edges;
 vector<Edge>* SupernodeTestSuite::odd_graph_edges;
 bool* SupernodeTestSuite::prime;
 
-TEST_F(SupernodeTestSuite,
-       DISABLED_GIVENnoEdgeUpdatesIFsampledTHENnoEdgeIsReturned) {
+TEST_F(SupernodeTestSuite, GIVENnoEdgeUpdatesIFsampledTHENnoEdgeIsReturned) {
   Supernode s{num_nodes, seed};
   boost::optional<Edge> res;
   for (int i=0;i<(int)log2(num_nodes);++i) {
@@ -54,8 +53,7 @@ TEST_F(SupernodeTestSuite,
   }
 }
 
-TEST_F(SupernodeTestSuite,
-       DISABLED_IFsampledTooManyTimesTHENthrowOutOfQueries) {
+TEST_F(SupernodeTestSuite, IFsampledTooManyTimesTHENthrowOutOfQueries) {
   Supernode s{num_nodes, seed};
   for (int i=0;i<(int)log2(num_nodes);++i) {
     s.sample();
@@ -63,7 +61,7 @@ TEST_F(SupernodeTestSuite,
   ASSERT_THROW(s.sample(), OutOfQueriesException);
 }
 
-TEST_F(SupernodeTestSuite, DISABLED_TestSampleInsertGrinder) {
+TEST_F(SupernodeTestSuite, TestSampleInsertGrinder) {
   vector<Supernode> snodes;
   snodes.reserve(num_nodes);
   for (unsigned i = 0; i < num_nodes; ++i)
@@ -102,7 +100,7 @@ TEST_F(SupernodeTestSuite, DISABLED_TestSampleInsertGrinder) {
   }
 }
 
-TEST_F(SupernodeTestSuite, DISABLED_TestSampleDeleteGrinder) {
+TEST_F(SupernodeTestSuite, TestSampleDeleteGrinder) {
   vector<Supernode> snodes;
   snodes.reserve(num_nodes);
   for (unsigned i = 0; i < num_nodes; ++i)
