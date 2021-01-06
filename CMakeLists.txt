@@ -174,6 +174,10 @@ add_executable(tests
   test/sketch_test.cpp
   test/supernode_test.cpp
   test/util_test.cpp
+  test/util/graph_verifier.cpp
+  test/util/graph_gen.cpp
+  test/util/graph_gen_test.cpp
+  test/util/graph_verifier_test.cpp
   graph.cpp
   supernode.cpp
   l0_sampling/sketch.cpp
@@ -182,6 +186,7 @@ add_executable(tests
   l0_sampling/int127.cpp
   test/int127_test.cpp)
 target_link_libraries(tests PRIVATE xxHash::xxhash GTest::gtest)
+target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F)
 # optimize if running on CI
 if (DEFINED ENV{CI})
   message("Optimizing test suite for CI")
