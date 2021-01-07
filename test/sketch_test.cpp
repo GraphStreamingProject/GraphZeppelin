@@ -20,8 +20,8 @@ TEST(SketchTestSuite, TestExceptions) {
   unsigned long long num_guesses = guess_gen(sketch2.n);
   for (unsigned long long i = 0; i < num_buckets; ++i) {
     for (unsigned long long j = 0; j < num_guesses;) {
-      long bucket_id = i * num_guesses + j;
-      XXH64_hash_t bucket_seed = XXH64(&bucket_id, 8, sketch2.seed);
+      unsigned bucket_id = i * num_guesses + j;
+      XXH64_hash_t bucket_seed = XXH64(&bucket_id, sizeof(bucket_id), sketch2.seed);
       uint64_t index = 0;
       for (uint64_t k = 0; k < sketch2.n; ++k) {
         if (vec_idx[k] && sketch2.buckets[bucket_id].contains(k + 1, bucket_seed, 1 << j)) {

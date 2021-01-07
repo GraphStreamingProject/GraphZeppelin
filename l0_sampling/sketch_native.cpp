@@ -21,7 +21,7 @@ void Sketch::update(Update update ) {
   for (unsigned i = 0; i < num_buckets; ++i){
     for (unsigned j = 0; j < num_guesses; ++j){
       unsigned bucket_id = i*num_guesses+j;
-      XXH64_hash_t bucket_seed = XXH64(&bucket_id ,8, seed);
+      XXH64_hash_t bucket_seed = XXH64(&bucket_id ,sizeof(bucket_id), seed);
       int64_t r = 2 + bucket_seed % (large_prime - 3);
       if (buckets[bucket_id].contains(update.index+1,bucket_seed, 1<<j)){
         buckets[bucket_id].a += update.delta;
@@ -49,7 +49,7 @@ Update Sketch::query(){
       if (b.a != 0 || b.b != 0 || b.c != 0) {
         all_buckets_zero = false;
       }
-      XXH64_hash_t bucket_seed = XXH64(&bucket_id ,8, seed);
+      XXH64_hash_t bucket_seed = XXH64(&bucket_id ,sizeof(bucket_id), seed);
       int64_t r = 2 + bucket_seed % (large_prime - 3);
       if (b.a != 0 && b.b % b.a == 0 && b.b/b.a > 0 && b.b/b.a <= n && b
             .contains(b.b/b.a,bucket_seed, 1<<j)
@@ -114,7 +114,7 @@ std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
     for (unsigned j = 0; j < num_guesses; ++j){
       unsigned bucket_id = i*num_guesses+j;
       const Bucket& bucket = sketch.buckets[bucket_id];
-      XXH64_hash_t bucket_seed = XXH64(&bucket_id ,8, sketch.seed);
+      XXH64_hash_t bucket_seed = XXH64(&bucket_id ,sizeof(bucket_id), sketch.seed);
       int64_t r = 2 + bucket_seed % (sketch.large_prime - 3);
       for (unsigned k = 0; k < sketch.n; k++) {
         os << (bucket.contains(k+1,bucket_seed,1<<j) ? '1' : '0');

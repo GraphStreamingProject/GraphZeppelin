@@ -18,8 +18,8 @@ void Sketch::update(Update update ) {
   const unsigned long long int num_guesses = guess_gen(n);
   for (unsigned i = 0; i < num_buckets; ++i) {
     for (unsigned j = 0; j < num_guesses; ++j) {
-      long bucket_id = i * num_guesses + j;
-      XXH64_hash_t bucket_seed = XXH64(&bucket_id, 8, seed);
+      unsigned bucket_id = i * num_guesses + j;
+      XXH64_hash_t bucket_seed = XXH64(&bucket_id, sizeof(bucket_id), seed);
       int128_t r = 2 +  bucket_seed % (large_prime - 3);
       if (buckets[bucket_id].contains(update.index+1, bucket_seed, 1 << j)){
         buckets[bucket_id].a += update.delta;
@@ -46,8 +46,8 @@ Update Sketch::query() {
       if (b.a != 0 || b.b != 0 || b.c != 0) {
         all_buckets_zero = false;
       }
-      long bucket_id = i * num_guesses + j;
-      XXH64_hash_t bucket_seed = XXH64(&bucket_id, 8, seed);
+      unsigned bucket_id = i * num_guesses + j;
+      XXH64_hash_t bucket_seed = XXH64(&bucket_id, sizeof(bucket_id), seed);
       uint128_t r = 2 + bucket_seed % (large_prime - 3);
       if (b.a != 0 && b.b % b.a == 0  && b.b / b.a > 0 && b.b / b.a <= n
             && Bucket_Boruvka::contains((b.b / b.a).toBoostUInt128(), bucket_seed,1 << j)
@@ -113,8 +113,8 @@ std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
   const unsigned long long int num_guesses = guess_gen(sketch.n);
   for (unsigned i = 0; i < num_buckets; ++i) {
     for (unsigned j = 0; j < num_guesses; ++j) {
-      long bucket_id = i * num_guesses + j;
-      XXH64_hash_t bucket_seed = XXH64(&bucket_id, 8, sketch.seed);
+      unsigned bucket_id = i * num_guesses + j;
+      XXH64_hash_t bucket_seed = XXH64(&bucket_id, sizeof(bucket_id), sketch.seed);
       uint128_t r = 2 + bucket_seed % (sketch.large_prime - 3);
       const Bucket_Boruvka& bucket = sketch.buckets[i];
       for (unsigned k = 0; k < sketch.n; k++) {
