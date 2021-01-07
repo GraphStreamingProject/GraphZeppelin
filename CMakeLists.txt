@@ -198,3 +198,32 @@ if (DEFINED ENV{CI})
 else()
   target_compile_options(tests PRIVATE -g)
 endif ()
+
+add_executable(native_tests
+        test/test_runner.cpp
+        test/graph_test.cpp
+        test/sketch_test.cpp
+        test/supernode_test.cpp
+        test/util_test.cpp
+        test/util/graph_verifier.cpp
+        test/util/graph_gen.cpp
+        test/util/graph_gen_test.cpp
+        test/util/graph_verifier_test.cpp
+        graph.cpp
+        supernode.cpp
+        l0_sampling/sketch_native.cpp
+        l0_sampling/update.cpp
+        util.cpp)
+target_link_libraries(native_tests PRIVATE xxHash::xxhash GTest::gtest)
+target_compile_definitions(native_tests PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F)
+# optimize if running on CI
+if (DEFINED ENV{CI})
+  message("Optimizing test suite for CI")
+  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    target_compile_options(native_tests PRIVATE -O3)
+  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    target_compile_options(native_tests PRIVATE /O2)
+  endif()
+else()
+  target_compile_options(native_tests PRIVATE -g)
+endif ()

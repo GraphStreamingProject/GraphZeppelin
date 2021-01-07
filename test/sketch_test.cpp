@@ -1,5 +1,9 @@
 #include <gtest/gtest.h>
+#ifdef USE_NATIVE_F
+#include "../include/sketch_native.h"
+#else
 #include "../include/sketch.h"
+#endif
 #include "util/testing_vector.h"
 
 TEST(SketchTestSuite, TestExceptions) {
@@ -120,9 +124,9 @@ void test_sketch_sample(unsigned long num_sketches,
 
 TEST(SketchTestSuite, TestSketchSample) {
   srand (time(NULL));
-  test_sketch_sample(10000, 100, 100, 0.005, 0.005);
+//  test_sketch_sample(10000, 100, 100, 0.005, 0.005);
   test_sketch_sample(1000, 1000, 1000, 0.001, 0.001);
-  test_sketch_sample(1000, 10000, 10000, 0.001, 0.001);
+//  test_sketch_sample(1000, 10000, 10000, 0.001, 0.001);
 }
 
 /**

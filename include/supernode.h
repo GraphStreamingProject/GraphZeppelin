@@ -1,6 +1,10 @@
 #pragma once
 #include <boost/optional.hpp>
+#ifdef USE_NATIVE_F
+#include "sketch_native.h"
+#else
 #include "sketch.h"
+#endif
 
 typedef uint64_t Node;
 typedef std::pair<Node, Node> Edge;
