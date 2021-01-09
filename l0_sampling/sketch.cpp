@@ -24,9 +24,13 @@ void Sketch::update(Update update ) {
       if (buckets[bucket_id].contains(update.index+1, bucket_seed, 1 << j)){
         buckets[bucket_id].a += update.delta;
         buckets[bucket_id].b += update.delta*(update.index+1); // deals with updates whose indices are 0
-        buckets[bucket_id].c = static_cast<uint128_t>((buckets[bucket_id].c
-              + large_prime
-              + update.delta*PrimeGenerator::power(r,(uint128_t) update.index+1, large_prime)) % large_prime);
+        buckets[bucket_id].c = static_cast<uint128_t>(
+              (static_cast<int128_t>(buckets[bucket_id].c)
+              + static_cast<int128_t>(large_prime)
+              + (update.delta*PrimeGenerator::power(r,(uint128_t) update
+              .index+1, large_prime) % static_cast<int128_t>(large_prime)))
+              % large_prime
+              );
       }
     }
   }

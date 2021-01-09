@@ -19,7 +19,7 @@ public:
     vect = new vector<long>(vector_length,0);
     //Initialize the stream, and finalize the input vector.
   	for (unsigned int i = 0; i < num_updates; i++){
-  		stream[i] = {(long)rand()%vector_length,rand()%10 - 5};
+  		stream[i] = {(int64_t) (rand() % vector_length),rand()%10 - 5};
   		(*vect)[stream[i].index] += stream[i].delta;
   		//cout << "Index: " << stream[i].index << " Delta: " << stream[i].delta << endl;
   	}

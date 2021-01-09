@@ -19,7 +19,6 @@ struct Bucket_Boruvka{
   int127 a = 0;
   int127 b = 0;
   boost::multiprecision::uint128_t c = 0;
-  long long vc = 0;
 
   /**
    * Checks whether the hash associated with the Bucket hashes the index to 0.

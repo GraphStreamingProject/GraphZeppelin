@@ -124,9 +124,9 @@ void test_sketch_sample(unsigned long num_sketches,
 
 TEST(SketchTestSuite, TestSketchSample) {
   srand (time(NULL));
-//  test_sketch_sample(10000, 100, 100, 0.005, 0.005);
+  test_sketch_sample(10000, 100, 100, 0.005, 0.005);
   test_sketch_sample(1000, 1000, 1000, 0.001, 0.001);
-//  test_sketch_sample(1000, 10000, 10000, 0.001, 0.001);
+  test_sketch_sample(1000, 10000, 10000, 0.001, 0.001);
 }
 
 /**
@@ -200,7 +200,7 @@ void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
   unsigned long seed = rand();
   srand(seed);
   for (unsigned long j = 0; j < num_updates; j++){
-    sketch.update({(long) rand() % vec_size, rand() % 10 - 5});
+    sketch.update({(int64_t) (rand() % vec_size), rand() % 10 - 5});
   }
   try {
     Update res = sketch.query();
@@ -211,7 +211,7 @@ void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
     srand(seed);
     long actual_delta = 0;
     for (unsigned long j = 0; j < num_updates; j++){
-      Update update = {(long) rand() % vec_size, rand() % 10 - 5};
+      Update update = {(int64_t) (rand() % vec_size), rand() % 10 - 5};
       if (update.index == res.index) {
         actual_delta += update.delta;
       }

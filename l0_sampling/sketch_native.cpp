@@ -1,12 +1,10 @@
-#include <math.h>
 #include <cmath>
-#include <assert.h>
+#include <cassert>
 #include <vector>
 #include <iostream>
 #include <string>
 #include "../include/prime_generator_native.h"
 #include "../include/sketch_native.h"
-#include "../include/util.h"
 
 Sketch::Sketch(uint64_t n, long seed): seed(seed), n(n), large_prime
       (PrimeGeneratorNative::generate_prime(n*n)) {
@@ -91,6 +89,7 @@ Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2) {
     sketch1.buckets[i].c += sketch2.buckets[i].c;
     sketch1.buckets[i].c %= sketch1.large_prime;
   }
+  sketch1.already_quered = sketch1.already_quered || sketch2.already_quered;
   return sketch1;
 }
 
