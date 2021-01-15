@@ -49,7 +49,7 @@ TEST_F(SupernodeTestSuite, GIVENnoEdgeUpdatesIFsampledTHENnoEdgeIsReturned) {
   boost::optional<Edge> res;
   for (int i=0;i<(int)log2(num_nodes);++i) {
     res = s.sample();
-    ASSERT_FALSE(res.is_initialized());
+    EXPECT_FALSE(res.is_initialized()) << i << " was inited";
   }
 }
 

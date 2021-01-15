@@ -1,26 +1,27 @@
 #pragma once
+#include <cmath>
 #include <vector>
 #include <exception>
 #include "update.h"
-#include "bucket.h"
+#include "bucket_native.h"
 #include "util.h"
 #include <gtest/gtest_prod.h>
+
+using namespace std;
 
 #define bucket_gen(x) double_to_ull(log2(x)+1)
 #define guess_gen(x) double_to_ull(log2(x)+2)
 
-using namespace std;
-
 /**
- * An implementation of a "sketch" as defined in the L0 algorithm.
+ * A native implementation of a "sketch" as defined in the L0 algorithm.
  * Note a sketch may only be queried once. Attempting to query multiple times will
  * raise an error.
  */
 class Sketch {
   const long seed;
   const uint64_t n;
-  std::vector<Bucket_Boruvka> buckets;
-  const uint128_t large_prime;
+  std::vector<Bucket> buckets;
+  const long long int large_prime;
   bool already_quered = false;
 
   FRIEND_TEST(SketchTestSuite, TestExceptions);
