@@ -1,5 +1,5 @@
 #pragma once
-#include <cmath>
+
 typedef long long int ll;
 typedef unsigned long long int ull;
 
