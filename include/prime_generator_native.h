@@ -35,7 +35,7 @@ namespace PrimeGeneratorNative {
     if (n % 2 == 0){
       n++;
     }
-    while(IsPrime(n)){
+    while(!IsPrime(n)){
       n += 2;
     }
     return n;
