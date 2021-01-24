@@ -36,6 +36,40 @@ public:
   void update(Update update);
 
   /**
+   * Update a sketch given a batch of updates
+   * @param begin a ForwardIterator to the first update
+   * @param end a ForwardIterator to after the last update
+   */
+  template <typename ForwardIterator>
+  void Sketch::batch_update(ForwardIterator begin, ForwardIterator end) {
+    const unsigned long long int num_buckets = bucket_gen(n);
+    const unsigned long long int num_guesses = guess_gen(n);
+    for (unsigned i = 0; i < num_buckets; ++i) {
+      for (unsigned j = 0; j < num_guesses; ++j) {
+        unsigned bucket_id = i * num_guesses + j;
+        XXH64_hash_t bucket_seed = XXH64(&bucket_id, sizeof(bucket_id), seed);
+        int128_t r = 2 +  bucket_seed % (large_prime - 3);
+        for (auto it = begin; it != end; it++) {
+          const Update& update = *it;
+          Bucket& bucket = buckets[bucket_id];
+          if (bucket.contains(update.index+1, bucket_seed, 1 << j)){
+            bucket.a += update.delta;
+            bucket.b += update.delta*(update.index+1); // deals with updates whose indices are 0
+            bucket.c = static_cast<uint128_t>(
+                  (static_cast<int128_t>(buckets.c)
+                  + static_cast<int128_t>(large_prime)
+                  + (update.delta*PrimeGenerator::power(r,(uint128_t) update
+                  .index+1, large_prime) % static_cast<int128_t>(large_prime)))
+                  % large_prime
+                  );
+          }
+        }
+      }
+    }
+  }
+
+
+  /**
    * Function to query a sketch.
    * @return                        an index in the form of an Update.
    * @throws MultipleQueryException if the sketch has already been queried.
