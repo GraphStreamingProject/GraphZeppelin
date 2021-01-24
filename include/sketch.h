@@ -3,6 +3,7 @@
 #include <exception>
 #include "update.h"
 #include "bucket.h"
+#include "prime_generator.h"
 #include "util.h"
 #include <gtest/gtest_prod.h>
 
@@ -41,7 +42,7 @@ public:
    * @param end a ForwardIterator to after the last update
    */
   template <typename ForwardIterator>
-  void Sketch::batch_update(ForwardIterator begin, ForwardIterator end) {
+  void batch_update(ForwardIterator begin, ForwardIterator end) {
     const unsigned long long int num_buckets = bucket_gen(n);
     const unsigned long long int num_guesses = guess_gen(n);
     for (unsigned i = 0; i < num_buckets; ++i) {
@@ -51,12 +52,12 @@ public:
         int128_t r = 2 +  bucket_seed % (large_prime - 3);
         for (auto it = begin; it != end; it++) {
           const Update& update = *it;
-          Bucket& bucket = buckets[bucket_id];
+          Bucket_Boruvka& bucket = buckets[bucket_id];
           if (bucket.contains(update.index+1, bucket_seed, 1 << j)){
             bucket.a += update.delta;
             bucket.b += update.delta*(update.index+1); // deals with updates whose indices are 0
             bucket.c = static_cast<uint128_t>(
-                  (static_cast<int128_t>(buckets.c)
+                  (static_cast<int128_t>(bucket.c)
                   + static_cast<int128_t>(large_prime)
                   + (update.delta*PrimeGenerator::power(r,(uint128_t) update
                   .index+1, large_prime) % static_cast<int128_t>(large_prime)))

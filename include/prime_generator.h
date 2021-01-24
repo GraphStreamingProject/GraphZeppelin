@@ -5,7 +5,7 @@ using boost::multiprecision::int128_t;
 using boost::multiprecision::uint128_t;
 
 namespace PrimeGenerator{
-  int128_t power(int128_t x, uint128_t y, uint128_t p){
+  inline int128_t power(int128_t x, uint128_t y, uint128_t p){
     int128_t res = 1;
     x = x % p;
     while (y > 0)
@@ -30,7 +30,7 @@ namespace PrimeGenerator{
     return true;
   }
   //Generates a prime number greater than or equal to n
-  uint128_t generate_prime(uint128_t n){
+  inline uint128_t generate_prime(uint128_t n){
     if (n % 2 == 0){
       n++;
     }
