@@ -25,6 +25,7 @@ class Sketch {
   bool already_quered = false;
 
   FRIEND_TEST(SketchTestSuite, TestExceptions);
+  FRIEND_TEST(SketchTestSuite, TestBatchUpdate);
 
   //Initialize a sketch of a vector of size n
 public:
@@ -50,9 +51,9 @@ public:
         unsigned bucket_id = i * num_guesses + j;
         XXH64_hash_t bucket_seed = XXH64(&bucket_id, sizeof(bucket_id), seed);
         int128_t r = 2 +  bucket_seed % (large_prime - 3);
+        Bucket_Boruvka& bucket = buckets[bucket_id];
         for (auto it = begin; it != end; it++) {
           const Update& update = *it;
-          Bucket_Boruvka& bucket = buckets[bucket_id];
           if (bucket.contains(update.index+1, bucket_seed, 1 << j)){
             bucket.a += update.delta;
             bucket.b += update.delta*(update.index+1); // deals with updates whose indices are 0

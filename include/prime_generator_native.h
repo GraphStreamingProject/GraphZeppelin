@@ -4,7 +4,7 @@ typedef long long int ll;
 typedef unsigned long long int ull;
 
 namespace PrimeGeneratorNative {
-  ll power(ll x, ull y, ull p){
+  inline ll power(ll x, ull y, ull p){
       ll res = 1;
       x = x % p;
       while (y > 0)
@@ -31,7 +31,7 @@ namespace PrimeGeneratorNative {
     return true;
   }
   //Generates a prime number greater than or equal to n
-  ull generate_prime(ull n){
+  inline ull generate_prime(ull n){
     if (n % 2 == 0){
       n++;
     }

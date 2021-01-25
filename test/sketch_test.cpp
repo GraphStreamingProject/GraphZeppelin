@@ -233,3 +233,29 @@ void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
 TEST(SketchTestSuite, TestSketchLarge) {
   test_sketch_large(10000000, 1000000);
 }
+
+TEST(SketchTestSuite, TestBatchUpdate) {
+  unsigned long vec_size = 10000, num_updates = 10000;
+  srand(time(NULL));
+  std::vector<Update> updates(num_updates);
+  for (unsigned long i = 0; i < num_updates; i++) {
+    updates[i] = {rand() % vec_size, rand() % 10 - 5};
+  }
+  auto sketch_seed = rand();
+  Sketch sketch(vec_size, sketch_seed);
+  Sketch sketch_batch(vec_size, sketch_seed);
+  for (const Update& update : updates) {
+    sketch.update(update);
+  }
+  sketch_batch.batch_update(updates.cbegin(), updates.cend());
+
+  ASSERT_EQ(sketch.seed, sketch_batch.seed);
+  ASSERT_EQ(sketch.n, sketch_batch.n);
+  ASSERT_EQ(sketch.buckets.size(), sketch_batch.buckets.size());
+  ASSERT_EQ(sketch.large_prime, sketch_batch.large_prime);
+  for (auto it1 = sketch.buckets.cbegin(), it2 = sketch_batch.buckets.cbegin(); it1 != sketch.buckets.cend(); it1++, it2++) {
+    ASSERT_EQ(it1->a, it2->a);
+    ASSERT_EQ(it1->b, it2->b);
+    ASSERT_EQ(it1->c, it2->c);
+  }
+}
