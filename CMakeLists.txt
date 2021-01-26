@@ -146,6 +146,7 @@ add_executable(main
   supernode.cpp
   l0_sampling/sketch.cpp
   l0_sampling/update.cpp
+  l0_sampling/bucket.cpp
   util.cpp
   l0_sampling/int127.cpp)
 target_link_libraries(main PRIVATE xxHash::xxhash)
@@ -159,6 +160,7 @@ add_executable(l0sampling
   l0sampling.cpp
   l0_sampling/sketch.cpp
   l0_sampling/update.cpp
+  l0_sampling/bucket.cpp
   util.cpp
   l0_sampling/int127.cpp)
 target_link_libraries(l0sampling PRIVATE xxHash::xxhash)
@@ -182,21 +184,22 @@ add_executable(tests
   supernode.cpp
   l0_sampling/sketch.cpp
   l0_sampling/update.cpp
+  l0_sampling/bucket.cpp
   util.cpp
   l0_sampling/int127.cpp
   test/int127_test.cpp)
 target_link_libraries(tests PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F)
-# optimize if running on CI
-if (DEFINED ENV{CI})
-  message("Optimizing test suite for CI")
+# optimize unless debug
+if (DEFINED ENV{DEBUG})
+  message("Disabling optimizations and enabling debug symbols")
+  target_compile_options(tests PRIVATE -g)
+else ()
   if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     target_compile_options(tests PRIVATE -O3)
   elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
     target_compile_options(tests PRIVATE /O2)
   endif()
-else()
-  target_compile_options(tests PRIVATE -g)
 endif ()
 
 add_executable(native_tests
@@ -216,14 +219,15 @@ add_executable(native_tests
         util.cpp)
 target_link_libraries(native_tests PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(native_tests PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F)
-# optimize if running on CI
+# optimize unless debug
 if (DEFINED ENV{CI})
+  message("Disabling optimizations and enabling debug symbols")
+  target_compile_options(native_tests PRIVATE -g)
+else ()
   message("Optimizing test suite for CI")
   if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     target_compile_options(native_tests PRIVATE -O3)
   elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
     target_compile_options(native_tests PRIVATE /O2)
   endif()
-else()
-  target_compile_options(native_tests PRIVATE -g)
 endif ()

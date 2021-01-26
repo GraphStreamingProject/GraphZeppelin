@@ -4,9 +4,9 @@
 /**
  * Representation of a generic vector point update.
  */
-struct Update{
+struct Update {
   // the position in the vector that is changed
-  int64_t index;
+  uint64_t index;
   // the magnitude of the change
   long delta;
 

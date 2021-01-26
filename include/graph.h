@@ -10,6 +10,8 @@
 #include "../test/util/graph_verifier.h"
 #endif
 
+using namespace std;
+
 enum UpdateType {
   INSERT = 0,
   DELETE = 1,

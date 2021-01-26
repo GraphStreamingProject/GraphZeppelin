@@ -6,6 +6,8 @@
 #include "sketch.h"
 #endif
 
+using namespace std;
+
 typedef uint64_t Node;
 typedef std::pair<Node, Node> Edge;
 

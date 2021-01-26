@@ -1,22 +1,24 @@
 #pragma once
 #include <boost/multiprecision/cpp_int.hpp>
+#include "montgomery.h"
 
 using boost::multiprecision::int128_t;
 using boost::multiprecision::uint128_t;
 
 namespace PrimeGenerator{
-  inline int128_t power(int128_t x, uint128_t y, uint128_t p){
-    int128_t res = 1;
-    x = x % p;
-    while (y > 0)
-    {
-      if (y & 1)
-        res = (res*x) % p;
-      y = y>>1;
-      x = (x*x) % p;
+  inline uint128_t powermod(uint128_t a, uint128_t b, const Montgomery::Ctx& ctx) {
+    uint128_t res = ctx.toMont(1);
+    a = ctx.toMont(a);
+    while (b) {
+      if (b & 1) {
+        res = ctx.mult(res, a);
+      }
+      b >>= 1;
+      a = ctx.mult(a, a);
     }
-    return res;
+    return ctx.fromMont(res);
   }
+
   static bool IsPrime(uint128_t n) {
     if (n < 2) return false;
     if (n < 4) return true;

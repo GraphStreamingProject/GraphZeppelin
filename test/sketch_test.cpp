@@ -24,7 +24,7 @@ TEST(SketchTestSuite, TestExceptions) {
       XXH64_hash_t bucket_seed = XXH64(&bucket_id, sizeof(bucket_id), sketch2.seed);
       uint64_t index = 0;
       for (uint64_t k = 0; k < sketch2.n; ++k) {
-        if (vec_idx[k] && sketch2.buckets[bucket_id].contains(k + 1, bucket_seed, 1 << j)) {
+        if (vec_idx[k] && sketch2.buckets[bucket_id].contains(k, bucket_seed, 1 << j)) {
           if (index == 0) {
             index = k + 1;
           } else {
@@ -58,13 +58,10 @@ TEST(SketchTestSuite, GIVENonlyIndexZeroUpdatedTHENitWorks) {
   Sketch sketch = Sketch(vec_size, rand());
   for (int i=0;i<num_updates-1;++i) {
     d = rand()%10 - 5;
+    if (delta+d == 0) ++d;
     sketch.update({0,d});
     delta+=d;
   }
-  d = rand()%10 - 5;
-  if (delta+d == 0) ++d;
-  sketch.update({0,d});
-  delta+=d;
 
   // THEN it works
   Update res = sketch.query();

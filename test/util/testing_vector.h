@@ -7,6 +7,8 @@ those updates to the vector and makes both the updates and the processed vector
 visible.
 */
 
+using namespace std;
+
 class Testing_Vector{
   Update* stream;
   vector<long>* vect;
