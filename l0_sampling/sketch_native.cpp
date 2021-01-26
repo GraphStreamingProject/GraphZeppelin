@@ -21,7 +21,7 @@ void Sketch::update(Update update ) {
       unsigned bucket_id = i*num_guesses+j;
       XXH64_hash_t bucket_seed = XXH64(&bucket_id ,sizeof(bucket_id), seed);
       int64_t r = 2 + bucket_seed % (large_prime - 3);
-      if (buckets[bucket_id].contains(update.index+1,bucket_seed, 1<<j)){
+      if (buckets[bucket_id].contains(update.index,bucket_seed, 1<<j)){
         buckets[bucket_id].a += update.delta;
         buckets[bucket_id].b += update.delta*(update.index+1); // deals with updates whose indices are 0
         buckets[bucket_id].c += (update.delta*PrimeGeneratorNative::power
@@ -50,7 +50,7 @@ Update Sketch::query(){
       XXH64_hash_t bucket_seed = XXH64(&bucket_id ,sizeof(bucket_id), seed);
       int64_t r = 2 + bucket_seed % (large_prime - 3);
       if (b.a != 0 && b.b % b.a == 0 && b.b/b.a > 0 && b.b/b.a <= n && b
-            .contains(b.b/b.a,bucket_seed, 1<<j)
+            .contains(b.b/b.a - 1,bucket_seed, 1<<j)
           && (b.c - b.a*PrimeGeneratorNative::power(r,b.b/b.a,large_prime))%
           large_prime == 0) {
         return {b.b/b.a - 1,b.a}; // 0-index adjustment
@@ -116,7 +116,7 @@ std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
       XXH64_hash_t bucket_seed = XXH64(&bucket_id ,sizeof(bucket_id), sketch.seed);
       int64_t r = 2 + bucket_seed % (sketch.large_prime - 3);
       for (unsigned k = 0; k < sketch.n; k++) {
-        os << (bucket.contains(k+1,bucket_seed,1<<j) ? '1' : '0');
+        os << (bucket.contains(k,bucket_seed,1<<j) ? '1' : '0');
       }
       os << std::endl
          << "a:" << bucket.a << std::endl

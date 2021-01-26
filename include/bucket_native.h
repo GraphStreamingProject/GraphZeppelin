@@ -18,7 +18,8 @@ struct Bucket{
    */
   static bool contains(uint64_t index, XXH64_hash_t bucket_seed, long
   guess_nonzero) {
-    XXH64_hash_t hash = XXH64(&index, 8, bucket_seed);
+    index++;
+    XXH64_hash_t hash = XXH64(&index, sizeof(index), bucket_seed);
     if (hash % guess_nonzero == 0)
       return true;
     return false;
