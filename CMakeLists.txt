@@ -220,7 +220,7 @@ add_executable(native_tests
 target_link_libraries(native_tests PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(native_tests PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F)
 # optimize unless debug
-if (DEFINED ENV{CI})
+if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")
   target_compile_options(native_tests PRIVATE -g)
 else ()
