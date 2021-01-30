@@ -1,3 +1,4 @@
+#include <chrono>
 #include <gtest/gtest.h>
 #ifdef USE_NATIVE_F
 #include "../include/sketch_native.h"
@@ -232,7 +233,7 @@ TEST(SketchTestSuite, TestSketchLarge) {
 }
 
 TEST(SketchTestSuite, TestBatchUpdate) {
-  unsigned long vec_size = 10000, num_updates = 10000;
+  unsigned long vec_size = 1000000000, num_updates = 10000;
   srand(time(NULL));
   std::vector<Update> updates(num_updates);
   for (unsigned long i = 0; i < num_updates; i++) {
@@ -241,10 +242,14 @@ TEST(SketchTestSuite, TestBatchUpdate) {
   auto sketch_seed = rand();
   Sketch sketch(vec_size, sketch_seed);
   Sketch sketch_batch(vec_size, sketch_seed);
+  auto start_time = std::chrono::steady_clock::now();
   for (const Update& update : updates) {
     sketch.update(update);
   }
+  std::cout << "One by one updates took " << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
+  start_time = std::chrono::steady_clock::now();
   sketch_batch.batch_update(updates.cbegin(), updates.cend());
+  std::cout << "Batched updates took " << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
 
   ASSERT_EQ(sketch.seed, sketch_batch.seed);
   ASSERT_EQ(sketch.n, sketch_batch.n);

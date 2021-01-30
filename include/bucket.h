@@ -35,4 +35,5 @@ struct Bucket_Boruvka {
   bool contains(const uint64_t& index, const XXH64_hash_t& bucket_seed, const uint64_t& guess_nonzero) const;
   bool is_good(const uint64_t& n, const mp::uint128_t& large_prime, const Montgomery::Ctx& large_prime_ctx, const XXH64_hash_t& bucket_seed, const mp::uint128_t& r, const uint64_t& guess_nonzero) const;
   void update(const Update& update, const mp::uint128_t& large_prime, const Montgomery::Ctx& large_prime_ctx, const mp::uint128_t& r);
+  void cached_update(const Update& update, const mp::uint128_t& large_prime, const Montgomery::Ctx& large_prime_ctx, const std::vector<mp::uint128_t>& r_sq_cache);
 };

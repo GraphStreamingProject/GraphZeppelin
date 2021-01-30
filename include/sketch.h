@@ -95,10 +95,12 @@ void Sketch::batch_update(ForwardIterator begin, ForwardIterator end) {
       Bucket_Boruvka& bucket = buckets[bucket_id];
       XXH64_hash_t bucket_seed = Bucket_Boruvka::gen_bucket_seed(bucket_id, seed);
       mp::uint128_t r = Bucket_Boruvka::gen_r(bucket_seed, large_prime);
+      std::vector<mp::uint128_t> r_sq_cache = PrimeGenerator::gen_sq_cache(r, n, large_prime);
       for (auto it = begin; it != end; it++) {
         const Update& update = *it;
         if (bucket.contains(update.index, bucket_seed, 1 << j)) {
-          bucket.update(update, large_prime, large_prime_ctx, r);
+//          bucket.update(update, large_prime, large_prime_ctx, r);
+          bucket.cached_update(update, large_prime, large_prime_ctx, r_sq_cache);
         }
       }
     }
