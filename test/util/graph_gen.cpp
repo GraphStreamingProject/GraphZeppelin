@@ -12,10 +12,12 @@ using namespace std;
 void validate(int n, vector<pair<pair<int,int>,bool>>& stream,
               vector<pair<int,int>>& reduced_stream
 ) {
-  bool inserted[(n + 1) * (n + 1) + 2];
+  bool* inserted = static_cast<bool *>(malloc(
+        ((n + 1) * (n + 1) + 2) * sizeof(bool)));
   fill(inserted, inserted + (n + 1) * (n + 1) + 2, DELETE);
   for (auto entry : stream) {
     if (inserted[entry.first.first*n+entry.first.second] == entry.second) {
+      free(inserted);
       throw std::runtime_error("Invalid stream, no output written");
     }
     inserted[entry.first.first*n+entry.first.second] = !inserted[entry.first.first*n+entry.first.second];
@@ -24,6 +26,7 @@ void validate(int n, vector<pair<pair<int,int>,bool>>& stream,
   for (int i = 0; i < (n + 1) * (n + 1) + 2; ++i) {
     if (inserted[i] == INSERT) ++num_cum;
   }
+  free(inserted);
   if (num_cum != reduced_stream.size()) throw std::runtime_error(
         "Mismatch with reduced stream, no output written");
   cout << "Successful!" << endl;
@@ -48,7 +51,8 @@ void transform(GraphGenSettings settings) {
   char a;
   int n, m, full_m = 0; in >> n >> m;
   int f,s,w;
-  int inserted[(n+1)*(n+1)+2];
+  bool* inserted = static_cast<bool *>(malloc(
+        ((n + 1) * (n + 1) + 2) * sizeof(bool)));
   vector<pair<pair<int,int>,bool>> stream;
   map<pair<int,int>,int> tot_edges;
   vector<pair<int,int>> cum_stream;
@@ -89,6 +93,8 @@ void transform(GraphGenSettings settings) {
       inserted[f] = DELETE;
     }
   }
+
+  free(inserted);
 
   validate(n, stream, cum_stream);
 
