@@ -147,7 +147,7 @@ add_executable(main
   l0_sampling/sketch.cpp
   l0_sampling/update.cpp
   util.cpp
-  l0_sampling/int127.cpp graph_gen_wrapper.cpp)
+  l0_sampling/int127.cpp)
 target_link_libraries(main PRIVATE xxHash::xxhash)
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   target_compile_options(main PRIVATE -O3)
