@@ -147,7 +147,7 @@ add_executable(main
   l0_sampling/sketch.cpp
   l0_sampling/update.cpp
   util.cpp
-  l0_sampling/int127.cpp)
+  l0_sampling/int127.cpp graph_gen_wrapper.cpp)
 target_link_libraries(main PRIVATE xxHash::xxhash)
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   target_compile_options(main PRIVATE -O3)
@@ -227,3 +227,15 @@ if (DEFINED ENV{CI})
 else()
   target_compile_options(native_tests PRIVATE -g)
 endif ()
+
+add_executable(graph_gen
+  graph_gen_wrapper.cpp
+  test/util/graph_gen.cpp
+  )
+target_link_libraries(graph_gen PRIVATE xxHash::xxhash GTest::gtest)
+# optimize
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+  target_compile_options(tests PRIVATE -O3)
+elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+  target_compile_options(tests PRIVATE /O2)
+endif()
