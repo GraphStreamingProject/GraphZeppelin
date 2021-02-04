@@ -203,20 +203,21 @@ else ()
 endif ()
 
 add_executable(native_tests
-        test/test_runner.cpp
-        test/graph_test.cpp
-        test/sketch_test.cpp
-        test/supernode_test.cpp
-        test/util_test.cpp
-        test/util/graph_verifier.cpp
-        test/util/graph_gen.cpp
-        test/util/graph_gen_test.cpp
-        test/util/graph_verifier_test.cpp
-        graph.cpp
-        supernode.cpp
-        l0_sampling/sketch_native.cpp
-        l0_sampling/update.cpp
-        util.cpp)
+  test/test_runner.cpp
+  test/graph_test.cpp
+  test/sketch_test.cpp
+  test/supernode_test.cpp
+  test/util_test.cpp
+  test/util/graph_verifier.cpp
+  test/util/graph_gen.cpp
+  test/util/graph_gen_test.cpp
+  test/util/graph_verifier_test.cpp
+  graph.cpp
+  supernode.cpp
+  l0_sampling/sketch.cpp
+  l0_sampling/update.cpp
+  l0_sampling/bucket.cpp
+  util.cpp)
 target_link_libraries(native_tests PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(native_tests PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F)
 # optimize unless debug

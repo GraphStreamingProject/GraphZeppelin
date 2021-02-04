@@ -1,20 +1,13 @@
-#include <cmath>
-#include <cassert>
-#include <vector>
-#include <iostream>
-#include <string>
-#include "../include/prime_generator.h"
 #include "../include/sketch.h"
 
-Sketch::Sketch(uint64_t n, long seed): seed(seed), n(n),
-    large_prime (PrimeGenerator::generate_prime((uint128_t)n*n)),
-    large_prime_ctx(large_prime) {
+Sketch::Sketch(vec_t n, long seed): seed(seed), n(n),
+    large_prime(PrimeGenerator::generate_prime(static_cast<ubucket_t>(n) * n)) {
   const unsigned num_buckets = bucket_gen(n);
   const unsigned num_guesses = guess_gen(n);
   buckets = std::vector<Bucket_Boruvka>(num_buckets * num_guesses);
 }
 
-void Sketch::update(Update update ) {
+void Sketch::update(Update update) {
   const unsigned num_buckets = bucket_gen(n);
   const unsigned num_guesses = guess_gen(n);
   for (unsigned i = 0; i < num_buckets; ++i) {
@@ -22,9 +15,9 @@ void Sketch::update(Update update ) {
       unsigned bucket_id = i * num_guesses + j;
       Bucket_Boruvka& bucket = buckets[bucket_id];
       XXH64_hash_t bucket_seed = Bucket_Boruvka::gen_bucket_seed(bucket_id, seed);
-      mp::uint128_t r = Bucket_Boruvka::gen_r(bucket_seed, large_prime);
+      ubucket_t r = Bucket_Boruvka::gen_r(bucket_seed, large_prime);
       if (bucket.contains(update.index, bucket_seed, 1 << j)){
-        bucket.update(update, large_prime, large_prime_ctx, r);
+        bucket.update(update, large_prime, r);
       }
     }
   }
@@ -43,14 +36,13 @@ Update Sketch::query() {
       unsigned bucket_id = i * num_guesses + j;
       const Bucket_Boruvka& bucket = buckets[bucket_id];
       XXH64_hash_t bucket_seed = Bucket_Boruvka::gen_bucket_seed(bucket_id, seed);
-      mp::uint128_t r = Bucket_Boruvka::gen_r(bucket_seed, large_prime);
+      ubucket_t r = Bucket_Boruvka::gen_r(bucket_seed, large_prime);
       if (bucket.a != 0 || bucket.b != 0 || bucket.c != 0) {
         all_buckets_zero = false;
       }
-      if (bucket.is_good(n, large_prime, large_prime_ctx, bucket_seed, r, 1 << j)) {
-        // TODO: update Update to return 128 bit types
-        return {static_cast<uint64_t>((bucket.b / bucket.a - 1).toBoostUInt128()),
-                static_cast<long>(bucket.a.toBoostInt128())}; // 0-index adjustment
+      if (bucket.is_good(n, large_prime, bucket_seed, r, 1 << j)) {
+        return {static_cast<vec_t>(bucket.b / bucket.a - 1), // 0-index adjustment
+                static_cast<long>(bucket.a)};
       }
     }
   }
@@ -110,7 +102,7 @@ std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
       unsigned bucket_id = i * num_guesses + j;
       const Bucket_Boruvka& bucket = sketch.buckets[bucket_id];
       XXH64_hash_t bucket_seed = Bucket_Boruvka::gen_bucket_seed(bucket_id, sketch.seed);
-      mp::uint128_t r = Bucket_Boruvka::gen_r(bucket_seed, sketch.large_prime);
+      ubucket_t r = Bucket_Boruvka::gen_r(bucket_seed, sketch.large_prime);
       for (unsigned k = 0; k < sketch.n; k++) {
         os << (bucket.contains(k, bucket_seed, 1 << j) ? '1' : '0');
       }
@@ -119,7 +111,7 @@ std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
          << "b:" << bucket.b << std::endl
          << "c:" << bucket.c << std::endl
          << "r:" << r << std::endl
-         << (bucket.is_good(sketch.n, sketch.large_prime, sketch.large_prime_ctx, bucket_seed, r, 1 << j) ? "good" : "bad") << std::endl;
+         << (bucket.is_good(sketch.n, sketch.large_prime, bucket_seed, r, 1 << j) ? "good" : "bad") << std::endl;
     }
   }
   return os;

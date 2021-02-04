@@ -1,4 +1,3 @@
-#include <iostream>
 #include "../include/update.h"
 
 std::ostream& operator<< (std::ostream &out, const Update &update){

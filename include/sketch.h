@@ -1,18 +1,17 @@
 #pragma once
-#include <vector>
+#include <cmath>
 #include <exception>
-#include <boost/multiprecision/cpp_int.hpp>
-#include "update.h"
+#include <iostream>
+#include <vector>
 #include "bucket.h"
-#include "montgomery.h"
 #include "prime_generator.h"
+#include "types.h"
+#include "update.h"
 #include "util.h"
 #include <gtest/gtest_prod.h>
 
 #define bucket_gen(x) double_to_ull(log2(x)+1)
 #define guess_gen(x) double_to_ull(log2(x)+2)
-
-namespace mp = boost::multiprecision;
 
 /**
  * An implementation of a "sketch" as defined in the L0 algorithm.
@@ -21,11 +20,9 @@ namespace mp = boost::multiprecision;
  */
 class Sketch {
   const long seed;
-  const uint64_t n;
+  const vec_t n;
   std::vector<Bucket_Boruvka> buckets;
-//TODO: If we're doing up to billion nodes, then n is up to 128 bit, and large_prime is up to 256 bit
-  const mp::uint128_t large_prime;
-  const Montgomery::Ctx large_prime_ctx;
+  const ubucket_t large_prime;
   bool already_quered = false;
 
   FRIEND_TEST(SketchTestSuite, TestExceptions);
@@ -33,7 +30,7 @@ class Sketch {
 
   //Initialize a sketch of a vector of size n
 public:
-  Sketch(uint64_t n, long seed);
+  Sketch(vec_t n, long seed);
 
   /**
    * Update a sketch based on information about one of its indices.
@@ -94,13 +91,12 @@ void Sketch::batch_update(ForwardIterator begin, ForwardIterator end) {
       unsigned bucket_id = i * num_guesses + j;
       Bucket_Boruvka& bucket = buckets[bucket_id];
       XXH64_hash_t bucket_seed = Bucket_Boruvka::gen_bucket_seed(bucket_id, seed);
-      mp::uint128_t r = Bucket_Boruvka::gen_r(bucket_seed, large_prime);
-      std::vector<mp::uint128_t> r_sq_cache = PrimeGenerator::gen_sq_cache(r, n, large_prime);
+      ubucket_t r = Bucket_Boruvka::gen_r(bucket_seed, large_prime);
+      std::vector<ubucket_t> r_sq_cache = PrimeGenerator::gen_sq_cache(r, n, large_prime);
       for (auto it = begin; it != end; it++) {
         const Update& update = *it;
         if (bucket.contains(update.index, bucket_seed, 1 << j)) {
-//          bucket.update(update, large_prime, large_prime_ctx, r);
-          bucket.cached_update(update, large_prime, large_prime_ctx, r_sq_cache);
+          bucket.cached_update(update, large_prime, r_sq_cache);
         }
       }
     }

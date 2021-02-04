@@ -1,10 +1,6 @@
+#include "../include/sketch.h"
 #include <chrono>
 #include <gtest/gtest.h>
-#ifdef USE_NATIVE_F
-#include "../include/sketch_native.h"
-#else
-#include "../include/sketch.h"
-#endif
 #include "util/testing_vector.h"
 
 TEST(SketchTestSuite, TestExceptions) {
