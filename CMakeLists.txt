@@ -239,3 +239,19 @@ if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
   target_compile_options(tests PRIVATE /O2)
 endif()
+
+add_executable(native_run
+        test/experiment/native_run.cpp
+        graph.cpp
+        supernode.cpp
+        l0_sampling/sketch_native.cpp
+        l0_sampling/update.cpp
+        util.cpp)
+target_link_libraries(native_run PRIVATE xxHash::xxhash GTest::gtest)
+target_compile_definitions(native_run PRIVATE USE_NATIVE_F)
+# optimize if running on CI
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+  target_compile_options(native_tests PRIVATE -O3)
+elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+  target_compile_options(native_tests PRIVATE /O2)
+endif()
