@@ -30,6 +30,10 @@ fi
 #### Compile
 Once the configuration is complete you can install tokudb and compile the codebase by running `make install`. This will download the tokudb source code and warn you if your system is not properly configured to run it.
 
+#### OS
+You will likely need to run this code within linux or some other unix derivative. It got mad at me on OSX.  
+I have specifically tested the code using Ubuntu_16.04 but it is likely that other versions would work too.
+
 ## Known Issue
 Sometimes the installation script does not properly setup the environment for running toku. The consequence is that running the `main` executable will throw a .so file not found error.
 
