@@ -8,11 +8,13 @@
 #include <chrono>
 
 // Defines which allow different db directories to be chosen
-#define USE_DEFAULT false // use default dbdir
+#define USE_DEFAULT true // use default dbdir
 #define NEW_DB_DIR "../../graph-db-data" // rel path to alternate dbdir
 
 // Define for edge threshold where we do a query
 #define TAU (uint32_t) 5
+
+// function to compare the data stored in the tree for sorting and querying
 inline int keyCompare(DB* db __attribute__((__unused__)), const DBT *a, const DBT *b) {
     return memcmp(a->data, b->data, a->size);
 }
