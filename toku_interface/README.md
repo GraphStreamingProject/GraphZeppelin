@@ -35,7 +35,7 @@ You will likely need to run this code within linux or some other unix derivative
 
 I have specifically tested the code using Ubuntu_16.04 but it is likely that other versions would work too.
 
-## Known Issue
+# Known Issues
 Sometimes the installation script does not properly setup the environment for running toku. The consequence is that running the `main` executable will throw a .so file not found error.
 
 To fix this issue run the following command (you may want to verify that `LD_LIBRARY_PATH` is empty first):
