@@ -1,16 +1,16 @@
 # Toku Interface
 This directory includes the relevant files for building tokudb and interfacing with it to accomplish graph streaming.
 
-## Installation
+# Installation
 
-### Configuration
-#### Dependencies
+## Configuration
+### Dependencies
 The following dependencies must be installed
 - zlib1g-dev 
 - libbz4-dev (or libbz2-dev depending on your OS)
 - cmake
 
-#### Hugepages
+### Hugepages
 Transparent hugepages must be disabled for tokudb to run properly. The following commands run as root will disable them:
 ```
 echo never > /sys/kernel/mm/transparent_hugepage/enabled
@@ -27,11 +27,12 @@ if test -f /sys/kernel/mm/transparent_hugepage/defrag; then
 fi
 ```
 
-#### Compile
+## Compile
 Once the configuration is complete you can install tokudb and compile the codebase by running `make install`. This will download the tokudb source code and warn you if your system is not properly configured to run it.
 
-#### OS
-You will likely need to run this code within linux or some other unix derivative. It got mad at me on OSX.  
+### OS
+You will likely need to run this code within linux or some other unix derivative. It got mad at me on OSX.
+
 I have specifically tested the code using Ubuntu_16.04 but it is likely that other versions would work too.
 
 ## Known Issue
