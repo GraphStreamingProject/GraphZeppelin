@@ -36,10 +36,11 @@ You will likely need to run this code within linux or some other unix derivative
 I have specifically tested the code using Ubuntu_16.04 but it is likely that other versions would work too.
 
 # Known Issues
-Sometimes the installation script does not properly setup the environment for running toku. The consequence is that running the `main` executable will throw a .so file not found error.
+Sometimes the installation script does not properly setup the environment for running toku. The consequence is that running the `main` executable will throw `error while loading shared libraries`.
 
 To fix this issue run the following command (you may want to verify that `LD_LIBRARY_PATH` is empty first):
 ```
 export LD_LIBRARY_PATH=$PATH_TO_INTER/ft-index/lib:$PATH_TO_INTER/ft-index/build:$PATH_TO_INTER/ft-index/build/src:$PATH_TO_INTER/ft-index/build/portability
 ```
-With `PATH_TO_INTER` as an environmental variable equal to the path in your system to the `toku_interface` directory.
+With `PATH_TO_INTER` as an environmental variable equal to the path in your system to the `toku_interface` directory.  
+`export PATH_TO_INTER=$PWD` from the directory.

@@ -7,23 +7,40 @@
 #include <stdexcept>
 #include <chrono>
 
-#define USE_DEFAULT false
-#define NEW_DB_DIR "../../graph-db-data"
+// Defines which allow different db directories to be chosen
+#define USE_DEFAULT false // use default dbdir
+#define NEW_DB_DIR "../../graph-db-data" // rel path to alternate dbdir
 
+// Define for edge threshold where we do a query
+#define TAU (uint32_t) 5
 inline int keyCompare(DB* db __attribute__((__unused__)), const DBT *a, const DBT *b) {
     return memcmp(a->data, b->data, a->size);
 }
 
-inline DBT *toDBT(uint64_t src, uint64_t dst) {
+// function to create a DBT from key info.
+// if rand is passed in then we set the last 8 bytes to it's value
+// if not then we set it to the current clock
+inline DBT *toDBT(uint64_t src, uint64_t dst, uint64_t rand=1) {
     DBT *key_dbt = new DBT();
     key_dbt->flags=0;
     key_dbt->size = sizeof(uint64_t) + sizeof(uint64_t) + sizeof(uint64_t);
     key_dbt->ulen = key_dbt->size;
-    key_dbt->data = malloc(key_dbt->size);
+    key_dbt->data = calloc(key_dbt->size, sizeof(uint8_t));
+
+    // data must be in big-endian for this to work
+    src = htobe64(src);
+    dst = htobe64(dst);
+
     memcpy(key_dbt->data, &src, sizeof(uint64_t));
     memcpy((uint8_t *)key_dbt->data + sizeof(uint64_t), &dst, sizeof(uint64_t));
-    uint64_t uid = std::chrono::system_clock::now().time_since_epoch().count();
-    memcpy((uint8_t *)key_dbt->data + 2*sizeof(uint64_t), &uid, sizeof(uint64_t));
+    if (rand == 1) {
+        uint64_t uid = htobe64(std::chrono::system_clock::now().time_since_epoch().count());
+        memcpy((uint8_t *)key_dbt->data + 2*sizeof(uint64_t), &uid, sizeof(uint64_t));
+    } else {
+        rand = htobe64(rand);
+        memcpy((uint8_t *)key_dbt->data + 2*sizeof(uint64_t), &rand, sizeof(uint64_t));
+    }
+    
     return key_dbt;
 }
 
@@ -132,6 +149,9 @@ TokuInterface::~TokuInterface() {
     }
 }
 
+// part of the API
+// given a edge pair and whether the edge is inserted (1) or deleted (-1)
+// this function inserts 2 edges into the db (one revereses the edge)
 bool TokuInterface::putEdge(std::pair<uint64_t, uint64_t> edge, int8_t value) {
     if (!putSingleEdge(edge.first, edge.second, value))
         return false;
@@ -146,9 +166,27 @@ bool TokuInterface::putSingleEdge(uint64_t src, uint64_t dst, int8_t val) {
     value_dbt.ulen = sizeof(int8_t);
     value_dbt.data = malloc(sizeof(int8_t));
     memset(value_dbt.data, val, sizeof(int8_t));
+    // printf("inserting %lu %lu %i\n", src, dst, val);
     if (db->put(db, NULL, toDBT(src, dst), &value_dbt, 0) != 0) {
-        // TODO error message
+        printf("ERROR: failed to insert data %lu %lu %i\n", src, dst, val);
         return false;
+    }
+    if (update_counts.count(src) == 0) {
+        update_counts[src] = 0;
+    }
+    update_counts[src]++;
+    // printf("Node %lu has count %lu\n", src, update_counts[src]);
+
+    if (update_counts[src] >= TAU) {
+        std::vector<std::pair<uint64_t, int8_t>> *edges = getEdges(src);
+        // =============== TODO: Replace with L0_SAMPLING here ===============
+        printf("Node %lu is above threshold. Queried and got:\n", src);
+        for (auto edge : *edges) {
+            printf("%lu : %d\n", edge.first, edge.second);
+        }
+        // ===================================================================
+        delete edges;
+        update_counts[src] = 0;
     }
     return true;
 }
@@ -163,12 +201,17 @@ std::vector<std::pair<uint64_t, int8_t>>* TokuInterface::getEdges(uint64_t node)
     cursorValue->flags |= DB_DBT_MALLOC;
 
     DBT* cursorKey = new DBT();
-    DBT* startDBT = toDBT(node, 0); // start is node with edge to 0
+    DBT* startDBT = toDBT(node, 0, 0); // start is node with edge to 0
     memcpy(cursorKey, startDBT, sizeof(DBT));
     cursorKey->flags |= DB_DBT_MALLOC;
 
-    err = db->cursor(db, nullptr, &cursor, 0); //set up the cursor for moving through the db
+    if((err = db->cursor(db, nullptr, &cursor, 0)) != 0) { //set up the cursor for moving through the db
+        printf("Error getting cursor. %d: %s", err, db_strerror(err));
+        throw std::runtime_error("Error getting cursor.");
+    }
 
+    // move cursor to first position
+    err = cursor->c_get(cursor, cursorKey, cursorValue, DB_SET_RANGE);
     if (err != 0) {
         if (err == DB_NOTFOUND) {
             throw std::runtime_error("Empty query!");
@@ -181,12 +224,13 @@ std::vector<std::pair<uint64_t, int8_t>>* TokuInterface::getEdges(uint64_t node)
         return ret;
     }
 
-    while (keyCompare(db, toDBT(node, (uint64_t) -1), cursorKey) >= 0) {
-        // uint64_t node = getNode(cursorKey);
-        uint64_t edgeTo = getEdgeTo(cursorKey);
+    while (keyCompare(db, toDBT(node, (uint64_t) -1, (uint64_t) -1), cursorKey) >= 0) {
+        // uint64_t node = be64toh(getNode(cursorKey));
+        uint64_t edgeTo = be64toh(getEdgeTo(cursorKey));
         int8_t value = getValue(cursorValue);
 
         if (value != 0) {
+            // printf("Query got data %lu -> %lu, %d\n", node, edgeTo, value);
             ret->push_back(std::pair<uint64_t, int8_t>(edgeTo, value));
             
             // insert a delete to the root for this key
@@ -218,3 +262,18 @@ std::vector<std::pair<uint64_t, int8_t>>* TokuInterface::getEdges(uint64_t node)
     return ret;
 }
 
+void TokuInterface::flush() {
+    for (auto pair : update_counts) {
+        if (pair.second > 0) {
+            std::vector<std::pair<uint64_t, int8_t>> *edges = getEdges(pair.first);
+            // =============== TODO: Replace with L0_SAMPLING here ===============
+            printf("Flushing node %lu. Queried and got:\n", pair.first);
+            for (auto edge : *edges) {
+                printf("%lu : %d\n", edge.first, edge.second);
+            }
+            // ===================================================================
+            delete edges;
+            update_counts[pair.first] = 0;
+        }
+    }
+}
