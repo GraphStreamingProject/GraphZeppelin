@@ -7,12 +7,22 @@
 #include <stdexcept>
 #include <chrono>
 
+#define MB 1 << 20
+#define GB MB << 10
+
 // Defines which allow different db directories to be chosen
 #define USE_DEFAULT true // use default dbdir
 #define NEW_DB_DIR "../../graph-db-data" // rel path to alternate dbdir
 
 // Define for edge threshold where we do a query
 #define TAU (uint32_t) 5
+
+// Define toku params (0 indicates default)
+// TODO: move these to a config file
+#define CACHESIZE 0
+#define BUFFERSIZE 0
+#define FANOUT 0
+#define REDZONE 0
 
 // function to compare the data stored in the tree for sorting and querying
 inline int keyCompare(DB* db __attribute__((__unused__)), const DBT *a, const DBT *b) {
@@ -66,6 +76,7 @@ inline DBT *toDBT(uint64_t src, uint64_t dst, uint64_t rand=1) {
 // }
 
 TokuInterface::TokuInterface() {
+    int err;
     char* dbfile = (char*) calloc(MAX_DB_FILENAME_LENGTH, sizeof(char));
     char* dbdir = (char*) calloc(MAX_ENV_DIRNAME_LENGTH, sizeof(char));// = {'\0'};
 
@@ -108,8 +119,20 @@ TokuInterface::TokuInterface() {
 
     printf("Successfully set errfile and compare func\n");
 
-    // TODO: set cachesize
-    // TODO: set redzone
+    // set cachesize
+    if (CACHESIZE != 0) {
+        if (env->set_cachesize(env, CACHESIZE, 0, 1) != 0) {
+            printf("ERROR: failed to set cache size\n");
+            exit(EXIT_FAILURE);
+        }
+    }
+    // set redzone
+    if (REDZONE != 0) {
+        if ((err = env->set_redzone(env, REDZONE)) != 0) {
+            printf("ERROR: failed to set red zone: %d {%s}\n", err, db_strerror(err));
+            exit(EXIT_FAILURE);
+        }
+    }
 
     if (env->open(env, dbdir, envFlags, S_IRWXU|S_IRWXG) != 0) {
         printf("Failed to open env!\n");
@@ -123,8 +146,20 @@ TokuInterface::TokuInterface() {
         exit(EXIT_FAILURE);
     }
 
-    // TODO: set buffersize
-    // TODO: set fanout
+    // set buffersize
+    if (BUFFERSIZE != 0) {
+        if ((err = db->set_pagesize(db, BUFFERSIZE)) != 0) {
+            printf("ERROR: failed to set buffer size\n");
+            exit(EXIT_FAILURE);
+        }
+    }
+    // set fanout
+    if (FANOUT != 0) {
+        if((err = db->set_fanout(db, FANOUT)) != 0) {
+            printf("ERROR: failed to set fanout\n");
+            exit(EXIT_FAILURE);
+        }
+    }
 
     if (db->open(db, NULL, dbfile, NULL, DB_BTREE, dbFlags, S_IRUSR|S_IWUSR|S_IRGRP) != 0) {
         printf("Error opening db!\n");

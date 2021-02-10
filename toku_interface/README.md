@@ -38,9 +38,8 @@ I have specifically tested the code using Ubuntu_16.04 but it is likely that oth
 # Known Issues
 Sometimes the installation script does not properly setup the environment for running toku. The consequence is that running the `main` executable will throw `error while loading shared libraries`.
 
-To fix this issue run the following command (you may want to verify that `LD_LIBRARY_PATH` is empty first):
+To fix this issue run the following command from the `toku_interface` directory (you may want to verify that `LD_LIBRARY_PATH` is empty first):
 ```
+export PATH_TO_INTER=$PWD
 export LD_LIBRARY_PATH=$PATH_TO_INTER/ft-index/lib:$PATH_TO_INTER/ft-index/build:$PATH_TO_INTER/ft-index/build/src:$PATH_TO_INTER/ft-index/build/portability
 ```
-With `PATH_TO_INTER` as an environmental variable equal to the path in your system to the `toku_interface` directory.  
-`export PATH_TO_INTER=$PWD` from the directory.
