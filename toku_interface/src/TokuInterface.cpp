@@ -190,10 +190,17 @@ TokuInterface::~TokuInterface() {
 // given a edge pair and whether the edge is inserted (1) or deleted (-1)
 // this function inserts 2 edges into the db (one revereses the edge)
 bool TokuInterface::putEdge(std::pair<uint64_t, uint64_t> edge, int8_t value) {
-    if (!putSingleEdge(edge.first, edge.second, value))
-        return false;
+    if (edge.first < edge.second) {
+        if (!putSingleEdge(edge.first, edge.second, value))
+            return false;
 
-    return putSingleEdge(edge.second, edge.first, value);
+        return putSingleEdge(edge.second, edge.first, -1 * value);
+    } else {
+        if (!putSingleEdge(edge.first, edge.second, -1 * value))
+            return false;
+
+        return putSingleEdge(edge.second, edge.first, value);
+    }
 }
 
 bool TokuInterface::putSingleEdge(uint64_t src, uint64_t dst, int8_t val) {
