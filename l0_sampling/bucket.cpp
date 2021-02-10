@@ -1,14 +1,6 @@
 #include "../include/bucket.h"
 #include "../include/prime_generator.h"
 
-XXH64_hash_t Bucket_Boruvka::gen_bucket_seed(const unsigned bucket_id, long seed) {
-  return XXH64(&bucket_id, sizeof(bucket_id), seed);
-}
-
-ubucket_t Bucket_Boruvka::gen_r(const XXH64_hash_t& bucket_seed, const ubucket_t& large_prime) {
-  return 2 + bucket_seed % (large_prime - 3);
-}
-
 bool Bucket_Boruvka::contains(const vec_t& index, const XXH64_hash_t& bucket_seed, const vec_t& guess_nonzero) const {
   vec_t buf = index + 1;
   XXH64_hash_t hash = XXH64(&buf, sizeof(buf), bucket_seed);

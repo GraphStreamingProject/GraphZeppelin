@@ -40,7 +40,7 @@ TEST(SketchTestSuite, TestExceptions) {
   }
   for (uint64_t i = 0; i < sketch2.n; ++i) {
     if (vec_idx[i]) {
-      sketch2.update({i, 1});
+      sketch2.update({static_cast<vec_t>(i), 1});
     }
   }
   ASSERT_THROW(sketch2.query(), NoGoodBucketException);
@@ -131,7 +131,7 @@ void test_sketch_addition(unsigned long num_sketches,
     double max_sample_fail_prob, double max_bucket_fail_prob) {
   unsigned long all_bucket_failures = 0;
   unsigned long sample_incorrect_failures = 0;
-  for (int i = 0; i < num_sketches; i++){
+  for (unsigned long i = 0; i < num_sketches; i++){
     const long seed = rand();
     Sketch sketch1 = Sketch(vec_size, seed);
     Sketch sketch2 = Sketch(vec_size, seed);
@@ -194,7 +194,7 @@ void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
   unsigned long seed = rand();
   srand(seed);
   for (unsigned long j = 0; j < num_updates; j++){
-    sketch.update({(int64_t) (rand() % vec_size), rand() % 10 - 5});
+    sketch.update({static_cast<vec_t>(rand() % vec_size), rand() % 10 - 5});
   }
   try {
     Update res = sketch.query();
@@ -205,7 +205,7 @@ void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
     srand(seed);
     long actual_delta = 0;
     for (unsigned long j = 0; j < num_updates; j++){
-      Update update = {(int64_t) (rand() % vec_size), rand() % 10 - 5};
+      Update update = {static_cast<vec_t>(rand() % vec_size), rand() % 10 - 5};
       if (update.index == res.index) {
         actual_delta += update.delta;
       }
@@ -233,7 +233,7 @@ TEST(SketchTestSuite, TestBatchUpdate) {
   srand(time(NULL));
   std::vector<Update> updates(num_updates);
   for (unsigned long i = 0; i < num_updates; i++) {
-    updates[i] = {rand() % vec_size, rand() % 10 - 5};
+    updates[i] = {static_cast<vec_t>(rand() % vec_size), rand() % 10 - 5};
   }
   auto sketch_seed = rand();
   Sketch sketch(vec_size, sketch_seed);

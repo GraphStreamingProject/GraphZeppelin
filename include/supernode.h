@@ -46,6 +46,8 @@ public:
    * BEFORE Boruvka starts.
    */
   void update(pair<Edge, int> update);
+
+  void batch_update(const std::vector<Update>& updates);
 };
 
 

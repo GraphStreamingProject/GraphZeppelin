@@ -37,6 +37,8 @@ public:
   ~Graph();
   void update(GraphUpdate upd);
 
+  void batch_update(uint64_t src, const std::vector<std::pair<uint64_t, int8_t>>& edges);
+
   /**
    * Main algorithm utilizing Boruvka and L_0 sampling.
    * @return a vector of the connected components in the graph.

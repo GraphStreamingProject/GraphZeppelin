@@ -40,6 +40,25 @@ void Graph::update(GraphUpdate upd) {
   }
 }
 
+
+void Graph::batch_update(uint64_t src, const std::vector<std::pair<uint64_t, int8_t>>& edges) {
+  if (update_locked) throw UpdateLockedException();
+  std::vector<Update> updates;
+  updates.reserve(edges.size());
+  for (const auto& edge : edges) {
+    if (src < edge.first) {
+      updates.push_back({static_cast<vec_t>(
+          nondirectional_non_self_edge_pairing_fn(src, edge.first)),
+          edge.second});
+    } else {
+      updates.push_back({static_cast<vec_t>(
+          nondirectional_non_self_edge_pairing_fn(edge.first, src)),
+          edge.second});
+    }
+  }
+  supernodes[src]->batch_update(updates);
+}
+
 vector<set<Node>> Graph::connected_components() {
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
