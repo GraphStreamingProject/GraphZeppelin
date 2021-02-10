@@ -11,7 +11,7 @@
 #define GB MB << 10
 
 // Defines which allow different db directories to be chosen
-#define USE_DEFAULT true // use default dbdir
+#define USE_DEFAULT false // use default dbdir
 #define NEW_DB_DIR "../../graph-db-data" // rel path to alternate dbdir
 
 // Define for edge threshold where we do a query
@@ -19,10 +19,10 @@
 
 // Define toku params (0 indicates default)
 // TODO: move these to a config file
-#define CACHESIZE 0
-#define BUFFERSIZE 0
-#define FANOUT 0
-#define REDZONE 0
+#define CACHESIZE 0   // The RAM cache which toku mintains should be about half of available RAM (GB scale)
+#define BUFFERSIZE 0  // The size of each buffer each node maintains. Larger = faster insertion but slower query (8~64MB scale)
+#define FANOUT 0      // Number of children of each node (don't know if we want to touch this)
+#define REDZONE 0     // Percent of disk available when toku will cease to insert (ie 95% full if redzone is 5%)
 
 // function to compare the data stored in the tree for sorting and querying
 inline int keyCompare(DB* db __attribute__((__unused__)), const DBT *a, const DBT *b) {
@@ -222,23 +222,22 @@ bool TokuInterface::putSingleEdge(uint64_t src, uint64_t dst, int8_t val) {
     // printf("Node %lu has count %lu\n", src, update_counts[src]);
 
     if (update_counts[src] >= TAU) {
-        std::vector<std::pair<uint64_t, int8_t>> *edges = getEdges(src);
+        std::vector<std::pair<uint64_t, int8_t>> edges = getEdges(src);
         // =============== TODO: Replace with L0_SAMPLING here ===============
         printf("Node %lu is above threshold. Queried and got:\n", src);
-        for (auto edge : *edges) {
+        for (auto edge : edges) {
             printf("%lu : %d\n", edge.first, edge.second);
         }
         // ===================================================================
-        delete edges;
         update_counts[src] = 0;
     }
     return true;
 }
 
 
-std::vector<std::pair<uint64_t, int8_t>>* TokuInterface::getEdges(uint64_t node) {
+std::vector<std::pair<uint64_t, int8_t>> TokuInterface::getEdges(uint64_t node) {
     int err;
-    std::vector<std::pair<uint64_t, int8_t>> *ret = new std::vector<std::pair<uint64_t, int8_t>>();
+    std::vector<std::pair<uint64_t, int8_t>> ret = std::vector<std::pair<uint64_t, int8_t>>();
 
     DBC* cursor = nullptr;
     DBT* cursorValue = new DBT();
@@ -275,7 +274,7 @@ std::vector<std::pair<uint64_t, int8_t>>* TokuInterface::getEdges(uint64_t node)
 
         if (value != 0) {
             // printf("Query got data %lu -> %lu, %d\n", node, edgeTo, value);
-            ret->push_back(std::pair<uint64_t, int8_t>(edgeTo, value));
+            ret.push_back(std::pair<uint64_t, int8_t>(edgeTo, value));
             
             // insert a delete to the root for this key
             db->del(db, nullptr, cursorKey, 0);
@@ -309,14 +308,13 @@ std::vector<std::pair<uint64_t, int8_t>>* TokuInterface::getEdges(uint64_t node)
 void TokuInterface::flush() {
     for (auto pair : update_counts) {
         if (pair.second > 0) {
-            std::vector<std::pair<uint64_t, int8_t>> *edges = getEdges(pair.first);
+            std::vector<std::pair<uint64_t, int8_t>> edges = getEdges(pair.first);
             // =============== TODO: Replace with L0_SAMPLING here ===============
             printf("Flushing node %lu. Queried and got:\n", pair.first);
-            for (auto edge : *edges) {
+            for (auto edge : edges) {
                 printf("%lu : %d\n", edge.first, edge.second);
             }
             // ===================================================================
-            delete edges;
             update_counts[pair.first] = 0;
         }
     }
