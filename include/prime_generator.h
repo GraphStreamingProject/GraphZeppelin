@@ -1,36 +1,59 @@
 #pragma once
 #include <boost/multiprecision/cpp_int.hpp>
-
-using boost::multiprecision::int128_t;
-using boost::multiprecision::uint128_t;
+#include <vector>
+#include "types.h"
 
 namespace PrimeGenerator{
-  int128_t power(int128_t x, uint128_t y, uint128_t p){
-    int128_t res = 1;
-    x = x % p;
-    while (y > 0)
-    {
-      if (y & 1)
-        res = (res*x) % p;
-      y = y>>1;
-      x = (x*x) % p;
+  inline ubucket_t powermod(ubucket_t a, ubucket_t b, ubucket_t m) {
+    ubucket_t res = 1;
+    while (b) {
+      if (b & 1) {
+        res = static_cast<ubucket_t>(static_cast<ubucket_prod_t>(res) * a % m);
+      }
+      b >>= 1;
+      a = static_cast<ubucket_t>(static_cast<ubucket_prod_t>(a) * a % m);
     }
     return res;
   }
-  static bool IsPrime(uint128_t n) {
+
+  //Generate a^2^i for i in [0, log_2(n)]
+  inline std::vector<ubucket_t> gen_sq_cache(ubucket_t a, ubucket_t n, ubucket_t m) {
+    unsigned log2n = log2(n);
+    std::vector<ubucket_t> sq_cache(log2n + 1);
+    sq_cache[0] = a;
+    for (unsigned i = 0; i < log2n; i++) {
+      sq_cache[i + 1] = static_cast<ubucket_t>(static_cast<ubucket_prod_t>(sq_cache[i]) * sq_cache[i] % m);
+    }
+    return sq_cache;
+  }
+
+  inline ubucket_t cached_powermod(const std::vector<ubucket_t>& sq_cache, ubucket_t b, ubucket_t m) {
+    unsigned i = 0;
+    ubucket_t res = 1;
+    while (b) {
+      if (b & 1) {
+        res = static_cast<ubucket_t>(static_cast<ubucket_prod_t>(res) * sq_cache[i] % m);
+      }
+      b >>= 1;
+      i++;
+    }
+    return res;
+  }
+
+  static bool IsPrime(ubucket_t n) {
     if (n < 2) return false;
     if (n < 4) return true;
     if (n % 2 == 0) return false;
 
-    const uint128_t iMax = sqrt(n) + 1;
-    for (uint128_t i = 3; i <= iMax; i += 2)
+    const ubucket_t iMax = sqrt(n) + 1;
+    for (ubucket_t i = 3; i <= iMax; i += 2)
       if (n % i == 0)
         return false;
 
     return true;
   }
   //Generates a prime number greater than or equal to n
-  uint128_t generate_prime(uint128_t n){
+  inline ubucket_t generate_prime(ubucket_t n){
     if (n % 2 == 0){
       n++;
     }

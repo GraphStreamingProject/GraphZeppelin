@@ -40,3 +40,9 @@ void Supernode::update(pair<Edge, int> update) {
   for (Sketch* s : sketches)
     s->update(upd);
 }
+
+void Supernode::batch_update(const std::vector<Update>& updates) {
+  for (Sketch *s : sketches) {
+    s->batch_update(updates.cbegin(), updates.cend());
+  }
+}
