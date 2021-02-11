@@ -47,3 +47,7 @@
 
 #Doxygen docs
 /docs/
+
+#Toku
+/toku_interface/ft_index
+/toku_interface/build
