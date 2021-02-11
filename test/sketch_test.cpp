@@ -1,9 +1,6 @@
-#include <gtest/gtest.h>
-#ifdef USE_NATIVE_F
-#include "../include/sketch_native.h"
-#else
 #include "../include/sketch.h"
-#endif
+#include <chrono>
+#include <gtest/gtest.h>
 #include "util/testing_vector.h"
 
 TEST(SketchTestSuite, TestExceptions) {
@@ -24,7 +21,7 @@ TEST(SketchTestSuite, TestExceptions) {
       XXH64_hash_t bucket_seed = XXH64(&bucket_id, sizeof(bucket_id), sketch2.seed);
       uint64_t index = 0;
       for (uint64_t k = 0; k < sketch2.n; ++k) {
-        if (vec_idx[k] && sketch2.buckets[bucket_id].contains(k + 1, bucket_seed, 1 << j)) {
+        if (vec_idx[k] && sketch2.buckets[bucket_id].contains(k, bucket_seed, 1 << j)) {
           if (index == 0) {
             index = k + 1;
           } else {
@@ -43,7 +40,7 @@ TEST(SketchTestSuite, TestExceptions) {
   }
   for (uint64_t i = 0; i < sketch2.n; ++i) {
     if (vec_idx[i]) {
-      sketch2.update({i, 1});
+      sketch2.update({static_cast<vec_t>(i), 1});
     }
   }
   ASSERT_THROW(sketch2.query(), NoGoodBucketException);
@@ -58,13 +55,10 @@ TEST(SketchTestSuite, GIVENonlyIndexZeroUpdatedTHENitWorks) {
   Sketch sketch = Sketch(vec_size, rand());
   for (int i=0;i<num_updates-1;++i) {
     d = rand()%10 - 5;
+    if (delta+d == 0) ++d;
     sketch.update({0,d});
     delta+=d;
   }
-  d = rand()%10 - 5;
-  if (delta+d == 0) ++d;
-  sketch.update({0,d});
-  delta+=d;
 
   // THEN it works
   Update res = sketch.query();
@@ -137,7 +131,7 @@ void test_sketch_addition(unsigned long num_sketches,
     double max_sample_fail_prob, double max_bucket_fail_prob) {
   unsigned long all_bucket_failures = 0;
   unsigned long sample_incorrect_failures = 0;
-  for (int i = 0; i < num_sketches; i++){
+  for (unsigned long i = 0; i < num_sketches; i++){
     const long seed = rand();
     Sketch sketch1 = Sketch(vec_size, seed);
     Sketch sketch2 = Sketch(vec_size, seed);
@@ -200,7 +194,7 @@ void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
   unsigned long seed = rand();
   srand(seed);
   for (unsigned long j = 0; j < num_updates; j++){
-    sketch.update({(int64_t) (rand() % vec_size), rand() % 10 - 5});
+    sketch.update({static_cast<vec_t>(rand() % vec_size), rand() % 10 - 5});
   }
   try {
     Update res = sketch.query();
@@ -211,7 +205,7 @@ void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
     srand(seed);
     long actual_delta = 0;
     for (unsigned long j = 0; j < num_updates; j++){
-      Update update = {(int64_t) (rand() % vec_size), rand() % 10 - 5};
+      Update update = {static_cast<vec_t>(rand() % vec_size), rand() % 10 - 5};
       if (update.index == res.index) {
         actual_delta += update.delta;
       }
@@ -232,4 +226,34 @@ void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
 
 TEST(SketchTestSuite, TestSketchLarge) {
   test_sketch_large(10000000, 1000000);
+}
+
+TEST(SketchTestSuite, TestBatchUpdate) {
+  unsigned long vec_size = 1000000000, num_updates = 10000;
+  srand(time(NULL));
+  std::vector<Update> updates(num_updates);
+  for (unsigned long i = 0; i < num_updates; i++) {
+    updates[i] = {static_cast<vec_t>(rand() % vec_size), rand() % 10 - 5};
+  }
+  auto sketch_seed = rand();
+  Sketch sketch(vec_size, sketch_seed);
+  Sketch sketch_batch(vec_size, sketch_seed);
+  auto start_time = std::chrono::steady_clock::now();
+  for (const Update& update : updates) {
+    sketch.update(update);
+  }
+  std::cout << "One by one updates took " << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
+  start_time = std::chrono::steady_clock::now();
+  sketch_batch.batch_update(updates.cbegin(), updates.cend());
+  std::cout << "Batched updates took " << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
+
+  ASSERT_EQ(sketch.seed, sketch_batch.seed);
+  ASSERT_EQ(sketch.n, sketch_batch.n);
+  ASSERT_EQ(sketch.buckets.size(), sketch_batch.buckets.size());
+  ASSERT_EQ(sketch.large_prime, sketch_batch.large_prime);
+  for (auto it1 = sketch.buckets.cbegin(), it2 = sketch_batch.buckets.cbegin(); it1 != sketch.buckets.cend(); it1++, it2++) {
+    ASSERT_EQ(it1->a, it2->a);
+    ASSERT_EQ(it1->b, it2->b);
+    ASSERT_EQ(it1->c, it2->c);
+  }
 }

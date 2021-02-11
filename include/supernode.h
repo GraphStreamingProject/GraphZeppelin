@@ -1,10 +1,8 @@
 #pragma once
 #include <boost/optional.hpp>
-#ifdef USE_NATIVE_F
-#include "sketch_native.h"
-#else
 #include "sketch.h"
-#endif
+
+using namespace std;
 
 typedef uint64_t Node;
 typedef std::pair<Node, Node> Edge;
@@ -48,6 +46,12 @@ public:
    * BEFORE Boruvka starts.
    */
   void update(pair<Edge, int> update);
+
+  /**
+   * Update all the sketches in a supernode, given a batch of updates
+   * @param updates A vector of Updates to process
+   */
+  void batch_update(const std::vector<Update>& updates);
 };
 
 

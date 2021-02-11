@@ -10,6 +10,8 @@
 #include "../test/util/graph_verifier.h"
 #endif
 
+using namespace std;
+
 enum UpdateType {
   INSERT = 0,
   DELETE = 1,
@@ -34,6 +36,13 @@ public:
   explicit Graph(uint64_t num_nodes);
   ~Graph();
   void update(GraphUpdate upd);
+
+  /**
+   * Update all the sketches in supernode, given a batch of updates.
+   * @param src The supernode where the edges originate
+   * @param edges A vector of <destination, delta> pairs
+   */
+  void batch_update(uint64_t src, const std::vector<std::pair<uint64_t, int8_t>>& edges);
 
   /**
    * Main algorithm utilizing Boruvka and L_0 sampling.
