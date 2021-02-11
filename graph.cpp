@@ -15,6 +15,10 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
     supernodes[i] = new Supernode(num_nodes,seed);
     parent[i] = i;
   }
+
+  // WOD implementation
+  db = TokuInterface();
+  db.supernodes = supernodes;
 }
 
 Graph::~Graph() {

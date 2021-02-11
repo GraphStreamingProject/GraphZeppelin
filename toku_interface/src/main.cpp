@@ -1,4 +1,4 @@
-#include "TokuInterface.h"
+#include "../../include/TokuInterface.h"
 #include <stdio.h>
 
 int main() {

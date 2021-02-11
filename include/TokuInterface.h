@@ -5,6 +5,7 @@
 #include <vector>
 #include <utility>
 #include <unordered_map>
+#include "supernode.h"
 
 class TokuInterface {
 public:
@@ -14,6 +15,8 @@ public:
     bool putEdge(std::pair<uint64_t, uint64_t> edge, int8_t value);
     void flush();
 
+    // pointer to the array of supernodes modified by putEdge() and flush()
+    Supernode** supernodes;
     
 private:
     DB_ENV *env;

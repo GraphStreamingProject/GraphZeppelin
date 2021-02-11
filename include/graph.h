@@ -5,6 +5,7 @@
 #include <set>
 #include <fstream>
 #include "supernode.h"
+#include "TokuInterface.h"
 
 #ifdef VERIFY_SAMPLES_F
 #include "../test/util/graph_verifier.h"
@@ -30,6 +31,9 @@ class Graph{
   // DSU representation of supernode relationship
   Node* parent;
   Node get_parent(Node node);
+
+  // WOD implementation
+  TokuInterface db;
 public:
   explicit Graph(uint64_t num_nodes);
   ~Graph();
