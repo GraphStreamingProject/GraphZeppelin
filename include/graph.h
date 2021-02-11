@@ -5,13 +5,15 @@
 #include <set>
 #include <fstream>
 #include "supernode.h"
-#include "TokuInterface.h"
 
 #ifdef VERIFY_SAMPLES_F
 #include "../test/util/graph_verifier.h"
 #endif
 
 using namespace std;
+
+// forward declaration for co-dependency
+class TokuInterface;
 
 enum UpdateType {
   INSERT = 0,

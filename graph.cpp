@@ -1,6 +1,7 @@
 #include <map>
 #include <iostream>
 #include "include/graph.h"
+#include "include/TokuInterface.h"
 
 Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
 #ifdef VERIFY_SAMPLES_F
@@ -18,7 +19,7 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
 
   // WOD implementation
   db = TokuInterface();
-  db.supernodes = supernodes;
+  db.graph = this;
 }
 
 Graph::~Graph() {

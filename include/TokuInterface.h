@@ -5,7 +5,9 @@
 #include <vector>
 #include <utility>
 #include <unordered_map>
-#include "supernode.h"
+
+// forward declaration for co-dependency
+class Graph;
 
 class TokuInterface {
 public:
@@ -16,7 +18,7 @@ public:
     void flush();
 
     // pointer to the array of supernodes modified by putEdge() and flush()
-    Supernode** supernodes;
+    Graph* graph;
     
 private:
     DB_ENV *env;

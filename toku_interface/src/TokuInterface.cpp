@@ -1,4 +1,5 @@
 #include "../../include/TokuInterface.h"
+#include "../../include/graph.h"
 
 #include <sys/stat.h>
 #include <string.h>
@@ -223,12 +224,7 @@ bool TokuInterface::putSingleEdge(uint64_t src, uint64_t dst, int8_t val) {
 
     if (update_counts[src] >= TAU) {
         std::vector<std::pair<uint64_t, int8_t>> edges = getEdges(src);
-        // =============== TODO: Replace with L0_SAMPLING here ===============
-        printf("Node %lu is above threshold. Queried and got:\n", src);
-        for (auto edge : edges) {
-            printf("%lu : %d\n", edge.first, edge.second);
-        }
-        // ===================================================================
+        graph->batch_update(src,edges);
         update_counts[src] = 0;
     }
     return true;
@@ -309,12 +305,7 @@ void TokuInterface::flush() {
     for (auto pair : update_counts) {
         if (pair.second > 0) {
             std::vector<std::pair<uint64_t, int8_t>> edges = getEdges(pair.first);
-            // =============== TODO: Replace with L0_SAMPLING here ===============
-            printf("Flushing node %lu. Queried and got:\n", pair.first);
-            for (auto edge : edges) {
-                printf("%lu : %d\n", edge.first, edge.second);
-            }
-            // ===================================================================
+            graph->batch_update(src,edges);
             update_counts[pair.first] = 0;
         }
     }
