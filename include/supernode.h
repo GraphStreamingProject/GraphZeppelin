@@ -47,6 +47,10 @@ public:
    */
   void update(pair<Edge, int> update);
 
+  /**
+   * Update all the sketches in a supernode, given a batch of updates
+   * @param updates A vector of Updates to process
+   */
   void batch_update(const std::vector<Update>& updates);
 };
 
