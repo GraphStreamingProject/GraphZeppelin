@@ -8,7 +8,7 @@
 #include <stdexcept>
 #include <chrono>
 
-#define MB 1 << 20
+#define MB (uint64_t) 1 << 20
 #define GB MB << 10
 
 // Defines which allow different db directories to be chosen
@@ -16,14 +16,14 @@
 #define NEW_DB_DIR "../../graph-db-data" // rel path to alternate dbdir
 
 // Define for edge threshold where we do a query
-#define TAU (uint32_t) 5
+#define TAU (uint32_t) 10
 
 // Define toku params (0 indicates default)
 // TODO: move these to a config file
-#define CACHESIZE 0   // The RAM cache which toku mintains should be about half of available RAM (GB scale)
-#define BUFFERSIZE 0  // The size of each buffer each node maintains. Larger = faster insertion but slower query (8~64MB scale)
-#define FANOUT 0      // Number of children of each node (don't know if we want to touch this)
-#define REDZONE 0     // Percent of disk available when toku will cease to insert (ie 95% full if redzone is 5%)
+#define CACHESIZE  0                  // The RAM cache which toku mintains should be about half of available RAM (provided to toku in GBs)
+#define BUFFERSIZE (uint64_t) 0       // The size of each buffer each node maintains. Larger = faster insertion but slower query (8~64MB scale)
+#define FANOUT     0                  // Number of children of each node (don't know if we want to touch this)
+#define REDZONE    0                  // Percent of disk available when toku will cease to insert (ie 95% full if redzone is 5%)
 
 // function to compare the data stored in the tree for sorting and querying
 inline int keyCompare(DB* db __attribute__((__unused__)), const DBT *a, const DBT *b) {
@@ -32,11 +32,12 @@ inline int keyCompare(DB* db __attribute__((__unused__)), const DBT *a, const DB
 
 // function to create a DBT from key info.
 // if rand is passed in then we set the last 8 bytes to it's value
-// if not then we set it to the current clock
-inline DBT *toDBT(uint64_t src, uint64_t dst, uint64_t rand=1) {
+// if not then we set it to the current clock this serves as 'random' noise
+// to make the keys unique
+inline DBT *toDBT(uint64_t src, uint64_t dst, uint32_t rand=1) {
     DBT *key_dbt = new DBT();
     key_dbt->flags=0;
-    key_dbt->size = sizeof(uint64_t) + sizeof(uint64_t) + sizeof(uint64_t);
+    key_dbt->size = sizeof(uint64_t) + sizeof(uint64_t) + sizeof(uint32_t);
     key_dbt->ulen = key_dbt->size;
     key_dbt->data = calloc(key_dbt->size, sizeof(uint8_t));
 
@@ -47,11 +48,11 @@ inline DBT *toDBT(uint64_t src, uint64_t dst, uint64_t rand=1) {
     memcpy(key_dbt->data, &src, sizeof(uint64_t));
     memcpy((uint8_t *)key_dbt->data + sizeof(uint64_t), &dst, sizeof(uint64_t));
     if (rand == 1) {
-        uint64_t uid = htobe64(std::chrono::system_clock::now().time_since_epoch().count());
-        memcpy((uint8_t *)key_dbt->data + 2*sizeof(uint64_t), &uid, sizeof(uint64_t));
+        uint32_t uid = htobe32(std::chrono::system_clock::now().time_since_epoch().count());
+        memcpy((uint8_t *)key_dbt->data + 2*sizeof(uint64_t), &uid, sizeof(uint32_t));
     } else {
-        rand = htobe64(rand);
-        memcpy((uint8_t *)key_dbt->data + 2*sizeof(uint64_t), &rand, sizeof(uint64_t));
+        rand = htobe32(rand);
+        memcpy((uint8_t *)key_dbt->data + 2*sizeof(uint64_t), &rand, sizeof(uint32_t));
     }
     
     return key_dbt;
@@ -122,6 +123,7 @@ TokuInterface::TokuInterface() {
 
     // set cachesize
     if (CACHESIZE != 0) {
+        printf("Setting toku cache size to %iGBs\n", CACHESIZE);
         if (env->set_cachesize(env, CACHESIZE, 0, 1) != 0) {
             printf("ERROR: failed to set cache size\n");
             exit(EXIT_FAILURE);
@@ -129,12 +131,13 @@ TokuInterface::TokuInterface() {
     }
     // set redzone
     if (REDZONE != 0) {
+        printf("Setting toku redzone to %i\n", REDZONE);
         if ((err = env->set_redzone(env, REDZONE)) != 0) {
             printf("ERROR: failed to set red zone: %d {%s}\n", err, db_strerror(err));
             exit(EXIT_FAILURE);
         }
     }
-
+    printf("Opening toku environment\n");
     if (env->open(env, dbdir, envFlags, S_IRWXU|S_IRWXG) != 0) {
         printf("Failed to open env!\n");
         exit(EXIT_FAILURE);
@@ -149,6 +152,7 @@ TokuInterface::TokuInterface() {
 
     // set buffersize
     if (BUFFERSIZE != 0) {
+        printf("Setting toku buffer size to %lu\n", BUFFERSIZE);
         if ((err = db->set_pagesize(db, BUFFERSIZE)) != 0) {
             printf("ERROR: failed to set buffer size\n");
             exit(EXIT_FAILURE);
@@ -156,6 +160,7 @@ TokuInterface::TokuInterface() {
     }
     // set fanout
     if (FANOUT != 0) {
+        printf("Setting toku fanout to %i\n", FANOUT);
         if((err = db->set_fanout(db, FANOUT)) != 0) {
             printf("ERROR: failed to set fanout\n");
             exit(EXIT_FAILURE);
@@ -263,7 +268,7 @@ std::vector<std::pair<uint64_t, int8_t>> TokuInterface::getEdges(uint64_t node) 
         return ret;
     }
 
-    while (keyCompare(db, toDBT(node, (uint64_t) -1, (uint64_t) -1), cursorKey) >= 0) {
+    while (keyCompare(db, toDBT(node, (uint64_t) -1, (uint32_t) -1), cursorKey) >= 0) {
         // uint64_t node = be64toh(getNode(cursorKey));
         uint64_t edgeTo = be64toh(getEdgeTo(cursorKey));
         int8_t value = getValue(cursorValue);
