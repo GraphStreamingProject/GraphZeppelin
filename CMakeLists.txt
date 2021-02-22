@@ -2,6 +2,7 @@
 #Cmake for xxHash is unofficial, so libxxhash-dev doesn't have xxHashConfig.cmake
 
 cmake_minimum_required(VERSION 3.1)
+include (ExternalProject)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -140,6 +141,31 @@ if(NOT Boost_FOUND)
 endif()
 include_directories("${Boost_INCLUDE_DIR}")
 
+# Install TokuDB
+ExternalProject_Add(
+  TokuDB
+
+  PREFIX          TokuDB
+  GIT_REPOSITORY  "https://github.com/Tokutek/ft-index.git"
+  GIT_TAG         "Percona-Server-5.7.28-31"
+
+  BUILD_ALWAYS    OFF
+  INSTALL_DIR     ${CMAKE_CURRENT_BINARY_DIR}/TokuDB/prefix
+
+  CMAKE_CACHE_ARGS
+        -DCMAKE_BUILD_TYPE:BOOL=Release 
+        -DBUILD_TESTING:BOOL=OFF 
+        -DUSE_VALGRIND:BOOL=OFF 
+        -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
+
+  BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target install
+)
+
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/TokuDB/prefix)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/TokuDB/prefix/include)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/TokuDB/prefix/lib)
+link_directories(${CMAKE_CURRENT_BINARY_DIR}/TokuDB/prefix/lib)
+
 add_executable(main 
   main.cpp
   graph.cpp
@@ -155,6 +181,28 @@ if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
   target_compile_options(main PRIVATE /O2)
 endif()
+
+add_executable(streaming_wods
+  toku_interface/src/TokuInterface.cpp
+  main.cpp
+  graph.cpp
+  supernode.cpp
+  l0_sampling/sketch.cpp
+  l0_sampling/update.cpp
+  l0_sampling/bucket.cpp
+  util.cpp
+  l0_sampling/int127.cpp)
+target_compile_definitions(streaming_wods PRIVATE -DWODS_PROTOTYPE)
+target_link_libraries(streaming_wods PRIVATE xxHash::xxhash)
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+  target_compile_options(streaming_wods PRIVATE -O3)
+elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+  target_compile_options(streaming_wods PRIVATE /O2)
+endif()
+add_dependencies(streaming_wods TokuDB)
+target_link_libraries(streaming_wods PRIVATE libtokufractaltree.so)
+target_link_libraries(streaming_wods PRIVATE libtokuportability.so)
+target_compile_options(streaming_wods PRIVATE -lpthread -lbz2 -lz -llz4 -ldl )
 
 add_executable(l0sampling
   l0sampling.cpp

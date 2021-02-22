@@ -1,7 +1,10 @@
 #include <map>
 #include <iostream>
 #include "include/graph.h"
+
+#ifdef WODS_PROTOTYPE
 #include "include/TokuInterface.h"
+#endif
 
 Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
 #ifdef VERIFY_SAMPLES_F
@@ -17,9 +20,11 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
     parent[i] = i;
   }
 
+#ifdef WODS_PROTOTYPE
   // WOD implementation
   db = TokuInterface();
   db.graph = this;
+#endif
 }
 
 Graph::~Graph() {

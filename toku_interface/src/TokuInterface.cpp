@@ -310,7 +310,7 @@ void TokuInterface::flush() {
     for (auto pair : update_counts) {
         if (pair.second > 0) {
             std::vector<std::pair<uint64_t, int8_t>> edges = getEdges(pair.first);
-            graph->batch_update(src,edges);
+            graph->batch_update(pair.first,edges);
             update_counts[pair.first] = 0;
         }
     }

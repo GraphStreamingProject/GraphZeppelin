@@ -25,8 +25,8 @@ private:
     DB *db;
     std::unordered_map<uint64_t, uint64_t> update_counts;
 
-    const int MAX_DB_FILENAME_LENGTH = 100;
-	const int MAX_ENV_DIRNAME_LENGTH = 300;
+    static const int MAX_DB_FILENAME_LENGTH = 100;
+	static const int MAX_ENV_DIRNAME_LENGTH = 300;
     const char* DB_FILE = "graph-stream-file_v0.1";
     const char* DB_DIR = "graphDir";
 

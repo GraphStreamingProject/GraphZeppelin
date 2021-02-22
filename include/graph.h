@@ -12,8 +12,9 @@
 
 using namespace std;
 
-// forward declaration for co-dependency
-class TokuInterface;
+#ifdef WODS_PROTOTYPE
+#include "TokuInterface.h"
+#endif
 
 enum UpdateType {
   INSERT = 0,
@@ -36,8 +37,10 @@ class Graph{
   Node* parent;
   Node get_parent(Node node);
 
+#ifdef WODS_PROTOTYPE
   // WOD implementation
   TokuInterface db;
+#endif
 public:
   explicit Graph(uint64_t num_nodes);
   ~Graph();
