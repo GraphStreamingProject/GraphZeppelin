@@ -9,30 +9,16 @@ bool Bucket_Boruvka::contains(const vec_t& index, const XXH64_hash_t& bucket_see
   return false;
 }
 
-bool Bucket_Boruvka::is_good(const vec_t& n, const ubucket_t& large_prime, const XXH64_hash_t& bucket_seed, const ubucket_t& r, const vec_t& guess_nonzero) const {
-  return a != 0 && b % a == 0  && b / a > 0 && b / a <= n
-      && contains(static_cast<vec_t>(b / a - 1), bucket_seed, guess_nonzero)
-      && ((static_cast<bucket_prod_t>(c) + static_cast<bucket_prod_t>(large_prime) - static_cast<bucket_prod_t>(a)
-      * PrimeGenerator::powermod(r, b / a, large_prime)) % large_prime) % large_prime == 0;
+bool Bucket_Boruvka::is_good(const vec_t& n, const XXH64_hash_t& bucket_seed, const vec_t& guess_nonzero) const {
+  if (a == 0 || b % a != 0 || b / a <= 0) return false;
+  vec_t update_idx = b / a - 1;
+  return update_idx < n && contains(update_idx, bucket_seed, guess_nonzero)
+    && c == XXH64(&update_idx, sizeof(update_idx), bucket_seed);
 }
 
-void Bucket_Boruvka::update(const Update& update, const ubucket_t& large_prime, const ubucket_t& r) {
+void Bucket_Boruvka::update(const Update& update, const XXH64_hash_t& bucket_seed) {
+  vec_t update_idx = update.index;
   a += update.delta;
-  b += update.delta * static_cast<bucket_t>(update.index + 1); // deals with updates whose indices are 0
-  c = static_cast<ubucket_t>(
-      (static_cast<bucket_prod_t>(c)
-      + static_cast<bucket_prod_t>(large_prime)
-      + (static_cast<bucket_prod_t>(update.delta) * PrimeGenerator::powermod(r, update.index + 1, large_prime) % large_prime))
-      % large_prime);
+  b += update.delta * static_cast<bucket_t>(update_idx + 1); // deals with updates whose indices are 0
+  c ^= XXH64(&update_idx, sizeof(update_idx), bucket_seed);
 }
-
-void Bucket_Boruvka::cached_update(const Update& update, const ubucket_t& large_prime, const std::vector<ubucket_t>& r_sq_cache) {
-  a += update.delta;
-  b += update.delta * static_cast<bucket_t>(update.index + 1); // deals with updates whose indices are 0
-  c = static_cast<ubucket_t>(
-      (static_cast<bucket_prod_t>(c)
-      + static_cast<bucket_prod_t>(large_prime)
-      + (static_cast<bucket_prod_t>(update.delta) * PrimeGenerator::cached_powermod(r_sq_cache, update.index + 1, large_prime) % large_prime))
-      % large_prime);
-}
-

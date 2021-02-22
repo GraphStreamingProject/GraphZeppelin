@@ -72,14 +72,18 @@ TEST(SketchTestSuite, GIVENonlyIndexZeroUpdatedTHENitWorks) {
 void test_sketch_sample(unsigned long num_sketches,
     unsigned long vec_size, unsigned long num_updates,
     double max_sample_fail_prob, double max_bucket_fail_prob) {
+  srand(time(NULL));
+  std::chrono::duration<long double> runtime(0);
   unsigned long all_bucket_failures = 0;
   unsigned long sample_incorrect_failures = 0;
   for (unsigned long i = 0; i < num_sketches; i++) {
     Testing_Vector test_vec = Testing_Vector(vec_size, num_updates);
     Sketch sketch = Sketch(vec_size, rand());
+    auto start_time = std::chrono::steady_clock::now();
     for (unsigned long j = 0; j < num_updates; j++){
       sketch.update(test_vec.get_update(j));
     }
+    runtime += std::chrono::steady_clock::now() - start_time;
     try {
       Update res = sketch.query();
       //Multiple queries shouldn't happen, but if we do get here fail test
@@ -108,6 +112,9 @@ void test_sketch_sample(unsigned long num_sketches,
       FAIL() << e.what();
     }
   }
+  std::cout << "Updating " << num_sketches << " sketches of length "
+    << vec_size << " vectors with " << num_updates << " updates took "
+    << runtime.count() << std::endl;
   EXPECT_LE(sample_incorrect_failures, max_sample_fail_prob * num_sketches)
     << "Sample incorrect " << sample_incorrect_failures << '/' << num_sketches
     << " times (expected less than " << max_sample_fail_prob << ')';
@@ -129,6 +136,7 @@ TEST(SketchTestSuite, TestSketchSample) {
 void test_sketch_addition(unsigned long num_sketches,
     unsigned long vec_size, unsigned long num_updates,
     double max_sample_fail_prob, double max_bucket_fail_prob) {
+  srand (time(NULL));
   unsigned long all_bucket_failures = 0;
   unsigned long sample_incorrect_failures = 0;
   for (unsigned long i = 0; i < num_sketches; i++){
@@ -178,7 +186,6 @@ void test_sketch_addition(unsigned long num_sketches,
 }
 
 TEST(SketchTestSuite, TestSketchAddition){
-  srand (time(NULL));
   test_sketch_addition(10000, 100, 100, 0.005, 0.005);
   test_sketch_addition(1000, 1000, 1000, 0.001, 0.001);
   test_sketch_addition(1000, 10000, 10000, 0.001, 0.001);
@@ -225,7 +232,7 @@ void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
 }
 
 TEST(SketchTestSuite, TestSketchLarge) {
-  test_sketch_large(10000000, 1000000);
+  test_sketch_large(1000000000, 1000000);
 }
 
 TEST(SketchTestSuite, TestBatchUpdate) {
@@ -250,7 +257,6 @@ TEST(SketchTestSuite, TestBatchUpdate) {
   ASSERT_EQ(sketch.seed, sketch_batch.seed);
   ASSERT_EQ(sketch.n, sketch_batch.n);
   ASSERT_EQ(sketch.buckets.size(), sketch_batch.buckets.size());
-  ASSERT_EQ(sketch.large_prime, sketch_batch.large_prime);
   for (auto it1 = sketch.buckets.cbegin(), it2 = sketch_batch.buckets.cbegin(); it1 != sketch.buckets.cend(); it1++, it2++) {
     ASSERT_EQ(it1->a, it2->a);
     ASSERT_EQ(it1->b, it2->b);

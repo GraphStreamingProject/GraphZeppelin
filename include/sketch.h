@@ -22,7 +22,6 @@ class Sketch {
   const long seed;
   const vec_t n;
   std::vector<Bucket_Boruvka> buckets;
-  const ubucket_t large_prime;
   bool already_quered = false;
 
   FRIEND_TEST(SketchTestSuite, TestExceptions);
@@ -91,12 +90,10 @@ void Sketch::batch_update(ForwardIterator begin, ForwardIterator end) {
       unsigned bucket_id = i * num_guesses + j;
       Bucket_Boruvka& bucket = buckets[bucket_id];
       XXH64_hash_t bucket_seed = Bucket_Boruvka::gen_bucket_seed(bucket_id, seed);
-      ubucket_t r = Bucket_Boruvka::gen_r(bucket_seed, large_prime);
-      std::vector<ubucket_t> r_sq_cache = PrimeGenerator::gen_sq_cache(r, n, large_prime);
       for (auto it = begin; it != end; it++) {
         const Update& update = *it;
         if (bucket.contains(update.index, bucket_seed, 1 << j)) {
-          bucket.cached_update(update, large_prime, r_sq_cache);
+          bucket.update(update, bucket_seed);
         }
       }
     }
