@@ -13,7 +13,7 @@
 using namespace std;
 
 #ifdef WODS_PROTOTYPE
-#include "TokuInterface.h"
+class TokuInterface;
 #endif
 
 enum UpdateType {
@@ -39,7 +39,7 @@ class Graph{
 
 #ifdef WODS_PROTOTYPE
   // WOD implementation
-  TokuInterface db;
+  TokuInterface *db;
 #endif
 public:
   explicit Graph(uint64_t num_nodes);

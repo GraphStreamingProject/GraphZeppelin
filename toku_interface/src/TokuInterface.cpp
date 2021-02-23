@@ -9,14 +9,13 @@
 #include <chrono>
 
 #define MB (uint64_t) 1 << 20
-#define GB MB << 10
 
 // Defines which allow different db directories to be chosen
 #define USE_DEFAULT false // use default dbdir
-#define NEW_DB_DIR "../../graph-db-data" // rel path to alternate dbdir
+#define NEW_DB_DIR "../graph-db-data" // rel path to alternate dbdir
 
 // Define for edge threshold where we do a query
-#define TAU (uint32_t) 10
+#define TAU (uint32_t) 100
 
 // Define toku params (0 indicates default)
 // TODO: move these to a config file

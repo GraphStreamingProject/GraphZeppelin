@@ -22,8 +22,8 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
 
 #ifdef WODS_PROTOTYPE
   // WOD implementation
-  db = TokuInterface();
-  db.graph = this;
+  db = new TokuInterface();
+  db->graph = this;
 #endif
 }
 
@@ -32,11 +32,18 @@ Graph::~Graph() {
     delete supernodes[i];
   delete supernodes;
   delete representatives;
+#ifdef WODS_PROTOTYPE
+  delete db;
+#endif
 }
 
 void Graph::update(GraphUpdate upd) {
   if (update_locked) throw UpdateLockedException();
   Edge &edge = upd.first;
+
+#ifdef WODS_PROTOTYPE
+  db->putEdge(edge, upd.second);
+#else
   // ensure lhs < rhs
   if (edge.first > edge.second) {
     std::swap(edge.first,edge.second);
@@ -48,6 +55,7 @@ void Graph::update(GraphUpdate upd) {
     supernodes[edge.first]->update({edge, -1});
     supernodes[edge.second]->update({edge, 1});
   }
+#endif
 }
 
 
@@ -70,11 +78,16 @@ void Graph::batch_update(uint64_t src, const std::vector<std::pair<uint64_t, int
 }
 
 vector<set<Node>> Graph::connected_components() {
+#ifdef WODS_PROTOTYPE
+  db->flush(); // flush everything in toku to make final updates
+#endif
+
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
 #ifdef VERIFY_SAMPLES_F
   GraphVerifier verifier {cum_in};
 #endif
+
   do {
     modified = false;
     vector<Node> removed;
