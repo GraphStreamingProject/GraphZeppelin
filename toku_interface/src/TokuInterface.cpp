@@ -14,8 +14,8 @@
 #define USE_DEFAULT true // use default dbdir
 #define NEW_DB_DIR "../graph-db-data" // rel path to alternate dbdir
 
-// Define for edge threshold where we do a query
-#define TAU (uint32_t) 10000bO
+// Define the threshold at which we do a query
+#define TAU (uint32_t) 10000
 
 // Define toku params (0 indicates default)
 // TODO: move these to a config file
