@@ -42,7 +42,7 @@ void Graph::update(GraphUpdate upd) {
   Edge &edge = upd.first;
 
 #ifdef WODS_PROTOTYPE
-  db->putEdge(edge, upd.second);
+  db->putEdge(edge, (upd.second == INSERT) ? 1 : -1);
 #else
   // ensure lhs < rhs
   if (edge.first > edge.second) {

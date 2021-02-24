@@ -11,18 +11,18 @@
 #define MB (uint64_t) 1 << 20
 
 // Defines which allow different db directories to be chosen
-#define USE_DEFAULT false // use default dbdir
+#define USE_DEFAULT true // use default dbdir
 #define NEW_DB_DIR "../graph-db-data" // rel path to alternate dbdir
 
 // Define for edge threshold where we do a query
-#define TAU (uint32_t) 100
+#define TAU (uint32_t) 10000bO
 
 // Define toku params (0 indicates default)
 // TODO: move these to a config file
-#define CACHESIZE  0                  // The RAM cache which toku mintains should be about half of available RAM (provided to toku in GBs)
-#define BUFFERSIZE (uint64_t) 0       // The size of each buffer each node maintains. Larger = faster insertion but slower query (8~64MB scale)
+#define CACHESIZE  8                  // The RAM cache which toku mintains should be about half of available RAM (provided to toku in GBs)
+#define BUFFERSIZE (uint64_t) MB << 3 // The size of each buffer each node maintains. Larger = faster insertion but slower query (4~64MB scale)
 #define FANOUT     0                  // Number of children of each node (don't know if we want to touch this)
-#define REDZONE    0                  // Percent of disk available when toku will cease to insert (ie 95% full if redzone is 5%)
+#define REDZONE    1                  // Percent of disk available when toku will cease to insert (ie 95% full if redzone is 5%)
 
 // function to compare the data stored in the tree for sorting and querying
 inline int keyCompare(DB* db __attribute__((__unused__)), const DBT *a, const DBT *b) {
@@ -199,9 +199,9 @@ bool TokuInterface::putEdge(std::pair<uint64_t, uint64_t> edge, int8_t value) {
         if (!putSingleEdge(edge.first, edge.second, value))
             return false;
 
-        return putSingleEdge(edge.second, edge.first, -1 * value);
+        return putSingleEdge(edge.second, edge.first, value * -1);
     } else {
-        if (!putSingleEdge(edge.first, edge.second, -1 * value))
+        if (!putSingleEdge(edge.first, edge.second, value * -1))
             return false;
 
         return putSingleEdge(edge.second, edge.first, value);
