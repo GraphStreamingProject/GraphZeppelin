@@ -19,7 +19,6 @@ TEST(Benchmark, BCHMK2Toku) {
     in >> a >> b;
     g.update({{a, b}, INSERT});
   }
-  // TODO: figure out the below
-  g.set_cum_in(curr_dir + "/res/multiples_graph_1024.txt");
+  g.set_cum_in(curr_dir + "/res/1000_0.95_0.5.cum");
   ASSERT_EQ(1000, g.connected_components().size());
 }
