@@ -296,7 +296,7 @@ add_executable(wods_test
   l0_sampling/sketch.cpp
   l0_sampling/update.cpp
   l0_sampling/bucket.cpp
-  util.cpp)
+  util.cpp test/experiment/BCHMK_2_toku.cpp)
 target_link_libraries(wods_test PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(wods_test PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F)
 # toku dependencies
@@ -316,3 +316,13 @@ else ()
     target_compile_options(wods_test PRIVATE /O2)
   endif()
 endif ()
+
+add_executable(efficient_gen
+  test/util/efficient_gen/edge_gen.cpp
+  test/util/efficient_gen/cum_gen.cpp
+  test/util/efficient_gen/efficient_gen.cpp)
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+  target_compile_options(efficient_gen PRIVATE -O3)
+elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+  target_compile_options(efficient_gen PRIVATE /O2)
+endif()
