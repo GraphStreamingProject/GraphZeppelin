@@ -317,6 +317,7 @@ else ()
   endif()
 endif ()
 
+# executables for experiment/benchmarking
 add_executable(efficient_gen
   test/util/efficient_gen/edge_gen.cpp
   test/util/efficient_gen/cum_gen.cpp
@@ -325,4 +326,24 @@ if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   target_compile_options(efficient_gen PRIVATE -O3)
 elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
   target_compile_options(efficient_gen PRIVATE /O2)
+endif()
+
+add_executable(experiment
+  test/test_runner.cpp
+  test/experiment/BCHMK_2_toku.cpp
+  test/util/graph_verifier.cpp
+  test/util/graph_gen.cpp
+  graph.cpp
+  supernode.cpp
+  l0_sampling/sketch.cpp
+  l0_sampling/update.cpp
+  l0_sampling/bucket.cpp
+  util.cpp)
+target_link_libraries(experiment PRIVATE xxHash::xxhash GTest::gtest)
+target_compile_definitions(experiment PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F)
+# optimize
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+  target_compile_options(tests PRIVATE -O3)
+elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+  target_compile_options(tests PRIVATE /O2)
 endif()
