@@ -231,3 +231,26 @@ else ()
     target_compile_options(native_tests PRIVATE /O2)
   endif()
 endif ()
+
+# Force python2.7 library usage.
+FIND_PACKAGE(PythonInterp 2.7 REQUIRED)
+FIND_PACKAGE(PythonLibs 2.7 REQUIRED)
+include_directories("${PYTHON_INCLUDE_DIRS}")
+
+add_custom_command(
+  OUTPUT ${CMAKE_BINARY_DIR}/sketch_wrap.cpp
+  COMMAND swig -c++ -python -o ${CMAKE_BINARY_DIR}/sketch_wrap.cpp ${CMAKE_SOURCE_DIR}/swig/sketch.i
+  DEPENDS ${CMAKE_SOURCE_DIR}/swig/sketch.i
+    VERBATIM)
+
+add_library(_sketch SHARED
+  graph.cpp
+  supernode.cpp
+  l0_sampling/sketch.cpp
+  l0_sampling/update.cpp
+  l0_sampling/bucket.cpp
+  ${CMAKE_BINARY_DIR}/sketch_wrap.cpp
+  util.cpp
+  l0_sampling/int127.cpp)
+set_target_properties(_sketch PROPERTIES PREFIX "")
+target_link_libraries(_sketch PRIVATE xxHash::xxhash ${PYTHON_LIBRARIES})
