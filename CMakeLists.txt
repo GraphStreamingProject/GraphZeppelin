@@ -8,6 +8,9 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 
+#Uncomment to enable debug
+#set(ENV{DEBUG} ON)
+
 project(test)
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
