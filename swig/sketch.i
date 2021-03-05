@@ -3,8 +3,10 @@
 #include <stdint.h>
 #include "../include/types.h"
 #include "../include/sketch.h"
+#include "../include/update.h"
 %}
 
+%include <std_string.i>
 %include <stdint.i>
 
 %ignore log2;
@@ -12,6 +14,7 @@
 
 %rename(plus) operator+;
 %rename(plus_equals) operator+=;
+%rename(equals) operator==;
 %rename(times) operator*;
 %rename(to_stream) operator<<;
 
@@ -40,8 +43,7 @@ class Sketch {
    * @param begin a ForwardIterator to the first update
    * @param end a ForwardIterator to after the last update
    */
-    template <typename ForwardIterator>
-      void batch_update(ForwardIterator begin, ForwardIterator end);
+  void batch_update(const std::vector<Update> &updates);
 
     /**
      * Function to query a sketch.
@@ -57,3 +59,28 @@ class Sketch {
     friend Sketch operator* (const Sketch &sketch1, long scaling_factor );
     friend std::ostream& operator<< (std::ostream &os, const Sketch &sketch);
 };
+
+%extend Sketch {
+  std::string __str__() const {
+    std::ostringstream out;
+    out << *$self;
+    return out.str();
+  }
+}
+
+struct Update {
+  // the position in the vector that is changed
+  vec_t index;
+  // the magnitude of the change
+  long delta;
+  friend std::ostream& operator<< (std::ostream &out, const Update &update);
+  friend bool operator== (const Update &upd1, const Update &upd2);
+};
+
+%extend Update {
+  std::string __str__() const {
+    std::ostringstream out;
+    out << *$self;
+    return out.str();
+  }
+}

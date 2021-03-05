@@ -23,6 +23,25 @@ void Sketch::update(Update update) {
   }
 }
 
+void Sketch::batch_update(const std::vector<Update> &updates) {
+  const unsigned num_buckets = bucket_gen(n);
+  const unsigned num_guesses = guess_gen(n);
+  for (unsigned i = 0; i < num_buckets; ++i) {
+    for (unsigned j = 0; j < num_guesses; ++j) {
+      unsigned bucket_id = i * num_guesses + j;
+      Bucket_Boruvka& bucket = buckets[bucket_id];
+      XXH64_hash_t bucket_seed = Bucket_Boruvka::gen_bucket_seed(bucket_id, seed);
+      ubucket_t r = Bucket_Boruvka::gen_r(bucket_seed, large_prime);
+      std::vector<ubucket_t> r_sq_cache = PrimeGenerator::gen_sq_cache(r, n, large_prime);
+      for (auto& update : updates) {
+	if (bucket.contains(update.index, bucket_seed, 1 << j)) {
+	  bucket.cached_update(update, large_prime, r_sq_cache);
+	}
+      }
+    }
+  }
+}
+
 Update Sketch::query() {
   if (already_quered) {
     throw MultipleQueryException();
