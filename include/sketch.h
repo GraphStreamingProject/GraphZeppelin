@@ -10,7 +10,7 @@
 #include "util.h"
 #include <gtest/gtest_prod.h>
 
-#define bucket_gen(x) double_to_ull(log2(x)+1)
+#define bucket_gen(x, c) double_to_ull((c)*(log2(x)+1))
 #define guess_gen(x) double_to_ull(log2(x)+2)
 
 /**
@@ -21,6 +21,7 @@
 class Sketch {
   const long seed;
   const vec_t n;
+  const double num_bucket_factor;
   std::vector<Bucket_Boruvka> buckets;
   bool already_quered = false;
 
@@ -29,7 +30,7 @@ class Sketch {
 
   //Initialize a sketch of a vector of size n
 public:
-  Sketch(vec_t n, long seed);
+  Sketch(vec_t n, long seed, double num_bucket_factor = 1);
 
   /**
    * Update a sketch based on information about one of its indices.
@@ -83,7 +84,7 @@ public:
 
 template <typename ForwardIterator>
 void Sketch::batch_update(ForwardIterator begin, ForwardIterator end) {
-  const unsigned num_buckets = bucket_gen(n);
+  const unsigned num_buckets = bucket_gen(n, num_bucket_factor);
   const unsigned num_guesses = guess_gen(n);
   for (unsigned i = 0; i < num_buckets; ++i) {
     for (unsigned j = 0; j < num_guesses; ++j) {

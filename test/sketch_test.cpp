@@ -13,7 +13,7 @@ TEST(SketchTestSuite, TestExceptions) {
    */
   Sketch sketch2 = Sketch(100, 0);
   std::vector<bool> vec_idx(sketch2.n, true);
-  unsigned long long num_buckets = bucket_gen(sketch2.n);
+  unsigned long long num_buckets = bucket_gen(sketch2.n, 1);
   unsigned long long num_guesses = guess_gen(sketch2.n);
   for (unsigned long long i = 0; i < num_buckets; ++i) {
     for (unsigned long long j = 0; j < num_guesses;) {
@@ -78,7 +78,7 @@ void test_sketch_sample(unsigned long num_sketches,
   unsigned long sample_incorrect_failures = 0;
   for (unsigned long i = 0; i < num_sketches; i++) {
     Testing_Vector test_vec = Testing_Vector(vec_size, num_updates);
-    Sketch sketch = Sketch(vec_size, rand());
+    Sketch sketch = Sketch(vec_size, rand(), 1.5);
     auto start_time = std::chrono::steady_clock::now();
     for (unsigned long j = 0; j < num_updates; j++){
       sketch.update(test_vec.get_update(j));
@@ -141,8 +141,8 @@ void test_sketch_addition(unsigned long num_sketches,
   unsigned long sample_incorrect_failures = 0;
   for (unsigned long i = 0; i < num_sketches; i++){
     const long seed = rand();
-    Sketch sketch1 = Sketch(vec_size, seed);
-    Sketch sketch2 = Sketch(vec_size, seed);
+    Sketch sketch1 = Sketch(vec_size, seed, 1.5);
+    Sketch sketch2 = Sketch(vec_size, seed, 1.5);
     Testing_Vector test_vec1 = Testing_Vector(vec_size, num_updates);
     Testing_Vector test_vec2 = Testing_Vector(vec_size, num_updates);
 
