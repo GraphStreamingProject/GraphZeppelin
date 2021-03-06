@@ -12,7 +12,7 @@
 
 // Defines which allow different db directories to be chosen
 #define USE_DEFAULT true // use default dbdir
-#define NEW_DB_DIR "../graph-db-data" // rel path to alternate dbdir
+#define NEW_DB_DIR "../../../graph-db-data" // rel path to alternate dbdir
 
 // Define the threshold at which we do a query
 #define TAU (uint32_t) 10000
@@ -57,6 +57,11 @@ inline DBT *toDBT(uint64_t src, uint64_t dst, uint32_t rand=1) {
     return key_dbt;
 }
 
+void freeDBT(DBT *dbt) {
+    free(dbt->data);
+    delete dbt;
+}
+
 // this function combines the values of two identical keys by adding them
 // some params are commented because they are unused
 // TODO: maybe figure out a way to use this at some point
@@ -91,7 +96,7 @@ TokuInterface::TokuInterface() {
     int dbFlags = DB_CREATE;
     int envFlags = DB_PRIVATE|DB_INIT_MPOOL|DB_INIT_LOCK|DB_THREAD|DB_CREATE;
 
-    db_env_set_direct_io(false);
+    db_env_set_direct_io(false); // I wonder if we should try using direct IO... might be better with big cache
 
     if (!USE_DEFAULT) {
         printf("setting to new db dir\n");
@@ -215,8 +220,9 @@ bool TokuInterface::putSingleEdge(uint64_t src, uint64_t dst, int8_t val) {
     value_dbt.ulen = sizeof(int8_t);
     value_dbt.data = malloc(sizeof(int8_t));
     memset(value_dbt.data, val, sizeof(int8_t));
+    DBT *toInsert = toDBT(src, dst);
     // printf("inserting %lu %lu %i\n", src, dst, val);
-    if (db->put(db, NULL, toDBT(src, dst), &value_dbt, 0) != 0) {
+    if (db->put(db, NULL, toInsert, &value_dbt, 0) != 0) {
         printf("ERROR: failed to insert data %lu %lu %i\n", src, dst, val);
         return false;
     }
@@ -225,6 +231,10 @@ bool TokuInterface::putSingleEdge(uint64_t src, uint64_t dst, int8_t val) {
     }
     update_counts[src]++;
     // printf("Node %lu has count %lu\n", src, update_counts[src]);
+
+    // free memory
+    freeDBT(toInsert);
+    free(value_dbt.data);
 
     if (update_counts[src] >= TAU) {
         std::vector<std::pair<uint64_t, int8_t>> edges = getEdges(src);
@@ -237,6 +247,7 @@ bool TokuInterface::putSingleEdge(uint64_t src, uint64_t dst, int8_t val) {
 
 std::vector<std::pair<uint64_t, int8_t>> TokuInterface::getEdges(uint64_t node) {
     int err;
+    bool endOfTree= false;
     std::vector<std::pair<uint64_t, int8_t>> ret = std::vector<std::pair<uint64_t, int8_t>>();
 
     DBC* cursor = nullptr;
@@ -245,6 +256,7 @@ std::vector<std::pair<uint64_t, int8_t>> TokuInterface::getEdges(uint64_t node) 
 
     DBT* cursorKey = new DBT();
     DBT* startDBT = toDBT(node, 0, 0); // start is node with edge to 0
+    DBT* endDBT = toDBT(node, (uint64_t) -1, (uint32_t) -1);
     memcpy(cursorKey, startDBT, sizeof(DBT));
     cursorKey->flags |= DB_DBT_MALLOC;
 
@@ -264,10 +276,15 @@ std::vector<std::pair<uint64_t, int8_t>> TokuInterface::getEdges(uint64_t node) 
         if (cursor->c_close(cursor)) {
             // TODO: error message
         }
+        // free memory and exit
+        freeDBT(cursorKey);
+        freeDBT(cursorValue);
+        freeDBT(startDBT);
+        freeDBT(endDBT);
         return ret;
     }
 
-    while (keyCompare(db, toDBT(node, (uint64_t) -1, (uint32_t) -1), cursorKey) >= 0) {
+    while (keyCompare(db, endDBT, cursorKey) >= 0) {
         // uint64_t node = be64toh(getNode(cursorKey));
         uint64_t edgeTo = be64toh(getEdgeTo(cursorKey));
         int8_t value = getValue(cursorValue);
@@ -278,19 +295,22 @@ std::vector<std::pair<uint64_t, int8_t>> TokuInterface::getEdges(uint64_t node) 
             
             // insert a delete to the root for this key
             db->del(db, nullptr, cursorKey, 0);
-
-            // free memory
-            free(cursorKey->data);
-            free(cursorValue->data);
         }
-
+        // free memory
+        free(cursorKey->data);
+        free(cursorValue->data);
 
         err = cursor->c_get(cursor, cursorKey, cursorValue, DB_NEXT);
         if (err != 0) {
             if (err != DB_NOTFOUND) {
                 // TODO: error messages
             } else {
-                // Done with reading the data
+                // There is no more data (end of tree)
+                // this is a special case in which
+                // cursorKey and cursorValue will not
+                // have new data within them
+                // therefore return a different way
+                endOfTree = true;
                 break;
             }
         }
@@ -300,8 +320,16 @@ std::vector<std::pair<uint64_t, int8_t>> TokuInterface::getEdges(uint64_t node) 
         // TODO: error messages
     }
 
-    delete cursorKey;
-    delete cursorValue;
+    // free and return
+    if (endOfTree) {
+        delete cursorKey;
+        delete cursorValue;
+    } else {
+        freeDBT(cursorKey);
+        freeDBT(cursorValue);
+    }
+    freeDBT(startDBT);
+    freeDBT(endDBT);
     return ret;
 }
 
