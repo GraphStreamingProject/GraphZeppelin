@@ -334,6 +334,7 @@ std::vector<std::pair<uint64_t, int8_t>> TokuInterface::getEdges(uint64_t node) 
 }
 
 void TokuInterface::flush() {
+    printf("Flushing tokudb of any remaining updates\n");
     for (auto pair : update_counts) {
         if (pair.second > 0) {
             std::vector<std::pair<uint64_t, int8_t>> edges = getEdges(pair.first);
