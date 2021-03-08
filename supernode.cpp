@@ -15,16 +15,15 @@ Supernode::Supernode(uint64_t n, long seed): sketches(log2(n)), idx(0), logn(log
 
 boost::optional<Edge> Supernode::sample() {
   if (idx == logn) throw OutOfQueriesException();
-  Update query;
+  vec_t query_idx;
   try {
-    query = sketches[idx]->query();
+    query_idx = sketches[idx]->query();
   } catch (AllBucketsZeroException &e) {
     ++idx;
     return {};
   }
   ++idx;
-  if (query.delta == 0) return {};
-  return inv_nondir_non_self_edge_pairing_fn(query.index);
+  return inv_nondir_non_self_edge_pairing_fn(query_idx);
 }
 
 void Supernode::merge(Supernode &other) {
@@ -34,14 +33,13 @@ void Supernode::merge(Supernode &other) {
   }
 }
 
-void Supernode::update(pair<Edge, int> update) {
-  Update upd = {nondirectional_non_self_edge_pairing_fn(update.first.first,
-        update.first.second), update.second};
+void Supernode::update(Edge update) {
+  vec_t upd = nondirectional_non_self_edge_pairing_fn(update.first, update.second);
   for (Sketch* s : sketches)
     s->update(upd);
 }
 
-void Supernode::batch_update(const std::vector<Update>& updates) {
+void Supernode::batch_update(const std::vector<vec_t>& updates) {
   for (Sketch *s : sketches) {
     s->batch_update(updates.cbegin(), updates.cend());
   }

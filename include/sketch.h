@@ -36,7 +36,7 @@ public:
    * Update a sketch based on information about one of its indices.
    * @param update the point update.
    */
-  void update(Update update);
+  void update(const vec_t& update_idx);
 
   /**
    * Update a sketch given a batch of updates
@@ -53,7 +53,7 @@ public:
    * @throws NoGoodBucketException  if there are no good buckets to choose an
    *                                index from.
    */
-  Update query();
+  vec_t query();
 
   friend Sketch operator+ (const Sketch &sketch1, const Sketch &sketch2);
   friend Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2);
@@ -92,9 +92,10 @@ void Sketch::batch_update(ForwardIterator begin, ForwardIterator end) {
       Bucket_Boruvka& bucket = buckets[bucket_id];
       XXH64_hash_t bucket_seed = Bucket_Boruvka::gen_bucket_seed(bucket_id, seed);
       for (auto it = begin; it != end; it++) {
-        const Update& update = *it;
-        if (bucket.contains(update.index, bucket_seed, 1 << j)) {
-          bucket.update(update, bucket_seed);
+        const vec_t& update_idx = *it;
+        if (bucket.contains(update_idx, bucket_seed, 1 << j)) {
+          XXH64_hash_t update_hash = XXH64(&update_idx, sizeof(update_idx), seed);
+          bucket.update(update_idx, update_hash);
         }
       }
     }

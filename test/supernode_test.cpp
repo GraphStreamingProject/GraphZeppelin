@@ -69,8 +69,8 @@ TEST_F(SupernodeTestSuite, TestSampleInsertGrinder) {
 
   // insert all edges
   for (auto edge : *graph_edges) {
-    snodes[edge.first].update({edge, 1});
-    snodes[edge.second].update({edge, -1});
+    snodes[edge.first].update(edge);
+    snodes[edge.second].update(edge);
   }
 
   // allow one NoGoodBucket-type failure
@@ -108,13 +108,13 @@ TEST_F(SupernodeTestSuite, TestSampleDeleteGrinder) {
 
   // insert all edges
   for (auto edge : *graph_edges) {
-    snodes[edge.first].update({edge, 1});
-    snodes[edge.second].update({edge, -1});
+    snodes[edge.first].update(edge);
+    snodes[edge.second].update(edge);
   }
   // then remove half of them (odds)
   for (auto edge : *odd_graph_edges) {
-    snodes[edge.first].update({edge, -1});
-    snodes[edge.second].update({edge, 1});
+    snodes[edge.first].update(edge);
+    snodes[edge.second].update(edge);
   }
 
   // allow one NoGoodBucket-type failure

@@ -45,13 +45,13 @@ public:
    * Insert or delete an edge into the supernode. Guaranteed to be processed
    * BEFORE Boruvka starts.
    */
-  void update(pair<Edge, int> update);
+  void update(Edge update);
 
   /**
    * Update all the sketches in a supernode, given a batch of updates
    * @param updates A vector of Updates to process
    */
-  void batch_update(const std::vector<Update>& updates);
+  void batch_update(const std::vector<vec_t>& updates);
 };
 
 

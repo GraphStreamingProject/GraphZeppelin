@@ -40,7 +40,7 @@ TEST(SketchTestSuite, TestExceptions) {
   }
   for (uint64_t i = 0; i < sketch2.n; ++i) {
     if (vec_idx[i]) {
-      sketch2.update({static_cast<vec_t>(i), 1});
+      sketch2.update(static_cast<vec_t>(i));
     }
   }
   ASSERT_THROW(sketch2.query(), NoGoodBucketException);
@@ -50,20 +50,14 @@ TEST(SketchTestSuite, GIVENonlyIndexZeroUpdatedTHENitWorks) {
   // GIVEN only the index 0 is updated
   srand(time(NULL));
   int vec_size = 1000;
-  int num_updates = 1000;
-  int delta = 0, d;
   Sketch sketch = Sketch(vec_size, rand());
-  for (int i=0;i<num_updates-1;++i) {
-    d = rand()%10 - 5;
-    if (delta+d == 0) ++d;
-    sketch.update({0,d});
-    delta+=d;
-  }
+  sketch.update(0);
+  sketch.update(0);
+  sketch.update(0);
 
   // THEN it works
-  Update res = sketch.query();
-  Update exp {0,delta};
-  ASSERT_EQ(res, exp) << "Expected: " << exp << std::endl << "Actual: " << res;
+  vec_t res = sketch.query();
+  ASSERT_EQ(res, 0) << "Expected: 0" << std::endl << "Actual: " << res;
 }
 
 /**
@@ -78,18 +72,17 @@ void test_sketch_sample(unsigned long num_sketches,
   unsigned long sample_incorrect_failures = 0;
   for (unsigned long i = 0; i < num_sketches; i++) {
     Testing_Vector test_vec = Testing_Vector(vec_size, num_updates);
-    Sketch sketch = Sketch(vec_size, rand(), 1.5);
+    Sketch sketch = Sketch(vec_size, rand());
     auto start_time = std::chrono::steady_clock::now();
     for (unsigned long j = 0; j < num_updates; j++){
       sketch.update(test_vec.get_update(j));
     }
     runtime += std::chrono::steady_clock::now() - start_time;
     try {
-      Update res = sketch.query();
+      vec_t res_idx = sketch.query();
       //Multiple queries shouldn't happen, but if we do get here fail test
-      ASSERT_NE(res.delta, 0) << "Sample is zero";
-      ASSERT_LT(res.index, vec_size) << "Sampled index out of bounds";
-      if (res.delta != test_vec.get_entry(res.index)) {
+      ASSERT_LT(res_idx, vec_size) << "Sampled index out of bounds";
+      if (!test_vec.get_entry(res_idx)) {
         //Undetected sample error
         sample_incorrect_failures++;
       }
@@ -97,7 +90,7 @@ void test_sketch_sample(unsigned long num_sketches,
       //All buckets being 0 implies that the whole vector should be 0
       bool vec_zero = true;
       for (unsigned long j = 0; vec_zero && j < vec_size; j++) {
-        if (test_vec.get_entry(j) != 0) {
+        if (test_vec.get_entry(j)) {
           vec_zero = false;
         }
       }
@@ -141,8 +134,8 @@ void test_sketch_addition(unsigned long num_sketches,
   unsigned long sample_incorrect_failures = 0;
   for (unsigned long i = 0; i < num_sketches; i++){
     const long seed = rand();
-    Sketch sketch1 = Sketch(vec_size, seed, 1.5);
-    Sketch sketch2 = Sketch(vec_size, seed, 1.5);
+    Sketch sketch1 = Sketch(vec_size, seed);
+    Sketch sketch2 = Sketch(vec_size, seed);
     Testing_Vector test_vec1 = Testing_Vector(vec_size, num_updates);
     Testing_Vector test_vec2 = Testing_Vector(vec_size, num_updates);
 
@@ -152,17 +145,16 @@ void test_sketch_addition(unsigned long num_sketches,
     }
     Sketch sketchsum = sketch1 + sketch2;
     try {
-      Update res = sketchsum.query();
-      ASSERT_NE(res.delta, 0) << "Sample is zero";
-      ASSERT_LT(res.index, vec_size) << "Sampled index out of bounds";
-      if (res.delta != test_vec1.get_entry(res.index) + test_vec2.get_entry(res.index)) {
+      vec_t res_idx = sketchsum.query();
+      ASSERT_LT(res_idx, vec_size) << "Sampled index out of bounds";
+      if (test_vec1.get_entry(res_idx) == test_vec2.get_entry(res_idx)) {
         sample_incorrect_failures++;
       }
     } catch (AllBucketsZeroException& e) {
       //All buckets being 0 implies that the whole vector should be 0
       bool vec_zero = true;
       for (unsigned long j = 0; vec_zero && j < vec_size; j++) {
-        if (test_vec1.get_entry(j) + test_vec2.get_entry(j) != 0) {
+        if (test_vec1.get_entry(j) != test_vec2.get_entry(j)) {
           vec_zero = false;
         }
       }
@@ -201,24 +193,23 @@ void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
   unsigned long seed = rand();
   srand(seed);
   for (unsigned long j = 0; j < num_updates; j++){
-    sketch.update({static_cast<vec_t>(rand() % vec_size), rand() % 10 - 5});
+    sketch.update(static_cast<vec_t>(rand() % vec_size));
   }
   try {
-    Update res = sketch.query();
+    vec_t res_idx = sketch.query();
     //Multiple queries shouldn't happen, but if we do get here fail test
-    ASSERT_NE(res.delta, 0) << "Sample is zero";
-    ASSERT_LT(res.index, vec_size) << "Sampled index out of bounds";
+    ASSERT_LT(res_idx, vec_size) << "Sampled index out of bounds";
     //Replay update stream, keep track of the sampled index
     srand(seed);
-    long actual_delta = 0;
+    bool actual_delta = false;
     for (unsigned long j = 0; j < num_updates; j++){
-      Update update = {static_cast<vec_t>(rand() % vec_size), rand() % 10 - 5};
-      if (update.index == res.index) {
-        actual_delta += update.delta;
+      vec_t update_idx = static_cast<vec_t>(rand() % vec_size);
+      if (update_idx == res_idx) {
+        actual_delta = !actual_delta;
       }
     }
     //Undetected sample error, not likely to happen for large vectors
-    ASSERT_EQ(res.delta, actual_delta);
+    ASSERT_EQ(actual_delta, true);
   } catch (AllBucketsZeroException& e) {
     //All buckets being 0 implies that the whole vector should be 0, not likely to happen for large vectors
     FAIL() << "AllBucketsZeroException:" << e.what();
@@ -238,15 +229,15 @@ TEST(SketchTestSuite, TestSketchLarge) {
 TEST(SketchTestSuite, TestBatchUpdate) {
   unsigned long vec_size = 1000000000, num_updates = 10000;
   srand(time(NULL));
-  std::vector<Update> updates(num_updates);
+  std::vector<vec_t> updates(num_updates);
   for (unsigned long i = 0; i < num_updates; i++) {
-    updates[i] = {static_cast<vec_t>(rand() % vec_size), rand() % 10 - 5};
+    updates[i] = static_cast<vec_t>(rand() % vec_size);
   }
   auto sketch_seed = rand();
   Sketch sketch(vec_size, sketch_seed);
   Sketch sketch_batch(vec_size, sketch_seed);
   auto start_time = std::chrono::steady_clock::now();
-  for (const Update& update : updates) {
+  for (const vec_t& update : updates) {
     sketch.update(update);
   }
   std::cout << "One by one updates took " << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
@@ -259,7 +250,6 @@ TEST(SketchTestSuite, TestBatchUpdate) {
   ASSERT_EQ(sketch.buckets.size(), sketch_batch.buckets.size());
   for (auto it1 = sketch.buckets.cbegin(), it2 = sketch_batch.buckets.cbegin(); it1 != sketch.buckets.cend(); it1++, it2++) {
     ASSERT_EQ(it1->a, it2->a);
-    ASSERT_EQ(it1->b, it2->b);
     ASSERT_EQ(it1->c, it2->c);
   }
 }

@@ -13,8 +13,7 @@
  * Represents a bucket in a sketch.
  */
 struct Bucket_Boruvka {
-  bucket_t a = 0;
-  bucket_t b = 0;
+  vec_t a = 0;
   XXH64_hash_t c = 0;
 
   /**
@@ -38,18 +37,20 @@ struct Bucket_Boruvka {
 
   /**
    * Checks whether this Bucket is good.
+   * TODO
    * @param n Size of the vector being sketched.
    * @param bucket_seed This Bucket's seed, generated with gen_bucket_seed.
    * @param guess_nonzero The guess of nonzero elements in the vector being sketched.
    * @return true if this bucket is good, else false.
    */
-  bool is_good(const vec_t& n, const XXH64_hash_t& bucket_seed, const vec_t& guess_nonzero) const;
+  bool is_good(const vec_t& n, const XXH64_hash_t& bucket_seed, const vec_t& guess_nonzero, const long& sketch_seed) const;
 
   /**
    * Updates this Bucket with the given Update
+   * TODO
    * @param update
    * @param bucket_seed This Bucket's seed, generated with gen_bucket_seed.
    */
-  void update(const Update& update, const XXH64_hash_t& bucket_seed);
+  void update(const vec_t& update_idx, const XXH64_hash_t& update_hash);
 };
 

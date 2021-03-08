@@ -140,35 +140,35 @@ if(NOT Boost_FOUND)
 endif()
 include_directories("${Boost_INCLUDE_DIR}")
 
-add_executable(main 
-  main.cpp
-  graph.cpp
-  supernode.cpp
-  l0_sampling/sketch.cpp
-  l0_sampling/update.cpp
-  l0_sampling/bucket.cpp
-  util.cpp
-  l0_sampling/int127.cpp)
-target_link_libraries(main PRIVATE xxHash::xxhash)
-if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-  target_compile_options(main PRIVATE -O3)
-elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-  target_compile_options(main PRIVATE /O2)
-endif()
+#add_executable(main
+#  main.cpp
+#  graph.cpp
+#  supernode.cpp
+#  l0_sampling/sketch.cpp
+#  l0_sampling/update.cpp
+#  l0_sampling/bucket.cpp
+#  util.cpp
+#  l0_sampling/int127.cpp)
+#target_link_libraries(main PRIVATE xxHash::xxhash)
+#if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+#  target_compile_options(main PRIVATE -O3)
+#elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+#  target_compile_options(main PRIVATE /O2)
+#endif()
 
-add_executable(l0sampling
-  l0sampling.cpp
-  l0_sampling/sketch.cpp
-  l0_sampling/update.cpp
-  l0_sampling/bucket.cpp
-  util.cpp
-  l0_sampling/int127.cpp)
-target_link_libraries(l0sampling PRIVATE xxHash::xxhash)
-if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-  target_compile_options(l0sampling PRIVATE -O3)
-elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-  target_compile_options(l0sampling PRIVATE /O2)
-endif()
+#add_executable(l0sampling
+#  l0sampling.cpp
+#  l0_sampling/sketch.cpp
+#  l0_sampling/update.cpp
+#  l0_sampling/bucket.cpp
+#  util.cpp
+#  l0_sampling/int127.cpp)
+#target_link_libraries(l0sampling PRIVATE xxHash::xxhash)
+#if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+#  target_compile_options(l0sampling PRIVATE -O3)
+#elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+#  target_compile_options(l0sampling PRIVATE /O2)
+#endif()
 
 add_executable(tests
   test/test_runner.cpp

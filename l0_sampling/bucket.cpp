@@ -8,16 +8,12 @@ bool Bucket_Boruvka::contains(const vec_t& index, const XXH64_hash_t& bucket_see
   return false;
 }
 
-bool Bucket_Boruvka::is_good(const vec_t& n, const XXH64_hash_t& bucket_seed, const vec_t& guess_nonzero) const {
-  if (a == 0 || b % a != 0 || b / a <= 0) return false;
-  vec_t update_idx = b / a - 1;
-  return update_idx < n && contains(update_idx, bucket_seed, guess_nonzero)
-    && c == XXH64(&update_idx, sizeof(update_idx), bucket_seed + 1);
+bool Bucket_Boruvka::is_good(const vec_t& n, const XXH64_hash_t& bucket_seed, const vec_t& guess_nonzero, const long& sketch_seed) const {
+  return a < n && contains(a, bucket_seed, guess_nonzero)
+    && c == XXH64(&a, sizeof(a), sketch_seed);
 }
 
-void Bucket_Boruvka::update(const Update& update, const XXH64_hash_t& bucket_seed) {
-  vec_t update_idx = update.index;
-  a += update.delta;
-  b += update.delta * static_cast<bucket_t>(update_idx + 1); // deals with updates whose indices are 0
-  c ^= XXH64(&update_idx, sizeof(update_idx), bucket_seed + 1);
+void Bucket_Boruvka::update(const vec_t& update_idx, const XXH64_hash_t& update_hash) {
+  a ^= update_idx;
+  c ^= update_hash;
 }
