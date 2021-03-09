@@ -14,11 +14,16 @@ TEST(Benchmark, BCHMK2Toku) {
   long m;
   in >> m;
   Node a, b;
+  uint8_t u;
   Graph g{num_nodes};
   while (m--) {
-    in >> a >> b;
-    g.update({{a, b}, INSERT});
+    in >> u >> a >> b;
+    //printf("a = %lu b = %lu\n", a, b);
+    if (u == INSERT)
+	g.update({{a, b}, INSERT});
+    else
+	g.update({{a,b}, DELETE});
   }
   g.set_cum_in(curr_dir + "/../res/1000_0.95_0.5.cum");
-  ASSERT_EQ(1000, g.connected_components().size());
+  ASSERT_EQ(1, g.connected_components().size());
 }

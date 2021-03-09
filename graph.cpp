@@ -44,6 +44,7 @@ void Graph::update(GraphUpdate upd) {
 #ifdef WODS_PROTOTYPE
   db->putEdge(edge, (upd.second == INSERT) ? 1 : -1);
 #else
+  num_updates += 2; // REMOVE this later
   // ensure lhs < rhs
   if (edge.first > edge.second) {
     std::swap(edge.first,edge.second);
@@ -73,6 +74,7 @@ void Graph::batch_update(uint64_t src, const std::vector<std::pair<uint64_t, int
           nondirectional_non_self_edge_pairing_fn(edge.first, src)),
           edge.second});
     }
+    num_updates += 1; // REMOVE this later
   }
   supernodes[src]->batch_update(updates);
 }
@@ -81,7 +83,7 @@ vector<set<Node>> Graph::connected_components() {
 #ifdef WODS_PROTOTYPE
   db->flush(); // flush everything in toku to make final updates
 #endif
-
+  printf("Total number of updates to sketches before CC %lu\n", num_updates); // REMOVE this later
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
 #ifdef VERIFY_SAMPLES_F

@@ -58,7 +58,7 @@ public:
    * @return a vector of the connected components in the graph.
    */
   vector<set<Node>> connected_components();
-
+  
 #ifdef VERIFY_SAMPLES_F
   std::string cum_in = "./cum_sample.txt";
 
@@ -69,6 +69,9 @@ public:
     cum_in = input_file;
   }
 #endif
+
+  // temp to verify number of updates -- REMOVE later
+  uint64_t num_updates = 0;
 };
 
 class UpdateLockedException : public exception {
