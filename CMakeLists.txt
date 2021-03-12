@@ -199,21 +199,21 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/TokuDB/prefix/include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/TokuDB/prefix/lib)
 link_directories(${CMAKE_CURRENT_BINARY_DIR}/TokuDB/prefix/lib)
 
-add_executable(main 
-  main.cpp
-  graph.cpp
-  supernode.cpp
-  l0_sampling/sketch.cpp
-  l0_sampling/update.cpp
-  l0_sampling/bucket.cpp
-  util.cpp
-  l0_sampling/int127.cpp)
-target_link_libraries(main PRIVATE xxHash::xxhash)
-if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-  target_compile_options(main PRIVATE -O3)
-elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-  target_compile_options(main PRIVATE /O2)
-endif()
+# add_executable(main 
+#   main.cpp
+#   graph.cpp
+#   supernode.cpp
+#   l0_sampling/sketch.cpp
+#   l0_sampling/update.cpp
+#   l0_sampling/bucket.cpp
+#   util.cpp
+#   l0_sampling/int127.cpp)
+# target_link_libraries(main PRIVATE xxHash::xxhash)
+# if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+#   target_compile_options(main PRIVATE -O3)
+# elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+#   target_compile_options(main PRIVATE /O2)
+# endif()
 
 add_executable(streaming_wods
   toku_interface/src/TokuInterface.cpp
@@ -237,19 +237,19 @@ target_link_libraries(streaming_wods PRIVATE libtokufractaltree.so)
 target_link_libraries(streaming_wods PRIVATE libtokuportability.so)
 target_compile_options(streaming_wods PRIVATE -lpthread -lbz2 -lz -llz4 -ldl )
 
-add_executable(l0sampling
-  l0sampling.cpp
-  l0_sampling/sketch.cpp
-  l0_sampling/update.cpp
-  l0_sampling/bucket.cpp
-  util.cpp
-  l0_sampling/int127.cpp)
-target_link_libraries(l0sampling PRIVATE xxHash::xxhash)
-if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-  target_compile_options(l0sampling PRIVATE -O3)
-elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-  target_compile_options(l0sampling PRIVATE /O2)
-endif()
+# add_executable(l0sampling
+#   l0sampling.cpp
+#   l0_sampling/sketch.cpp
+#   l0_sampling/update.cpp
+#   l0_sampling/bucket.cpp
+#   util.cpp
+#   l0_sampling/int127.cpp)
+# target_link_libraries(l0sampling PRIVATE xxHash::xxhash)
+# if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+#   target_compile_options(l0sampling PRIVATE -O3)
+# elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+#   target_compile_options(l0sampling PRIVATE /O2)
+# endif()
 
 add_executable(tests
   test/test_runner.cpp

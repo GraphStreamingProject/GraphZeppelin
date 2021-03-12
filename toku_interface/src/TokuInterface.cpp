@@ -11,8 +11,8 @@
 #define MB (uint64_t) 1 << 20
 
 // Defines which allow different db directories to be chosen
-#define USE_DEFAULT true // use default dbdir
-#define NEW_DB_DIR "../../../graph-db-data" // rel path to alternate dbdir
+#define USE_DEFAULT false // use default dbdir
+#define NEW_DB_DIR "../graph-db-data" // rel path to alternate dbdir
 
 // Define the threshold at which we do a query
 #define TAU (uint32_t) 10000
@@ -197,20 +197,11 @@ TokuInterface::~TokuInterface() {
 }
 
 // part of the API
-// given a edge pair and whether the edge is inserted (1) or deleted (-1)
 // this function inserts 2 edges into the db (one revereses the edge)
-bool TokuInterface::putEdge(std::pair<uint64_t, uint64_t> edge, int8_t value) {
-    if (edge.first < edge.second) {
-        if (!putSingleEdge(edge.first, edge.second, value))
-            return false;
-
-        return putSingleEdge(edge.second, edge.first, value * -1);
-    } else {
-        if (!putSingleEdge(edge.first, edge.second, value * -1))
-            return false;
-
-        return putSingleEdge(edge.second, edge.first, value);
-    }
+bool TokuInterface::putEdge(std::pair<uint64_t, uint64_t> edge) {
+    if (!putSingleEdge(edge.first, edge.second, 1)) 
+        return false;
+    return putSingleEdge(edge.second, edge.first, 1);
 }
 
 bool TokuInterface::putSingleEdge(uint64_t src, uint64_t dst, int8_t val) {
@@ -237,7 +228,7 @@ bool TokuInterface::putSingleEdge(uint64_t src, uint64_t dst, int8_t val) {
     free(value_dbt.data);
 
     if (update_counts[src] >= TAU) {
-        std::vector<std::pair<uint64_t, int8_t>> edges = getEdges(src);
+        std::vector<uint64_t> edges = getEdges(src);
         graph->batch_update(src,edges);
         update_counts[src] = 0;
     }
@@ -245,10 +236,10 @@ bool TokuInterface::putSingleEdge(uint64_t src, uint64_t dst, int8_t val) {
 }
 
 
-std::vector<std::pair<uint64_t, int8_t>> TokuInterface::getEdges(uint64_t node) {
+std::vector<uint64_t> TokuInterface::getEdges(uint64_t node) {
     int err;
     bool endOfTree= false;
-    std::vector<std::pair<uint64_t, int8_t>> ret = std::vector<std::pair<uint64_t, int8_t>>();
+    std::vector<uint64_t> ret = std::vector<uint64_t>();
 
     DBC* cursor = nullptr;
     DBT* cursorValue = new DBT();
@@ -291,7 +282,7 @@ std::vector<std::pair<uint64_t, int8_t>> TokuInterface::getEdges(uint64_t node) 
 
         if (value != 0) {
             // printf("Query got data %lu -> %lu, %d\n", node, edgeTo, value);
-            ret.push_back(std::pair<uint64_t, int8_t>(edgeTo, value));
+            ret.push_back(edgeTo);
             
             // insert a delete to the root for this key
             db->del(db, nullptr, cursorKey, 0);
@@ -337,7 +328,7 @@ void TokuInterface::flush() {
     printf("Flushing tokudb of any remaining updates\n");
     for (auto pair : update_counts) {
         if (pair.second > 0) {
-            std::vector<std::pair<uint64_t, int8_t>> edges = getEdges(pair.first);
+            std::vector<uint64_t> edges = getEdges(pair.first);
             graph->batch_update(pair.first,edges);
             update_counts[pair.first] = 0;
         }

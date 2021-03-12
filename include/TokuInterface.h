@@ -14,7 +14,7 @@ public:
     TokuInterface();
     ~TokuInterface();
 
-    bool putEdge(std::pair<uint64_t, uint64_t> edge, int8_t value);
+    bool putEdge(std::pair<uint64_t, uint64_t> edge);
     void flush();
 
     // pointer to the array of supernodes modified by putEdge() and flush()
@@ -31,7 +31,7 @@ private:
     const char* DB_DIR = "graphDir";
 
     bool putSingleEdge(uint64_t src, uint64_t dst, int8_t val);
-    std::vector<std::pair<uint64_t, int8_t>> getEdges(uint64_t node);
+    std::vector<uint64_t> getEdges(uint64_t node);
 
     // functions to extract relevant info from the dbt
     static inline uint64_t getNode(DBT *dbt) {
