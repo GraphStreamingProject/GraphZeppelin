@@ -62,8 +62,8 @@ inline bool Bucket_Boruvka::contains(const vec_t& index, const XXH64_hash_t& buc
 }
 
 inline bool Bucket_Boruvka::is_good(const vec_t& n, const XXH64_hash_t& bucket_seed, const vec_t& guess_nonzero, const long& sketch_seed) const {
-  return a < n && contains(a, bucket_seed, guess_nonzero)
-    && c == XXH64(&a, sizeof(a), sketch_seed);
+  return a < n && c == XXH64(&a, sizeof(a), sketch_seed)
+    && contains(a, bucket_seed, guess_nonzero);
 }
 
 inline void Bucket_Boruvka::update(const vec_t& update_idx, const XXH64_hash_t& update_hash) {
