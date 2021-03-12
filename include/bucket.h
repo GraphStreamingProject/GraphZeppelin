@@ -33,7 +33,7 @@ struct Bucket_Boruvka {
    * @param guess_nonzero
    * @return true if the index is NOT hashed to zero.
    */
-  bool contains(const vec_t& index, const XXH64_hash_t& bucket_seed, const vec_t& guess_nonzero) const;
+  inline bool contains(const vec_t& index, const XXH64_hash_t& bucket_seed, const vec_t& guess_nonzero) const;
 
   /**
    * Checks whether this Bucket is good.
@@ -43,7 +43,7 @@ struct Bucket_Boruvka {
    * @param guess_nonzero The guess of nonzero elements in the vector being sketched.
    * @return true if this bucket is good, else false.
    */
-  bool is_good(const vec_t& n, const XXH64_hash_t& bucket_seed, const vec_t& guess_nonzero, const long& sketch_seed) const;
+  inline bool is_good(const vec_t& n, const XXH64_hash_t& bucket_seed, const vec_t& guess_nonzero, const long& sketch_seed) const;
 
   /**
    * Updates this Bucket with the given Update
@@ -51,6 +51,22 @@ struct Bucket_Boruvka {
    * @param update
    * @param bucket_seed This Bucket's seed, generated with gen_bucket_seed.
    */
-  void update(const vec_t& update_idx, const XXH64_hash_t& update_hash);
+  inline void update(const vec_t& update_idx, const XXH64_hash_t& update_hash);
 };
 
+inline bool Bucket_Boruvka::contains(const vec_t& index, const XXH64_hash_t& bucket_seed, const vec_t& guess_nonzero) const {
+  XXH64_hash_t hash = XXH64(&index, sizeof(index), bucket_seed);
+  if (hash % guess_nonzero == 0)
+    return true;
+  return false;
+}
+
+inline bool Bucket_Boruvka::is_good(const vec_t& n, const XXH64_hash_t& bucket_seed, const vec_t& guess_nonzero, const long& sketch_seed) const {
+  return a < n && contains(a, bucket_seed, guess_nonzero)
+    && c == XXH64(&a, sizeof(a), sketch_seed);
+}
+
+inline void Bucket_Boruvka::update(const vec_t& update_idx, const XXH64_hash_t& update_hash) {
+  a ^= update_idx;
+  c ^= update_hash;
+}

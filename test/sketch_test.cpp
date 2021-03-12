@@ -192,9 +192,13 @@ void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
   //Keep seed for replaying update stream later
   unsigned long seed = rand();
   srand(seed);
+  auto start_time = std::chrono::steady_clock::now();
   for (unsigned long j = 0; j < num_updates; j++){
     sketch.update(static_cast<vec_t>(rand() % vec_size));
   }
+  std::cout << "Updating vector of size " << vec_size << " with " << num_updates
+    << " updates took " << std::chrono::duration<long double>(
+      std::chrono::steady_clock::now() - start_time).count() << std::endl;
   try {
     vec_t res_idx = sketch.query();
     //Multiple queries shouldn't happen, but if we do get here fail test
