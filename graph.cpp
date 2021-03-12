@@ -2,6 +2,10 @@
 #include <iostream>
 #include "include/graph.h"
 
+#ifdef WODS_PROTOTYPE
+#include "include/TokuInterface.h"
+#endif
+
 Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
 #ifdef VERIFY_SAMPLES_F
   cout << "Verifying samples..." << endl;
@@ -15,6 +19,12 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
     supernodes[i] = new Supernode(num_nodes,seed);
     parent[i] = i;
   }
+
+#ifdef WODS_PROTOTYPE
+  // WOD implementation
+  db = new TokuInterface();
+  db->graph = this;
+#endif
 }
 
 Graph::~Graph() {
@@ -22,17 +32,26 @@ Graph::~Graph() {
     delete supernodes[i];
   delete supernodes;
   delete representatives;
+#ifdef WODS_PROTOTYPE
+  delete db;
+#endif
 }
 
 void Graph::update(GraphUpdate upd) {
   if (update_locked) throw UpdateLockedException();
   Edge &edge = upd.first;
+
+#ifdef WODS_PROTOTYPE // NEED CHANGE HERE!
+  db->putEdge(edge, (upd.second == INSERT) ? 1 : -1);
+#else
+  num_updates += 2; // REMOVE this later
   // ensure lhs < rhs
   if (edge.first > edge.second) {
     std::swap(edge.first,edge.second);
   }
   supernodes[edge.first]->update(edge);
   supernodes[edge.second]->update(edge);
+#endif
 }
 
 
@@ -48,16 +67,22 @@ void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges) {
       updates.push_back(static_cast<vec_t>(
           nondirectional_non_self_edge_pairing_fn(edge, src)));
     }
+    num_updates += 1; // REMOVE this later
   }
   supernodes[src]->batch_update(updates);
 }
 
 vector<set<Node>> Graph::connected_components() {
+#ifdef WODS_PROTOTYPE
+  db->flush(); // flush everything in toku to make final updates
+#endif
+  printf("Total number of updates to sketches before CC %lu\n", num_updates); // REMOVE this later
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
 #ifdef VERIFY_SAMPLES_F
   GraphVerifier verifier {cum_in};
 #endif
+
   do {
     modified = false;
     vector<Node> removed;

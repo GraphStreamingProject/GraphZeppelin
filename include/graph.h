@@ -12,6 +12,10 @@
 
 using namespace std;
 
+#ifdef WODS_PROTOTYPE
+class TokuInterface;
+#endif
+
 enum UpdateType {
   INSERT = 0,
   DELETE = 1,
@@ -32,6 +36,11 @@ class Graph{
   // DSU representation of supernode relationship
   Node* parent;
   Node get_parent(Node node);
+
+#ifdef WODS_PROTOTYPE
+  // WOD implementation
+  TokuInterface *db;
+#endif
 public:
   explicit Graph(uint64_t num_nodes);
   ~Graph();
@@ -49,7 +58,7 @@ public:
    * @return a vector of the connected components in the graph.
    */
   vector<set<Node>> connected_components();
-
+  
 #ifdef VERIFY_SAMPLES_F
   std::string cum_in = "./cum_sample.txt";
 
@@ -60,6 +69,9 @@ public:
     cum_in = input_file;
   }
 #endif
+
+  // temp to verify number of updates -- REMOVE later
+  uint64_t num_updates = 0;
 };
 
 class UpdateLockedException : public exception {

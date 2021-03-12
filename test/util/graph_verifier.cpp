@@ -79,10 +79,14 @@ void GraphVerifier::verify_edge(Edge edge) {
   Node f = dsu_find(edge.first,parent);
   Node s = dsu_find(edge.second,parent);
   if (boruvka_cc[f].find(edge.second) != boruvka_cc[f].end()
-  || boruvka_cc[s].find(edge.first) != boruvka_cc[s].end())
-    throw BadEdgeException();
-  if (det_graph[edge.first].find(edge.second) == det_graph[edge.first].end())
-    throw BadEdgeException();
+  || boruvka_cc[s].find(edge.first) != boruvka_cc[s].end()) {
+    printf("Got an error of node %lu to node %lu\n", edge.first, edge.second);
+    throw BadEdgeException1();
+  }
+  if (det_graph[edge.first].find(edge.second) == det_graph[edge.first].end()) {
+     printf("Got an error of node %lu to node %lu\n", edge.first, edge.second);
+     throw BadEdgeException2();
+  }
 
   // if all checks pass, merge supernodes
   if (size[f] < size[s])

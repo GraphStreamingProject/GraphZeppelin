@@ -2,10 +2,14 @@
 #Cmake for xxHash is unofficial, so libxxhash-dev doesn't have xxHashConfig.cmake
 
 cmake_minimum_required(VERSION 3.1)
+include (ExternalProject)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
+
+#Uncomment to enable debug
+#set(ENV{DEBUG} ON)
 
 project(test)
 
@@ -170,6 +174,83 @@ include_directories("${Boost_INCLUDE_DIR}")
 #  target_compile_options(l0sampling PRIVATE /O2)
 #endif()
 
+# Install TokuDB
+ExternalProject_Add(
+  TokuDB
+
+  PREFIX          TokuDB
+  GIT_REPOSITORY  "https://github.com/Tokutek/ft-index.git"
+  GIT_TAG         "Percona-Server-5.7.28-31"
+
+  BUILD_ALWAYS    OFF
+  INSTALL_DIR     ${CMAKE_CURRENT_BINARY_DIR}/TokuDB/prefix
+
+  CMAKE_CACHE_ARGS
+        -DCMAKE_BUILD_TYPE:BOOL=Release 
+        -DBUILD_TESTING:BOOL=OFF 
+        -DUSE_VALGRIND:BOOL=OFF 
+        -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
+
+  BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target install
+)
+
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/TokuDB/prefix)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/TokuDB/prefix/include)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/TokuDB/prefix/lib)
+link_directories(${CMAKE_CURRENT_BINARY_DIR}/TokuDB/prefix/lib)
+
+add_executable(main 
+  main.cpp
+  graph.cpp
+  supernode.cpp
+  l0_sampling/sketch.cpp
+  l0_sampling/update.cpp
+  l0_sampling/bucket.cpp
+  util.cpp
+  l0_sampling/int127.cpp)
+target_link_libraries(main PRIVATE xxHash::xxhash)
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+  target_compile_options(main PRIVATE -O3)
+elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+  target_compile_options(main PRIVATE /O2)
+endif()
+
+add_executable(streaming_wods
+  toku_interface/src/TokuInterface.cpp
+  main.cpp
+  graph.cpp
+  supernode.cpp
+  l0_sampling/sketch.cpp
+  l0_sampling/update.cpp
+  l0_sampling/bucket.cpp
+  util.cpp
+  l0_sampling/int127.cpp)
+target_compile_definitions(streaming_wods PRIVATE -DWODS_PROTOTYPE)
+target_link_libraries(streaming_wods PRIVATE xxHash::xxhash)
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+  target_compile_options(streaming_wods PRIVATE -O3)
+elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+  target_compile_options(streaming_wods PRIVATE /O2)
+endif()
+add_dependencies(streaming_wods TokuDB)
+target_link_libraries(streaming_wods PRIVATE libtokufractaltree.so)
+target_link_libraries(streaming_wods PRIVATE libtokuportability.so)
+target_compile_options(streaming_wods PRIVATE -lpthread -lbz2 -lz -llz4 -ldl )
+
+add_executable(l0sampling
+  l0sampling.cpp
+  l0_sampling/sketch.cpp
+  l0_sampling/update.cpp
+  l0_sampling/bucket.cpp
+  util.cpp
+  l0_sampling/int127.cpp)
+target_link_libraries(l0sampling PRIVATE xxHash::xxhash)
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+  target_compile_options(l0sampling PRIVATE -O3)
+elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+  target_compile_options(l0sampling PRIVATE /O2)
+endif()
+
 add_executable(tests
   test/test_runner.cpp
   test/graph_test.cpp
@@ -229,5 +310,106 @@ else ()
     target_compile_options(native_tests PRIVATE -O3)
   elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
     target_compile_options(native_tests PRIVATE /O2)
+  endif()
+endif ()
+
+add_executable(wods_test
+  test/test_runner.cpp
+  test/graph_test.cpp
+  test/sketch_test.cpp
+  test/supernode_test.cpp
+  test/util_test.cpp
+  test/util/graph_verifier.cpp
+  test/util/graph_gen.cpp
+  test/util/graph_gen_test.cpp
+  test/util/graph_verifier_test.cpp
+  toku_interface/src/TokuInterface.cpp
+  graph.cpp
+  supernode.cpp
+  l0_sampling/sketch.cpp
+  l0_sampling/update.cpp
+  l0_sampling/bucket.cpp
+  util.cpp)
+target_link_libraries(wods_test PRIVATE xxHash::xxhash GTest::gtest)
+target_compile_definitions(wods_test PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F)
+# toku dependencies
+target_compile_definitions(wods_test PRIVATE -DWODS_PROTOTYPE)
+add_dependencies(wods_test TokuDB)
+target_link_libraries(wods_test PRIVATE libtokufractaltree.so)
+target_link_libraries(wods_test PRIVATE libtokuportability.so)
+target_compile_options(wods_test PRIVATE -lpthread -lbz2 -lz -llz4 -ldl )
+# optimize unless debug
+if (DEFINED ENV{DEBUG})
+  message("Disabling optimizations and enabling debug symbols")
+  target_compile_options(wods_test PRIVATE -g)
+else ()
+  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    target_compile_options(wods_test PRIVATE -O3)
+  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    target_compile_options(wods_test PRIVATE /O2)
+  endif()
+endif ()
+
+# executables for experiment/benchmarking
+add_executable(efficient_gen
+  test/util/efficient_gen/edge_gen.cpp
+  test/util/efficient_gen/cum_gen.cpp
+  test/util/efficient_gen/efficient_gen.cpp)
+target_link_libraries(efficient_gen PRIVATE xxHash::xxhash)
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+  target_compile_options(efficient_gen PRIVATE -O3)
+elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+  target_compile_options(efficient_gen PRIVATE /O2)
+endif()
+
+add_executable(experiment
+  test/test_runner.cpp
+  test/experiment/BCHMK_2_toku.cpp
+  test/util/graph_verifier.cpp
+  test/util/graph_gen.cpp
+  graph.cpp
+  supernode.cpp
+  l0_sampling/sketch.cpp
+  l0_sampling/update.cpp
+  l0_sampling/bucket.cpp
+  util.cpp)
+target_link_libraries(experiment PRIVATE xxHash::xxhash GTest::gtest)
+target_compile_definitions(experiment PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F)
+# optimize
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+  target_compile_options(tests PRIVATE -O3)
+elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+  target_compile_options(tests PRIVATE /O2)
+endif()
+
+add_executable(toku_experiment
+  test/test_runner.cpp
+  test/experiment/BCHMK_2_toku.cpp
+  test/util/graph_verifier.cpp
+  test/util/graph_gen.cpp
+  toku_interface/src/TokuInterface.cpp
+  graph.cpp
+  supernode.cpp
+  l0_sampling/sketch.cpp
+  l0_sampling/update.cpp
+  l0_sampling/bucket.cpp
+  util.cpp)
+target_link_libraries(toku_experiment PRIVATE xxHash::xxhash GTest::gtest)
+target_compile_definitions(toku_experiment PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F)
+# toku dependencies
+target_compile_definitions(toku_experiment PRIVATE -DWODS_PROTOTYPE)
+add_dependencies(toku_experiment TokuDB)
+target_link_libraries(toku_experiment PRIVATE libtokufractaltree.so)
+target_link_libraries(toku_experiment PRIVATE libtokuportability.so)
+target_compile_options(toku_experiment PRIVATE -lpthread -lbz2 -lz -llz4 -ldl )
+# optimize unless debug
+if (DEFINED ENV{DEBUG})
+  message("Disabling optimizations and enabling debug symbols")
+  target_compile_options(toku_experiment PRIVATE -g)
+else ()
+  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    target_compile_options(toku_experiment PRIVATE -O3)
+  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    target_compile_options(toku_experiment PRIVATE /O2)
   endif()
 endif ()
