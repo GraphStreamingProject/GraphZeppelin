@@ -10,14 +10,13 @@ Sketch::Sketch(vec_t n, long seed, double num_bucket_factor):
 void Sketch::update(const vec_t& update_idx) {
   const unsigned num_buckets = bucket_gen(n, num_bucket_factor);
   const unsigned num_guesses = guess_gen(n);
-  XXH64_hash_t update_hash = XXH64(&update_idx, sizeof(update_idx), seed);
   for (unsigned i = 0; i < num_buckets; ++i) {
     for (unsigned j = 0; j < num_guesses; ++j) {
       unsigned bucket_id = i * num_guesses + j;
       Bucket_Boruvka& bucket = buckets[bucket_id];
       XXH64_hash_t bucket_seed = Bucket_Boruvka::gen_bucket_seed(bucket_id, seed);
       if (bucket.contains(update_idx, bucket_seed, 1 << j)){
-        bucket.update(update_idx, update_hash);
+        bucket.update(update_idx, bucket_seed);
       }
     }
   }
@@ -39,7 +38,7 @@ vec_t Sketch::query() {
       if (bucket.a != 0 || bucket.c != 0) {
         all_buckets_zero = false;
       }
-      if (bucket.is_good(n, bucket_seed, 1 << j, seed)) {
+      if (bucket.is_good(n, bucket_seed, 1 << j)) {
         return bucket.a;
       }
     }
@@ -104,7 +103,7 @@ std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
       os << std::endl
          << "a:" << bucket.a << std::endl
          << "c:" << bucket.c << std::endl
-         << (bucket.is_good(sketch.n, bucket_seed, 1 << j, sketch.seed) ? "good" : "bad") << std::endl;
+         << (bucket.is_good(sketch.n, bucket_seed, 1 << j) ? "good" : "bad") << std::endl;
     }
   }
   return os;

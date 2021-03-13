@@ -94,8 +94,7 @@ void Sketch::batch_update(ForwardIterator begin, ForwardIterator end) {
       for (auto it = begin; it != end; it++) {
         const vec_t& update_idx = *it;
         if (bucket.contains(update_idx, bucket_seed, 1 << j)) {
-          XXH64_hash_t update_hash = XXH64(&update_idx, sizeof(update_idx), seed);
-          bucket.update(update_idx, update_hash);
+          bucket.update(update_idx, bucket_seed);
         }
       }
     }
