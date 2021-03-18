@@ -1,140 +1,139 @@
-#include <iostream>
 #include <fstream>
-#include <cstdlib>
-#include <utility>
-#include <vector>
-#include <map>
+#include <algorithm>
+#include <boost/multiprecision/cpp_int.hpp>
 #include "graph_gen.h"
 #include "../../include/graph.h"
 
-using namespace std;
+#define endl '\n'
 
-void validate(int n, vector<pair<pair<int,int>,bool>>& stream,
-              vector<pair<int,int>>& reduced_stream
-) {
-  bool inserted[(n + 1) * (n + 1) + 2];
-  fill(inserted, inserted + (n + 1) * (n + 1) + 2, DELETE);
-  for (auto entry : stream) {
-    if (inserted[entry.first.first*n+entry.first.second] == entry.second) {
-      throw std::runtime_error("Invalid stream, no output written");
-    }
-    inserted[entry.first.first*n+entry.first.second] = !inserted[entry.first.first*n+entry.first.second];
-  }
-  unsigned num_cum = 0;
-  for (int i = 0; i < (n + 1) * (n + 1) + 2; ++i) {
-    if (inserted[i] == INSERT) ++num_cum;
-  }
-  if (num_cum != reduced_stream.size()) throw std::runtime_error(
-        "Mismatch with reduced stream, no output written");
-  cout << "Successful!" << endl;
+using uint128_t = boost::multiprecision::uint128_t;
+
+typedef uint32_t ul;
+typedef uint64_t ull;
+
+const ull ULLMAX = std::numeric_limits<ul>::max();
+
+
+std::ofstream& operator<< (std::ofstream &os, const std::pair<ull,ull> p) {
+  os << p.first << " " << p.second;
+  return os;
 }
 
-/**
- * takes a sample.gr file of random type and transforms it into a stream with
- * insertions and deletions.
- * Writes stream output to file (default sample.txt)
- * Writes cumulative output to file (default cum_sample.txt)
- */
-void transform(GraphGenSettings settings) {
-  srand(time(NULL));
-  string str;
-  ifstream in("./sample.gr");
-  // strip header summary
-  for (int i = 0; i < 7; ++i) {
-    getline(in,str);
+void write_edges(long n, double p, std::string out_f) {
+  ul num_edges = (n*(n-1))/2;
+  ul* arr = (ul*) malloc(num_edges*sizeof(ul));
+  for (unsigned i=0;i<num_edges;++i) {
+    arr[i] = i;
   }
-  in >> str >> str;
+  std::random_shuffle(arr,arr+num_edges);
+  std::ofstream out(out_f);
+  ul m = (ul) (num_edges*p);
+  out << n << " " << m << endl;
 
-  char a;
-  int n, m, full_m = 0; in >> n >> m;
-  int f,s,w;
-  int inserted[(n+1)*(n+1)+2];
-  vector<pair<pair<int,int>,bool>> stream;
-  map<pair<int,int>,int> tot_edges;
-  vector<pair<int,int>> cum_stream;
-  fill(inserted, inserted+(n+1)*(n+1)+2, DELETE);
-  for (int i = 0; i < m; ++i) {
-    in >> a >> f >> s >> w;
-    --f; --s; // adjustment for 0-indexing
-    full_m += w;
-    tot_edges[{f,s}] += w;
-    while (w--) stream.push_back({{f,s},INSERT});
+  while (m--) {
+    out << inv_nondir_non_self_edge_pairing_fn(arr[m]) << endl;
   }
-  in.close();
-  for (const auto& entry : tot_edges) {
-    if (entry.second % 2) cum_stream.push_back(entry.first);
-  }
-
-  // write cumulative output
-  ofstream cum_out(settings.cum_out_file);
-  cum_out << n << " " << cum_stream.size() << endl;
-  for (auto entry : cum_stream) {
-    cum_out << entry.first << " " << entry.second << endl;
-  }
-  cum_out.close();
-
-  // randomize
-  for (int i = full_m-1; i > 0; --i) {
-    f = rand()%(i+1);
-    swap(stream[i], stream[f]);
-  }
-
-  for (int i = 0; i < full_m; ++i) {
-    f = stream[i].first.first*n+stream[i].first.second;
-    if (inserted[f] == DELETE) {
-      stream[i].second = INSERT;
-      inserted[f] = INSERT;
-    } else {
-      stream[i].second = DELETE;
-      inserted[f] = DELETE;
-    }
-  }
-
-  validate(n, stream, cum_stream);
-
-  ofstream out(settings.out_file);
-  out << n << " " << m << " " << full_m << endl;
-  // output order: [type] [first node] [second node]
-  for (auto edge : stream) {
-    out << edge.second << " " << edge.first.first << " " << edge.first.second
-         <<
-         endl;
-  }
+  out.flush();
   out.close();
+  free(arr);
 }
 
-/**
- * Takes a settings struct and writes the corresponding config file to
- * "./gtconfig"
- */
-void generate_config(const GraphGenSettings& settings) {
-  ofstream out {"./gtconfig"};
-  out << "GRAPH_MODEL " << settings.graph_model << "\n";
-  out << "n " << settings.n << "\n";
-  out << "p " << settings.p << "\n";
-  out << "m " << settings.m << "\n";
-  out << "SELF_LOOPS 0\n";
-  out << "MAX_WEIGHT " << settings.max_appearances << "\n";
-  out << "MIN_WEIGHT 1\n";
-  out << "STORE_IN_MEMORY 1\n"
-         "SORT_EDGELISTS 0\n"
-         "SORT_TYPE 1\n"
-         "WRITE_TO_FILE 0" << endl;
+void insert_delete(double p, int max_appearances, std::string in_file,
+                   std::string out_file) {
+  std::ifstream in(in_file);
+  std::ofstream out(out_file);
+  int n; ul m; in >> n >> m;
+  long long full_m = m;
+  ul ins_del_arr[(ul)log2(m)+2];
+  std::fill(ins_del_arr,ins_del_arr + (ul)log2(m)+2,0);
+  ins_del_arr[0] = m;
+  if (max_appearances == 0) {
+    for (unsigned i = 0; ins_del_arr[i] > 1; ++i) {
+      ins_del_arr[i + 1] = (ul) (ins_del_arr[i] * p);
+      full_m += ins_del_arr[i + 1];
+    }
+  } else {
+    for (int i = 0; i < max_appearances - 1; ++i) {
+      ins_del_arr[i + 1] = (ul) (ins_del_arr[i] * p);
+      full_m += ins_del_arr[i + 1];
+    }
+  }
+
+  out << n << " " << full_m << endl;
+
+  ul* memoized = (ul*) malloc(ins_del_arr[1]*sizeof(ul));
+  ul a,b;
+
+  for (unsigned i=0;i<ins_del_arr[1];++i) {
+    in >> a >> b;
+    out << "0 " << a << " " << b << endl;
+    memoized[i] = nondirectional_non_self_edge_pairing_fn(a, b);
+  }
+
+  for (unsigned i=ins_del_arr[1];i<m;++i) {
+    in >> a >> b;
+    out << "0 " << a << " " << b << endl;
+  }
+
+  in.close();
+
+  unsigned stopping = 1;
+  if (max_appearances == 0) {
+    for (; ins_del_arr[stopping] >= 1; ++stopping);
+  } else {
+    stopping = max_appearances;
+  }
+  for (unsigned i = 1; i < stopping; ++i) {
+    int temp = i % 2;
+    for (unsigned j = 0; j < ins_del_arr[i]; ++j) {
+      out << temp << " ";
+      out << inv_nondir_non_self_edge_pairing_fn(memoized[j]) << endl;
+    }
+  }
+  out.flush();
+  out.close();
+  free(memoized);
+}
+
+void write_cum(std::string stream_f, std::string cum_f) {
+  std::ifstream in(stream_f);
+  std::ofstream out(cum_f);
+  int n; ull m; in >> n >> m;
+  std::vector<std::vector<bool>> adj(n,std::vector<bool>(n,false));
+  bool type;
+  int a,b;
+  for (ull i=1;i<=m;++i) {
+    in >> type >> a >> b;
+    if ((type == INSERT && adj[a][b] == 1) || (type == DELETE && adj[a][b] == 0)) {
+      std::cerr << "Insertion/deletion error at line " << i
+                << " in " << stream_f;
+      return;
+    }
+    adj[a][b] = !adj[a][b];
+  }
+
+  in.close();
+
+  // write cum output
+  ull m_cum = 0;
+  for (int i = 0; i < n; ++i) {
+    for (int j = 0; j < n; ++j) {
+      if (adj[i][j]) ++m_cum;
+    }
+  }
+  out << n << " " << m_cum << endl;
+  for (int i = 0; i < n; ++i) {
+    for (int j = 0; j < n; ++j) {
+      if (adj[i][j]) out << i << " " << j << endl;
+    }
+  }
+  out.flush();
   out.close();
 }
 
 void generate_stream(GraphGenSettings settings) {
-  generate_config(settings);
-  std::string fname = __FILE__;
-  size_t pos = fname.find_last_of("\\/");
-  std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
-  string cmd_str = curr_dir + "/GTgraph-random -c ./gtconfig -o sample.gr";
-  cout << "Running command:" << endl << cmd_str << endl;
-  if (system(cmd_str.c_str())) {
-    cout << "Could not generate graph. Aborting..." << endl;
-    return;
-  }
-  transform(settings);
-  cout << "Graph written to: " << settings.out_file << endl;
-  cout << "Cumulative graph written to: " << settings.cum_out_file << endl;
+  write_edges(settings.n, settings.p, "./TEMP_F");
+  insert_delete(settings.r, settings.max_appearances, "./TEMP_F", settings
+  .out_file);
+  write_cum(settings.out_file,settings.cum_out_file);
 }
