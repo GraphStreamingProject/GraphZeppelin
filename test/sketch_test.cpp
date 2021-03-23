@@ -18,10 +18,9 @@ TEST(SketchTestSuite, TestExceptions) {
   for (unsigned long long i = 0; i < num_buckets; ++i) {
     for (unsigned long long j = 0; j < num_guesses;) {
       unsigned bucket_id = i * num_guesses + j;
-      XXH64_hash_t bucket_seed = XXH64(&bucket_id, sizeof(bucket_id), sketch2.seed);
       uint64_t index = 0;
       for (uint64_t k = 0; k < sketch2.n; ++k) {
-        if (vec_idx[k] && sketch2.buckets[bucket_id].contains(k, bucket_seed, 1 << j)) {
+        if (vec_idx[k] && sketch2.buckets[bucket_id].contains(Bucket_Boruvka::col_index_hash(i, k, sketch2.seed), 1 << j)) {
           if (index == 0) {
             index = k + 1;
           } else {
@@ -192,9 +191,13 @@ void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
   //Keep seed for replaying update stream later
   unsigned long seed = rand();
   srand(seed);
+  auto start_time = std::chrono::steady_clock::now();
   for (unsigned long j = 0; j < num_updates; j++){
     sketch.update(static_cast<vec_t>(rand() % vec_size));
   }
+  std::cout << "Updating vector of size " << vec_size << " with " << num_updates
+    << " updates took " << std::chrono::duration<long double>(
+      std::chrono::steady_clock::now() - start_time).count() << std::endl;
   try {
     vec_t res_idx = sketch.query();
     //Multiple queries shouldn't happen, but if we do get here fail test
@@ -223,7 +226,16 @@ void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
 }
 
 TEST(SketchTestSuite, TestSketchLarge) {
-  test_sketch_large(1000000000, 1000000);
+  constexpr uint64_t upper_bound =
+#ifdef USE_NATIVE_F
+      1000000000ULL
+#else
+      1000000000000000000ULL
+#endif
+  ;
+  for (uint64_t i = 1000; i <= upper_bound; i *= 10) {
+    test_sketch_large(i, 1000000);
+  }
 }
 
 TEST(SketchTestSuite, TestBatchUpdate) {

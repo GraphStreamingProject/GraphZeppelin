@@ -90,11 +90,11 @@ void Sketch::batch_update(ForwardIterator begin, ForwardIterator end) {
     for (unsigned j = 0; j < num_guesses; ++j) {
       unsigned bucket_id = i * num_guesses + j;
       Bucket_Boruvka& bucket = buckets[bucket_id];
-      XXH64_hash_t bucket_seed = Bucket_Boruvka::gen_bucket_seed(bucket_id, seed);
       for (auto it = begin; it != end; it++) {
         const vec_t& update_idx = *it;
-        if (bucket.contains(update_idx, bucket_seed, 1 << j)) {
-          XXH64_hash_t update_hash = XXH64(&update_idx, sizeof(update_idx), seed);
+        XXH64_hash_t col_index_hash = Bucket_Boruvka::col_index_hash(i, update_idx, seed);
+        if (bucket.contains(col_index_hash, 1 << j)) {
+          XXH64_hash_t update_hash = Bucket_Boruvka::index_hash(update_idx, seed);
           bucket.update(update_idx, update_hash);
         }
       }

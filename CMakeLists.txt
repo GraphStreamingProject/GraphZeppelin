@@ -265,7 +265,6 @@ add_executable(tests
   supernode.cpp
   l0_sampling/sketch.cpp
   l0_sampling/update.cpp
-  l0_sampling/bucket.cpp
   util.cpp
   l0_sampling/int127.cpp
   test/int127_test.cpp)
@@ -297,7 +296,6 @@ add_executable(native_tests
   supernode.cpp
   l0_sampling/sketch.cpp
   l0_sampling/update.cpp
-  l0_sampling/bucket.cpp
   util.cpp)
 target_link_libraries(native_tests PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(native_tests PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F)
