@@ -23,6 +23,12 @@ void Sketch::update(const vec_t& update_idx) {
   }
 }
 
+void Sketch::batch_update(const std::vector<vec_t>& updates) {
+  for (const auto update_idx : updates) {
+    update(update_idx);
+  }
+}
+
 vec_t Sketch::query() {
   if (already_quered) {
     throw MultipleQueryException();

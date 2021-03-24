@@ -254,7 +254,7 @@ TEST(SketchTestSuite, TestBatchUpdate) {
   }
   std::cout << "One by one updates took " << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
   start_time = std::chrono::steady_clock::now();
-  sketch_batch.batch_update(updates.cbegin(), updates.cend());
+  sketch_batch.batch_update(updates);
   std::cout << "Batched updates took " << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
 
   ASSERT_EQ(sketch.seed, sketch_batch.seed);

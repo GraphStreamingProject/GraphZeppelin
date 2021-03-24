@@ -40,11 +40,9 @@ public:
 
   /**
    * Update a sketch given a batch of updates
-   * @param begin a ForwardIterator to the first update
-   * @param end a ForwardIterator to after the last update
+   * @param updates A vector of updates
    */
-  template <typename ForwardIterator>
-  void batch_update(ForwardIterator begin, ForwardIterator end);
+  void batch_update(const std::vector<vec_t>& updates);
 
   /**
    * Function to query a sketch.
@@ -81,24 +79,4 @@ public:
     return "Found no good bucket!";
   }
 };
-
-template <typename ForwardIterator>
-void Sketch::batch_update(ForwardIterator begin, ForwardIterator end) {
-  const unsigned num_buckets = bucket_gen(n, num_bucket_factor);
-  const unsigned num_guesses = guess_gen(n);
-  for (unsigned i = 0; i < num_buckets; ++i) {
-    for (unsigned j = 0; j < num_guesses; ++j) {
-      unsigned bucket_id = i * num_guesses + j;
-      Bucket_Boruvka& bucket = buckets[bucket_id];
-      for (auto it = begin; it != end; it++) {
-        const vec_t& update_idx = *it;
-        XXH64_hash_t col_index_hash = Bucket_Boruvka::col_index_hash(i, update_idx, seed);
-        if (bucket.contains(col_index_hash, 1 << j)) {
-          XXH64_hash_t update_hash = Bucket_Boruvka::index_hash(update_idx, seed);
-          bucket.update(update_idx, update_hash);
-        }
-      }
-    }
-  }
-}
 
