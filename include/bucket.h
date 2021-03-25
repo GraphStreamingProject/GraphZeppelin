@@ -57,7 +57,7 @@ inline vec_t Bucket_Boruvka::col_index_hash(const unsigned bucket_col, const vec
 #ifdef USE_NATIVE_F
   XXH32
 #else
-  XXH64
+  XXH3_64bits_withSeed
 #endif
       (&buf, sizeof(buf), sketch_seed);
 }
@@ -67,7 +67,7 @@ inline vec_t Bucket_Boruvka::index_hash(const vec_t& index, long sketch_seed) {
 #ifdef USE_NATIVE_F
   XXH32
 #else
-  XXH64
+  XXH3_64bits_withSeed
 #endif
       (&index, sizeof(index), sketch_seed);
 }
