@@ -12,12 +12,16 @@ typedef std::pair<Node, Node> Edge;
  * box without needing to worry about implementing l_0.
  */
 class Supernode {
+  int idx;
+  int logn;
   /* collection of logn sketches to query from, since we can't query from one
      sketch more than once */
   vector<Sketch*> sketches;
-  int idx;
-  int logn;
 public:
+  Node ext_mem_parent_ptr; // points to this supernode's "parent" in post-processing
+  Node ext_mem_size; // size of the DSU set corresponding to this supernode
+  bool ext_mem_destroyed; // whether or not this supernode has been
+  // absorbed into another
   /**
    * @param n     the total number of nodes in the graph.
    * @param seed  the (fixed) seed value passed to each supernode.

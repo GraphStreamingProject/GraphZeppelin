@@ -87,7 +87,7 @@ void GraphVerifier::verify_edge(Edge edge) {
     printf("Got an error of node %lu to node (2)%lu\n", edge.first, edge.second);
     throw BadEdgeException();
   }
-
+  if (f == s) return;
   // if all checks pass, merge supernodes
   if (size[f] < size[s])
     std::swap(f,s);

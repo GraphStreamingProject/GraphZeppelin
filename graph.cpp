@@ -17,6 +17,7 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
   for (Node i=0;i<num_nodes;++i) {
     representatives->insert(i);
     supernodes[i] = new Supernode(num_nodes,seed);
+    supernodes[i]->ext_mem_parent_ptr = i;
     parent[i] = i;
   }
 
@@ -82,38 +83,36 @@ vector<set<Node>> Graph::connected_components() {
 #ifdef VERIFY_SAMPLES_F
   GraphVerifier verifier {cum_in};
 #endif
-
+  Node size[num_nodes];
+  fill(size,size+num_nodes,1);
+  bool destroyed[num_nodes];
+  fill(destroyed,destroyed+num_nodes,false);
   do {
     modified = false;
-    vector<Node> removed;
-    for (Node i: (*representatives)) {
-      if (parent[i] != i) continue;
+    for (unsigned i=0;i<num_nodes;++i) {
+      if (destroyed[i]) continue;
+      if (parent[i] != i) destroyed[i] = true;
       boost::optional<Edge> edge = supernodes[i]->sample();
+      if (!edge.is_initialized()) {
 #ifdef VERIFY_SAMPLES_F
-      if (edge.is_initialized())
-        verifier.verify_edge(edge.value());
-      else
         verifier.verify_cc(i);
 #endif
-      if (!edge.is_initialized()) continue;
-
-      Node n;
+        continue;
+      }
+      Node a = get_parent(edge->first);
+      Node b = get_parent(edge->second);
+      if (a == b) continue;
+#ifdef VERIFY_SAMPLES_F
+      verifier.verify_edge(edge.value());
+#endif
+      if (size[a] < size[b]) std::swap(a,b);
       // DSU compression
-      if (get_parent(edge->first) == i) {
-        n = get_parent(edge->second);
-        removed.push_back(n);
-        parent[n] = i;
-      }
-      else {
-        get_parent(edge->second);
-        n = get_parent(edge->first);
-        removed.push_back(n);
-        parent[n] = i;
-      }
-      supernodes[i]->merge(*supernodes[n]);
+      parent[b] = a;
+      size[a] += size[b];
+      modified = true;
+      supernodes[a]->merge(*supernodes[b]);
+      if (b <= i) destroyed[b] = true;
     }
-    if (!removed.empty()) modified = true;
-    for (Node i : removed) representatives->erase(i);
   } while (modified);
   map<Node, set<Node>> temp;
   for (Node i=0;i<num_nodes;++i)
@@ -130,4 +129,68 @@ vector<set<Node>> Graph::connected_components() {
 Node Graph::get_parent(Node node) {
   if (parent[node] == node) return node;
   return parent[node] = get_parent(parent[node]);
+}
+
+/**
+ * Runs boruvka and DSU in external memory. Does a final pass through all
+ * sketches (using O(n) memory) to collect connected components.
+ * TODO: an iterative merging collection scheme in external memory
+ */
+vector<set<Node>> Graph::ext_mem_connected_components() {
+#ifdef WODS_PROTOTYPE
+  db->flush(); // flush everything in toku to make final updates
+#endif
+  update_locked = true; // disallow updating the graph after we run the alg
+  bool modified;
+#ifdef VERIFY_SAMPLES_F
+  GraphVerifier verifier {cum_in};
+#endif
+
+  do {
+    modified = false;
+    for (unsigned i = 0; i < num_nodes; ++i) {
+      if (supernodes[i]->ext_mem_destroyed) continue;
+      if (supernodes[i]->ext_mem_parent_ptr != i)
+        supernodes[i]->ext_mem_destroyed = true;
+      boost::optional<Edge> edge = supernodes[i]->sample();
+      if (!edge.is_initialized()) {
+#ifdef VERIFY_SAMPLES_F
+        verifier.verify_cc(i);
+#endif
+        continue;
+      }
+      Node a = ext_mem_get_parent(edge->first);
+      Node b = ext_mem_get_parent(edge->second);
+      if (a == b) continue;
+#ifdef VERIFY_SAMPLES_F
+      verifier.verify_edge(edge.value());
+#endif
+      if (supernodes[a]->ext_mem_size < supernodes[b]->ext_mem_size)
+        std::swap(a,b);
+      // DSU compression
+      supernodes[b]->ext_mem_parent_ptr = a;
+      supernodes[a]->ext_mem_size += supernodes[b]->ext_mem_size;
+      modified = true;
+      supernodes[a]->merge(*supernodes[b]);
+      if (b <= i) supernodes[b]->ext_mem_destroyed = true;
+    }
+  } while (modified);
+  map<Node, set<Node>> temp;
+  for (Node i=0;i<num_nodes;++i)
+    temp[ext_mem_get_parent(i)].insert(i);
+  vector<set<Node>> retval;
+  retval.reserve(temp.size());
+  for (const auto& it : temp) retval.push_back(it.second);
+#ifdef VERIFY_SAMPLES_F
+  verifier.verify_soln(retval);
+#endif
+  return retval;
+}
+
+Node Graph::ext_mem_get_parent(Node node) {
+  if (supernodes[node]->ext_mem_parent_ptr == node) {
+    return node;
+  }
+  return supernodes[node]->ext_mem_parent_ptr =
+        ext_mem_get_parent(supernodes[node]->ext_mem_parent_ptr);
 }
