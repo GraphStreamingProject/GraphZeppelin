@@ -187,6 +187,8 @@ TEST(SketchTestSuite, TestSketchAddition){
  */
 void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
   srand(time(NULL));
+std::chrono::duration<long double> total_time(0);
+for (unsigned i = 0; i < 100; i++) {
   Sketch sketch = Sketch(vec_size, rand());
   //Keep seed for replaying update stream later
   unsigned long seed = rand();
@@ -195,6 +197,7 @@ void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
   for (unsigned long j = 0; j < num_updates; j++){
     sketch.update(static_cast<vec_t>(rand() % vec_size));
   }
+  total_time += std::chrono::steady_clock::now() - start_time;
   std::cout << "Updating vector of size " << vec_size << " with " << num_updates
     << " updates took " << std::chrono::duration<long double>(
       std::chrono::steady_clock::now() - start_time).count() << std::endl;
@@ -224,8 +227,11 @@ void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
     FAIL() << "MultipleQueryException:" << e.what();
   }
 }
+  std::cout << "Average " << total_time.count() / 1000 << std::endl;
+}
 
 TEST(SketchTestSuite, TestSketchLarge) {
+/*
   constexpr uint64_t upper_bound =
 #ifdef USE_NATIVE_F
       1000000000ULL
@@ -236,6 +242,8 @@ TEST(SketchTestSuite, TestSketchLarge) {
   for (uint64_t i = 1000; i <= upper_bound; i *= 10) {
     test_sketch_large(i, 1000000);
   }
+*/
+  test_sketch_large(1000000000, 1000000);
 }
 
 TEST(SketchTestSuite, TestBatchUpdate) {
@@ -259,9 +267,13 @@ TEST(SketchTestSuite, TestBatchUpdate) {
 
   ASSERT_EQ(sketch.seed, sketch_batch.seed);
   ASSERT_EQ(sketch.n, sketch_batch.n);
+  ASSERT_EQ(sketch.num_bucket_factor, sketch_batch.num_bucket_factor);
+#ifndef __AVX2__
   ASSERT_EQ(sketch.buckets.size(), sketch_batch.buckets.size());
-  for (auto it1 = sketch.buckets.cbegin(), it2 = sketch_batch.buckets.cbegin(); it1 != sketch.buckets.cend(); it1++, it2++) {
-    ASSERT_EQ(it1->a, it2->a);
-    ASSERT_EQ(it1->c, it2->c);
+#endif
+  const unsigned total_buckets = bucket_gen(sketch.n, sketch.num_bucket_factor) * guess_gen(sketch.n);
+  for (unsigned i = 0; i < total_buckets; i++){
+    ASSERT_EQ(sketch.buckets[i].a, sketch_batch.buckets[i].a);
+    ASSERT_EQ(sketch.buckets[i].c, sketch_batch.buckets[i].c);
   }
 }
