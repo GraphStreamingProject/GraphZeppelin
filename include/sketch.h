@@ -4,9 +4,7 @@
 #include <iostream>
 #include <vector>
 #include "bucket.h"
-#include "prime_generator.h"
 #include "types.h"
-#include "update.h"
 #include "util.h"
 #include <gtest/gtest_prod.h>
 
@@ -46,7 +44,7 @@ public:
 
   /**
    * Function to query a sketch.
-   * @return                        an index in the form of an Update.
+   * @return                        an index.
    * @throws MultipleQueryException if the sketch has already been queried.
    * @throws NoGoodBucketException  if there are no good buckets to choose an
    *                                index from.

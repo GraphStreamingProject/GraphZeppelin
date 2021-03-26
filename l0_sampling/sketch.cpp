@@ -1,4 +1,5 @@
 #include "../include/sketch.h"
+#include <cassert>
 
 Sketch::Sketch(vec_t n, long seed, double num_bucket_factor):
     seed(seed), n(n), num_bucket_factor(num_bucket_factor) {

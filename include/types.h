@@ -9,6 +9,7 @@
 //128 bit includes
 #include <boost/multiprecision/cpp_int.hpp>
 //TODO: low priority: when using larger types in 32 bit system, use int127
+// Might not even be necessary now that we're doing xor and don't need 128 bit
 //#  ifndef __SIZEOF_INT128__
 //#  include "int127.h"
 //#  endif
