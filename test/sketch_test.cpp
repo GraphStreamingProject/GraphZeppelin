@@ -20,7 +20,7 @@ TEST(SketchTestSuite, TestExceptions) {
       unsigned bucket_id = i * num_guesses + j;
       uint64_t index = 0;
       for (uint64_t k = 0; k < sketch2.n; ++k) {
-        if (vec_idx[k] && sketch2.buckets[bucket_id].contains(Bucket_Boruvka::col_index_hash(i, k, sketch2.seed), 1 << j)) {
+        if (vec_idx[k] && sketch2.buckets[bucket_id].contains(Bucket_Boruvka::col_index_hash(i, k, sketch2.seed), 1 << (j + 1))) {
           if (index == 0) {
             index = k + 1;
           } else {

@@ -9,11 +9,7 @@
 #include <gtest/gtest_prod.h>
 
 #define bucket_gen(x, c) double_to_ull((c)*(log2(x)+1))
-#ifdef __AVX2__
-#define guess_gen(x) double_to_ull(log2(x)+2)
-#else
-#define guess_gen(x) ((double_to_ull(log2(x)+2) + 1) & -2)
-#endif
+#define guess_gen(x) double_to_ull(log2(x)+1)
 
 /**
  * An implementation of a "sketch" as defined in the L0 algorithm.
@@ -24,11 +20,7 @@ class Sketch {
   const long seed;
   const vec_t n;
   const double num_bucket_factor;
-#ifdef __AVX2__
-  Bucket_Boruvka *buckets;
-#else
   std::vector<Bucket_Boruvka> buckets;
-#endif
   bool already_quered = false;
 
   FRIEND_TEST(SketchTestSuite, TestExceptions);
@@ -37,7 +29,6 @@ class Sketch {
   //Initialize a sketch of a vector of size n
 public:
   Sketch(vec_t n, long seed, double num_bucket_factor = 1);
-  ~Sketch();
 
   /**
    * Update a sketch based on information about one of its indices.

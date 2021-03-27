@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#define XXH_INLINE_ALL
 #include <xxhash.h>
 #include "types.h"
 
