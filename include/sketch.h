@@ -18,7 +18,7 @@
  */
 class Sketch {
   // Seed used for hashing operations in this sketch.
-  const long seed;4
+  const long seed;
   // Length of the vector this is sketching.
   const vec_t n;
   // Factor for how many buckets there are in this sketch.
