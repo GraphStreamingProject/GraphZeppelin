@@ -82,20 +82,6 @@ Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2) {
   return sketch1;
 }
 
-//Probably doesn't work anymore
-/*
-Sketch operator* (const Sketch &sketch1, long scaling_factor){
-  Sketch result = Sketch(sketch1.n,sketch1.seed);
-  for (unsigned int i = 0; i < result.buckets.size(); i++){
-    Bucket_Boruvka& b = result.buckets[i];
-    b.a = sketch1.buckets[i].a * scaling_factor;
-    b.b = sketch1.buckets[i].b * scaling_factor;
-    b.c = (sketch1.buckets[i].c * scaling_factor)% result.large_prime;
-  }
-  return result;
-}
-*/
-
 std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
   const unsigned long long int num_buckets = bucket_gen(sketch.n, sketch.num_bucket_factor);
   const unsigned long long int num_guesses = guess_gen(sketch.n);
