@@ -68,6 +68,15 @@ class Sketch {
   }
 }
 
+%extend Sketch {
+%pythoncode {
+    def __reduce__(self):
+        sketch.Sketch.__init__(size, seed)
+        args = self.size, self.seed
+        return self.__class__, args
+}
+}
+
 struct Update {
   // the position in the vector that is changed
   vec_t index;
