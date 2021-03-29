@@ -225,3 +225,32 @@ else ()
     target_compile_options(native_tests PRIVATE /O2)
   endif()
 endif ()
+
+add_executable(avx2_tests
+  test/test_runner.cpp
+  test/graph_test.cpp
+  test/sketch_test.cpp
+  test/supernode_test.cpp
+  test/util_test.cpp
+  test/util/graph_verifier.cpp
+  test/util/graph_gen.cpp
+  test/util/graph_gen_test.cpp
+  test/util/graph_verifier_test.cpp
+  graph.cpp
+  supernode.cpp
+  l0_sampling/sketch.cpp
+  util.cpp)
+target_link_libraries(avx2_tests PRIVATE GTest::gtest)
+target_compile_definitions(avx2_tests PRIVATE VERIFY_SAMPLES_F)
+target_compile_options(avx2_tests PRIVATE -mavx2)
+# optimize unless debug
+if (DEFINED ENV{DEBUG})
+  message("Disabling optimizations and enabling debug symbols")
+  target_compile_options(avx2_tests PRIVATE -g)
+else ()
+  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    target_compile_options(avx2_tests PRIVATE -O3)
+  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    target_compile_options(avx2_tests PRIVATE /O2)
+  endif()
+endif ()

@@ -187,8 +187,6 @@ TEST(SketchTestSuite, TestSketchAddition){
  */
 void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
   srand(time(NULL));
-std::chrono::duration<long double> total_time(0);
-for (unsigned i = 0; i < 100; i++) {
   Sketch sketch = Sketch(vec_size, rand());
   //Keep seed for replaying update stream later
   unsigned long seed = rand();
@@ -197,7 +195,6 @@ for (unsigned i = 0; i < 100; i++) {
   for (unsigned long j = 0; j < num_updates; j++){
     sketch.update(static_cast<vec_t>(rand() % vec_size));
   }
-  total_time += std::chrono::steady_clock::now() - start_time;
   std::cout << "Updating vector of size " << vec_size << " with " << num_updates
     << " updates took " << std::chrono::duration<long double>(
       std::chrono::steady_clock::now() - start_time).count() << std::endl;
@@ -226,8 +223,6 @@ for (unsigned i = 0; i < 100; i++) {
     //Multiple queries shouldn't happen, but if we do get here fail test
     FAIL() << "MultipleQueryException:" << e.what();
   }
-}
-  std::cout << "Average " << total_time.count() / 1000 << std::endl;
 }
 
 TEST(SketchTestSuite, TestSketchLarge) {

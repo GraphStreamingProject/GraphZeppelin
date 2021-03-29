@@ -16,31 +16,18 @@ void Sketch::update(const vec_t& update_idx) {
   const unsigned num_buckets = bucket_gen(n, num_bucket_factor);
   const unsigned num_guesses = guess_gen(n);
   XXH64_hash_t update_hash = Bucket_Boruvka::index_hash(update_idx, seed);
-#ifdef __AVX2__
-#  ifdef AVX_SINGLEBUCKET
-  __m128i update_reg = _mm_insert_epi64(_mm_loadu_si64(&update_idx), update_hash, 1);
-  _mm_storeu_si128((__m128i *)&buckets[num_buckets * num_guesses], _mm_xor_si128(
-    _mm_loadu_si128((__m128i *)&buckets[num_buckets * num_guesses]), update_reg));
-#  else
+#if !defined(USE_NATIVE_F) && defined(__AVX2__)
   __m256i update_reg = _mm256_broadcastsi128_si256(
     _mm_insert_epi64(_mm_loadu_si64(&update_idx), update_hash, 1));
   _mm_storeu_si128((__m128i *)&buckets[num_buckets * num_guesses], _mm_xor_si128(
     _mm_loadu_si128((__m128i *)&buckets[num_buckets * num_guesses]), _mm256_castsi256_si128(update_reg)));
-#  endif
 #else
   buckets[num_buckets * num_guesses].update(update_idx, update_hash);
 #endif
   for (unsigned i = 0; i < num_buckets; ++i) {
     XXH64_hash_t col_index_hash = Bucket_Boruvka::col_index_hash(i, update_idx, seed);
     unsigned num_updates = __builtin_ctzll(col_index_hash | 1ULL << num_guesses);
-#ifdef __AVX2__
-#  ifdef AVX_SINGLEBUCKET
-    for (unsigned j = 0; j < num_updates; ++j) {
-      unsigned bucket_id = i * num_guesses + j;
-      _mm_storeu_si128((__m128i *)&buckets[bucket_id], _mm_xor_si128(
-        _mm_loadu_si128((__m128i *)&buckets[bucket_id]), update_reg));
-    }
-#  else
+#if !defined(USE_NATIVE_F) && defined(__AVX2__)
     unsigned j = 0;
     for (; j + 1 < num_updates; j += 2) {
       unsigned bucket_id = i * num_guesses + j;
@@ -52,7 +39,6 @@ void Sketch::update(const vec_t& update_idx) {
       _mm_storeu_si128((__m128i *)&buckets[bucket_id], _mm_xor_si128(
         _mm_loadu_si128((__m128i *)&buckets[bucket_id]), _mm256_castsi256_si128(update_reg)));
     }
-#  endif
 #else
     for (unsigned j = 0; j < num_updates; ++j) {
       unsigned bucket_id = i * num_guesses + j;
