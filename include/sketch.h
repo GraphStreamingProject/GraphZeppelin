@@ -17,17 +17,30 @@
  * raise an error.
  */
 class Sketch {
+  // Seed used for hashing operations in this sketch.
   const long seed;
+  // Length of the vector this is sketching.
   const vec_t n;
+  // Factor for how many buckets there are in this sketch.
   const double num_bucket_factor;
+  // Buckets of this sketch.
+  // Length is bucket_gen(n, num_bucket_factor) * guess_gen(n).
+  // For buckets[i * guess_gen(n) + j], the bucket has a 1/2^j probability
+  // of containing an index.
   std::vector<Bucket_Boruvka> buckets;
+  // Flag to keep track if this sketch has already been queried.
   bool already_quered = false;
 
   FRIEND_TEST(SketchTestSuite, TestExceptions);
   FRIEND_TEST(SketchTestSuite, TestBatchUpdate);
 
-  //Initialize a sketch of a vector of size n
 public:
+  /**
+   * Construct a sketch of a vector of size n
+   * @param n Length of the vector to sketch.
+   * @param seed Seed to use for hashing operations
+   * @param num_bucket_factor Factor to scale the number of buckets in this sketch
+   */
   Sketch(vec_t n, long seed, double num_bucket_factor = 1);
 
   /**
