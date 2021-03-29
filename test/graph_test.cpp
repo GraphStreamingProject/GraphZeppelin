@@ -54,8 +54,8 @@ TEST(GraphTestSuite, TestCorrectnessOnSmallRandomGraphs) {
   while (num_trials--) {
     generate_stream();
     ifstream in{"./sample.txt"};
-    unsigned n, m;
-    in >> n >> m >> m;
+    Node n, m;
+    in >> n >> m;
     Graph g{n};
     int type, a, b;
     while (m--) {
@@ -64,6 +64,7 @@ TEST(GraphTestSuite, TestCorrectnessOnSmallRandomGraphs) {
         g.update({{a, b}, INSERT});
       } else g.update({{a, b}, DELETE});
     }
+    g.set_cum_in("./cum_sample.txt");
     g.connected_components();
   }
 }
@@ -71,10 +72,10 @@ TEST(GraphTestSuite, TestCorrectnessOnSmallRandomGraphs) {
 TEST(GraphTestSuite, TestCorrectnessOnSmallSparseGraphs) {
   int num_trials = 10;
   while (num_trials--) {
-    generate_stream({1024,0.0,4096,1,3,"./sample.txt","./cum_sample.txt"});
+    generate_stream({1024,0.002,0.5,0,"./sample.txt","./cum_sample.txt"});
     ifstream in{"./sample.txt"};
-    unsigned n, m;
-    in >> n >> m >> m;
+    Node n, m;
+    in >> n >> m;
     Graph g{n};
     int type, a, b;
     while (m--) {
@@ -83,6 +84,7 @@ TEST(GraphTestSuite, TestCorrectnessOnSmallSparseGraphs) {
         g.update({{a, b}, INSERT});
       } else g.update({{a, b}, DELETE});
     }
+    g.set_cum_in("./cum_sample.txt");
     g.connected_components();
   }
 }

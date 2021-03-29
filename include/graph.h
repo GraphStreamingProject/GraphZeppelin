@@ -42,7 +42,7 @@ public:
    * @param src The supernode where the edges originate
    * @param edges A vector of <destination, delta> pairs
    */
-  void batch_update(uint64_t src, const std::vector<std::pair<uint64_t, int8_t>>& edges);
+  void batch_update(uint64_t src, const std::vector<uint64_t>& edges);
 
   /**
    * Main algorithm utilizing Boruvka and L_0 sampling.

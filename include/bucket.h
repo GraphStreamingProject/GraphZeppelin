@@ -2,76 +2,93 @@
 #include <vector>
 #include <xxhash.h>
 #include "types.h"
-#include "update.h"
-
-/*
- * nodes: 2^20
- * n: 2^40, n^2: 2^80 > LONG_LONG_MAX \approx 2^63
- */
 
 /**
  * Represents a bucket in a sketch.
  */
 struct Bucket_Boruvka {
-  bucket_t a = 0;
-  bucket_t b = 0;
-  ubucket_t c = 0;
+  vec_t a = 0;
+  vec_t c = 0;
 
   /**
-   * Generates this Bucket's seed.
-   * @param bucket_id The id of this bucket.
-   * @param seed The seed of the sketch containing this bucket.
-   * @return This Bucket's seed.
+   * Hashes the column index and the update index together.
+   * This is used as a parameter to Bucket::contains.
+   * @param bucket_col Column index of the bucket.
+   * @param update_idx Update index.
+   * @param sketch_seed The seed of the Sketch this Bucket belongs to.
+   * @return The hash of (bucket_col, update_idx) using sketch_seed as a seed.
    */
-  inline static XXH64_hash_t gen_bucket_seed(const unsigned bucket_id, long seed) {
-    return XXH64(&bucket_id, sizeof(bucket_id), seed);
-  }
+  inline static vec_t col_index_hash(const unsigned bucket_col, const vec_t& update_idx, const long sketch_seed);
 
   /**
-   * Generates this Bucket's r, in the range [2, large_prime - 2].
-   * @param bucket_seed This Bucket's seed, generated with gen_bucket_seed.
-   * @param large_prime Modulus to use in c caluclation.
-   * @return This Bucket's r.
+   * Hashes the index.
+   * This is used to as a parameter to Bucket::update
+   * @param index Update index.
+   * @param seed The seed of the Sketch this Bucket belongs to.
+   * @return The hash of the update index, using the sketch seed as a seed.
    */
-  inline static ubucket_t gen_r(const XXH64_hash_t& bucket_seed, const ubucket_t& large_prime) {
-    return 2 + bucket_seed % (large_prime - 3);
-  }
+  inline static vec_t index_hash(const vec_t& index, long seed);
 
   /**
    * Checks whether the hash associated with the Bucket hashes the index to 0.
-   * @param index
-   * @param bucket_seed
-   * @param guess_nonzero
-   * @return true if the index is NOT hashed to zero.
+   * @param col_index_hash The return value to Bucket::col_index_hash
+   * @param guess_nonzero A power of 2, used as a modulus
+   * @return true if the index is NOT hashed to zero mod guess_nonzero.
    */
-  bool contains(const vec_t& index, const XXH64_hash_t& bucket_seed, const vec_t& guess_nonzero) const;
+  inline bool contains(const vec_t& col_index_hash, const vec_t& guess_nonzero) const;
 
   /**
    * Checks whether this Bucket is good.
    * @param n Size of the vector being sketched.
-   * @param large_prime Modulus to use in c caluclation.
-   * @param bucket_seed This Bucket's seed, generated with gen_bucket_seed.
-   * @param r This Bucket's r, generated with gen_r.
+   * @param bucket_col This Bucket's column index.
    * @param guess_nonzero The guess of nonzero elements in the vector being sketched.
-   * @return true if this bucket is good, else false.
+   * @param sketch_seed The seed of the Sketch this Bucket belongs to.
+   * @return true if this Bucket is good, else false.
    */
-  bool is_good(const vec_t& n, const ubucket_t& large_prime, const XXH64_hash_t& bucket_seed, const ubucket_t& r, const vec_t& guess_nonzero) const;
+  inline bool is_good(const vec_t& n, const unsigned bucket_col, const vec_t& guess_nonzero, const long& sketch_seed) const;
 
   /**
-   * Updates this Bucket with the given Update
-   * @param update
-   * @param large_prime Modulus to use in c caluclation.
-   * @param r This Bucket's r, generated with gen_r.
+   * Updates this Bucket with the given update index
+   * @param update_idx The update index
+   * @param update_hash The hash of the update index, generated with Bucket::index_hash.
    */
-  void update(const Update& update, const ubucket_t& large_prime, const ubucket_t& r);
-
-  /**
-   * Updates this Bucket with the given Update, using cached powers of r
-   * @param update
-   * @param large_prime Modulus to use in c caluclation.
-   * @param r_sq_cache A vector, where r_sq_cache[i] = r^2^i. Generated with
-   * PrimeGenerator::gen_sq_cache
-   */
-  void cached_update(const Update& update, const ubucket_t& large_prime, const std::vector<ubucket_t>& r_sq_cache);
+  inline void update(const vec_t& update_idx, const vec_t& update_hash);
 };
 
+inline vec_t Bucket_Boruvka::col_index_hash(const unsigned bucket_col, const vec_t& update_idx, const long sketch_seed) {
+  struct {
+    unsigned bucket_col;
+    vec_t update_idx;
+  } __attribute__((packed)) buf = {bucket_col, update_idx};
+  return
+#ifdef USE_NATIVE_F
+  XXH32
+#else
+  XXH3_64bits_withSeed
+#endif
+      (&buf, sizeof(buf), sketch_seed);
+}
+
+inline vec_t Bucket_Boruvka::index_hash(const vec_t& index, long sketch_seed) {
+  return
+#ifdef USE_NATIVE_F
+  XXH32
+#else
+  XXH3_64bits_withSeed
+#endif
+      (&index, sizeof(index), sketch_seed);
+}
+
+inline bool Bucket_Boruvka::contains(const vec_t& col_index_hash, const vec_t& guess_nonzero) const {
+  return col_index_hash % guess_nonzero == 0;
+}
+
+inline bool Bucket_Boruvka::is_good(const vec_t& n, const unsigned bucket_col, const vec_t& guess_nonzero, const long& sketch_seed) const {
+  return a < n && c == index_hash(a, sketch_seed)
+    && contains(col_index_hash(bucket_col, a, sketch_seed), guess_nonzero);
+}
+
+inline void Bucket_Boruvka::update(const vec_t& update_idx, const vec_t& update_hash) {
+  a ^= update_idx;
+  c ^= update_hash;
+}

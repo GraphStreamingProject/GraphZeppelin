@@ -31,29 +31,22 @@ void Graph::update(GraphUpdate upd) {
   if (edge.first > edge.second) {
     std::swap(edge.first,edge.second);
   }
-  if (upd.second == INSERT) {
-    supernodes[edge.first]->update({edge, 1});
-    supernodes[edge.second]->update({edge, -1});
-  } else {
-    supernodes[edge.first]->update({edge, -1});
-    supernodes[edge.second]->update({edge, 1});
-  }
+  supernodes[edge.first]->update(edge);
+  supernodes[edge.second]->update(edge);
 }
 
 
-void Graph::batch_update(uint64_t src, const std::vector<std::pair<uint64_t, int8_t>>& edges) {
+void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges) {
   if (update_locked) throw UpdateLockedException();
-  std::vector<Update> updates;
+  std::vector<vec_t> updates;
   updates.reserve(edges.size());
   for (const auto& edge : edges) {
-    if (src < edge.first) {
-      updates.push_back({static_cast<vec_t>(
-          nondirectional_non_self_edge_pairing_fn(src, edge.first)),
-          edge.second});
+    if (src < edge) {
+      updates.push_back(static_cast<vec_t>(
+          nondirectional_non_self_edge_pairing_fn(src, edge)));
     } else {
-      updates.push_back({static_cast<vec_t>(
-          nondirectional_non_self_edge_pairing_fn(edge.first, src)),
-          edge.second});
+      updates.push_back(static_cast<vec_t>(
+          nondirectional_non_self_edge_pairing_fn(edge, src)));
     }
   }
   supernodes[src]->batch_update(updates);

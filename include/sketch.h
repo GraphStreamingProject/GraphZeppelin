@@ -4,13 +4,11 @@
 #include <iostream>
 #include <vector>
 #include "bucket.h"
-#include "prime_generator.h"
 #include "types.h"
-#include "update.h"
 #include "util.h"
 #include <gtest/gtest_prod.h>
 
-#define bucket_gen(x) double_to_ull(log2(x)+1)
+#define bucket_gen(x, c) double_to_ull((c)*(log2(x)+1))
 #define guess_gen(x) double_to_ull(log2(x)+2)
 
 /**
@@ -19,41 +17,52 @@
  * raise an error.
  */
 class Sketch {
+  // Seed used for hashing operations in this sketch.
   const long seed;
+  // Length of the vector this is sketching.
   const vec_t n;
+  // Factor for how many buckets there are in this sketch.
+  const double num_bucket_factor;
+  // Buckets of this sketch.
+  // Length is bucket_gen(n, num_bucket_factor) * guess_gen(n).
+  // For buckets[i * guess_gen(n) + j], the bucket has a 1/2^j probability
+  // of containing an index.
   std::vector<Bucket_Boruvka> buckets;
-  const ubucket_t large_prime;
+  // Flag to keep track if this sketch has already been queried.
   bool already_quered = false;
 
   FRIEND_TEST(SketchTestSuite, TestExceptions);
   FRIEND_TEST(SketchTestSuite, TestBatchUpdate);
 
-  //Initialize a sketch of a vector of size n
 public:
-  Sketch(vec_t n, long seed);
+  /**
+   * Construct a sketch of a vector of size n
+   * @param n Length of the vector to sketch.
+   * @param seed Seed to use for hashing operations
+   * @param num_bucket_factor Factor to scale the number of buckets in this sketch
+   */
+  Sketch(vec_t n, long seed, double num_bucket_factor = 1);
 
   /**
    * Update a sketch based on information about one of its indices.
    * @param update the point update.
    */
-  void update(Update update);
+  void update(const vec_t& update_idx);
 
   /**
    * Update a sketch given a batch of updates
-   * @param begin a ForwardIterator to the first update
-   * @param end a ForwardIterator to after the last update
+   * @param updates A vector of updates
    */
-  template <typename ForwardIterator>
-  void batch_update(ForwardIterator begin, ForwardIterator end);
+  void batch_update(const std::vector<vec_t>& updates);
 
   /**
    * Function to query a sketch.
-   * @return                        an index in the form of an Update.
+   * @return                        an index.
    * @throws MultipleQueryException if the sketch has already been queried.
    * @throws NoGoodBucketException  if there are no good buckets to choose an
    *                                index from.
    */
-  Update query();
+  vec_t query();
 
   friend Sketch operator+ (const Sketch &sketch1, const Sketch &sketch2);
   friend Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2);
@@ -81,25 +90,4 @@ public:
     return "Found no good bucket!";
   }
 };
-
-template <typename ForwardIterator>
-void Sketch::batch_update(ForwardIterator begin, ForwardIterator end) {
-  const unsigned num_buckets = bucket_gen(n);
-  const unsigned num_guesses = guess_gen(n);
-  for (unsigned i = 0; i < num_buckets; ++i) {
-    for (unsigned j = 0; j < num_guesses; ++j) {
-      unsigned bucket_id = i * num_guesses + j;
-      Bucket_Boruvka& bucket = buckets[bucket_id];
-      XXH64_hash_t bucket_seed = Bucket_Boruvka::gen_bucket_seed(bucket_id, seed);
-      ubucket_t r = Bucket_Boruvka::gen_r(bucket_seed, large_prime);
-      std::vector<ubucket_t> r_sq_cache = PrimeGenerator::gen_sq_cache(r, n, large_prime);
-      for (auto it = begin; it != end; it++) {
-        const Update& update = *it;
-        if (bucket.contains(update.index, bucket_seed, 1 << j)) {
-          bucket.cached_update(update, large_prime, r_sq_cache);
-        }
-      }
-    }
-  }
-}
 
