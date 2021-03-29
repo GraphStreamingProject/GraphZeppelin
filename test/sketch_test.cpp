@@ -231,7 +231,6 @@ for (unsigned i = 0; i < 100; i++) {
 }
 
 TEST(SketchTestSuite, TestSketchLarge) {
-/*
   constexpr uint64_t upper_bound =
 #ifdef USE_NATIVE_F
       1e9
@@ -242,8 +241,6 @@ TEST(SketchTestSuite, TestSketchLarge) {
   for (uint64_t i = 1000; i <= upper_bound; i *= 10) {
     test_sketch_large(i, 1000000);
   }
-*/
-  test_sketch_large(1000000000, 1000000);
 }
 
 TEST(SketchTestSuite, TestBatchUpdate) {
