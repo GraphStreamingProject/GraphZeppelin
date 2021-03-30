@@ -264,13 +264,9 @@ add_executable(tests
   graph.cpp
   supernode.cpp
   l0_sampling/sketch.cpp
-  l0_sampling/update.cpp
-  l0_sampling/bucket.cpp
-  util.cpp
-  l0_sampling/int127.cpp
-  test/int127_test.cpp)
+  util.cpp)
 target_link_libraries(tests PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F)
+target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F EXT_MEM_POST_PROC_F)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")
@@ -296,11 +292,10 @@ add_executable(native_tests
   graph.cpp
   supernode.cpp
   l0_sampling/sketch.cpp
-  l0_sampling/update.cpp
-  l0_sampling/bucket.cpp
   util.cpp)
 target_link_libraries(native_tests PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(native_tests PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F)
+target_compile_definitions(native_tests PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F
+    EXT_MEM_POST_PROC_F)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")

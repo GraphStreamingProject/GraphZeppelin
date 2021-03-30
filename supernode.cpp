@@ -41,6 +41,6 @@ void Supernode::update(Edge update) {
 
 void Supernode::batch_update(const std::vector<vec_t>& updates) {
   for (Sketch *s : sketches) {
-    s->batch_update(updates.cbegin(), updates.cend());
+    s->batch_update(updates);
   }
 }
