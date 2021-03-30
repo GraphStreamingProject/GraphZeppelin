@@ -1,5 +1,6 @@
 #include "../../include/TokuInterface.h"
 #include "../../include/graph.h"
+#include "../../include/GraphWorker.h"
 
 #include <sys/stat.h>
 #include <string.h>
@@ -15,7 +16,7 @@
 #define NEW_DB_DIR "../graph-db-data" // rel path to alternate dbdir
 
 // Define the threshold at which we do a query
-#define TAU (uint32_t) 10000
+#define TAU (uint32_t) 5000
 
 // Define toku params (0 indicates default)
 // TODO: move these to a config file
@@ -180,7 +181,7 @@ TokuInterface::TokuInterface() {
 
     // create map which will store the number of unqueries updates
     // to the datastructure
-    update_counts = std::unordered_map<uint64_t, uint64_t>();
+    update_counts = std::unordered_map<uint64_t, std::atomic<uint64_t>>();
     printf("Finished creating TokuInterface\n");
 }
 
@@ -228,13 +229,13 @@ bool TokuInterface::putSingleEdge(uint64_t src, uint64_t dst, int8_t val) {
     free(value_dbt.data);
 
     if (update_counts[src] >= TAU) {
-        std::vector<uint64_t> edges = getEdges(src);
-        graph->batch_update(src,edges);
-        update_counts[src] = 0;
+        while (GraphWorker::queue_lock.test_and_set(std::memory_order_acquire))
+            ; // spin-lock on the queue
+        GraphWorker::work_queue.push(src);
+        GraphWorker::queue_lock.clear(std::memory_order_release); // unlock
     }
     return true;
 }
-
 
 std::vector<uint64_t> TokuInterface::getEdges(uint64_t node) {
     int err;
@@ -321,16 +322,21 @@ std::vector<uint64_t> TokuInterface::getEdges(uint64_t node) {
     }
     freeDBT(startDBT);
     freeDBT(endDBT);
+
+    // subtract from the map tracking the number of updates
+    update_counts[node] -= ret.size();
+
     return ret;
 }
 
 void TokuInterface::flush() {
     printf("Flushing tokudb of any remaining updates\n");
-    for (auto pair : update_counts) {
+    for (auto const& pair : update_counts) {
         if (pair.second > 0) {
-            std::vector<uint64_t> edges = getEdges(pair.first);
-            graph->batch_update(pair.first,edges);
-            update_counts[pair.first] = 0;
+            while (GraphWorker::queue_lock.test_and_set(std::memory_order_acquire))
+                ; // spin-lock on the queue
+            GraphWorker::work_queue.push(pair.first);
+            GraphWorker::queue_lock.clear(std::memory_order_release); // unlock
         }
     }
 }

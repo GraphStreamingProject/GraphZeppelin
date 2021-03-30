@@ -14,6 +14,8 @@ using namespace std;
 
 #ifdef WODS_PROTOTYPE
 class TokuInterface;
+class GraphWorker;
+#define THREADS 1
 #endif
 
 enum UpdateType {
@@ -40,6 +42,7 @@ class Graph{
 #ifdef WODS_PROTOTYPE
   // WOD implementation
   TokuInterface *db;
+  GraphWorker *workers[THREADS];
 #endif
 public:
   explicit Graph(uint64_t num_nodes);
