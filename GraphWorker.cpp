@@ -8,6 +8,7 @@ std::queue<uint64_t> GraphWorker::work_queue;
 struct timespec quarter_sec{0, 250000000};
 
 GraphWorker::GraphWorker(int _id, Graph *_graph, TokuInterface *_db) {
+	printf("Creating thread %llu\n", _id);
 	pthread_create(&thr, NULL, GraphWorker::startWorker, this);
 	graph = _graph;
 	db = _db;
@@ -17,6 +18,7 @@ GraphWorker::GraphWorker(int _id, Graph *_graph, TokuInterface *_db) {
 GraphWorker::~GraphWorker() {
 	shutdown = true;
 	pthread_join(thr, NULL);
+	printf("thread %llu joined!\n", id);
 }
 
 void GraphWorker::doWork() {
