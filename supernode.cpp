@@ -5,7 +5,7 @@
 #include "include/util.h"
 
 Supernode::Supernode(uint64_t n, long seed): sketches(log2(n)), idx(0), logn(log2
-(n)) {
+(n)),  ext_mem_size(1), ext_mem_destroyed(false) {
   // generate logn sketches for each supernode (read: node)
   srand(seed);
   long r = rand();

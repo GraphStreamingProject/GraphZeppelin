@@ -32,6 +32,7 @@ class Graph{
   // DSU representation of supernode relationship
   Node* parent;
   Node get_parent(Node node);
+  Node ext_mem_get_parent(Node node);
 public:
   explicit Graph(uint64_t num_nodes);
   ~Graph();
@@ -49,6 +50,12 @@ public:
    * @return a vector of the connected components in the graph.
    */
   vector<set<Node>> connected_components();
+
+  /**
+   * I/O-efficient version of Boruvka post-processing.
+   * @return a vector of the connected components in the graph.
+   */
+  vector<set<Node>> ext_mem_connected_components();
 
 #ifdef VERIFY_SAMPLES_F
   std::string cum_in = "./cum_sample.txt";

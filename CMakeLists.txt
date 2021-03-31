@@ -185,7 +185,7 @@ add_executable(tests
   l0_sampling/sketch.cpp
   util.cpp)
 target_link_libraries(tests PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F)
+target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F EXT_MEM_POST_PROC_F)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")
@@ -213,7 +213,7 @@ add_executable(native_tests
   l0_sampling/sketch.cpp
   util.cpp)
 target_link_libraries(native_tests PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(native_tests PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F)
+target_compile_definitions(native_tests PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F EXT_MEM_POST_PROC_F)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")
