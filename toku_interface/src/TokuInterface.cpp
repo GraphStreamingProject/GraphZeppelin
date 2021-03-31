@@ -16,7 +16,7 @@
 #define NEW_DB_DIR "../graph-db-data" // rel path to alternate dbdir
 
 // Define the threshold at which we do a query
-#define TAU (uint32_t) 5000
+#define TAU (uint32_t) 10000
 
 // Define toku params (0 indicates default)
 // TODO: move these to a config file
@@ -228,7 +228,7 @@ bool TokuInterface::putSingleEdge(uint64_t src, uint64_t dst, int8_t val) {
     freeDBT(toInsert);
     free(value_dbt.data);
 
-    if (update_counts[src] >= TAU) {
+    if (update_counts[src] == TAU) { // exactly equal to avoid adding a bunch of times
         while (GraphWorker::queue_lock.test_and_set(std::memory_order_acquire))
             ; // spin-lock on the queue
         GraphWorker::work_queue.push(src);
@@ -331,12 +331,12 @@ std::vector<uint64_t> TokuInterface::getEdges(uint64_t node) {
 
 void TokuInterface::flush() {
     printf("Flushing tokudb of any remaining updates\n");
+    while (GraphWorker::queue_lock.test_and_set(std::memory_order_acquire))
+        ; // spin-lock on the queue
     for (auto const& pair : update_counts) {
-        if (pair.second > 0) {
-            while (GraphWorker::queue_lock.test_and_set(std::memory_order_acquire))
-                ; // spin-lock on the queue
+        if (pair.second > 0 && pair.second < TAU) { // number of updates is greater than 0 and less than tau (if >= then already in queue)
             GraphWorker::work_queue.push(pair.first);
-            GraphWorker::queue_lock.clear(std::memory_order_release); // unlock
         }
     }
+    GraphWorker::queue_lock.clear(std::memory_order_release); // unlock
 }

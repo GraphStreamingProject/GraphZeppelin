@@ -29,10 +29,12 @@ void GraphWorker::doWork() {
 			uint64_t node = work_queue.front();
 			work_queue.pop();
 			queue_lock.clear(std::memory_order_release);  // unlock
-			// printf("Worker %d handling updates for node %llu\n", id, node);
-			graph->batch_update(node, db->getEdges(node));
-			did_work = true;
-		} 
+			if (db->update_counts[node] > 0) {
+				// printf("Worker %d handling updates for node %llu\n", id, node);
+				graph->batch_update(node, db->getEdges(node));
+				did_work = true;
+			}
+		}
 		else queue_lock.clear(std::memory_order_release); // unlock
 
 		if (!did_work) // if no work was done then sleep

@@ -21,11 +21,10 @@ public:
 
     // pointer to the array of supernodes modified by putEdge() and flush()
     Graph* graph;
-    
+    std::unordered_map<uint64_t, std::atomic<uint64_t>> update_counts;
 private:
     DB_ENV *env;
     DB *db;
-    std::unordered_map<uint64_t, std::atomic<uint64_t>> update_counts;
 
     static const int MAX_DB_FILENAME_LENGTH = 100;
 	static const int MAX_ENV_DIRNAME_LENGTH = 300;
