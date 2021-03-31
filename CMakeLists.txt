@@ -263,10 +263,7 @@ add_executable(tests
   graph.cpp
   supernode.cpp
   l0_sampling/sketch.cpp
-  l0_sampling/update.cpp
-  util.cpp
-  l0_sampling/int127.cpp
-  test/int127_test.cpp)
+  util.cpp)
 target_link_libraries(tests PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F)
 # optimize unless debug
@@ -294,7 +291,6 @@ add_executable(native_tests
   graph.cpp
   supernode.cpp
   l0_sampling/sketch.cpp
-  l0_sampling/update.cpp
   util.cpp)
 target_link_libraries(native_tests PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(native_tests PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F)

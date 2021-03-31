@@ -228,9 +228,9 @@ void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
 TEST(SketchTestSuite, TestSketchLarge) {
   constexpr uint64_t upper_bound =
 #ifdef USE_NATIVE_F
-      1000000000ULL
+      1e9
 #else
-      1000000000000000000ULL
+      1e18
 #endif
   ;
   for (uint64_t i = 1000; i <= upper_bound; i *= 10) {
@@ -254,7 +254,7 @@ TEST(SketchTestSuite, TestBatchUpdate) {
   }
   std::cout << "One by one updates took " << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
   start_time = std::chrono::steady_clock::now();
-  sketch_batch.batch_update(updates.cbegin(), updates.cend());
+  sketch_batch.batch_update(updates);
   std::cout << "Batched updates took " << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
 
   ASSERT_EQ(sketch.seed, sketch_batch.seed);

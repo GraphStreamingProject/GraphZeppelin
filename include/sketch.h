@@ -4,9 +4,7 @@
 #include <iostream>
 #include <vector>
 #include "bucket.h"
-#include "prime_generator.h"
 #include "types.h"
-#include "update.h"
 #include "util.h"
 #include <gtest/gtest_prod.h>
 
@@ -19,17 +17,30 @@
  * raise an error.
  */
 class Sketch {
+  // Seed used for hashing operations in this sketch.
   const long seed;
+  // Length of the vector this is sketching.
   const vec_t n;
+  // Factor for how many buckets there are in this sketch.
   const double num_bucket_factor;
+  // Buckets of this sketch.
+  // Length is bucket_gen(n, num_bucket_factor) * guess_gen(n).
+  // For buckets[i * guess_gen(n) + j], the bucket has a 1/2^j probability
+  // of containing an index.
   std::vector<Bucket_Boruvka> buckets;
+  // Flag to keep track if this sketch has already been queried.
   bool already_quered = false;
 
   FRIEND_TEST(SketchTestSuite, TestExceptions);
   FRIEND_TEST(SketchTestSuite, TestBatchUpdate);
 
-  //Initialize a sketch of a vector of size n
 public:
+  /**
+   * Construct a sketch of a vector of size n
+   * @param n Length of the vector to sketch.
+   * @param seed Seed to use for hashing operations
+   * @param num_bucket_factor Factor to scale the number of buckets in this sketch
+   */
   Sketch(vec_t n, long seed, double num_bucket_factor = 1);
 
   /**
@@ -40,15 +51,13 @@ public:
 
   /**
    * Update a sketch given a batch of updates
-   * @param begin a ForwardIterator to the first update
-   * @param end a ForwardIterator to after the last update
+   * @param updates A vector of updates
    */
-  template <typename ForwardIterator>
-  void batch_update(ForwardIterator begin, ForwardIterator end);
+  void batch_update(const std::vector<vec_t>& updates);
 
   /**
    * Function to query a sketch.
-   * @return                        an index in the form of an Update.
+   * @return                        an index.
    * @throws MultipleQueryException if the sketch has already been queried.
    * @throws NoGoodBucketException  if there are no good buckets to choose an
    *                                index from.
@@ -81,24 +90,4 @@ public:
     return "Found no good bucket!";
   }
 };
-
-template <typename ForwardIterator>
-void Sketch::batch_update(ForwardIterator begin, ForwardIterator end) {
-  const unsigned num_buckets = bucket_gen(n, num_bucket_factor);
-  const unsigned num_guesses = guess_gen(n);
-  for (unsigned i = 0; i < num_buckets; ++i) {
-    for (unsigned j = 0; j < num_guesses; ++j) {
-      unsigned bucket_id = i * num_guesses + j;
-      Bucket_Boruvka& bucket = buckets[bucket_id];
-      for (auto it = begin; it != end; it++) {
-        const vec_t& update_idx = *it;
-        XXH64_hash_t col_index_hash = Bucket_Boruvka::col_index_hash(i, update_idx, seed);
-        if (bucket.contains(col_index_hash, 1 << j)) {
-          XXH64_hash_t update_hash = Bucket_Boruvka::index_hash(update_idx, seed);
-          bucket.update(update_idx, update_hash);
-        }
-      }
-    }
-  }
-}
 

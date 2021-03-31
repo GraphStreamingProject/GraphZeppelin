@@ -1,4 +1,5 @@
 #include "../include/sketch.h"
+#include <cassert>
 
 Sketch::Sketch(vec_t n, long seed, double num_bucket_factor):
     seed(seed), n(n), num_bucket_factor(num_bucket_factor) {
@@ -20,6 +21,12 @@ void Sketch::update(const vec_t& update_idx) {
         bucket.update(update_idx, update_hash);
       } else break;
     }
+  }
+}
+
+void Sketch::batch_update(const std::vector<vec_t>& updates) {
+  for (const auto update_idx : updates) {
+    update(update_idx);
   }
 }
 
@@ -74,20 +81,6 @@ Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2) {
   sketch1.already_quered = sketch1.already_quered || sketch2.already_quered;
   return sketch1;
 }
-
-//Probably doesn't work anymore
-/*
-Sketch operator* (const Sketch &sketch1, long scaling_factor){
-  Sketch result = Sketch(sketch1.n,sketch1.seed);
-  for (unsigned int i = 0; i < result.buckets.size(); i++){
-    Bucket_Boruvka& b = result.buckets[i];
-    b.a = sketch1.buckets[i].a * scaling_factor;
-    b.b = sketch1.buckets[i].b * scaling_factor;
-    b.c = (sketch1.buckets[i].c * scaling_factor)% result.large_prime;
-  }
-  return result;
-}
-*/
 
 std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
   const unsigned long long int num_buckets = bucket_gen(sketch.n, sketch.num_bucket_factor);
