@@ -37,10 +37,12 @@ void GraphWorker::doWork() {
 		}
 		else queue_lock.clear(std::memory_order_release); // unlock
 
+		if (shutdown && work_queue.empty()) {// if recieved shutdown and there's no more work to do
+			printf("Thread %i done and exiting\n", id);
+			return;
+		}
+
 		if (!did_work) // if no work was done then sleep
 			nanosleep(&quarter_sec, NULL);
-		
-		if (shutdown && work_queue.empty()) // if recieved shutdown and there's no more work to do
-			return;
 	}
 }

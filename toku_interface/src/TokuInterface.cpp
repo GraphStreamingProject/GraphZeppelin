@@ -339,4 +339,5 @@ void TokuInterface::flush() {
         }
     }
     GraphWorker::queue_lock.clear(std::memory_order_release); // unlock
+    printf("Done adding to queue\n");
 }
