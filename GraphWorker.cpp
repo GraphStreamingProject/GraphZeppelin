@@ -23,7 +23,7 @@ GraphWorker::~GraphWorker() {
 
 void GraphWorker::doWork() {
 	while(true) {
-		bool did_work = false;
+		bool not_empty = false;
 		while (queue_lock.test_and_set(std::memory_order_acquire))
 			; // spin-lock on the queue
 
@@ -34,8 +34,8 @@ void GraphWorker::doWork() {
 			if (db->update_counts[node] > 0) {
 				// printf("Worker %d handling updates for node %llu\n", id, node);
 				graph->batch_update(node, db->getEdges(node));
-				did_work = true;
 			}
+			not_empty = true;
 		}
 		else queue_lock.clear(std::memory_order_release); // unlock
 
@@ -44,7 +44,7 @@ void GraphWorker::doWork() {
 			return;
 		}
 
-		if (!did_work) // if no work was done then sleep
+		if (!not_empty) // if queue is empty than sleep for a bit
 			nanosleep(&quarter_sec, NULL);
 	}
 }
