@@ -184,7 +184,7 @@ add_executable(tests
   supernode.cpp
   l0_sampling/sketch.cpp
   util.cpp)
-target_link_libraries(tests PRIVATE GTest::gtest)
+target_link_libraries(tests PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
@@ -212,7 +212,7 @@ add_executable(native_tests
   supernode.cpp
   l0_sampling/sketch.cpp
   util.cpp)
-target_link_libraries(native_tests PRIVATE GTest::gtest)
+target_link_libraries(native_tests PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(native_tests PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
@@ -240,7 +240,7 @@ add_executable(avx2_tests
   supernode.cpp
   l0_sampling/sketch.cpp
   util.cpp)
-target_link_libraries(avx2_tests PRIVATE GTest::gtest)
+target_link_libraries(avx2_tests PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(avx2_tests PRIVATE VERIFY_SAMPLES_F)
 target_compile_options(avx2_tests PRIVATE -mavx2)
 # optimize unless debug
