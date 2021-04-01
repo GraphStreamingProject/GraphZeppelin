@@ -2,13 +2,40 @@
 #include "include/graph.h"
 #include "include/TokuInterface.h"
 
+#include <fstream>
+#include <string>
+
 std::atomic_flag GraphWorker::queue_lock = ATOMIC_FLAG_INIT;
 std::queue<uint64_t> GraphWorker::work_queue;
+int GraphWorker::num_workers = 1;
+const char *GraphWorker::config_file = "graph_worker.conf";
+GraphWorker **GraphWorker::workers;
 
 struct timespec quarter_sec{0, 250000000};
 
+void GraphWorker::startWorkers(Graph *_graph, TokuInterface *_db) {
+	std::string line;
+	std::ifstream conf(config_file);
+	if (conf.is_open()) {
+		getline(conf, line);
+		printf("Thread configuration is %s\n", line.c_str());
+		num_workers = std::stoi(line.substr(line.find('=')+1));
+	}
+	workers = (GraphWorker **) calloc(num_workers, sizeof(GraphWorker *));
+	for (int i = 0; i < num_workers; i++) {
+		workers[i] = new GraphWorker(i, _graph, _db);
+	}
+}
+
+void GraphWorker::stopWorkers() {
+	for (int i = 0; i < num_workers; i++) {
+		delete workers[i];
+	}
+	delete workers;
+}
+
 GraphWorker::GraphWorker(int _id, Graph *_graph, TokuInterface *_db) {
-	printf("Creating thread %llu\n", _id);
+	printf("Creating thread %i\n", _id);
 	pthread_create(&thr, NULL, GraphWorker::startWorker, this);
 	graph = _graph;
 	db = _db;
@@ -18,7 +45,7 @@ GraphWorker::GraphWorker(int _id, Graph *_graph, TokuInterface *_db) {
 GraphWorker::~GraphWorker() {
 	shutdown = true;
 	pthread_join(thr, NULL);
-	printf("thread %llu joined!\n", id);
+	printf("thread %i joined!\n", id);
 }
 
 void GraphWorker::doWork() {

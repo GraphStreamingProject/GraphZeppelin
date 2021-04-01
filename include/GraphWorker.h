@@ -17,6 +17,8 @@ public:
 
 	static std::atomic_flag queue_lock;
 	static std::queue<uint64_t> work_queue;
+	static void startWorkers(Graph *_graph, TokuInterface *_db);
+	static void stopWorkers();
 private:
 	static void *startWorker(void *obj) {
 		((GraphWorker *)obj)->doWork();
@@ -29,6 +31,9 @@ private:
 	TokuInterface *db;
 	int id;
 	bool shutdown = false;
+	static int num_workers;
+	static const char *config_file;
+	static GraphWorker **workers;
 };
 
 // TODO:

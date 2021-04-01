@@ -316,7 +316,6 @@ add_executable(wods_test
   test/util/graph_gen.cpp
   test/util/graph_gen_test.cpp
   test/util/graph_verifier_test.cpp
-  GraphWorker.cpp
   toku_interface/src/TokuInterface.cpp
   graph.cpp
   supernode.cpp
@@ -382,7 +381,6 @@ add_executable(toku_experiment
   toku_interface/src/TokuInterface.cpp
   graph.cpp
   supernode.cpp
-  GraphWorker.cpp
   l0_sampling/sketch.cpp
   l0_sampling/update.cpp
   util.cpp)
@@ -403,5 +401,37 @@ else ()
     target_compile_options(toku_experiment PRIVATE -O3)
   elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
     target_compile_options(toku_experiment PRIVATE /O2)
+  endif()
+endif ()
+
+add_executable(toku_multi_experiment
+  test/test_runner.cpp
+  test/experiment/BCHMK_2_toku.cpp
+  test/util/graph_verifier.cpp
+  test/util/graph_gen.cpp
+  toku_interface/src/TokuInterface.cpp
+  graph.cpp
+  supernode.cpp
+  GraphWorker.cpp
+  l0_sampling/sketch.cpp
+  l0_sampling/update.cpp
+  util.cpp)
+target_link_libraries(toku_multi_experiment PRIVATE xxHash::xxhash GTest::gtest)
+target_compile_definitions(toku_multi_experiment PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F MULTI_THREAD)
+# toku dependencies
+target_compile_definitions(toku_multi_experiment PRIVATE -DWODS_PROTOTYPE)
+add_dependencies(toku_multi_experiment TokuDB)
+target_link_libraries(toku_multi_experiment PRIVATE libtokufractaltree.so)
+target_link_libraries(toku_multi_experiment PRIVATE libtokuportability.so)
+target_compile_options(toku_multi_experiment PRIVATE -lpthread -lbz2 -lz -llz4 -ldl )
+# optimize unless debug
+if (DEFINED ENV{DEBUG})
+  message("Disabling optimizations and enabling debug symbols")
+  target_compile_options(toku_multi_experiment PRIVATE -g)
+else ()
+  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    target_compile_options(toku_multi_experiment PRIVATE -O3)
+  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    target_compile_options(toku_multi_experiment PRIVATE /O2)
   endif()
 endif ()

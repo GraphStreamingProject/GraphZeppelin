@@ -16,7 +16,6 @@ using namespace std;
 class TokuInterface;
 #ifdef MULTI_THREAD
 class GraphWorker;
-#define THREADS 1
 #endif
 #endif
 
@@ -44,9 +43,6 @@ class Graph{
 #ifdef WODS_PROTOTYPE
   // WOD implementation
   TokuInterface *db;
-  #ifdef MULTI_THREAD
-  GraphWorker *workers[THREADS];
-  #endif
 #endif
 public:
   explicit Graph(uint64_t num_nodes);

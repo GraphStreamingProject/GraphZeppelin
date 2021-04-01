@@ -28,9 +28,7 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
   db = new TokuInterface();
   db->graph = this;
   #ifdef MULTI_THREAD
-  for (int i = 0; i < THREADS; i++) {
-    workers[i] = new GraphWorker(i, this, db);
-  }
+  GraphWorker::startWorkers(this, db);
   #endif
 #endif
 }
@@ -84,9 +82,7 @@ vector<set<Node>> Graph::connected_components() {
 #ifdef WODS_PROTOTYPE
   db->flush(); // flush everything in toku to make final updates
   #ifdef MULTI_THREAD
-  for (int i = 0; i < THREADS; i++) {
-    delete workers[i]; // wait for workers to finish their updates
-  }
+  GraphWorker::stopWorkers();
   #endif
 #endif
   printf("Total number of updates to sketches before CC %lu\n", num_updates); // REMOVE this later
