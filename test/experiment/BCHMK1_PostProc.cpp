@@ -5,6 +5,9 @@
 #ifdef VERIFY_SAMPLES_F
 #include "../util/graph_verifier.h"
 #endif
+
+const int TRIALS = 20;
+
 /**
  * @param stream a filepath, rooted at ../res/
  * @param cum a filepath, rooted at ../res/
@@ -37,9 +40,25 @@ void run_expr(const std::string& stream, const std::string& cum) {
 }
 
 TEST(Experiment, 1K) {
-  run_expr("1000_0.95_0.5.stream", "1000_0.95_0.5.cum");
+  for (int i = 0; i < TRIALS; ++i) {
+    run_expr("1000_0.95_0.5.stream", "1000_0.95_0.5.cum");
+  }
 }
 
-TEST(Experiment, 10K) {
-  run_expr("10000_0.95_0.5.stream", "10000_0.95_0.5.cum");
+TEST(Experiment, 2K) {
+  for (int i = 0; i < TRIALS; ++i) {
+    run_expr("2000_0.95_0.5.stream", "2000_0.95_0.5.cum");
+  }
+}
+
+TEST(Experiment, 3K) {
+  for (int i = 0; i < TRIALS; ++i) {
+    run_expr("3000_0.95_0.5.stream", "3000_0.95_0.5.cum");
+  }
+}
+
+TEST(Experiment, DISABLED_10K) {
+  for (int i = 0; i < TRIALS; ++i) {
+    run_expr("10000_0.95_0.5.stream", "10000_0.95_0.5.cum");
+  }
 }

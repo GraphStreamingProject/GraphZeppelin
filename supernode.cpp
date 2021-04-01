@@ -4,6 +4,7 @@
 #include "include/supernode.h"
 #include "include/util.h"
 
+#ifdef EXT_MEM_POST_PROC_F
 Supernode::Supernode(uint64_t n, long seed): sketches(log2(n)), idx(0), logn(log2
 (n)),  ext_mem_size(1), ext_mem_destroyed(false) {
   // generate logn sketches for each supernode (read: node)
@@ -12,6 +13,16 @@ Supernode::Supernode(uint64_t n, long seed): sketches(log2(n)), idx(0), logn(log
   for (int i=0;i<logn;++i)
     sketches[i] = new Sketch(n*n, r);
 }
+#else
+Supernode::Supernode(uint64_t n, long seed): sketches(log2(n)), idx(0), logn(log2
+(n)){
+  // generate logn sketches for each supernode (read: node)
+  srand(seed);
+  long r = rand();
+  for (int i=0;i<logn;++i)
+    sketches[i] = new Sketch(n*n, r);
+}
+#endif
 
 boost::optional<Edge> Supernode::sample() {
   if (idx == logn) throw OutOfQueriesException();

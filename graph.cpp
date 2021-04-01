@@ -6,23 +6,31 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
 #ifdef VERIFY_SAMPLES_F
   cout << "Verifying samples..." << endl;
 #endif
-  representatives = new set<Node>();
-  supernodes = new Supernode*[num_nodes];
-  parent = new Node[num_nodes];
   time_t seed = time(nullptr);
-  for (Node i=0;i<num_nodes;++i) {
+  supernodes = new Supernode*[num_nodes];
+#ifndef EXT_MEM_POST_PROC_F
+  representatives = new set<Node>();
+  parent = new Node[num_nodes];
+  for (Node i = 0; i < num_nodes; ++i) {
     representatives->insert(i);
     supernodes[i] = new Supernode(num_nodes,seed);
-    supernodes[i]->ext_mem_parent_ptr = i;
     parent[i] = i;
   }
+#else
+  for (Node i=0;i<num_nodes;++i) {
+    supernodes[i] = new Supernode(num_nodes,seed);
+    supernodes[i]->ext_mem_parent_ptr = i;
+  }
+#endif
 }
 
 Graph::~Graph() {
   for (unsigned i=0;i<num_nodes;++i)
     delete supernodes[i];
   delete supernodes;
+#ifndef EXT_MEM_POST_PROC_F
   delete representatives;
+#endif
 }
 
 void Graph::update(GraphUpdate upd) {
@@ -54,6 +62,15 @@ void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges) {
 }
 
 vector<set<Node>> Graph::connected_components() {
+#ifdef EXT_MEM_POST_PROC_F
+  return Graph::_ext_mem_connected_components();
+#else
+  return Graph::_connected_components();
+#endif
+}
+
+#ifndef EXT_MEM_POST_PROC_F
+vector<set<Node>> Graph::_connected_components() {
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
 #ifdef VERIFY_SAMPLES_F
@@ -106,13 +123,15 @@ Node Graph::get_parent(Node node) {
   if (parent[node] == node) return node;
   return parent[node] = get_parent(parent[node]);
 }
+#endif // ndef EXT_MEM_POST_PROC_F
 
+#ifdef EXT_MEM_POST_PROC_F
 /**
  * Runs boruvka and DSU in external memory. Does a final pass through all
  * sketches (using O(n) memory) to collect connected components.
  * TODO: an iterative merging collection scheme in external memory
  */
-vector<set<Node>> Graph::ext_mem_connected_components() {
+vector<set<Node>> Graph::_ext_mem_connected_components() {
 #ifdef WODS_PROTOTYPE
   db->flush(); // flush everything in toku to make final updates
 #endif
@@ -170,3 +189,4 @@ Node Graph::ext_mem_get_parent(Node node) {
   return supernodes[node]->ext_mem_parent_ptr =
                ext_mem_get_parent(supernodes[node]->ext_mem_parent_ptr);
 }
+#endif // EXT_MEM_POST_PROC_F

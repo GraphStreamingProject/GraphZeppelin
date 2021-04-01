@@ -18,10 +18,12 @@ class Supernode {
   int idx;
   int logn;
 public:
+#ifdef EXT_MEM_POST_PROC_F
   Node ext_mem_parent_ptr; // points to this supernode's "parent" in post-processing
   Node ext_mem_size; // size of the DSU set corresponding to this supernode
   bool ext_mem_destroyed; // whether or not this supernode has been
   // absorbed into another
+#endif
   /**
    * @param n     the total number of nodes in the graph.
    * @param seed  the (fixed) seed value passed to each supernode.

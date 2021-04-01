@@ -26,13 +26,18 @@ typedef pair<Edge, UpdateType> GraphUpdate;
 class Graph{
   const uint64_t num_nodes;
   bool update_locked = false;
+  Supernode** supernodes;
+
+#ifndef EXT_MEM_POST_PROC_F
   // a set containing one "representative" from each supernode
   set<Node>* representatives;
-  Supernode** supernodes;
   // DSU representation of supernode relationship
   Node* parent;
+#endif
   Node get_parent(Node node);
   Node ext_mem_get_parent(Node node);
+  vector<set<Node>> _connected_components();
+  vector<set<Node>> _ext_mem_connected_components();
 public:
   explicit Graph(uint64_t num_nodes);
   ~Graph();
@@ -50,12 +55,6 @@ public:
    * @return a vector of the connected components in the graph.
    */
   vector<set<Node>> connected_components();
-
-  /**
-   * I/O-efficient version of Boruvka post-processing.
-   * @return a vector of the connected components in the graph.
-   */
-  vector<set<Node>> ext_mem_connected_components();
 
 #ifdef VERIFY_SAMPLES_F
   std::string cum_in = "./cum_sample.txt";

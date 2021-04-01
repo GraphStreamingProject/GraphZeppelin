@@ -20,11 +20,7 @@ TEST(GraphTestSuite, SmallGraphConnectivity) {
     g.update({{a, b}, INSERT});
   }
   g.set_cum_in(curr_dir + "/res/multiples_graph_1024.txt");
-#ifdef EXT_MEM_POST_PROC_F
-  ASSERT_EQ(78, g.ext_mem_connected_components().size());
-#else
   ASSERT_EQ(78, g.connected_components().size());
-#endif
 }
 
 TEST(GraphTestSuite, IFconnectedComponentsAlgRunTHENupdateLocked) {
@@ -43,11 +39,7 @@ TEST(GraphTestSuite, IFconnectedComponentsAlgRunTHENupdateLocked) {
     g.update({{a, b}, INSERT});
   }
   g.set_cum_in(curr_dir + "/res/multiples_graph_1024.txt");
-#ifdef EXT_MEM_POST_PROC_F
-  g.ext_mem_connected_components();
-#else
   g.connected_components();
-#endif
   ASSERT_THROW(g.update({{1,2}, INSERT}), UpdateLockedException);
   ASSERT_THROW(g.update({{1,2}, DELETE}), UpdateLockedException);
 }
@@ -73,11 +65,7 @@ TEST(GraphTestSuite, TestCorrectnessOnSmallRandomGraphs) {
       } else g.update({{a, b}, DELETE});
     }
     g.set_cum_in("./cum_sample.txt");
-#ifdef EXT_MEM_POST_PROC_F
-    g.ext_mem_connected_components();
-#else
     g.connected_components();
-#endif
   }
 }
 
@@ -97,10 +85,6 @@ TEST(GraphTestSuite, TestCorrectnessOnSmallSparseGraphs) {
       } else g.update({{a, b}, DELETE});
     }
     g.set_cum_in("./cum_sample.txt");
-#ifdef EXT_MEM_POST_PROC_F
-    g.ext_mem_connected_components();
-#else
     g.connected_components();
-#endif
   }
 }
