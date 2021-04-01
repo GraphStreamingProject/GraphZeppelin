@@ -21,7 +21,11 @@ public:
 
     // pointer to the array of supernodes modified by putEdge() and flush()
     Graph* graph;
+    #ifdef MULTI_THREAD
     std::unordered_map<uint64_t, std::atomic<uint64_t>> update_counts;
+    #else
+    std::unordered_map<uint64_t, uint64_t> update_counts;
+    #endif
 private:
     DB_ENV *env;
     DB *db;

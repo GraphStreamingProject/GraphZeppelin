@@ -1,6 +1,9 @@
 #include "../../include/TokuInterface.h"
 #include "../../include/graph.h"
+
+#ifdef MULTI_THREAD
 #include "../../include/GraphWorker.h"
+#endif
 
 #include <sys/stat.h>
 #include <string.h>
@@ -181,7 +184,11 @@ TokuInterface::TokuInterface() {
 
     // create map which will store the number of unqueries updates
     // to the datastructure
+    #ifdef MULTI_THREAD
     update_counts = std::unordered_map<uint64_t, std::atomic<uint64_t>>();
+    #else
+    update_counts = std::unordered_map<uint64_t, uint64_t>();
+    #endif
     printf("Finished creating TokuInterface\n");
 }
 
@@ -229,10 +236,16 @@ bool TokuInterface::putSingleEdge(uint64_t src, uint64_t dst, int8_t val) {
     free(value_dbt.data);
 
     if (update_counts[src] == TAU) { // exactly equal to avoid adding a bunch of times
+        #ifdef MULTI_THREAD
         while (GraphWorker::queue_lock.test_and_set(std::memory_order_acquire))
             ; // spin-lock on the queue
         GraphWorker::work_queue.push(src);
         GraphWorker::queue_lock.clear(std::memory_order_release); // unlock
+        #else
+        std::vector<uint64_t> edges = getEdges(src);
+        graph->batch_update(src,edges);
+        update_counts[src] = 0;
+        #endif
     }
     return true;
 }
@@ -331,6 +344,7 @@ std::vector<uint64_t> TokuInterface::getEdges(uint64_t node) {
 
 void TokuInterface::flush() {
     printf("Flushing tokudb of any remaining updates\n");
+    #ifdef MULTI_THREAD
     while (GraphWorker::queue_lock.test_and_set(std::memory_order_acquire))
         ; // spin-lock on the queue
     for (auto const& pair : update_counts) {
@@ -340,4 +354,13 @@ void TokuInterface::flush() {
     }
     GraphWorker::queue_lock.clear(std::memory_order_release); // unlock
     printf("Done adding to queue\n");
+    #else
+    for (auto const& pair : update_counts) {
+        if (pair.second > 0) {
+            std::vector<uint64_t> edges = getEdges(pair.first);
+            graph->batch_update(pair.first,edges);
+            update_counts[pair.first] = 0;
+        }
+    }
+    #endif
 }
