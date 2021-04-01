@@ -254,7 +254,7 @@ add_executable(efficient_gen
     util.cpp
     test/util/graph_gen.cpp
     test/experiment/graph_gen_driver.cpp)
-target_link_libraries(efficient_gen PRIVATE xxHash::xxhash)
+target_link_libraries(efficient_gen PRIVATE xxHash::xxhash GTest::gtest)
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   target_compile_options(efficient_gen PRIVATE -O3)
 elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
