@@ -1,9 +1,13 @@
 %module sketch
 %{
-#include <stdint.h>
-#include "../include/types.h"
-#include "../include/sketch.h"
-#include "../include/update.h"
+  #include <stdint.h>
+  #include <boost/serialization/serialization.hpp>
+  #include <boost/archive/binary_oarchive.hpp>
+  #include <boost/archive/binary_iarchive.hpp>
+  #include <sstream>
+  #include "../include/types.h"
+  #include "../include/sketch.h"
+  #include "../include/update.h"
 %}
 
 %include <std_string.i>
@@ -27,11 +31,10 @@ class Sketch {
 
   FRIEND_TEST(SketchTestSuite, TestExceptions);
   FRIEND_TEST(SketchTestSuite, TestBatchUpdate);
-
   //Initialize a sketch of a vector of size n
  public:
+  template<class Archive> void serialize(Archive & ar, const unsigned int version);
   Sketch(vec_t n, long seed);
-
   /**
    * Update a sketch based on information about one of its indices.
    * @param update the point update.
@@ -68,14 +71,32 @@ class Sketch {
   }
 }
 
-%extend Sketch {
-%pythoncode {
-    def __reduce__(self):
-        sketch.Sketch.__init__(size, seed)
-        args = self.size, self.seed
-        return self.__class__, args
-}
-}
+%define %boost_picklable(cls...)
+    %extend cls {
+        std::string __getstate__()
+        {
+            std::stringstream ss;
+            boost::archive::binary_oarchive ar(ss);
+            ar << *($self);
+            return ss.str();
+        }
+
+        void __setstate_internal(std::string const& sState)
+        {
+            std::stringstream ss(sState);
+            boost::archive::binary_iarchive ar(ss);
+            ar >> *($self);
+        }
+
+        %pythoncode %{
+            def __setstate__(self, sState):
+                self.__init__()
+                self.__setstate_internal(sState)
+        %}
+    }
+%enddef
+
+%boost_picklable(Sketch)
 
 struct Update {
   // the position in the vector that is changed

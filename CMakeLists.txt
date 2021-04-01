@@ -140,7 +140,7 @@ if(NOT Boost_FOUND)
 endif()
 include_directories("${Boost_INCLUDE_DIR}")
 
-add_executable(main 
+add_executable(main
   main.cpp
   graph.cpp
   supernode.cpp
