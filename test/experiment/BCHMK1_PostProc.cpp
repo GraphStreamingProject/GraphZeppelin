@@ -13,16 +13,17 @@ void run_expr(const std::string& stream, const std::string& cum) {
   const std::string fname = __FILE__;
   size_t pos = fname.find_last_of("\\/");
   const std::string curr_dir = (std::string::npos == pos) ? "/" : fname.substr
-        (0, pos+1);
+        (0, pos+1) + "../res/";
   ifstream in{curr_dir + stream};
   Node num_nodes;
   in >> num_nodes;
   long m;
   in >> m;
   Node a, b;
+  int t;
   Graph g{num_nodes};
   while (m--) {
-    in >> a >> b;
+    in >> t >> a >> b;
     g.update({{a, b}, INSERT});
   }
 #ifdef VERIFY_SAMPLES_F

@@ -225,3 +225,38 @@ else ()
     target_compile_options(native_tests PRIVATE /O2)
   endif()
 endif ()
+
+#exectuables for experiment
+add_executable(experiment
+    test/test_runner.cpp
+    test/util/graph_verifier.cpp
+    test/util/graph_gen.cpp
+    graph.cpp
+    supernode.cpp
+    l0_sampling/sketch.cpp
+    util.cpp test/experiment/BCHMK1_PostProc.cpp)
+target_link_libraries(experiment PRIVATE xxHash::xxhash GTest::gtest)
+target_compile_definitions(experiment PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F
+    EXT_MEM_POST_PROC_F)
+# optimize unless debug
+if (DEFINED ENV{DEBUG})
+  message("Disabling optimizations and enabling debug symbols")
+  target_compile_options(experiment PRIVATE -g)
+else ()
+  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    target_compile_options(experiment PRIVATE -O3)
+  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    target_compile_options(experiment PRIVATE /O2)
+  endif()
+endif ()
+
+add_executable(efficient_gen
+    util.cpp
+    test/util/graph_gen.cpp
+    test/experiment/graph_gen_driver.cpp)
+target_link_libraries(efficient_gen PRIVATE xxHash::xxhash)
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+  target_compile_options(efficient_gen PRIVATE -O3)
+elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+  target_compile_options(efficient_gen PRIVATE /O2)
+endif()
