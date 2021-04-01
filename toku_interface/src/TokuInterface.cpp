@@ -117,7 +117,7 @@ TokuInterface::TokuInterface() {
         exit(EXIT_FAILURE);
     }
 
-    printf("Successfully created env\n");
+    // printf("Successfully created env\n");
 
     env->set_errfile(env, stderr);
 
@@ -127,11 +127,11 @@ TokuInterface::TokuInterface() {
         exit(EXIT_FAILURE);
     }
 
-    printf("Successfully set errfile and compare func\n");
+    // printf("Successfully set errfile and compare func\n");
 
     // set cachesize
     if (CACHESIZE != 0) {
-        printf("Setting toku cache size to %iGBs\n", CACHESIZE);
+        // printf("Setting toku cache size to %iGBs\n", CACHESIZE);
         if (env->set_cachesize(env, CACHESIZE, 0, 1) != 0) {
             printf("ERROR: failed to set cache size\n");
             exit(EXIT_FAILURE);
@@ -139,19 +139,19 @@ TokuInterface::TokuInterface() {
     }
     // set redzone
     if (REDZONE != 0) {
-        printf("Setting toku redzone to %i\n", REDZONE);
+        // printf("Setting toku redzone to %i\n", REDZONE);
         if ((err = env->set_redzone(env, REDZONE)) != 0) {
             printf("ERROR: failed to set red zone: %d {%s}\n", err, db_strerror(err));
             exit(EXIT_FAILURE);
         }
     }
-    printf("Opening toku environment\n");
+    // printf("Opening toku environment\n");
     if (env->open(env, dbdir, envFlags, S_IRWXU|S_IRWXG) != 0) {
         printf("Failed to open env!\n");
         exit(EXIT_FAILURE);
     }
 
-    printf("Successfully opened env\n");
+    // printf("Successfully opened env\n");
 
     if (db_create(&db, env, 0) != 0) {
         printf("error creating db.");
@@ -160,7 +160,7 @@ TokuInterface::TokuInterface() {
 
     // set buffersize
     if (BUFFERSIZE != 0) {
-        printf("Setting toku buffer size to %lu\n", BUFFERSIZE);
+        // printf("Setting toku buffer size to %lu\n", BUFFERSIZE);
         if ((err = db->set_pagesize(db, BUFFERSIZE)) != 0) {
             printf("ERROR: failed to set buffer size\n");
             exit(EXIT_FAILURE);
@@ -168,7 +168,7 @@ TokuInterface::TokuInterface() {
     }
     // set fanout
     if (FANOUT != 0) {
-        printf("Setting toku fanout to %i\n", FANOUT);
+        // printf("Setting toku fanout to %i\n", FANOUT);
         if((err = db->set_fanout(db, FANOUT)) != 0) {
             printf("ERROR: failed to set fanout\n");
             exit(EXIT_FAILURE);
@@ -343,7 +343,7 @@ std::vector<uint64_t> TokuInterface::getEdges(uint64_t node) {
 }
 
 void TokuInterface::flush() {
-    printf("Flushing tokudb of any remaining updates\n");
+    // printf("Flushing tokudb of any remaining updates\n");
     #ifdef MULTI_THREAD
     while (GraphWorker::queue_lock.test_and_set(std::memory_order_acquire))
         ; // spin-lock on the queue

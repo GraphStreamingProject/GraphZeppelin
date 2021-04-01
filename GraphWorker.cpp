@@ -35,7 +35,7 @@ void GraphWorker::stopWorkers() {
 }
 
 GraphWorker::GraphWorker(int _id, Graph *_graph, TokuInterface *_db) {
-	printf("Creating thread %i\n", _id);
+	// printf("Creating thread %i\n", _id);
 	pthread_create(&thr, NULL, GraphWorker::startWorker, this);
 	graph = _graph;
 	db = _db;
@@ -45,7 +45,7 @@ GraphWorker::GraphWorker(int _id, Graph *_graph, TokuInterface *_db) {
 GraphWorker::~GraphWorker() {
 	shutdown = true;
 	pthread_join(thr, NULL);
-	printf("thread %i joined!\n", id);
+	// printf("thread %i joined!\n", id);
 }
 
 void GraphWorker::doWork() {
@@ -67,7 +67,7 @@ void GraphWorker::doWork() {
 		else queue_lock.clear(std::memory_order_release); // unlock
 
 		if (shutdown && work_queue.empty()) {// if recieved shutdown and there's no more work to do
-			printf("Thread %i done and exiting\n", id);
+			// printf("Thread %i done and exiting\n", id);
 			return;
 		}
 
