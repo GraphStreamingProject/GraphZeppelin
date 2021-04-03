@@ -15,7 +15,7 @@
 #define MB (uint64_t) 1 << 20
 
 // Defines which allow different db directories to be chosen
-#define USE_DEFAULT true // use default dbdir
+#define USE_DEFAULT false // use default dbdir
 #define NEW_DB_DIR "../graph-db-data" // rel path to alternate dbdir
 
 // Define the threshold at which we do a query
@@ -189,6 +189,8 @@ TokuInterface::TokuInterface() {
     #else
     update_counts = std::unordered_map<uint64_t, uint64_t>();
     #endif
+    insert_count = 0;
+    query_count = 0;
     printf("Finished creating TokuInterface\n");
 }
 
@@ -203,8 +205,8 @@ TokuInterface::~TokuInterface() {
         exit(EXIT_FAILURE);
     }
 
-    printf("Total inserts to tokudb %llu\n", insert_count);
-    printf("Total queries from tokudb %llu\n", query_count);
+    printf("Total inserts to tokudb %llu\n", insert_count.load());
+    printf("Total queries from tokudb %llu\n", query_count.load());
 }
 
 // part of the API
@@ -301,7 +303,6 @@ std::vector<uint64_t> TokuInterface::getEdges(uint64_t node) {
         if (value != 0) {
             // printf("Query got data %lu -> %lu, %d\n", node, edgeTo, value);
             ret.push_back(edgeTo);
-            query_count++;
             
             // insert a delete to the root for this key
             db->del(db, nullptr, cursorKey, 0);
@@ -340,10 +341,17 @@ std::vector<uint64_t> TokuInterface::getEdges(uint64_t node) {
     }
     freeDBT(startDBT);
     freeDBT(endDBT);
-
-    // subtract from the map tracking the number of updates
-    update_counts[node] -= ret.size();
-
+    
+    // decrement the count of updates we still need to apply
+    // this if statement is just a bit of error checking
+    if (update_counts[node] < ret.size()) {
+        update_counts[node] = 0;
+        printf("ERROR: returning size larger than map!!\n");
+    } else {
+        update_counts[node] -= ret.size();
+    }
+    
+    query_count += ret.size();
     return ret;
 }
 

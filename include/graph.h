@@ -5,6 +5,7 @@
 #include <set>
 #include <fstream>
 #include "supernode.h"
+#include <atomic>  // REMOVE LATER
 
 #ifdef VERIFY_SAMPLES_F
 #include "../test/util/graph_verifier.h"
@@ -74,7 +75,7 @@ public:
 #endif
 
   // temp to verify number of updates -- REMOVE later
-  uint64_t num_updates = 0;
+  std::atomic<uint64_t> num_updates;
 };
 
 class UpdateLockedException : public exception {

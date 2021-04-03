@@ -22,7 +22,7 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
     supernodes[i] = new Supernode(num_nodes,seed);
     parent[i] = i;
   }
-
+  num_updates = 0; // REMOVE this later
 #ifdef WODS_PROTOTYPE
   // WOD implementation
   db = new TokuInterface();
@@ -85,7 +85,7 @@ vector<set<Node>> Graph::connected_components() {
   GraphWorker::stopWorkers();
   #endif
 #endif
-  printf("Total number of updates to sketches before CC %lu\n", num_updates); // REMOVE this later
+  printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
 #ifdef VERIFY_SAMPLES_F
