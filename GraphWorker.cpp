@@ -5,13 +5,14 @@
 #include <fstream>
 #include <string>
 
-std::atomic_flag GraphWorker::queue_lock = ATOMIC_FLAG_INIT;
+bool GraphWorker::shutdown = false;
+std::mutex GraphWorker::queue_lock;
+std::condition_variable GraphWorker::queue_cond;
+
 std::queue<uint64_t> GraphWorker::work_queue;
 int GraphWorker::num_workers = 1;
 const char *GraphWorker::config_file = "graph_worker.conf";
 GraphWorker **GraphWorker::workers;
-
-struct timespec quarter_sec{0, 250000000};
 
 void GraphWorker::startWorkers(Graph *_graph, TokuInterface *_db) {
 	std::string line;
@@ -28,6 +29,7 @@ void GraphWorker::startWorkers(Graph *_graph, TokuInterface *_db) {
 }
 
 void GraphWorker::stopWorkers() {
+	shutdown = true;
 	for (int i = 0; i < num_workers; i++) {
 		delete workers[i];
 	}
@@ -43,35 +45,30 @@ GraphWorker::GraphWorker(int _id, Graph *_graph, TokuInterface *_db) {
 }
 
 GraphWorker::~GraphWorker() {
-	shutdown = true;
 	pthread_join(thr, NULL);
-	// printf("thread %i joined!\n", id);
 }
 
 void GraphWorker::doWork() {
 	while(true) {
-		bool not_empty = false;
-		while (queue_lock.test_and_set(std::memory_order_acquire))
-			; // spin-lock on the queue
+		std::unique_lock<std::mutex> queue_unique(queue_lock);
+		queue_cond.wait(queue_unique, [this]{return (work_queue.empty() == false || shutdown);});
 
 		if (work_queue.empty() == false) {
 			uint64_t node = work_queue.front();
 			work_queue.pop();
-			queue_lock.clear(std::memory_order_release);  // unlock
+			queue_unique.unlock();  // unlock
 			if (db->update_counts[node] > 0) {
 				// printf("Worker %d handling updates for node %llu\n", id, node);
 				graph->batch_update(node, db->getEdges(node));
 			}
-			not_empty = true;
 		}
-		else queue_lock.clear(std::memory_order_release); // unlock
+		else queue_unique.unlock(); // unlock
 
+		// doesn't really matter if this part isn't thread safe I believe
+		// only reading and never should read empty when there is more to insert
 		if (shutdown && work_queue.empty()) {// if recieved shutdown and there's no more work to do
-			// printf("Thread %i done and exiting\n", id);
+			printf("Thread %i done and exiting\n", id);
 			return;
 		}
-
-		if (!not_empty) // if queue is empty than sleep for a bit
-			nanosleep(&quarter_sec, NULL);
 	}
 }

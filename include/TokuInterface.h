@@ -30,6 +30,10 @@ private:
     DB_ENV *env;
     DB *db;
 
+    // REMOVE later
+    uint64_t insert_count = 0;
+    uint64_t query_count = 0;
+
     static const int MAX_DB_FILENAME_LENGTH = 100;
 	static const int MAX_ENV_DIRNAME_LENGTH = 300;
     const char* DB_FILE = "graph-stream-file_v0.1";

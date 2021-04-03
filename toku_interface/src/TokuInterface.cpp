@@ -15,7 +15,7 @@
 #define MB (uint64_t) 1 << 20
 
 // Defines which allow different db directories to be chosen
-#define USE_DEFAULT false // use default dbdir
+#define USE_DEFAULT true // use default dbdir
 #define NEW_DB_DIR "../graph-db-data" // rel path to alternate dbdir
 
 // Define the threshold at which we do a query
@@ -202,6 +202,9 @@ TokuInterface::~TokuInterface() {
         printf("ERROR: failed to close env\n");
         exit(EXIT_FAILURE);
     }
+
+    printf("Total inserts to tokudb %llu\n", insert_count);
+    printf("Total queries from tokudb %llu\n", query_count);
 }
 
 // part of the API
@@ -229,6 +232,7 @@ bool TokuInterface::putSingleEdge(uint64_t src, uint64_t dst, int8_t val) {
         update_counts[src] = 0;
     }
     update_counts[src]++;
+    insert_count++;
     // printf("Node %lu has count %lu\n", src, update_counts[src]);
 
     // free memory
@@ -237,10 +241,10 @@ bool TokuInterface::putSingleEdge(uint64_t src, uint64_t dst, int8_t val) {
 
     if (update_counts[src] == TAU) { // exactly equal to avoid adding a bunch of times
         #ifdef MULTI_THREAD
-        while (GraphWorker::queue_lock.test_and_set(std::memory_order_acquire))
-            ; // spin-lock on the queue
+        GraphWorker::queue_lock.lock(); // unlock when exiting scope
         GraphWorker::work_queue.push(src);
-        GraphWorker::queue_lock.clear(std::memory_order_release); // unlock
+        GraphWorker::queue_lock.unlock();
+        GraphWorker::queue_cond.notify_one();
         #else
         std::vector<uint64_t> edges = getEdges(src);
         graph->batch_update(src,edges);
@@ -297,6 +301,7 @@ std::vector<uint64_t> TokuInterface::getEdges(uint64_t node) {
         if (value != 0) {
             // printf("Query got data %lu -> %lu, %d\n", node, edgeTo, value);
             ret.push_back(edgeTo);
+            query_count++;
             
             // insert a delete to the root for this key
             db->del(db, nullptr, cursorKey, 0);
@@ -345,14 +350,14 @@ std::vector<uint64_t> TokuInterface::getEdges(uint64_t node) {
 void TokuInterface::flush() {
     // printf("Flushing tokudb of any remaining updates\n");
     #ifdef MULTI_THREAD
-    while (GraphWorker::queue_lock.test_and_set(std::memory_order_acquire))
-        ; // spin-lock on the queue
+    GraphWorker::queue_lock.lock();
     for (auto const& pair : update_counts) {
         if (pair.second > 0 && pair.second < TAU) { // number of updates is greater than 0 and less than tau (if >= then already in queue)
             GraphWorker::work_queue.push(pair.first);
         }
     }
-    GraphWorker::queue_lock.clear(std::memory_order_release); // unlock
+    GraphWorker::queue_lock.unlock();
+    GraphWorker::queue_cond.notify_all();
     printf("Done adding to queue\n");
     #else
     for (auto const& pair : update_counts) {
