@@ -1,6 +1,7 @@
 #include "../include/sketch.h"
 #include <chrono>
 #include <gtest/gtest.h>
+#include "util/stats.h"
 #include "util/testing_vector.h"
 
 TEST(SketchTestSuite, TestExceptions) {
@@ -62,16 +63,15 @@ TEST(SketchTestSuite, GIVENonlyIndexZeroUpdatedTHENitWorks) {
 /**
  * Make sure sketch sampling works
  */
-void test_sketch_sample(unsigned long num_sketches,
-    unsigned long vec_size, unsigned long num_updates,
-    double max_sample_fail_prob, double max_bucket_fail_prob) {
+void test_sketch_sample(unsigned long num_sketches, unsigned long vec_size,
+    unsigned long num_updates, double num_bucket_factor, double alpha) {
   srand(time(NULL));
   std::chrono::duration<long double> runtime(0);
   unsigned long all_bucket_failures = 0;
   unsigned long sample_incorrect_failures = 0;
   for (unsigned long i = 0; i < num_sketches; i++) {
     Testing_Vector test_vec = Testing_Vector(vec_size, num_updates);
-    Sketch sketch = Sketch(vec_size, rand());
+    Sketch sketch = Sketch(vec_size, rand(), num_bucket_factor);
     auto start_time = std::chrono::steady_clock::now();
     for (unsigned long j = 0; j < num_updates; j++){
       sketch.update(test_vec.get_update(j));
@@ -105,36 +105,39 @@ void test_sketch_sample(unsigned long num_sketches,
     }
   }
   std::cout << "Updating " << num_sketches << " sketches of length "
-    << vec_size << " vectors with " << num_updates << " updates took "
-    << runtime.count() << std::endl;
-  EXPECT_LE(sample_incorrect_failures, max_sample_fail_prob * num_sketches)
-    << "Sample incorrect " << sample_incorrect_failures << '/' << num_sketches
-    << " times (expected less than " << max_sample_fail_prob << ')';
-  EXPECT_LE(all_bucket_failures, max_bucket_fail_prob * num_sketches)
-    << "All buckets failed " << all_bucket_failures << '/' << num_sketches
-    << " times (expected less than " << max_bucket_fail_prob << ')';
+      << vec_size << " vectors with " << num_updates << " updates took "
+      << runtime.count() << std::endl;
+  double x0 = std::pow(vec_size, -num_bucket_factor);
+  double area_left = binomcdf(all_bucket_failures, num_sketches, x0);
+  double area_right = all_bucket_failures == 0 ? 1 : 1 - binomcdf(all_bucket_failures - 1, num_sketches, x0);
+  std::cout << "Expect " << x0 << ", got " << static_cast<double>(all_bucket_failures) / num_sketches
+      << ". p-left " << area_left << ", p-right " << area_right << std::endl;
+  if (area_left < alpha) {
+    std::cout << "significantly less" << std::endl;
+  } else if (area_right < alpha) {
+    ADD_FAILURE() << "failure probability significantly greater than 1/n^c";
+  }
 }
 
 TEST(SketchTestSuite, TestSketchSample) {
   srand (time(NULL));
-  test_sketch_sample(10000, 100, 100, 0.005, 0.005);
-  test_sketch_sample(1000, 1000, 1000, 0.001, 0.001);
-  test_sketch_sample(1000, 10000, 10000, 0.001, 0.001);
+  test_sketch_sample(10000, 100, 100, 1, .001);
+  test_sketch_sample(1000, 1000, 1000, 1, .001);
+  test_sketch_sample(1000, 10000, 10000, 1, .001);
 }
 
 /**
  * Make sure sketch addition works
  */
-void test_sketch_addition(unsigned long num_sketches,
-    unsigned long vec_size, unsigned long num_updates,
-    double max_sample_fail_prob, double max_bucket_fail_prob) {
+void test_sketch_addition(unsigned long num_sketches, unsigned long vec_size,
+    unsigned long num_updates, double num_bucket_factor, double alpha) {
   srand (time(NULL));
   unsigned long all_bucket_failures = 0;
   unsigned long sample_incorrect_failures = 0;
   for (unsigned long i = 0; i < num_sketches; i++){
     const long seed = rand();
-    Sketch sketch1 = Sketch(vec_size, seed);
-    Sketch sketch2 = Sketch(vec_size, seed);
+    Sketch sketch1 = Sketch(vec_size, seed, num_bucket_factor);
+    Sketch sketch2 = Sketch(vec_size, seed, num_bucket_factor);
     Testing_Vector test_vec1 = Testing_Vector(vec_size, num_updates);
     Testing_Vector test_vec2 = Testing_Vector(vec_size, num_updates);
 
@@ -168,18 +171,22 @@ void test_sketch_addition(unsigned long num_sketches,
       FAIL() << e.what();
     }
   }
-  EXPECT_LE(sample_incorrect_failures, max_sample_fail_prob * num_sketches)
-    << "Sample incorrect " << sample_incorrect_failures << '/' << num_sketches
-    << " times (expected less than " << max_sample_fail_prob << ')';
-  EXPECT_LE(all_bucket_failures, max_bucket_fail_prob * num_sketches)
-    << "All buckets failed " << all_bucket_failures << '/' << num_sketches
-    << " times (expected less than " << max_bucket_fail_prob << ')';
+  double x0 = std::pow(vec_size, -num_bucket_factor);
+  double area_left = binomcdf(all_bucket_failures, num_sketches, x0);
+  double area_right = all_bucket_failures == 0 ? 1 : 1 - binomcdf(all_bucket_failures - 1, num_sketches, x0);
+  std::cout << "Expect " << x0 << ", got " << static_cast<double>(all_bucket_failures) / num_sketches
+      << ". p-left " << area_left << ", p-right " << area_right << std::endl;
+  if (area_left < alpha) {
+    std::cout << "significantly less" << std::endl;
+  } else if (area_right < alpha) {
+    ADD_FAILURE() << "failure probability significantly greater than 1/n^c";
+  }
 }
 
 TEST(SketchTestSuite, TestSketchAddition){
-  test_sketch_addition(10000, 100, 100, 0.005, 0.005);
-  test_sketch_addition(1000, 1000, 1000, 0.001, 0.001);
-  test_sketch_addition(1000, 10000, 10000, 0.001, 0.001);
+  test_sketch_addition(10000, 100, 100, 1, 0.001);
+  test_sketch_addition(1000, 1000, 1000, 1, 0.001);
+  test_sketch_addition(1000, 10000, 10000, 1, 0.001);
 }
 
 /**
