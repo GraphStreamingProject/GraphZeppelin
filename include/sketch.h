@@ -10,6 +10,7 @@
 #include "util.h"
 #include <gtest/gtest_prod.h>
 #include <boost/serialization/access.hpp>
+#include <boost/serialization/vector.hpp>
 
 #define bucket_gen(x) double_to_ull(log2(x)+1)
 #define guess_gen(x) double_to_ull(log2(x)+2)
@@ -21,10 +22,24 @@
  */
 class Sketch {
   friend class boost::serialization::access;
-  template<class Archive> void serialize(Archive & ar, const unsigned int version);
 
+  /**
+   * Serializes this class using the standard Boost serialization API.
+   */
+  template<class Archive>
+  void serialize(Archive & ar, const unsigned int version)
+  {
+    ar & const_cast<long&>(seed);
+    ar & const_cast<vec_t&>(n);
+    ar & buckets;
+    ar & const_cast<ubucket_t&>(large_prime);
+    ar & already_quered;
+  }
+
+  const long seed;
+  const vec_t n;
   std::vector<Bucket_Boruvka> buckets;
-  ubucket_t large_prime;
+  const ubucket_t large_prime;
   bool already_quered = false;
 
   FRIEND_TEST(SketchTestSuite, TestExceptions);
@@ -33,8 +48,7 @@ class Sketch {
   //Initialize a sketch of a vector of size n
 public:
   Sketch(vec_t n, long seed);
-  long seed;
-  vec_t n;
+
   /**
    * Update a sketch based on information about one of its indices.
    * @param update the point update.

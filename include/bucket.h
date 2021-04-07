@@ -3,6 +3,7 @@
 #include <xxhash.h>
 #include "types.h"
 #include "update.h"
+#include <boost/serialization/access.hpp>
 
 /*
  * nodes: 2^20
@@ -13,9 +14,22 @@
  * Represents a bucket in a sketch.
  */
 struct Bucket_Boruvka {
+  friend class boost::serialization::access;
+
   bucket_t a = 0;
   bucket_t b = 0;
   ubucket_t c = 0;
+
+  /**
+   * Serializes this class using the standard Boost serialization API.
+   */
+  template<class Archive>
+  void serialize(Archive & ar, const unsigned int version)
+  {
+    ar & a;
+    ar & b;
+    ar & c;
+  }
 
   /**
    * Generates this Bucket's seed.

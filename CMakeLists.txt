@@ -94,7 +94,7 @@ if(NOT GTest_FOUND)
 endif()
 
 #Find or download boost
-find_package(Boost 1.66.0)
+find_package(Boost 1.66.0 COMPONENTS serialization)
 if(NOT Boost_FOUND)
   if(NOT AUTODOWNLOAD)
     message(FATAL_ERROR "Boost not found.\n"
@@ -133,9 +133,19 @@ if(NOT Boost_FOUND)
       message(FATAL_ERROR "Failed to run b2 headers")
     endif()
 
+    #Install libraries
+    execute_process(
+      COMMAND "sudo" "./b2" "install" "--with-serialization"
+      RESULT_VARIABLE result
+      WORKING_DIRECTORY "${boost_SOURCE_DIR}"
+    )
+    if(result)
+      message(FATAL_ERROR "Failed to run b2 headers")
+    endif()
+
     #Set BOOST_ROOT in cache to what we just downloaded, FindBoost again
     set(BOOST_ROOT "${boost_SOURCE_DIR}" CACHE STRING "" FORCE)
-    find_package(Boost 1.66.0)
+    find_package(Boost 1.66.0 REQUIRED COMPONENTS serialization)
   endif()
 endif()
 include_directories("${Boost_INCLUDE_DIR}")
@@ -236,7 +246,7 @@ endif ()
 FIND_PACKAGE(PythonInterp 2.7 REQUIRED)
 FIND_PACKAGE(PythonLibs 2.7 REQUIRED)
 include_directories("${PYTHON_INCLUDE_DIRS}")
-
+include_directories("${Boost_INCLUDE_DIR}")
 add_custom_command(
   OUTPUT ${CMAKE_BINARY_DIR}/sketch_wrap.cpp
   COMMAND swig -c++ -python -o ${CMAKE_BINARY_DIR}/sketch_wrap.cpp ${CMAKE_SOURCE_DIR}/swig/sketch.i
@@ -253,4 +263,4 @@ add_library(_sketch SHARED
   util.cpp
   l0_sampling/int127.cpp)
 set_target_properties(_sketch PROPERTIES PREFIX "")
-target_link_libraries(_sketch PRIVATE xxHash::xxhash ${PYTHON_LIBRARIES})
+target_link_libraries(_sketch PRIVATE xxHash::xxhash ${Boost_LIBRARIES} ${PYTHON_LIBRARIES})

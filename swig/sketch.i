@@ -1,13 +1,13 @@
 %module sketch
 %{
-  #include <stdint.h>
-  #include <boost/serialization/serialization.hpp>
-  #include <boost/archive/binary_oarchive.hpp>
-  #include <boost/archive/binary_iarchive.hpp>
-  #include <sstream>
-  #include "../include/types.h"
-  #include "../include/sketch.h"
-  #include "../include/update.h"
+#include <stdint.h>
+#include <boost/serialization/serialization.hpp>
+#include <boost/archive/binary_oarchive.hpp>
+#include <boost/archive/binary_iarchive.hpp>
+#include <sstream>
+#include "../include/types.h"
+#include "../include/sketch.h"
+#include "../include/update.h"
 %}
 
 %include <std_string.i>
@@ -33,7 +33,6 @@ class Sketch {
   FRIEND_TEST(SketchTestSuite, TestBatchUpdate);
   //Initialize a sketch of a vector of size n
  public:
-  template<class Archive> void serialize(Archive & ar, const unsigned int version);
   Sketch(vec_t n, long seed);
   /**
    * Update a sketch based on information about one of its indices.
@@ -90,7 +89,7 @@ class Sketch {
 
         %pythoncode %{
             def __setstate__(self, sState):
-                self.__init__()
+                self.__init__(0, 0)
                 self.__setstate_internal(sState)
         %}
     }
