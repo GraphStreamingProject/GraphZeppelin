@@ -45,9 +45,8 @@ vector<Edge>* EXPR_Parallelism::graph_edges;
 vector<Edge>* EXPR_Parallelism::odd_graph_edges;
 bool* EXPR_Parallelism::prime;
 
-
-TEST_F(EXPR_Parallelism, N10kU100k) {
-  unsigned long vec_size = 100000000, num_updates = 100000;
+void parallel_test(unsigned long vec_size, unsigned long num_updates) {
+  std::cout << "logn = " << (int) log2(vec_size) << std::endl;
   srand(time(NULL));
   std::vector<vec_t> updates(num_updates);
   for (unsigned long i = 0; i < num_updates; i++) {
@@ -56,7 +55,6 @@ TEST_F(EXPR_Parallelism, N10kU100k) {
   auto seed = rand();
   Supernode supernode(vec_size, seed);
   Supernode supernode_batch(vec_size, seed);
-  std::cout << "logn = " << supernode_batch.logn << endl;
   auto start_time = std::chrono::steady_clock::now();
   for (const auto& update : updates) {
     supernode.update(update);
@@ -65,19 +63,35 @@ TEST_F(EXPR_Parallelism, N10kU100k) {
   start_time = std::chrono::steady_clock::now();
   supernode_batch.batch_update(updates);
   std::cout << "Batched updates took " << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
+}
 
-  ASSERT_EQ(supernode.logn, supernode_batch.logn);
-  ASSERT_EQ(supernode.idx, supernode_batch.idx);
-  for (int i=0;i<supernode.logn;++i) {
-    Sketch* sketch = supernode.sketches[i];
-    Sketch* sketch_batch = supernode_batch.sketches[i];
-    ASSERT_EQ(sketch->seed, sketch_batch->seed);
-    ASSERT_EQ(sketch->n, sketch_batch->n);
-    ASSERT_EQ(sketch->buckets.size(), sketch_batch->buckets.size());
-    for (auto it1 = sketch->buckets.cbegin(), it2 = sketch_batch->buckets.cbegin();
-         it1 != sketch->buckets.cend(); it1++, it2++) {
-      ASSERT_EQ(it1->a, it2->a);
-      ASSERT_EQ(it1->c, it2->c);
-    }
-  }
+TEST_F(EXPR_Parallelism, L6U6) {
+  unsigned long vec_size = 10e6, num_updates = 10e6;
+  parallel_test(vec_size,num_updates);
+}
+
+TEST_F(EXPR_Parallelism, L6U7) {
+  unsigned long vec_size = 10e6, num_updates = 10e7;
+  parallel_test(vec_size,num_updates);
+}
+
+TEST_F(EXPR_Parallelism, L6U8) {
+  unsigned long vec_size = 10e6, num_updates = 10e8;
+  parallel_test(vec_size,num_updates);
+}
+
+TEST_F(EXPR_Parallelism, L8U5) {
+  unsigned long vec_size = 10e8, num_updates = 10e5;
+  parallel_test(vec_size,num_updates);
+}
+
+TEST_F(EXPR_Parallelism, L8U6) {
+  unsigned long vec_size = 10e8, num_updates = 10e6;
+  parallel_test(vec_size,num_updates);
+}
+
+
+TEST_F(EXPR_Parallelism, L8U7) {
+  unsigned long vec_size = 10e8, num_updates = 10e7;
+  parallel_test(vec_size,num_updates);
 }
