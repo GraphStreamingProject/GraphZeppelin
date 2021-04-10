@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <cmath>
+#include <chrono>
 #include "../include/supernode.h"
 
 const long seed = 7000000001;
@@ -69,8 +70,10 @@ TEST_F(SupernodeTestSuite, TestSampleInsertGrinder) {
 
   // insert all edges
   for (auto edge : *graph_edges) {
-    snodes[edge.first].update(edge);
-    snodes[edge.second].update(edge);
+    vec_t encoded = nondirectional_non_self_edge_pairing_fn(edge.first, edge
+    .second);
+    snodes[edge.first].update(encoded);
+    snodes[edge.second].update(encoded);
   }
 
   // allow one NoGoodBucket-type failure
@@ -108,13 +111,17 @@ TEST_F(SupernodeTestSuite, TestSampleDeleteGrinder) {
 
   // insert all edges
   for (auto edge : *graph_edges) {
-    snodes[edge.first].update(edge);
-    snodes[edge.second].update(edge);
+    vec_t encoded = nondirectional_non_self_edge_pairing_fn(edge.first, edge
+    .second);
+    snodes[edge.first].update(encoded);
+    snodes[edge.second].update(encoded);
   }
   // then remove half of them (odds)
   for (auto edge : *odd_graph_edges) {
-    snodes[edge.first].update(edge);
-    snodes[edge.second].update(edge);
+    vec_t encoded = nondirectional_non_self_edge_pairing_fn(edge.first, edge
+    .second);
+    snodes[edge.first].update(encoded);
+    snodes[edge.second].update(encoded);
   }
 
   // allow one NoGoodBucket-type failure
@@ -142,6 +149,41 @@ TEST_F(SupernodeTestSuite, TestSampleDeleteGrinder) {
         if (second_chance) FAIL() << "2 samplings failed to find a good bucket";
         else second_chance = true;
       }
+    }
+  }
+}
+
+TEST_F(SupernodeTestSuite, TestBatchUpdate) {
+  unsigned long vec_size = 1000000000, num_updates = 100000;
+  srand(time(NULL));
+  std::vector<vec_t> updates(num_updates);
+  for (unsigned long i = 0; i < num_updates; i++) {
+    updates[i] = static_cast<vec_t>(rand() % vec_size);
+  }
+  auto seed = rand();
+  Supernode supernode(vec_size, seed);
+  Supernode supernode_batch(vec_size, seed);
+  auto start_time = std::chrono::steady_clock::now();
+  for (const auto& update : updates) {
+    supernode.update(update);
+  }
+  std::cout << "One by one updates took " << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
+  start_time = std::chrono::steady_clock::now();
+  supernode_batch.batch_update(updates);
+  std::cout << "Batched updates took " << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
+
+  ASSERT_EQ(supernode.logn, supernode_batch.logn);
+  ASSERT_EQ(supernode.idx, supernode_batch.idx);
+  for (int i=0;i<supernode.logn;++i) {
+    Sketch* sketch = supernode.sketches[i];
+    Sketch* sketch_batch = supernode_batch.sketches[i];
+    ASSERT_EQ(sketch->seed, sketch_batch->seed);
+    ASSERT_EQ(sketch->n, sketch_batch->n);
+    ASSERT_EQ(sketch->buckets.size(), sketch_batch->buckets.size());
+    for (auto it1 = sketch->buckets.cbegin(), it2 = sketch_batch->buckets.cbegin();
+         it1 != sketch->buckets.cend(); it1++, it2++) {
+      ASSERT_EQ(it1->a, it2->a);
+      ASSERT_EQ(it1->c, it2->c);
     }
   }
 }

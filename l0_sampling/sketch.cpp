@@ -1,6 +1,5 @@
 #include "../include/sketch.h"
 #include <cassert>
-#include <omp.h>
 
 Sketch::Sketch(vec_t n, long seed, double num_bucket_factor):
     seed(seed), n(n), num_bucket_factor(num_bucket_factor) {
@@ -27,42 +26,8 @@ void Sketch::update(const vec_t& update_idx) {
 }
 
 void Sketch::batch_update(const std::vector<vec_t>& updates) {
-  /*
-   * Consider fiddling with environment vars
-   * OMP_DYNAMIC: whether the OS is allowed to dynamically change the number
-   * of threads employed for each parallel section
-   * OMP_NUM_THREADS (or set_omp_num_threads): how many threads to spin up for
-   * each parallel section. the default is (probably) one per CPU core
-   * available, but we may want to set it lower if logn is a nice multiple of
-   * a lower number.
-   *
-   * We may want to use omp option schedule(dynamic) or schedule(guided) if
-   * there are very many more iterations of loop than threads. Dynamic
-   * scheduling is good if loop iterations are expected to take very much
-   * different amounts of time. Refer to
-   * http://www.inf.ufsc.br/~bosco.sobral/ensino/ine5645/OpenMP_Dynamic_Scheduling.pdf
-   * for a detailed explanation.
-   */
-  /*
-   * Current impl uses default threads and parallelism within batched_update.
-   * Considered using spin-threads and parallelism within sketch::update, but
-   * this was slow (at least on small graph inputs).
-   */
-  const unsigned num_buckets = bucket_gen(n, num_bucket_factor);
-  const unsigned num_guesses = guess_gen(n);
-  #pragma omp parallel for
-  for (unsigned i = 0; i < num_buckets; ++i) {
-    for (const auto update_idx : updates) {
-      XXH64_hash_t update_hash = Bucket_Boruvka::index_hash(update_idx, seed);
-      XXH64_hash_t col_index_hash = Bucket_Boruvka::col_index_hash(i,update_idx,seed);
-      for (unsigned j = 0; j < num_guesses; ++j) {
-        unsigned bucket_id = i * num_guesses + j;
-        Bucket_Boruvka &bucket = buckets[bucket_id];
-        if (bucket.contains(col_index_hash, 1 << j)) {
-          bucket.update(update_idx, update_hash);
-        } else break;
-      }
-    }
+  for (const auto update_idx : updates) {
+    update(update_idx);
   }
 }
 
