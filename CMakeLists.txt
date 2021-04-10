@@ -229,3 +229,28 @@ else ()
     target_compile_options(native_tests PRIVATE /O2)
   endif()
 endif ()
+
+add_executable(experiment
+  test/test_runner.cpp
+  test/experiment/parallelism.cpp
+  test/util/graph_verifier.cpp
+  test/util/graph_gen.cpp
+  graph.cpp
+  supernode.cpp
+  l0_sampling/sketch.cpp
+  util.cpp)
+target_link_libraries(experiment PRIVATE xxHash::xxhash GTest::gtest)
+target_compile_definitions(experiment PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F)
+# optimize unless debug
+if (DEFINED ENV{DEBUG})
+  message("Disabling optimizations and enabling debug symbols")
+  target_compile_options(experiment PRIVATE -g -fopenmp)
+  target_link_options(experiment PRIVATE -fopenmp)
+else ()
+  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    target_compile_options(experiment PRIVATE -O3 -fopenmp)
+    target_link_options(experiment PRIVATE -fopenmp)
+  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    target_compile_options(experiment PRIVATE /O2)
+  endif()
+endif ()
