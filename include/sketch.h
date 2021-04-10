@@ -34,6 +34,7 @@ class Sketch {
   FRIEND_TEST(SketchTestSuite, TestExceptions);
   FRIEND_TEST(SketchTestSuite, TestBatchUpdate);
   FRIEND_TEST(SupernodeTestSuite, TestBatchUpdate);
+  FRIEND_TEST(EXPR_Parallelism, N10kU100k);
 
 public:
   /**

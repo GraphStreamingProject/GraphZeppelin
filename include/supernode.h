@@ -19,6 +19,8 @@ class Supernode {
   int logn;
 
   FRIEND_TEST(SupernodeTestSuite, TestBatchUpdate);
+  FRIEND_TEST(EXPR_Parallelism, N10kU100k);
+
 public:
   /**
    * @param n     the total number of nodes in the graph.
