@@ -33,6 +33,7 @@ class Sketch {
 
   FRIEND_TEST(SketchTestSuite, TestExceptions);
   FRIEND_TEST(SketchTestSuite, TestBatchUpdate);
+  FRIEND_TEST(SupernodeTestSuite, TestBatchUpdate);
 
 public:
   /**

@@ -17,6 +17,8 @@ class Supernode {
   vector<Sketch*> sketches;
   int idx;
   int logn;
+
+  FRIEND_TEST(SupernodeTestSuite, TestBatchUpdate);
 public:
   /**
    * @param n     the total number of nodes in the graph.
@@ -42,14 +44,14 @@ public:
   void merge(Supernode& other);
 
   /**
-   * Insert or delete an edge into the supernode. Guaranteed to be processed
-   * BEFORE Boruvka starts.
+   * Insert or delete an (encoded) edge into the supernode. Guaranteed to be
+   * processed BEFORE Boruvka starts.
    */
-  void update(Edge update);
+  void update(vec_t update);
 
   /**
-   * Update all the sketches in a supernode, given a batch of updates
-   * @param updates A vector of Updates to process
+   * Update all the sketches in a supernode, given a batch of updates.
+   * @param updates a vector of encoded edge updates to process.
    */
   void batch_update(const std::vector<vec_t>& updates);
 };
