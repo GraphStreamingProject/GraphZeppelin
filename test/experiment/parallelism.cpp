@@ -46,7 +46,6 @@ vector<Edge>* EXPR_Parallelism::odd_graph_edges;
 bool* EXPR_Parallelism::prime;
 
 void parallel_test(unsigned long vec_size, unsigned long num_updates) {
-  std::cout << "logn = " << (int) log2(vec_size) << std::endl;
   srand(time(NULL));
   std::vector<vec_t> updates(num_updates);
   for (unsigned long i = 0; i < num_updates; i++) {
@@ -64,7 +63,6 @@ void parallel_test(unsigned long vec_size, unsigned long num_updates) {
   supernode_batch.batch_update(updates);
   std::cout << "Batched updates took " << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
 }
-
 
 TEST_F(EXPR_Parallelism, Experiment) {
   for (int i = 2; i <=30; i+=2) {
