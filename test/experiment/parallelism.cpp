@@ -65,33 +65,15 @@ void parallel_test(unsigned long vec_size, unsigned long num_updates) {
   std::cout << "Batched updates took " << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
 }
 
-TEST_F(EXPR_Parallelism, L6U6) {
-  unsigned long vec_size = 10e6, num_updates = 10e6;
-  parallel_test(vec_size,num_updates);
-}
 
-TEST_F(EXPR_Parallelism, L6U7) {
-  unsigned long vec_size = 10e6, num_updates = 10e7;
-  parallel_test(vec_size,num_updates);
-}
-
-TEST_F(EXPR_Parallelism, L6U8) {
-  unsigned long vec_size = 10e6, num_updates = 10e8;
-  parallel_test(vec_size,num_updates);
-}
-
-TEST_F(EXPR_Parallelism, L8U5) {
-  unsigned long vec_size = 10e8, num_updates = 10e5;
-  parallel_test(vec_size,num_updates);
-}
-
-TEST_F(EXPR_Parallelism, L8U6) {
-  unsigned long vec_size = 10e8, num_updates = 10e6;
-  parallel_test(vec_size,num_updates);
-}
-
-
-TEST_F(EXPR_Parallelism, L8U7) {
-  unsigned long vec_size = 10e8, num_updates = 10e7;
-  parallel_test(vec_size,num_updates);
+TEST_F(EXPR_Parallelism, Experiment) {
+  for (int i = 2; i <=30; i+=2) {
+    unsigned long vec_size = (unsigned long) pow(2,i) + 1;
+    for (int j = 3; j <= 7; ++j) {
+      unsigned long num_updates = (unsigned long) pow(10,j);
+      std::cout << "-------<logn:" << i << ", upd:10e" << j << ">-------" << endl;
+      parallel_test(vec_size,num_updates);
+      std::cout << std::endl;
+    }
+  }
 }
