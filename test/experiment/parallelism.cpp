@@ -58,10 +58,14 @@ void parallel_test(unsigned long vec_size, unsigned long num_updates) {
   for (const auto& update : updates) {
     supernode.update(update);
   }
-  std::cout << "One by one updates took " << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
+  long double one, batch;
+  one = static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count();
+  std::cout << "One by one updates took " << one << std::endl;
   start_time = std::chrono::steady_clock::now();
   supernode_batch.batch_update(updates);
-  std::cout << "Batched updates took " << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
+  batch = static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count();
+  std::cout << "Batched updates took " << batch << std::endl;
+  std::cout << batch/one << std::endl;
 }
 
 TEST_F(EXPR_Parallelism, Experiment) {
