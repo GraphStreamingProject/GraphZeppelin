@@ -112,10 +112,10 @@ void test_sketch_sample(unsigned long num_sketches, unsigned long vec_size,
   double area_right = all_bucket_failures == 0 ? 1 : 1 - binomcdf(all_bucket_failures - 1, num_sketches, x0);
   std::cout << "Expect " << x0 << ", got " << static_cast<double>(all_bucket_failures) / num_sketches
       << ". p-left " << area_left << ", p-right " << area_right << std::endl;
-  if (area_left < alpha) {
-    std::cout << "significantly less" << std::endl;
-  } else if (area_right < alpha) {
+  if (area_right < alpha) {
     ADD_FAILURE() << "failure probability significantly greater than 1/n^c";
+  } else if (area_left < alpha) {
+    std::cout << "significantly less" << std::endl;
   }
 }
 
@@ -176,10 +176,10 @@ void test_sketch_addition(unsigned long num_sketches, unsigned long vec_size,
   double area_right = all_bucket_failures == 0 ? 1 : 1 - binomcdf(all_bucket_failures - 1, num_sketches, x0);
   std::cout << "Expect " << x0 << ", got " << static_cast<double>(all_bucket_failures) / num_sketches
       << ". p-left " << area_left << ", p-right " << area_right << std::endl;
-  if (area_left < alpha) {
-    std::cout << "significantly less" << std::endl;
-  } else if (area_right < alpha) {
+  if (area_right < alpha) {
     ADD_FAILURE() << "failure probability significantly greater than 1/n^c";
+  } else if (area_left < alpha) {
+    std::cout << "significantly less" << std::endl;
   }
 }
 
@@ -192,43 +192,66 @@ TEST(SketchTestSuite, TestSketchAddition){
 /**
  * Large sketch test
  */
-void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
+void test_sketch_large(unsigned long num_sketches, unsigned long vec_size,
+    unsigned long num_updates, double num_bucket_factor, double alpha) {
   srand(time(NULL));
-  Sketch sketch = Sketch(vec_size, rand());
-  //Keep seed for replaying update stream later
-  unsigned long seed = rand();
-  srand(seed);
-  auto start_time = std::chrono::steady_clock::now();
-  for (unsigned long j = 0; j < num_updates; j++){
-    sketch.update(static_cast<vec_t>(rand() % vec_size));
-  }
-  std::cout << "Updating vector of size " << vec_size << " with " << num_updates
-    << " updates took " << std::chrono::duration<long double>(
-      std::chrono::steady_clock::now() - start_time).count() << std::endl;
-  try {
-    vec_t res_idx = sketch.query();
-    //Multiple queries shouldn't happen, but if we do get here fail test
-    ASSERT_LT(res_idx, vec_size) << "Sampled index out of bounds";
-    //Replay update stream, keep track of the sampled index
+  // Round num_updates to odd number so we don't need to deal with all_bucket_zero
+  num_updates |= 1;
+  std::chrono::duration<long double> runtime(0);
+  unsigned long all_bucket_failures = 0;
+  unsigned long sample_incorrect_failures = 0;
+  for (unsigned long i = 0; i < num_sketches; i++) {
+    Sketch sketch = Sketch(vec_size, rand());
+    //Keep seed for replaying update stream later
+    unsigned long seed = rand();
     srand(seed);
-    bool actual_delta = false;
+    auto start_time = std::chrono::steady_clock::now();
     for (unsigned long j = 0; j < num_updates; j++){
-      vec_t update_idx = static_cast<vec_t>(rand() % vec_size);
-      if (update_idx == res_idx) {
-        actual_delta = !actual_delta;
-      }
+      sketch.update(static_cast<vec_t>(rand() % vec_size));
     }
-    //Undetected sample error, not likely to happen for large vectors
-    ASSERT_EQ(actual_delta, true);
-  } catch (AllBucketsZeroException& e) {
-    //All buckets being 0 implies that the whole vector should be 0, not likely to happen for large vectors
-    FAIL() << "AllBucketsZeroException:" << e.what();
-  } catch (NoGoodBucketException& e) {
-    //No good bucket, not likely to happen for large vectors
-    FAIL() << "NoGoodBucketException:" << e.what();
-  } catch (MultipleQueryException& e) {
-    //Multiple queries shouldn't happen, but if we do get here fail test
-    FAIL() << "MultipleQueryException:" << e.what();
+    runtime += std::chrono::steady_clock::now() - start_time;
+    try {
+      vec_t res_idx = sketch.query();
+      //Multiple queries shouldn't happen, but if we do get here fail test
+      ASSERT_LT(res_idx, vec_size) << "Sampled index out of bounds";
+      //Replay update stream, keep track of the sampled index
+      srand(seed);
+      bool actual_delta = false;
+      for (unsigned long j = 0; j < num_updates; j++){
+        vec_t update_idx = static_cast<vec_t>(rand() % vec_size);
+        if (update_idx == res_idx) {
+          actual_delta = !actual_delta;
+        }
+      }
+      //Undetected sample error, not likely to happen for large vectors
+      if (!actual_delta) {
+        sample_incorrect_failures++;
+      }
+    } catch (AllBucketsZeroException& e) {
+      // All buckets being 0 implies that the whole vector should be 0,
+      // doesn't happen for odd number of updates
+      FAIL() << "AllBucketsZeroException:" << e.what();
+    } catch (NoGoodBucketException& e) {
+      //No good bucket
+      all_bucket_failures++;
+    } catch (MultipleQueryException& e) {
+      //Multiple queries shouldn't happen, but if we do get here fail test
+      FAIL() << "MultipleQueryException:" << e.what();
+    }
+  }
+
+  std::cout << "Updating " << num_sketches << " sketches of length "
+      << vec_size << " vectors with " << num_updates << " updates took "
+      << runtime.count() << std::endl;
+  double x0 = std::pow(vec_size, -num_bucket_factor);
+  double area_left = binomcdf(all_bucket_failures, num_sketches, x0);
+  double area_right = all_bucket_failures == 0 ? 1 : 1 - binomcdf(all_bucket_failures - 1, num_sketches, x0);
+  std::cout << "Expect " << x0 << ", got " << static_cast<double>(all_bucket_failures) / num_sketches
+      << ". p-left " << area_left << ", p-right " << area_right << std::endl;
+  if (area_right < alpha) {
+    ADD_FAILURE() << "failure probability significantly greater than 1/n^c";
+  } else if (area_left < alpha) {
+    std::cout << "significantly less" << std::endl;
   }
 }
 
@@ -241,7 +264,7 @@ TEST(SketchTestSuite, TestSketchLarge) {
 #endif
   ;
   for (uint64_t i = 1000; i <= upper_bound; i *= 10) {
-    test_sketch_large(i, 1000000);
+    test_sketch_large(1, i, 1000000, 1, 1);
   }
 }
 
