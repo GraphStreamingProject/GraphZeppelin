@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <cmath>
 #include <chrono>
+#include <omp.h>
 #include "../../include/supernode.h"
 
 const long seed = 7000000001;
@@ -54,18 +55,18 @@ void parallel_test(unsigned long vec_size, unsigned long num_updates) {
   auto seed = rand();
   Supernode supernode(vec_size, seed);
   Supernode supernode_batch(vec_size, seed);
-  auto start_time = std::chrono::steady_clock::now();
+  auto start_time = omp_get_wtime();
   for (const auto& update : updates) {
     supernode.update(update);
   }
   long double one, batch;
-  one = static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count();
+  one = omp_get_wtime() - start_time;
   std::cout << "One by one updates took " << one << std::endl;
-  start_time = std::chrono::steady_clock::now();
+  start_time = omp_get_wtime();
   supernode_batch.batch_update(updates);
-  batch = static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count();
+  batch = omp_get_wtime() - start_time;
   std::cout << "Batched updates took " << batch << std::endl;
-  std::cout << batch/one << std::endl;
+  std::cout << "Fraction of time used: " << batch/one << std::endl;
 }
 
 TEST_F(EXPR_Parallelism, Experiment) {

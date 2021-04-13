@@ -233,14 +233,11 @@ endif ()
 add_executable(experiment
   test/test_runner.cpp
   test/experiment/parallelism.cpp
-  test/util/graph_verifier.cpp
-  test/util/graph_gen.cpp
-  graph.cpp
   supernode.cpp
   l0_sampling/sketch.cpp
   util.cpp)
 target_link_libraries(experiment PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(experiment PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F)
+target_compile_definitions(experiment PRIVATE)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")
