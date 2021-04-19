@@ -94,7 +94,7 @@ if(NOT GTest_FOUND)
 endif()
 
 #Find or download boost
-find_package(Boost 1.66.0)
+find_package(Boost 1.66.0 COMPONENTS serialization)
 if(NOT Boost_FOUND)
   if(NOT AUTODOWNLOAD)
     message(FATAL_ERROR "Boost not found.\n"
@@ -133,9 +133,19 @@ if(NOT Boost_FOUND)
       message(FATAL_ERROR "Failed to run b2 headers")
     endif()
 
+	#Install libraries
+    execute_process(
+      COMMAND "sudo" "./b2" "install" "--with-serialization"
+      RESULT_VARIABLE result
+      WORKING_DIRECTORY "${boost_SOURCE_DIR}"
+    )
+    if(result)
+      message(FATAL_ERROR "Failed to install boost libraries")
+    endif()
+
     #Set BOOST_ROOT in cache to what we just downloaded, FindBoost again
     set(BOOST_ROOT "${boost_SOURCE_DIR}" CACHE STRING "" FORCE)
-    find_package(Boost 1.66.0)
+    find_package(Boost 1.66.0 REQUIRED COMPONENTS serialization)
   endif()
 endif()
 include_directories("${Boost_INCLUDE_DIR}")
@@ -184,7 +194,7 @@ add_executable(tests
   supernode.cpp
   l0_sampling/sketch.cpp
   util.cpp)
-target_link_libraries(tests PRIVATE xxHash::xxhash GTest::gtest)
+target_link_libraries(tests PRIVATE xxHash::xxhash ${Boost_LIBRARIES} GTest::gtest)
 target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
