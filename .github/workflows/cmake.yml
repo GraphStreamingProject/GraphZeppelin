@@ -78,7 +78,7 @@ jobs:
       # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
       env:
         BOOST_ROOT: ${{runner.workspace}}/boost
-      run: cmake -DCMAKE_INSTALL_PREFIX=${{runner.workspace}}/install -DCMAKE_BUILD_TYPE=$BUILD_TYPE $GITHUB_WORKSPACE -DAUTODOWNLOAD:BOOL=ON
+      run: cmake -DCMAKE_INSTALL_PREFIX=${{runner.workspace}}/install -DCMAKE_BUILD_TYPE=$BUILD_TYPE $GITHUB_WORKSPACE
 
     - name: Build
       working-directory: ${{runner.workspace}}/build
@@ -132,14 +132,14 @@ jobs:
           cmake -DCMAKE_INSTALL_PREFIX=${{runner.workspace}}/install ..
           cmake --build . --target install
 
-      #- uses: actions/cache@v2
-      #  id: BoostCache
-      #  with:
-      #    path: ${{runner.workspace}}/boost
-      #    key: BoostCache
+      - uses: actions/cache@v2
+        id: BoostCache
+        with:
+          path: ${{runner.workspace}}/boost
+          key: BoostCache
 
       - name: Install Boost
-        #if: steps.BoostCache.outputs.cache-hit != 'true'
+        if: steps.BoostCache.outputs.cache-hit != 'true'
         shell: bash
         working-directory: ${{runner.workspace}}
         run: |
@@ -147,7 +147,7 @@ jobs:
           cd boost
           ./bootstrap.sh
           ./b2 headers
-          ./b2 install --with-serialization
+          sudo ./b2 install --with-serialization
 
       - name: Create Build Environment
         # Some projects don't allow in-source building, so create a separate build directory
