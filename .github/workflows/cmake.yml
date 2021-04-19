@@ -143,7 +143,9 @@ jobs:
         shell: bash
         working-directory: ${{runner.workspace}}
         run: |
-          git clone --recursive -b boost-1.66.0 "https://github.com/boostorg/boost.git"
+          if [ ! -d "boost" ] ; then
+            git clone --recursive -b boost-1.66.0 "https://github.com/boostorg/boost.git"
+          fi
           cd boost
           ./bootstrap.sh
           ./b2 headers
