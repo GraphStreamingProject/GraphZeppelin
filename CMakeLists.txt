@@ -199,6 +199,27 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/TokuDB/prefix/include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/TokuDB/prefix/lib)
 link_directories(${CMAKE_CURRENT_BINARY_DIR}/TokuDB/prefix/lib)
 
+# Install BufferTree Project
+ExternalProject_Add(
+  BufferTree
+
+  PREFIX          BufferTree
+  GIT_REPOSITORY  "https://github.com/Victor-C-Zhang/FastBufferTree.git"
+  GIT_TAG         "cmake"
+
+  BUILD_ALWAYS    OFF
+  INSTALL_DIR     ${CMAKE_CURRENT_BINARY_DIR}/BufferTree/prefix
+
+  CMAKE_CACHE_ARGS
+        -DAUTODOWNLOAD:BOOL=ON
+        -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
+
+  BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target install
+)
+
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/BufferTree/prefix/include)
+link_directories(${CMAKE_CURRENT_BINARY_DIR}/BufferTree/prefix/lib)
+
 # add_executable(main 
 #   main.cpp
 #   graph.cpp
@@ -401,6 +422,33 @@ else ()
     target_compile_options(toku_experiment PRIVATE -O3)
   elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
     target_compile_options(toku_experiment PRIVATE /O2)
+  endif()
+endif ()
+
+add_executable(buffertree_experiment
+  test/test_runner.cpp
+  test/experiment/BCHMK_2_toku.cpp
+  test/util/graph_verifier.cpp
+  test/util/graph_gen.cpp
+  graph.cpp
+  supernode.cpp
+  l0_sampling/sketch.cpp
+  l0_sampling/update.cpp
+  util.cpp)
+target_link_libraries(buffertree_experiment PRIVATE xxHash::xxhash GTest::gtest)
+target_compile_definitions(buffertree_experiment PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F)
+# toku dependencies
+add_dependencies(buffertree_experiment BufferTree)
+target_link_libraries(buffertree_experiment PRIVATE libFastBufferTree.a)
+# optimize unless debug
+if (DEFINED ENV{DEBUG})
+  message("Disabling optimizations and enabling debug symbols")
+  target_compile_options(buffertree_experiment PRIVATE -g)
+else ()
+  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    target_compile_options(buffertree_experiment PRIVATE -O3)
+  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    target_compile_options(buffertree_experiment PRIVATE /O2)
   endif()
 endif ()
 
