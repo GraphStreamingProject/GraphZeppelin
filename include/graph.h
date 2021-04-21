@@ -50,6 +50,27 @@ public:
    */
   vector<set<Node>> connected_components();
 
+  /** 
+   * Implements Boruvka on the graph sketch to find a spanning
+   * forest, where a spanning forest of G is defined as a maximal
+   * acyclic subgraph of G.  
+   *
+   * @return a vector of pairs of sets, where
+   * each pair consists of the vertex set and edge set of a
+   * spanning tree for a connected component of the graph.
+   */
+  vector<std::pair<set<Node>, set<Edge>>> spanning_forest();
+
+  /**
+   * An algorithm for testing if the graph is k-edge-connected.
+   * 
+   * @param k An int specifying to test for k-edge-connectivity
+   * 
+   * @return a boolean indicating whether or not the graph is
+   * k-edge-connected
+   */ 
+  bool is_k_edge_connected ();
+
 #ifdef VERIFY_SAMPLES_F
   std::string cum_in = "./cum_sample.txt";
 

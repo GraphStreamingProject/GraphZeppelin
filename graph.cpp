@@ -103,6 +103,83 @@ vector<set<Node>> Graph::connected_components() {
   return retval;
 }
 
+vector<std::pair<set<Node>, set<Edge>>> spanning_forest()
+{
+  update_locked = true; // disallow updating the graph after we run the alg
+  // Each node may be the per point of mor than two connected
+  // components, so a single dimensional structure is insufficient.
+  map<Node, list<Edge>> span_edges(num_nodes);
+
+  bool modified;
+  do {
+    modified = false;
+    vector<Node> removed;
+    for (Node i: (*representatives)) {
+      if (parent[i] != i) continue; //only one edge per cut sampled
+      //We sample this node up to potentially
+      boost::optional<Edge> edge = supernodes[i]->sample();
+      if (!edge.is_initialized()) continue;
+
+      Node n;
+      // DSU compression
+      if (get_parent(edge->first) == i) { // Current node i wins 
+        n = get_parent(edge->second);
+        removed.push_back(n);
+        parent[n] = i;
+      }
+      else {
+        get_parent(edge->second);
+        n = get_parent(edge->first);
+        removed.push_back(n);
+        parent[n] = i;
+      }
+      // Ensures sampling occurs along supernode cuts
+      supernodes[i]->merge(*supernodes[n]);
+
+      span_edges[edge->first].push_back(edge);
+    }
+    if (!removed.empty()) modified = true;
+    for (Node i : removed) representatives->erase(i);
+  } while (modified);
+ 
+  map<Node, std::pair<set<Node>, set<Edge>>> root_map;
+
+  for(Node i = 0; i <= num_nodes; i++)
+  {
+  	root_map[parent[i]].first.insert(i);
+	
+	// Add edges of merge point to its root spanning tree
+	for (const Edge& e : span_edges[i])
+		root_map[parent[i]].second.insert(e);
+  }
+ 
+  vector<std::pair<set<Node>, set<Edge>>> retval;
+
+  for (const Node& r : root_map)
+	retval.push_back(r.second); 
+
+  return retval;
+}
+
+bool is_k_edge_connected (int k)
+{
+	vector<Graph> instances(k, *this);
+
+	for (int i = 1; i < k; i++)
+	{
+		F_i = instances[i].spanning_forest();
+
+		if (F_i.size() > 1)
+			return false;
+
+		for (int j = i + 1; j <= k; j++)
+			for (const Edge& e : F_i[0].second)
+				instances[j].update({e, DELETE});
+	}
+
+	return instances[k].spanning_forest().size() < 2;
+}
+
 Node Graph::get_parent(Node node) {
   if (parent[node] == node) return node;
   return parent[node] = get_parent(parent[node]);
