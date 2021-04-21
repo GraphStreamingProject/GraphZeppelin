@@ -163,16 +163,24 @@ vector<std::pair<set<Node>, set<Edge>>> spanning_forest()
 
 bool is_k_edge_connected (int k)
 {
-	vector<Graph> instances(k, *this);
+	// TODO: Should we leave the original instance of the sketch
+	// unaltered? It consumes (k+1)/k times more
+	// memory, but it leaves the original sketch unaltered in
+	// case the user wishes to conduct another algorithm.
+	vector<Graph> instances(k-1, *this);
+	F_0 = this.spanning_forest();
+	if (F_0.size() > 1) return false;
+	for(Graph& g_i : instances)
+		for (const Edge& e : F_0[0].second)
+			g_i.update({e, DELETE});
 
-	for (int i = 1; i < k; i++)
+	for (int i = 1; i < k - 1; i++)
 	{
-		F_i = instances[i].spanning_forest();
+		F_i = instances[i-1].spanning_forest();
 
-		if (F_i.size() > 1)
-			return false;
+		if (F_i.size() > 1) return false;
 
-		for (int j = i + 1; j <= k; j++)
+		for (int j = i; j < k; j++)
 			for (const Edge& e : F_i[0].second)
 				instances[j].update({e, DELETE});
 	}
