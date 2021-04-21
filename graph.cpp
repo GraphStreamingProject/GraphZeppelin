@@ -106,7 +106,7 @@ vector<set<Node>> Graph::connected_components() {
 vector<std::pair<set<Node>, set<Edge>>> spanning_forest()
 {
   update_locked = true; // disallow updating the graph after we run the alg
-  // Each node may be the per point of mor than two connected
+  // Each node may be the per point of more than two connected
   // components, so a single dimensional structure is insufficient.
   map<Node, list<Edge>> span_edges(num_nodes);
 
