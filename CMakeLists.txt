@@ -170,6 +170,8 @@ include_directories("${Boost_INCLUDE_DIR}")
 #  target_compile_options(l0sampling PRIVATE /O2)
 #endif()
 
+set(ENV{DEBUG} TRUE)
+
 add_executable(tests
   test/test_runner.cpp
   test/graph_test.cpp
@@ -198,30 +200,52 @@ else ()
   endif()
 endif ()
 
-add_executable(native_tests
-  test/test_runner.cpp
-  test/graph_test.cpp
-  test/sketch_test.cpp
-  test/supernode_test.cpp
-  test/util_test.cpp
+add_executable(min_cut_test
+  goof_lab/min_cut_test.cpp
   test/util/graph_verifier.cpp
   test/util/graph_gen.cpp
-  test/util/graph_gen_test.cpp
-  test/util/graph_verifier_test.cpp
   graph.cpp
   supernode.cpp
   l0_sampling/sketch.cpp
   util.cpp)
-target_link_libraries(native_tests PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(native_tests PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F)
+target_link_libraries(min_cut_test PRIVATE xxHash::xxhash GTest::gtest)
+target_compile_definitions(min_cut_test PRIVATE VERIFY_SAMPLES_F)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(native_tests PRIVATE -g)
+  target_compile_options(min_cut_test PRIVATE -g)
 else ()
   if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(native_tests PRIVATE -O3)
+    target_compile_options(min_cut_test PRIVATE -O3)
   elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    target_compile_options(native_tests PRIVATE /O2)
+    target_compile_options(min_cut_test PRIVATE /O2)
   endif()
 endif ()
+
+#add_executable(native_tests
+#  test/test_runner.cpp
+#  test/graph_test.cpp
+#  test/sketch_test.cpp
+#  test/supernode_test.cpp
+#  test/util_test.cpp
+#  test/util/graph_verifier.cpp
+#  test/util/graph_gen.cpp
+#  test/util/graph_gen_test.cpp
+#  test/util/graph_verifier_test.cpp
+#  graph.cpp
+#  supernode.cpp
+#  l0_sampling/sketch.cpp
+#  util.cpp)
+#target_link_libraries(native_tests PRIVATE xxHash::xxhash GTest::gtest)
+#target_compile_definitions(native_tests PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F)
+## optimize unless debug
+#if (DEFINED ENV{DEBUG})
+#  message("Disabling optimizations and enabling debug symbols")
+#  target_compile_options(native_tests PRIVATE -g)
+#else ()
+#  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+#    target_compile_options(native_tests PRIVATE -O3)
+#  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+#    target_compile_options(native_tests PRIVATE /O2)
+#  endif()
+#endif ()

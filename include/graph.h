@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <exception>
 #include <set>
+#include <list>
 #include <fstream>
 #include "supernode.h"
 
@@ -69,7 +70,7 @@ public:
    * @return a boolean indicating whether or not the graph is
    * k-edge-connected
    */ 
-  bool is_k_edge_connected ();
+  bool is_k_edge_connected (int k);
 
 #ifdef VERIFY_SAMPLES_F
   std::string cum_in = "./cum_sample.txt";

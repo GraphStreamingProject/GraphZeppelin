@@ -1,6 +1,7 @@
 #include <fstream>
 #include <map>
 #include "graph_verifier.h"
+#include <algorithm>
 
 //Node* parent;
 //Node* size;

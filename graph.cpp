@@ -103,12 +103,12 @@ vector<set<Node>> Graph::connected_components() {
   return retval;
 }
 
-vector<std::pair<set<Node>, set<Edge>>> spanning_forest()
+vector<std::pair<set<Node>, set<Edge>>> Graph::spanning_forest()
 {
   update_locked = true; // disallow updating the graph after we run the alg
   // Each node may be the per point of more than two connected
   // components, so a single dimensional structure is insufficient.
-  map<Node, list<Edge>> span_edges(num_nodes);
+  map<Node, list<Edge>> span_edges;
 
   bool modified;
   do {
@@ -117,26 +117,27 @@ vector<std::pair<set<Node>, set<Edge>>> spanning_forest()
     for (Node i: (*representatives)) {
       if (parent[i] != i) continue; //only one edge per cut sampled
       //We sample this node up to potentially
-      boost::optional<Edge> edge = supernodes[i]->sample();
-      if (!edge.is_initialized()) continue;
+      boost::optional<Edge> oedge = supernodes[i]->sample();
+      if (!oedge) continue;
+      Edge edge = *oedge;
 
       Node n;
       // DSU compression
-      if (get_parent(edge->first) == i) { // Current node i wins 
-        n = get_parent(edge->second);
+      if (get_parent(edge.first) == i) { // Current node i wins 
+        n = get_parent(edge.second);
         removed.push_back(n);
         parent[n] = i;
       }
       else {
-        get_parent(edge->second);
-        n = get_parent(edge->first);
+        get_parent(edge.second);
+        n = get_parent(edge.first);
         removed.push_back(n);
         parent[n] = i;
       }
       // Ensures sampling occurs along supernode cuts
       supernodes[i]->merge(*supernodes[n]);
 
-      span_edges[edge->first].push_back(edge);
+      span_edges[edge.first].push_back(edge);
     }
     if (!removed.empty()) modified = true;
     for (Node i : removed) representatives->erase(i);
@@ -155,20 +156,20 @@ vector<std::pair<set<Node>, set<Edge>>> spanning_forest()
  
   vector<std::pair<set<Node>, set<Edge>>> retval;
 
-  for (const Node& r : root_map)
-	retval.push_back(r.second); 
+  for (const auto& entry : root_map)
+	retval.push_back(entry.second); 
 
   return retval;
 }
 
-bool is_k_edge_connected (int k)
+bool Graph::is_k_edge_connected (int k)
 {
 	// TODO: Should we leave the original instance of the sketch
 	// unaltered? It consumes (k+1)/k times more
 	// memory, but it leaves the original sketch unaltered in
 	// case the user wishes to conduct another algorithm.
 	vector<Graph> instances(k-1, *this);
-	F_0 = this.spanning_forest();
+	auto F_0 = this->spanning_forest();
 	if (F_0.size() > 1) return false;
 	for(Graph& g_i : instances)
 		for (const Edge& e : F_0[0].second)
@@ -176,7 +177,7 @@ bool is_k_edge_connected (int k)
 
 	for (int i = 1; i < k - 1; i++)
 	{
-		F_i = instances[i-1].spanning_forest();
+		auto F_i = instances[i-1].spanning_forest();
 
 		if (F_i.size() > 1) return false;
 
