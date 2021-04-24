@@ -1,4 +1,5 @@
 #include <map>
+#include <unordered_map>
 #include <iostream>
 #include "include/graph.h"
 
@@ -6,7 +7,9 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
 #ifdef VERIFY_SAMPLES_F
   cout << "Verifying samples..." << endl;
 #endif
-  representatives = new set<Node>();
+  // Each representative indexes the number of elements in its 
+  // supernode.
+  representatives = new map<Node, size_t>(); 
   supernodes = new Supernode*[num_nodes];
   parent = new Node[num_nodes];
   time_t seed = time(nullptr);
@@ -53,62 +56,64 @@ void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges) {
   supernodes[src]->batch_update(updates);
 }
 
-vector<set<Node>> Graph::connected_components() {
-  update_locked = true; // disallow updating the graph after we run the alg
-  bool modified;
-#ifdef VERIFY_SAMPLES_F
-  GraphVerifier verifier {cum_in};
-#endif
-  do {
-    modified = false;
-    vector<Node> removed;
-    for (Node i: (*representatives)) {
-      if (parent[i] != i) continue;
-      boost::optional<Edge> edge = supernodes[i]->sample();
-#ifdef VERIFY_SAMPLES_F
-      if (edge.is_initialized())
-        verifier.verify_edge(edge.value());
-      else
-        verifier.verify_cc(i);
-#endif
-      if (!edge.is_initialized()) continue;
+//vector<set<Node>> Graph::connected_components() {
+//  update_locked = true; // disallow updating the graph after we run the alg
+//  bool modified;
+//#ifdef VERIFY_SAMPLES_F
+//  GraphVerifier verifier {cum_in};
+//#endif
+//  do {
+//    modified = false;
+//    vector<Node> removed;
+//    for (Node i: (*representatives)) {
+//      if (parent[i] != i) continue;
+//      boost::optional<Edge> edge = supernodes[i]->sample();
+//#ifdef VERIFY_SAMPLES_F
+//      if (edge.is_initialized())
+//        verifier.verify_edge(edge.value());
+//      else
+//        verifier.verify_cc(i);
+//#endif
+//      if (!edge.is_initialized()) continue;
+//
+//      Node n;
+//      // DSU compression
+//      if (get_parent(edge->first) == i) {
+//        n = get_parent(edge->second);
+//        removed.push_back(n);
+//        parent[n] = i;
+//      }
+//      else {
+//        get_parent(edge->second);
+//        n = get_parent(edge->first);
+//        removed.push_back(n);
+//        parent[n] = i;
+//      }
+//      supernodes[i]->merge(*supernodes[n]);
+//    }
+//    if (!removed.empty()) modified = true;
+//    for (Node i : removed) representatives->erase(i);
+//  } while (modified);
+//  map<Node, set<Node>> temp;
+//  for (Node i=0;i<num_nodes;++i)
+//    temp[get_parent(i)].insert(i);
+//  vector<set<Node>> retval;
+//  retval.reserve(temp.size());
+//  for (const auto& it : temp) retval.push_back(it.second);
+//#ifdef VERIFY_SAMPLES_F
+//  verifier.verify_soln(retval);
+//#endif
+//  return retval;
+//}
 
-      Node n;
-      // DSU compression
-      if (get_parent(edge->first) == i) {
-        n = get_parent(edge->second);
-        removed.push_back(n);
-        parent[n] = i;
-      }
-      else {
-        get_parent(edge->second);
-        n = get_parent(edge->first);
-        removed.push_back(n);
-        parent[n] = i;
-      }
-      supernodes[i]->merge(*supernodes[n]);
-    }
-    if (!removed.empty()) modified = true;
-    for (Node i : removed) representatives->erase(i);
-  } while (modified);
-  map<Node, set<Node>> temp;
-  for (Node i=0;i<num_nodes;++i)
-    temp[get_parent(i)].insert(i);
-  vector<set<Node>> retval;
-  retval.reserve(temp.size());
-  for (const auto& it : temp) retval.push_back(it.second);
-#ifdef VERIFY_SAMPLES_F
-  verifier.verify_soln(retval);
-#endif
-  return retval;
-}
-
-vector<std::pair<set<Node>, set<Edge>>> Graph::spanning_forest()
+vector<unordered_map<Node, vector<Node>>> Graph::spanning_forest()
 {
   update_locked = true; // disallow updating the graph after we run the alg
-  // Each node may be the per point of more than two connected
-  // components, so a single dimensional structure is insufficient.
-  map<Node, list<Edge>> span_edges;
+  // During Boruvka, if a merge occurs between two supernodes as a
+  // consequence of sampling edge (i, j), where i is in the supernode
+  // which absorbs the supernode containing j, then append j to the ith vector
+  // in this structure.
+  vector<vector<Node>> merge_points(num_nodes);
 
   bool modified;
   do {
@@ -132,32 +137,43 @@ vector<std::pair<set<Node>, set<Edge>>> Graph::spanning_forest()
         get_parent(edge.second);
         n = get_parent(edge.first);
         removed.push_back(n);
-        parent[n] = i;
+        parent[n] = i; // Shouldnt it be reversed?
       }
       // Ensures sampling occurs along supernode cuts
       supernodes[i]->merge(*supernodes[n]);
 
-      span_edges[edge.first].push_back(edge);
+      merge_points[edge.first].push_back(edge.second);
     }
     if (!removed.empty()) modified = true;
     for (Node i : removed) representatives->erase(i);
   } while (modified);
- 
-  map<Node, std::pair<set<Node>, set<Edge>>> root_map;
 
-  for(Node i = 0; i <= num_nodes; i++)
+  // Maps each represntative (or root) of a connected component to
+  // the adjacency list for that connected component 
+  unordered_map<Node i, unordered_map<Node, vector<Node>>> 
+  	root_adj_list (representatives->size());
+  
+  // Avoid rehashing of adjacency lists during upcoming insertions
+  for (const auto& root_size_pair : *representatives)
+    root_adj_list[root_size_pair.first].reserve(
+		    root_size_pair.second);
+
+  // Insert edges from merge_points
+  for (int i = 0; i < num_nodes; i++)
   {
-  	root_map[parent[i]].first.insert(i);
-	
-	// Add edges of merge point to its root spanning tree
-	for (const Edge& e : span_edges[i])
-		root_map[parent[i]].second.insert(e);
+    for (const Node& span_neighbor : merge_points[i])
+    {
+      root_adj_list[parents[i]][i].second.push_back(span_neighbor);
+      // Include the symmetric edge
+      root_adj_list[parents[i]][span_neighbor].second.push_back(i);
+    }
   }
- 
-  vector<std::pair<set<Node>, set<Edge>>> retval;
 
-  for (const auto& entry : root_map)
-	retval.push_back(entry.second); 
+  vector<unordered_map<Node, vector<Node>>> 
+	  retval(representatives->size());
+
+  for (const auto& root_adj_list_pair : root_adj_list)
+	  retval.push_back(root_adj_list_pair.second);
 
   return retval;
 }
