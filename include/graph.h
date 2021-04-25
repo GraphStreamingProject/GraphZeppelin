@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <exception>
 #include <set>
+#include <unordered_map>
 #include <list>
 #include <fstream>
 #include "supernode.h"
@@ -56,11 +57,11 @@ public:
    * forest, where a spanning forest of G is defined as a maximal
    * acyclic subgraph of G.  
    *
-   * @return a vector of pairs of sets, where
-   * each pair consists of the vertex set and edge set of a
-   * spanning tree for a connected component of the graph.
+   * @return a vector of adjacency lists, one for each component,
+   * where each adjacency list is implemented as an unordered_map
+   * from nodes in the componenent to vectors of their neighbors.
    */
-  vector<std::pair<set<Node>, set<Edge>>> spanning_forest();
+  vector<unordered_map<Node, vector<Node>>> spanning_forest();
 
   /**
    * An algorithm for testing if the graph is k-edge-connected.
