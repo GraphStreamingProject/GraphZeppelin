@@ -13,6 +13,13 @@ Supernode::Supernode(uint64_t n, long seed): sketches(log2(n)), idx(0), logn(log
     sketches[i] = std::unique_ptr<Sketch>(new Sketch(n*n, r));
 }
 
+Supernode::Supernode(const Supernode& s) : sketches(s.logn), idx(s.idx),
+    logn(s.logn) {
+  for (int i = 0; i < logn; i++) {
+    sketches[i] = std::unique_ptr<Sketch>(new Sketch(*sketches[i]));
+  }
+}
+
 boost::optional<Edge> Supernode::sample() {
   if (idx == logn) throw OutOfQueriesException();
   vec_t query_idx;

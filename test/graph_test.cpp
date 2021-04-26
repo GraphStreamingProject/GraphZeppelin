@@ -88,3 +88,58 @@ TEST(GraphTestSuite, TestCorrectnessOnSmallSparseGraphs) {
     g.connected_components();
   }
 }
+
+#include <chrono>
+
+TEST(GraphTestSuite, DISABLED_TestFailureRate) {
+  for (int i = 10, n = i; i < 1e4; n = n > i ? (i *= 10) : n * sqrt(10)) {
+    int num_trials = 1000;
+    int num_failure = 0;
+    long total_updates = 0;
+    std::chrono::duration<long double> runtime(0);
+    while (num_trials--) {
+      try {
+        generate_stream({n, .03, .5, 0, "./sample.txt", "./cum_sample.txt"});
+        ifstream in{"./sample.txt"};
+        Node n, m;
+        in >> n >> m;
+        total_updates += m;
+        Graph g{n};
+        int type, a, b;
+        auto starttime = std::chrono::steady_clock::now();
+        while (m--) {
+          in >> type >> a >> b;
+          if (type == INSERT) {
+            g.update({{a, b}, INSERT});
+          } else g.update({{a, b}, DELETE});
+        }
+        runtime += std::chrono::duration<long double>(std::chrono::steady_clock::now() - starttime);
+        g.set_cum_in("./cum_sample.txt");
+        g.connected_components();
+      } catch (const NoGoodBucketException& e) {
+        num_failure++;
+      } catch (const NotCCException& e) {
+        num_failure++;
+      } catch (const BadEdgeException& e) {
+        num_failure++;
+      }
+    }
+    std::clog << n <<  ',' << total_updates << ':' << num_failure << ',' << runtime.count() << std::endl;
+  }
+}
+
+void test_continuous(unsigned nodes, unsigned long updates_per_sample, unsigned long samples) {
+  srand(time(NULL));
+  Graph g(nodes);
+  for (unsigned long i = 0; i < samples; i++) {
+    for (unsigned long j = 0; j < updates_per_sample; j++) {
+      g.update({{0, 1}, INSERT});
+    }
+    Graph g_cc = g;
+    g_cc.connected_components();
+  }
+}
+
+TEST(GraphTestSuite, DISABLED_TestContinuous) {
+  test_continuous(1000, 10, 10);
+}

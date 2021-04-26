@@ -15,6 +15,14 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes), supernodes(num_nodes),
   }
 }
 
+Graph::Graph(const Graph& g) : num_nodes(g.num_nodes),
+    update_locked(g.update_locked), representatives(g.representatives),
+    supernodes(num_nodes), parent(g.parent) {
+  for (Node i = 0; i < num_nodes; i++) {
+    supernodes[i] = std::unique_ptr<Supernode>(new Supernode(*g.supernodes[i]));
+  }
+}
+
 void Graph::update(GraphUpdate upd) {
   if (update_locked) throw UpdateLockedException();
   Edge &edge = upd.first;

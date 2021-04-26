@@ -34,6 +34,10 @@ class Sketch {
   FRIEND_TEST(SketchTestSuite, TestExceptions);
   FRIEND_TEST(SketchTestSuite, TestBatchUpdate);
 
+
+  friend void test_continuous(unsigned long vec_size, unsigned long updates_per_sample,
+    unsigned long samples, double num_bucket_factor);
+
 public:
   /**
    * Construct a sketch of a vector of size n

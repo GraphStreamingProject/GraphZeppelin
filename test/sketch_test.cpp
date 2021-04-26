@@ -295,3 +295,52 @@ TEST(SketchTestSuite, TestBatchUpdate) {
     ASSERT_EQ(it1->c, it2->c);
   }
 }
+
+TEST(SketchTestSuite, DISABLED_TestFailureRate) {
+  constexpr uint64_t upper_bound =
+#ifdef USE_NATIVE_F
+      1e9
+#else
+      1e18
+#endif
+  ;
+  for (uint64_t i = 10; i <= upper_bound; i *= 10) {
+    test_sketch_large(1000, i, 1000000, 1, 1);
+    test_sketch_large(1000, i, 1000000, .5, 1);
+    test_sketch_large(1000, i, 1000000, .25, 1);
+  }
+}
+
+void test_continuous(unsigned long vec_size, unsigned long updates_per_sample,
+    unsigned long samples, double num_bucket_factor) {
+  srand(time(NULL));
+  unsigned long failures = 0;
+  std::vector<bool> actual_vec(vec_size);
+  Sketch sketch(vec_size, rand(), num_bucket_factor);
+  for (unsigned long i = 0; i < samples; i++) {
+    for (unsigned long j = 0; j < updates_per_sample; j++) {
+      vec_t update = static_cast<vec_t>(rand() % vec_size);
+      actual_vec[update] = !actual_vec[update];
+      sketch.update(update);
+    }
+    try {
+      if (!actual_vec[sketch.query()]) failures++;
+    } catch (const AllBucketsZeroException& e) {
+      if (std::any_of(actual_vec.cbegin(), actual_vec.cend(), [](bool x){return x;})) {
+        failures++;
+      }
+    } catch (const NoGoodBucketException& e) {
+      failures++;
+    }
+    sketch.already_quered = false;
+  }
+  std::cout << vec_size << ' ' << samples << ' ' << updates_per_sample << ' ' << failures << std::endl;
+}
+
+TEST(SketchTestSuite, DISABLED_TestContinuous) {
+  for (unsigned long i = 10; i <= 1e10; i *= 10) {
+    test_continuous(i, 1000, 1000000, 1);
+    test_continuous(i, 1000, 1000000, .5);
+    test_continuous(i, 1000, 1000000, .25);
+  }
+}
