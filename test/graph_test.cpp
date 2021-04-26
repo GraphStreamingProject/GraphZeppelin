@@ -146,7 +146,7 @@ void test_continuous(unsigned nodes, unsigned long updates_per_sample, unsigned 
       adj[edgei][edgej] = !adj[edgei][edgej];
     }
     try {
-      Graph g_cc = g;
+      Graph g_cc(g);
       vec_t num_edges = 0;
       for (unsigned i = 0; i < nodes; i++) {
         for (unsigned j = i + 1; j < nodes; j++) {
@@ -165,7 +165,7 @@ void test_continuous(unsigned nodes, unsigned long updates_per_sample, unsigned 
         }
       }
       out.close();
-      g.set_cum_in("./cum_sample.txt");
+      g_cc.set_cum_in("./cum_sample.txt");
       g_cc.connected_components();
     } catch (const NoGoodBucketException& e) {
       num_failure++;
@@ -179,5 +179,8 @@ void test_continuous(unsigned nodes, unsigned long updates_per_sample, unsigned 
 }
 
 TEST(GraphTestSuite, DISABLED_TestContinuous) {
-  test_continuous(10, 100, 100);
+  for (int i = 10, n = i; i < 1e4; n = n > i ? (i *= 10) : n * sqrt(10)) {
+    if (n == 10) continue; // Supernode cannot be sampled more times, probably bug
+    test_continuous(n, 1000, 1000);
+  }
 }
