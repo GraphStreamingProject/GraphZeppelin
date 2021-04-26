@@ -131,15 +131,53 @@ TEST(GraphTestSuite, DISABLED_TestFailureRate) {
 void test_continuous(unsigned nodes, unsigned long updates_per_sample, unsigned long samples) {
   srand(time(NULL));
   Graph g(nodes);
+  std::vector<std::vector<bool>> adj(nodes, std::vector<bool>(nodes));
+  unsigned long num_failure = 0;
   for (unsigned long i = 0; i < samples; i++) {
     for (unsigned long j = 0; j < updates_per_sample; j++) {
-      g.update({{0, 1}, INSERT});
+      unsigned edgei = rand() % nodes;
+      unsigned edgej = rand() % (nodes - 1);
+      if (edgei > edgej) {
+        std::swap(edgei, edgej);
+      } else {
+        edgej++;
+      }
+      g.update({{edgei, edgej}, INSERT});
+      adj[edgei][edgej] = !adj[edgei][edgej];
     }
-    Graph g_cc = g;
-    g_cc.connected_components();
+    try {
+      Graph g_cc = g;
+      vec_t num_edges = 0;
+      for (unsigned i = 0; i < nodes; i++) {
+        for (unsigned j = i + 1; j < nodes; j++) {
+          if (adj[i][j]) {
+            num_edges++;
+          }
+        }
+      }
+      std::ofstream out("./cum_sample.txt");
+      out << nodes << " " << num_edges << std::endl;
+      for (unsigned i = 0; i < nodes; i++) {
+        for (unsigned j = i + 1; j < nodes; j++) {
+          if (adj[i][j]) {
+            out << i << " " << j << std::endl;
+          }
+        }
+      }
+      out.close();
+      g.set_cum_in("./cum_sample.txt");
+      g_cc.connected_components();
+    } catch (const NoGoodBucketException& e) {
+      num_failure++;
+    } catch (const NotCCException& e) {
+      num_failure++;
+    } catch (const BadEdgeException& e) {
+      num_failure++;
+    }
   }
+  std::clog << nodes << ',' << num_failure << std::endl;
 }
 
 TEST(GraphTestSuite, DISABLED_TestContinuous) {
-  test_continuous(1000, 10, 10);
+  test_continuous(10, 100, 100);
 }
