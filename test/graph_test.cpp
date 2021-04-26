@@ -3,8 +3,50 @@
 #include "../include/graph.h"
 #include "util/graph_verifier.h"
 #include "util/graph_gen.h"
-
+#include <unordered_set>
 #include <boost/graph/stoer_wagner_min_cut.hpp>
+#include <stack>
+
+typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS> UGraph; 
+
+Graph ingest_stream (std::string filename)
+{
+  ifstream in{filename};
+  Node n, m;
+  in >> n >> m;
+  
+  Graph g{n};
+
+  int type, a, b;
+  while (m--) 
+  {
+    in >> type >> a >> b;
+    g.update({{a, b}, UpdateType{type}});
+  }
+
+ return g;
+}
+
+UGraph ingest_cum_graph (std::string filename)
+{
+  ifstream in{filename};
+  Node n, m;
+  in >> n >> m;
+  
+  UGraph bg{n};
+
+  int a, b;
+  while (m--) 
+  {
+    in a >> b;
+    boost::add_edge(a, b, bg);
+  }
+ 
+  return bg;
+}
+
+
+ingest
 
 TEST(GraphTestSuite, SmallGraphConnectivity) {
   const std::string fname = __FILE__;
@@ -91,37 +133,91 @@ TEST(GraphTestSuite, TestCorrectnessOnSmallSparseGraphs) {
   }
 }
 
+TEST(GraphTestSuite, TestSpanningForestOnRandomGraph)
+{
+  using namespace boost;
+  int num_trials = 10;
+
+  while (num_trials--)
+  {
+    generate_stream(
+	{1024,0.03,0.5,0,"./sample.txt","./cum_sample.txt"});
+
+    Graph g = ingest_stream("./sample.txt");  
+    auto F = g.spanning_forest();
+
+    UGraph bg = ingest_cum_graph("./cum_sample.txt");
+    auto boost_num_vertices = num_vertices(bg);
+    vector<int> boost_comp_map(boost_num_vertices);
+    int boost_num_comp = 
+	    connected_components(bg, boost_comp_map);
+
+    // Store the cardinality of each boost connected component
+    vector<int> boost_comp_sizes(boost_num_comp);
+    for (Node i = 0; i < boost_num_vertices; i++)
+	    boost_comp_sizes[boost_comp_map[i]]++;
+
+    for (const& auto adj_list : F)
+    {
+      first_node = adj_list.begin()->first;
+      // Identity of the corresponding boost connected component
+      int boost_CC_id = boost_comp_map[first_node];
+
+      // DFS on current component represented by adj_list
+      unordered_set<Node> visited();
+      visited.reserve(adj_list.size());
+   
+      stack<Node> branch_points();    
+      branch_points.push(first_node);
+      Node prev;
+
+      while (!branch_points.empty())
+      {
+        Node cur = branch_points.pop();
+
+	// Verify node is present in corresponding boost CC
+	EXPECT_EQ(boost_CC_id, boost_comp_map[cur])
+		<< "Node in wrong component";
+
+	// Cycle detection
+	EXPECT_EQ(visited.count(cur), 0) << "Cycle detected\n";
+        visited.insert(cur);
+
+	for (const Node& neighbor : adj_list[cur])
+	{
+	  if (neighbor == prev) continue;
+	  
+	  // Verify that spanning forest is subgraph
+	  bool edge_exists = edge(cur, neighbor, bg).second;
+	  EXPECT_TRUE(edge_exists) 
+		  << "Edge does not exist in supergraph\n";
+	  
+	  branch_points.push(neighbor);
+	}
+
+	prev = cur;
+      }
+
+      // Ensure cardinality of boost_CC and adj_list vertex set
+      // are equal.
+      EXPECT_EQ(adj_list.size(), boost_comp_sizes[boost_CC_id]) 
+	      << "Incorrect component size \n";
+    }  
+  }
+}
+
 TEST(GraphTestSuite, TestKConnectivityOnRandomGraphs)
 {
   using namespace boost;
-  typedef adjacency_list<vecS, vecS, undirectedS> UGraph; 
 
   int num_trials = 10;
   while (num_trials--) {
-    generate_stream({100,0.03,0.5,0,"./sample.txt","./cum_sample.txt"});
-    ifstream in{"./sample.txt"};
-    Node n, m;
-    in >> n >> m;
+    generate_stream(
+	{100,0.5,0.5,0,"./sample.txt","./cum_sample.txt"});
     
-    Graph g{n};
-    UGraph bg{n};
+    Graph g = ingest_stream("./sample.txt");
+    UGraph bg = ingest_cum_graph(".cum_sample.txt");
 
-    int type, a, b;
-    while (m--) 
-    {
-      in >> type >> a >> b;
-      if (type == INSERT) 
-      {
-        g.update({{a, b}, INSERT});
-        add_edge(a, b, bg);
-      } 
-      else 
-      {
-        g.update({{a, b}, DELETE});
-	remove_edge(a, b, bg);
-      }
-    }
-   
     auto min_cut_size = stoer_wagner_min_cut(bg, 
 	make_static_property_map<UGraph::edge_descriptor>(1));
 
@@ -133,5 +229,4 @@ TEST(GraphTestSuite, TestKConnectivityOnRandomGraphs)
     // TODO: Ensure any k \in [min_cut_size] returns true, and
     // any k > min_cut_size returns false. 
   }
-
 }
