@@ -10,12 +10,7 @@ Supernode::Supernode(uint64_t n, long seed): sketches(log2(n)), idx(0), logn(log
   srand(seed);
   long r = rand();
   for (int i=0;i<logn;++i)
-    sketches[i] = new Sketch(n*n, r);
-}
-
-Supernode::~Supernode() {
-  for (int i=0;i<logn;++i)
-    delete sketches[i];
+    sketches[i] = std::unique_ptr<Sketch>(new Sketch(n*n, r));
 }
 
 boost::optional<Edge> Supernode::sample() {
@@ -40,12 +35,12 @@ void Supernode::merge(Supernode &other) {
 
 void Supernode::update(Edge update) {
   vec_t upd = nondirectional_non_self_edge_pairing_fn(update.first, update.second);
-  for (Sketch* s : sketches)
+  for (std::unique_ptr<Sketch>& s : sketches)
     s->update(upd);
 }
 
 void Supernode::batch_update(const std::vector<vec_t>& updates) {
-  for (Sketch *s : sketches) {
+  for (std::unique_ptr<Sketch>& s : sketches) {
     s->batch_update(updates);
   }
 }
