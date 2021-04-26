@@ -2,26 +2,17 @@
 #include <iostream>
 #include "include/graph.h"
 
-Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
+Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes), supernodes(num_nodes),
+    parent(num_nodes) {
 #ifdef VERIFY_SAMPLES_F
   cout << "Verifying samples..." << endl;
 #endif
-  representatives = new set<Node>();
-  supernodes = new Supernode*[num_nodes];
-  parent = new Node[num_nodes];
   time_t seed = time(nullptr);
   for (Node i=0;i<num_nodes;++i) {
-    representatives->insert(i);
-    supernodes[i] = new Supernode(num_nodes,seed);
+    representatives.insert(i);
     parent[i] = i;
+    supernodes[i] = std::unique_ptr<Supernode>(new Supernode(num_nodes, seed));
   }
-}
-
-Graph::~Graph() {
-  for (unsigned i=0;i<num_nodes;++i)
-    delete supernodes[i];
-  delete supernodes;
-  delete representatives;
 }
 
 void Graph::update(GraphUpdate upd) {
@@ -61,7 +52,7 @@ vector<set<Node>> Graph::connected_components() {
   do {
     modified = false;
     vector<Node> removed;
-    for (Node i: (*representatives)) {
+    for (Node i: representatives) {
       if (parent[i] != i) continue;
       boost::optional<Edge> edge = supernodes[i]->sample();
 #ifdef VERIFY_SAMPLES_F
@@ -88,7 +79,7 @@ vector<set<Node>> Graph::connected_components() {
       supernodes[i]->merge(*supernodes[n]);
     }
     if (!removed.empty()) modified = true;
-    for (Node i : removed) representatives->erase(i);
+    for (Node i : removed) representatives.erase(i);
   } while (modified);
   map<Node, set<Node>> temp;
   for (Node i=0;i<num_nodes;++i)

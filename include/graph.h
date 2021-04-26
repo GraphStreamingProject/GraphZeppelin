@@ -2,6 +2,7 @@
 #define MAIN_GRAPH_H
 #include <cstdlib>
 #include <exception>
+#include <memory>
 #include <set>
 #include <fstream>
 #include "supernode.h"
@@ -27,14 +28,14 @@ class Graph{
   const uint64_t num_nodes;
   bool update_locked = false;
   // a set containing one "representative" from each supernode
-  set<Node>* representatives;
-  Supernode** supernodes;
+  set<Node> representatives;
+  std::vector<std::unique_ptr<Supernode>> supernodes;
   // DSU representation of supernode relationship
-  Node* parent;
+  std::vector<Node> parent;
   Node get_parent(Node node);
 public:
   explicit Graph(uint64_t num_nodes);
-  ~Graph();
+  Graph(const Graph& g);
   void update(GraphUpdate upd);
 
   /**

@@ -1,5 +1,6 @@
 #pragma once
 #include <boost/optional.hpp>
+#include <memory>
 #include "sketch.h"
 
 using namespace std;
@@ -14,7 +15,7 @@ typedef std::pair<Node, Node> Edge;
 class Supernode {
   /* collection of logn sketches to query from, since we can't query from one
      sketch more than once */
-  vector<Sketch*> sketches;
+  vector<std::unique_ptr<Sketch>> sketches;
   int idx;
   int logn;
 public:
