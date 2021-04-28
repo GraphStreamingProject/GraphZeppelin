@@ -194,31 +194,34 @@ vector<unordered_map<Node, vector<Node>>> Graph::spanning_forest()
 
 bool Graph::is_k_edge_connected (int k)
 {
-	// TODO: Should we leave the original instance of the sketch
-	// unaltered? It consumes (k+1)/k times more
-	// memory, but it leaves the original sketch unaltered in
-	// case the user wishes to conduct another algorithm.
-//	vector<Graph> instances(k-1, *this);
-//	auto F_0 = this->spanning_forest();
-//	if (F_0.size() > 1) return false;
-//	for(Graph& g_i : instances)
-//		for (const Edge& e : F_0[0].second)
-//			g_i.update({e, DELETE});
-//
-//	for (int i = 1; i < k - 1; i++)
-//	{
-//		auto F_i = instances[i-1].spanning_forest();
-//
-//		if (F_i.size() > 1) return false;
-//
-//		for (int j = i; j < k; j++)
-//			for (const Edge& e : F_i[0].second)
-//				instances[j].update({e, DELETE});
-//	}
-//
-//	return instances[k].spanning_forest().size() < 2;
-
-	return false;
+  // TODO: Should we leave the original instance of the sketch
+  // unaltered? It consumes (k+1)/k times more
+  // memory, but it leaves the original sketch unaltered in
+  // case the user wishes to conduct another algorithm.
+  vector<Graph> instances(k-1, *this);
+  auto F_0 = this->spanning_forest();
+  if (F_0.size() > 1) return false;
+  for(Graph& g_i : instances)
+    for (const auto& node_list_pair : F_0[0])
+      for (const Node& neighbor : node_list_pair.second)
+        if (node_list_pair.first < neighbor) 
+          g_i.update({{node_list_pair.first, neighbor}, DELETE});
+  
+  for (int i = 0; i < k - 1; i++)
+  {
+    auto F_i = instances[i].spanning_forest();
+  
+    if (F_i.size() > 1) return false;
+  
+    for (int j = i + 1; j <= k - 1; j++)
+      for (const auto& node_list_pair : F_i[0])
+        for (const Node& neighbor : node_list_pair.second)
+          if (node_list_pair.first < neighbor) 
+            instances[j].update(
+                {{node_list_pair.first, neighbor}, DELETE});
+  }
+  
+  return instances[k - 1].spanning_forest().size() < 2;
 }
 
 Node Graph::get_parent(Node node) {
