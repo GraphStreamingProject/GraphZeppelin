@@ -29,7 +29,7 @@ class Graph{
   const uint64_t num_nodes;
   bool update_locked = false;
   // a set containing one "representative" from each supernode
-  set<Node>* representatives;
+  map<Node, size_t>* representatives;
   Supernode** supernodes;
   // DSU representation of supernode relationship
   Node* parent;

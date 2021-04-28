@@ -13,7 +13,7 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
   parent = new Node[num_nodes];
   time_t seed = time(nullptr);
   for (Node i=0;i<num_nodes;++i) {
-    representatives[i] = 1;
+    (*representatives)[i] = 1;
     supernodes[i] = new Supernode(num_nodes,seed);
     parent[i] = i;
   }
@@ -64,7 +64,8 @@ vector<set<Node>> Graph::connected_components() {
   do {
     modified = false;
     vector<Node> removed;
-    for (Node i: (*representatives)) {
+    for (const auto& pair: (*representatives)) {
+      Node i = pair.first;
       if (parent[i] != i) continue;
       boost::optional<Edge> edge = supernodes[i]->sample();
 #ifdef VERIFY_SAMPLES_F
@@ -146,7 +147,7 @@ vector<unordered_map<Node, vector<Node>>> Graph::spanning_forest()
       // Ensures sampling occurs along supernode cuts
       supernodes[i]->merge(*supernodes[n]);
       // Update cardinality of new supernode
-      rep_size_pair.second += representatives[n];
+      rep_size_pair.second += (*representatives)[n];
     }
     if (!removed.empty()) modified = true;
     for (Node i : removed) representatives->erase(i);
@@ -154,9 +155,9 @@ vector<unordered_map<Node, vector<Node>>> Graph::spanning_forest()
 
   // Maps each representative (i.e. root) of a connected component to
   // the adjacency list for that connected component 
-  unordered_map<Node i, unordered_map<Node, vector<Node>>> 
+  unordered_map<Node, unordered_map<Node, vector<Node>>> 
   	root_adj_list; 
-  root_adj_list(representatives->size());
+  root_adj_list.reserve(representatives->size());
   
   // Initialize adjacency lists (implemented as unordered_maps) and
   // Avoid rehashing of adjacency lists during upcoming insertions
@@ -169,17 +170,17 @@ vector<unordered_map<Node, vector<Node>>> Graph::spanning_forest()
   }
 
   // Insert edges from merge_points
-  for (int i = 0; i < num_nodes; i++)
+  for (uint64_t i = 0; i < num_nodes; i++)
   {
     for (const Node& span_neighbor : merge_points[i])
     {
-      root_adj_list[parents[i]][i].second.push_back(span_neighbor);
+      root_adj_list[get_parent(i)][i].push_back(span_neighbor);
       // Include the symmetric edge
-      root_adj_list[parents[i]][span_neighbor].second.push_back(i);
+      root_adj_list[get_parent(i)][span_neighbor].push_back(i);
     }
   }
 
-  vector<unordered_map<Node, vector<Node>>> retval();
+  vector<unordered_map<Node, vector<Node>>> retval;
   retval.reserve(representatives->size());
 
   for (const auto& root_adj_list_pair : root_adj_list)
@@ -194,25 +195,27 @@ bool Graph::is_k_edge_connected (int k)
 	// unaltered? It consumes (k+1)/k times more
 	// memory, but it leaves the original sketch unaltered in
 	// case the user wishes to conduct another algorithm.
-	vector<Graph> instances(k-1, *this);
-	auto F_0 = this->spanning_forest();
-	if (F_0.size() > 1) return false;
-	for(Graph& g_i : instances)
-		for (const Edge& e : F_0[0].second)
-			g_i.update({e, DELETE});
+//	vector<Graph> instances(k-1, *this);
+//	auto F_0 = this->spanning_forest();
+//	if (F_0.size() > 1) return false;
+//	for(Graph& g_i : instances)
+//		for (const Edge& e : F_0[0].second)
+//			g_i.update({e, DELETE});
+//
+//	for (int i = 1; i < k - 1; i++)
+//	{
+//		auto F_i = instances[i-1].spanning_forest();
+//
+//		if (F_i.size() > 1) return false;
+//
+//		for (int j = i; j < k; j++)
+//			for (const Edge& e : F_i[0].second)
+//				instances[j].update({e, DELETE});
+//	}
+//
+//	return instances[k].spanning_forest().size() < 2;
 
-	for (int i = 1; i < k - 1; i++)
-	{
-		auto F_i = instances[i-1].spanning_forest();
-
-		if (F_i.size() > 1) return false;
-
-		for (int j = i; j < k; j++)
-			for (const Edge& e : F_i[0].second)
-				instances[j].update({e, DELETE});
-	}
-
-	return instances[k].spanning_forest().size() < 2;
+	return false;
 }
 
 Node Graph::get_parent(Node node) {
