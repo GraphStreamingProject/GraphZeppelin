@@ -161,7 +161,6 @@ TEST(GraphTestSuite, TestSpanningForestOnRandomGraph)
 
     for (const auto& adj_list : F)
     {
-      // TODO: handle empty case
       Node first_node = adj_list.begin()->first;
       
       // Identity of the corresponding boost connected component

@@ -172,6 +172,9 @@ vector<unordered_map<Node, vector<Node>>> Graph::spanning_forest()
   // Insert edges from merge_points
   for (uint64_t i = 0; i < num_nodes; i++)
   {
+    if (root_adj_list.at(get_parent(i)).count(i) == 0)
+      root_adj_list[get_parent(i)][i] = vector<Node>();
+
     for (const Node& span_neighbor : merge_points[i])
     {
       root_adj_list[get_parent(i)][i].push_back(span_neighbor);
