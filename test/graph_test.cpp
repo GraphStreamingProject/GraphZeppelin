@@ -138,11 +138,16 @@ TEST(GraphTestSuite, TestSpanningForestOnRandomGraph)
 {
   using namespace boost;
   int num_trials = 10;
+  // Probability of edge present between two nodes
+  double p_low_bound = 0.002;
+  double p_up_bound = 0.01;
 
   while (num_trials--)
   {
+    double p = p_low_bound + ((double)rand() / RAND_MAX) * (
+		    p_up_bound - p_low_bound); 
     generate_stream(
-	{1024,0.002,0.5,0,"./sample.txt","./cum_sample.txt"});
+	{1024,p,0.5,0,"./sample.txt","./cum_sample.txt"});
 
     UGraph bg = ingest_cum_graph("./cum_sample.txt");
     auto boost_num_vertices = num_vertices(bg);
