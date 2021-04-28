@@ -27,6 +27,11 @@ Graph::~Graph() {
   delete representatives;
 }
 
+Graph::Graph(const G& g)
+	:num_nodes = g.num_nodes
+	 representatives{new map<Node, size_t>()}
+	 supernodes{new Supernode*[num_nodes]}
+
 void Graph::update(GraphUpdate upd) {
   if (update_locked) throw UpdateLockedException();
   Edge &edge = upd.first;
