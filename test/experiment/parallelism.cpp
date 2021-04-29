@@ -4,48 +4,6 @@
 #include <omp.h>
 #include "../../include/supernode.h"
 
-const long seed = 7000000001;
-const unsigned long long int num_nodes = 2000;
-
-class EXPR_Parallelism : public testing::Test {
-protected:
-  static vector<Edge>* graph_edges;
-  static vector<Edge>* odd_graph_edges;
-  static bool* prime;
-  static void SetUpTestSuite() {
-    srand(1000000007);
-    graph_edges = new vector<Edge>();
-    odd_graph_edges = new vector<Edge>();
-    for (unsigned i=2;i<num_nodes;++i) {
-      for (unsigned j = i*2; j < num_nodes; j+=i) {
-        graph_edges->push_back({i,j});
-        if ((j/i)%2) odd_graph_edges->push_back({i,j});
-      }
-    }
-
-    // sieve
-    prime = (bool*) malloc(num_nodes*sizeof(bool));
-    fill(prime,prime+num_nodes,true);
-    for (unsigned i = 2; i < num_nodes; i++) {
-      if (prime[i]) {
-        for (unsigned j = i * i; j < num_nodes; j += i) prime[j] = false;
-      }
-    }
-  }
-  static void TearDownTestSuite() {
-    delete graph_edges;
-    delete odd_graph_edges;
-    free(prime);
-  }
-
-  void SetUp() override {}
-  void TearDown() override {}
-};
-
-vector<Edge>* EXPR_Parallelism::graph_edges;
-vector<Edge>* EXPR_Parallelism::odd_graph_edges;
-bool* EXPR_Parallelism::prime;
-
 void parallel_test(unsigned long vec_size, unsigned long num_updates) {
   srand(time(NULL));
   std::vector<vec_t> updates(num_updates);
@@ -69,8 +27,8 @@ void parallel_test(unsigned long vec_size, unsigned long num_updates) {
   std::cout << "Fraction of time used: " << batch/one << std::endl;
 }
 
-TEST_F(EXPR_Parallelism, Experiment) {
-  for (int i = 2; i <=30; i+=2) {
+TEST(EXPR_Parallelism, Experiment) {
+  for (int i = 2; i <=10; i+=2) {
     unsigned long vec_size = (unsigned long) pow(2,i) + 1;
     for (int j = 3; j <= 7; ++j) {
       unsigned long num_updates = (unsigned long) pow(10,j);
