@@ -24,6 +24,11 @@ Supernode::Supernode(uint64_t n, long seed): sketches(log2(n)), idx(0), logn(log
 }
 #endif
 
+Supernode::~Supernode() {
+  for (int i=0;i<logn;++i)
+    delete sketches[i];
+}
+
 boost::optional<Edge> Supernode::sample() {
   if (idx == logn) throw OutOfQueriesException();
   vec_t query_idx;
