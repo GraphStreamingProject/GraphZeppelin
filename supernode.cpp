@@ -1,6 +1,7 @@
 #include <stdexcept>
 #include <cmath>
 #include <boost/multiprecision/cpp_int.hpp>
+#include <omp.h>
 #include "include/supernode.h"
 #include "include/util.h"
 
@@ -38,14 +39,35 @@ void Supernode::merge(Supernode &other) {
   }
 }
 
-void Supernode::update(Edge update) {
-  vec_t upd = nondirectional_non_self_edge_pairing_fn(update.first, update.second);
+void Supernode::update(vec_t upd) {
   for (Sketch* s : sketches)
     s->update(upd);
 }
 
 void Supernode::batch_update(const std::vector<vec_t>& updates) {
-  for (Sketch *s : sketches) {
-    s->batch_update(updates);
+  /*
+   * Consider fiddling with environment vars
+   * OMP_DYNAMIC: whether the OS is allowed to dynamically change the number
+   * of threads employed for each parallel section
+   * OMP_NUM_THREADS (or set_omp_num_threads): how many threads to spin up for
+   * each parallel section. the default is (probably) one per CPU core
+   * available, but we may want to set it lower if logn is a nice multiple of
+   * a lower number.
+   *
+   * We may want to use omp option schedule(dynamic) or schedule(guided) if
+   * there are very many more iterations of loop than threads. Dynamic
+   * scheduling is good if loop iterations are expected to take very much
+   * different amounts of time. Refer to
+   * http://www.inf.ufsc.br/~bosco.sobral/ensino/ine5645/OpenMP_Dynamic_Scheduling.pdf
+   * for a detailed explanation.
+   */
+  /*
+   * Current impl uses default threads and parallelism within batched_update.
+   * Considered using spin-threads and parallelism within sketch::update, but
+   * this was slow (at least on small graph inputs).
+   */
+  #pragma omp parallel for
+  for (unsigned i = 0; i < sketches.size(); ++i) {
+    sketches[i]->batch_update(updates);
   }
 }

@@ -32,8 +32,9 @@ void Graph::update(GraphUpdate upd) {
   if (edge.first > edge.second) {
     std::swap(edge.first,edge.second);
   }
-  supernodes[edge.first]->update(edge);
-  supernodes[edge.second]->update(edge);
+  vec_t encoded = nondirectional_non_self_edge_pairing_fn(edge.first, edge.second);
+  supernodes[edge.first]->update(encoded);
+  supernodes[edge.second]->update(encoded);
 }
 
 

@@ -12,6 +12,7 @@ void Sketch::update(const vec_t& update_idx) {
   const unsigned num_buckets = bucket_gen(n, num_bucket_factor);
   const unsigned num_guesses = guess_gen(n);
   XXH64_hash_t update_hash = Bucket_Boruvka::index_hash(update_idx, seed);
+//  #pragma omp parallel for
   for (unsigned i = 0; i < num_buckets; ++i) {
     XXH64_hash_t col_index_hash = Bucket_Boruvka::col_index_hash(i, update_idx, seed);
     for (unsigned j = 0; j < num_guesses; ++j) {
