@@ -65,14 +65,17 @@ public:
   vector<unordered_map<Node, vector<Node>>> spanning_forest();
 
   /**
-   * An algorithm for testing if the graph is k-edge-connected.
+   * Let $G$ be the graph represented by this sketch, and define 
+   * $F_i$ for $1 <= i <= k$ as a spanning forest of 
+   * $G - \cup_{j = 1}^{i-1} F_j$, where subtraction between graphs
+   * excludes nodes.
+   *
+   * @param k The number of edge-disjoint spanning forests to take
+   * the union of.
    * 
-   * @param k An int specifying to test for k-edge-connectivity
-   * 
-   * @return a boolean indicating whether or not the graph is
-   * k-edge-connected
+   * @return U $\cup_{i = 1}^{k} F_i$
    */ 
-  bool is_k_edge_connected (int k);
+  vector<vector<Node>> k_edge_disjoint_span_forests_union (int k);
 
 #ifdef VERIFY_SAMPLES_F
   std::string cum_in = "./cum_sample.txt";

@@ -205,7 +205,7 @@ vector<unordered_map<Node, vector<Node>>> Graph::spanning_forest()
   return retval;
 }
 
-bool Graph::k_edge_disjoint_span_forests_union (int k)
+vector<vector<Node>> Graph::k_edge_disjoint_span_forests_union (int k)
 {
   vector<Graph> instances(k-1, *this);
   auto F_0 = this->spanning_forest();
@@ -216,7 +216,7 @@ bool Graph::k_edge_disjoint_span_forests_union (int k)
         if (node_list_pair.first < neighbor) 
           g_i.update({{node_list_pair.first, neighbor}, DELETE});
   
-  vector<Node, vector<Node>> forest_union;
+  vector<vector<Node>> forest_union;
   forest_union.reserve(num_nodes);
 
   // Insert current forest edges into union
