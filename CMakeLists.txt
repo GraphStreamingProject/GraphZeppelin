@@ -189,10 +189,12 @@ target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F EXT_MEM_POST_PROC_F)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(tests PRIVATE -g)
+  target_compile_options(tests PRIVATE -g -fopenmp)
+  target_link_options(tests PRIVATE -fopenmp)
 else ()
   if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(tests PRIVATE -O3)
+    target_compile_options(tests PRIVATE -O3 -fopenmp)
+    target_link_options(tests PRIVATE -fopenmp)
   elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
     target_compile_options(tests PRIVATE /O2)
   endif()
@@ -217,10 +219,12 @@ target_compile_definitions(native_tests PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F EX
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(native_tests PRIVATE -g)
+  target_compile_options(native_tests PRIVATE -g -fopenmp)
+  target_link_options(native_tests PRIVATE -fopenmp)
 else ()
   if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(native_tests PRIVATE -O3)
+    target_compile_options(native_tests PRIVATE -O3 -fopenmp)
+    target_link_options(native_tests PRIVATE -fopenmp)
   elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
     target_compile_options(native_tests PRIVATE /O2)
   endif()
@@ -228,22 +232,26 @@ endif ()
 
 #exectuables for experiment
 add_executable(experiment
-    test/test_runner.cpp
-    test/util/graph_verifier.cpp
-    test/util/graph_gen.cpp
-    graph.cpp
-    supernode.cpp
-    l0_sampling/sketch.cpp
-    util.cpp test/experiment/BCHMK1_PostProc.cpp)
+  test/test_runner.cpp
+  test/experiment/parallelism.cpp
+  test/experiment/BCHMK1_PostProc.cpp
+  test/util/graph_verifier.cpp
+  test/util/graph_gen.cpp
+  graph.cpp
+  supernode.cpp
+  l0_sampling/sketch.cpp
+  util.cpp)
 target_link_libraries(experiment PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(experiment PRIVATE USE_NATIVE_F)
+target_compile_definitions(experiment PRIVATE)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(experiment PRIVATE -g)
+  target_compile_options(experiment PRIVATE -g -fopenmp)
+  target_link_options(experiment PRIVATE -fopenmp)
 else ()
   if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(experiment PRIVATE -O3)
+    target_compile_options(experiment PRIVATE -O3 -fopenmp)
+    target_link_options(experiment PRIVATE -fopenmp)
   elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
     target_compile_options(experiment PRIVATE /O2)
   endif()
@@ -263,10 +271,12 @@ target_compile_definitions(ext_mem_experiment PRIVATE USE_NATIVE_F
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(ext_mem_experiment PRIVATE -g)
+  target_compile_options(ext_mem_experiment PRIVATE -g -fopenmp)
+  target_link_options(ext_mem_experiment PRIVATE -fopenmp)
 else ()
   if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(ext_mem_experiment PRIVATE -O3)
+    target_compile_options(ext_mem_experiment PRIVATE -O3 -fopenmp)
+    target_link_options(ext_mem_experiment PRIVATE -fopenmp)
   elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
     target_compile_options(ext_mem_experiment PRIVATE /O2)
   endif()
