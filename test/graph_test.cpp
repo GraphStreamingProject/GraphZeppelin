@@ -250,18 +250,22 @@ TEST(GraphTestSuite, MinCutSizeEdgeConnectedIffHasMinCutSizedSkeleton)
 
     auto U = g.k_edge_disjoint_span_forests_union(G_min_cut_size);
 
-    UGraph bu;
+    UGraph bu(n);
     for (Node i = 0; i < n; i++)
     {
       for (Node neighbor : U[i])
       {
-	ASSERT_FALSE(edge(i, neighbor, bu).second) 
-		<< "Spanning forests are not edge-disjoint";
-	add_edge(i, neighbor, bu);
+	if (i < neighbor)
+        {
+	  ASSERT_FALSE(edge(i, neighbor, bu).second) 
+		  << "Forests are not edge-disjoint \n";
+	  
+          add_edge(i, neighbor, bu);
+        }
       }
     }
 
-    auto F_min_cut_size = stoer_wagner_min_cut(bu, 
+    auto U_min_cut_size = stoer_wagner_min_cut(bu, 
 	make_static_property_map<UGraph::edge_descriptor>(1));
 
     EXPECT_EQ(G_min_cut_size, U_min_cut_size);

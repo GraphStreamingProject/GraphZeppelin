@@ -73,7 +73,8 @@ public:
    * @param k The number of edge-disjoint spanning forests to take
    * the union of.
    * 
-   * @return U $\cup_{i = 1}^{k} F_i$
+   * @return U $ = \cup_{i = 1}^{k} F_i$. A useful property of U is
+   * that G is k-edge-connected iff U is k-edge-connected.
    */ 
   vector<vector<Node>> k_edge_disjoint_span_forests_union (int k);
 

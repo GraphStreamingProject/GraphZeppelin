@@ -11,7 +11,7 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
   representatives = new map<Node, size_t>(); 
   supernodes = new Supernode*[num_nodes];
   parent = new Node[num_nodes];
-  time_t seed = 0; //time(nullptr); TODO 
+  time_t seed = time(nullptr); 
   for (Node i=0;i<num_nodes;++i) {
     (*representatives)[i] = 1;
     supernodes[i] = new Supernode(num_nodes,seed);
@@ -216,8 +216,7 @@ vector<vector<Node>> Graph::k_edge_disjoint_span_forests_union (int k)
         if (node_list_pair.first < neighbor) 
           g_i.update({{node_list_pair.first, neighbor}, DELETE});
   
-  vector<vector<Node>> forest_union;
-  forest_union.reserve(num_nodes);
+  vector<vector<Node>> forest_union(num_nodes);
 
   // Insert current forest edges into union
   for (int i = F_0.size() - 1; i >= 0; i--)
@@ -230,10 +229,10 @@ vector<vector<Node>> Graph::k_edge_disjoint_span_forests_union (int k)
   }
 
   // Repeat above for other instances
-  for (int i = k - 2; i => 0; i--)
+  for (int i = k - 2; i >= 0; i--)
   {
     auto F_i = instances[i].spanning_forest();
-    instances.erase(instances.end());
+    instances.pop_back();
    
     // Remove current forest edges from remaining instances 
     for (int j = i - 1; j >= 0; j--)
