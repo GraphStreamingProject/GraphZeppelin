@@ -24,6 +24,7 @@ public:
    */
   Supernode(uint64_t n, long seed);
   ~Supernode();
+  Supernode(const Supernode& t);
 
   /**
    * Function to sample an edge from the cut of a supernode.

@@ -18,6 +18,16 @@ Supernode::~Supernode() {
     delete sketches[i];
 }
 
+Supernode::Supernode(const Supernode& t)
+	:sketches{vector<Sketch*>(t.sketches.size())},
+	 idk{t.idx},
+	 logn{t.logn}
+{
+  for (Sketch* ptr : g.sketches)
+    sketches.push_back(new Sketch(*ptr));
+}
+
+
 boost::optional<Edge> Supernode::sample() {
   if (idx == logn) throw OutOfQueriesException();
   vec_t query_idx;

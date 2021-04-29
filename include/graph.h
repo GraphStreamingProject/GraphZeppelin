@@ -37,6 +37,7 @@ class Graph{
 public:
   explicit Graph(uint64_t num_nodes);
   ~Graph();
+  Graph(const Graph& g);
   void update(GraphUpdate upd);
 
   /**

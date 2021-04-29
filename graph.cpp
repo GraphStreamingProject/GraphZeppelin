@@ -27,10 +27,18 @@ Graph::~Graph() {
   delete representatives;
 }
 
-Graph::Graph(const G& g)
-	:num_nodes = g.num_nodes
-	 representatives{new map<Node, size_t>()}
-	 supernodes{new Supernode*[num_nodes]}
+Graph::Graph(const Graph& g)
+	:num_nodes{g.num_nodes},
+	 representatives{new map<Node, size_t>(g.representatives)},
+	 supernodes{new Supernode* [g.num_nodes]},
+	 parent{new Node[g.num_nodes]}
+{
+  for (Node i = 0; i < num_nodes; i++)
+  {
+    supernodes[i] = new Supernode(g.supernodes[i]);
+    parent[i] = g.parent[i];
+  } 
+}
 
 void Graph::update(GraphUpdate upd) {
   if (update_locked) throw UpdateLockedException();
