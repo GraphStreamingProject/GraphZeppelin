@@ -11,7 +11,7 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
   representatives = new map<Node, size_t>(); 
   supernodes = new Supernode*[num_nodes];
   parent = new Node[num_nodes];
-  time_t seed = time(nullptr);
+  time_t seed = 0; //time(nullptr); TODO 
   for (Node i=0;i<num_nodes;++i) {
     (*representatives)[i] = 1;
     supernodes[i] = new Supernode(num_nodes,seed);
@@ -205,36 +205,53 @@ vector<unordered_map<Node, vector<Node>>> Graph::spanning_forest()
   return retval;
 }
 
-bool Graph::is_k_edge_connected (int k)
+bool Graph::k_edge_disjoint_span_forests_union (int k)
 {
-  // TODO: Should we leave the original instance of the sketch
-  // unaltered? It consumes (k+1)/k times more
-  // memory, but it leaves the original sketch unaltered in
-  // case the user wishes to conduct another algorithm.
   vector<Graph> instances(k-1, *this);
   auto F_0 = this->spanning_forest();
-  if (F_0.size() > 1) return false;
+  // Remove current forest edges from remaining instances 
   for(Graph& g_i : instances)
     for (const auto& node_list_pair : F_0[0])
       for (const Node& neighbor : node_list_pair.second)
         if (node_list_pair.first < neighbor) 
           g_i.update({{node_list_pair.first, neighbor}, DELETE});
   
-  for (int i = 0; i < k - 1; i++)
+  vector<Node, vector<Node>> forest_union;
+  forest_union.reserve(num_nodes);
+
+  // Insert current forest edges into union
+  for (int i = F_0.size() - 1; i >= 0; i--)
+  {
+    for (const auto& node_list_pair : F_0[i])
+      for (const auto& neighbor : node_list_pair.second)
+        forest_union[node_list_pair.first].push_back(neighbor);
+
+    F_0.erase(F_0.end());
+  }
+
+  // Repeat above for other instances
+  for (int i = k - 2; i => 0; i--)
   {
     auto F_i = instances[i].spanning_forest();
-  
-    if (F_i.size() > 1) return false;
-  
-    for (int j = i + 1; j <= k - 1; j++)
-      for (const auto& node_list_pair : F_i[0])
-        for (const Node& neighbor : node_list_pair.second)
-          if (node_list_pair.first < neighbor) 
-            instances[j].update(
-                {{node_list_pair.first, neighbor}, DELETE});
+    instances.erase(instances.end());
+   
+    // Remove current forest edges from remaining instances 
+    for (int j = i - 1; j >= 0; j--)
+      for (const auto& span_tree: F_i)
+        for (const auto& node_list_pair : span_tree)
+          for (const Node& neighbor : node_list_pair.second)
+            if (node_list_pair.first < neighbor) 
+              instances[j].update(
+                  {{node_list_pair.first, neighbor}, DELETE});
+    
+    // Insert current forest edges into union
+    for (const auto& span_tree : F_i)
+      for (const auto& node_list_pair : span_tree)
+        for (const auto& neighbor : node_list_pair.second)
+          forest_union[node_list_pair.first].push_back(neighbor);
   }
-  
-  return instances[k - 1].spanning_forest().size() < 2;
+
+  return forest_union;
 }
 
 Node Graph::get_parent(Node node) {

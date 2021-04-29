@@ -231,27 +231,39 @@ TEST(GraphTestSuite, CopyTest)
   g2.spanning_forest();
 }
 
-TEST(GraphTestSuite, RandomGraphIsMinCutSizeEdgeConnected)
-{
+TEST(GraphTestSuite, MinCutSizeEdgeConnectedIffHasMinCutSizedSkeleton)
+{	
   using namespace boost;
 
+  int n = 100;
   int num_trials = 10;
+  
   while (num_trials--) {
     generate_stream(
-	{100,0.5,0.5,0,"./sample.txt","./cum_sample.txt"});
+	{n,0.2,0.5,0,"./sample.txt","./cum_sample.txt"});
     
     Graph g = ingest_stream("./sample.txt");
     UGraph bg = ingest_cum_graph("./cum_sample.txt");
 
-    auto min_cut_size = stoer_wagner_min_cut(bg, 
+    auto G_min_cut_size = stoer_wagner_min_cut(bg, 
 	make_static_property_map<UGraph::edge_descriptor>(1));
 
-    std::cout << "Testing " << min_cut_size << "-edge-connectivity on a graph with min edge cut of size " << min_cut_size;
+    auto U = g.k_edge_disjoint_span_forests_union(G_min_cut_size);
 
-    EXPECT_TRUE(g.is_k_edge_connected(min_cut_size));
-//    EXPECT_FALSE(g.is_k_edge_connected(min_cut_size + 1));
+    UGraph bu;
+    for (Node i = 0; i < n; i++)
+    {
+      for (Node neighbor : U[i])
+      {
+	ASSERT_FALSE(edge(i, neighbor, bu).second) 
+		<< "Spanning forests are not edge-disjoint";
+	add_edge(i, neighbor, bu);
+      }
+    }
 
-    // TODO: Ensure any k \in [min_cut_size] returns true, and
-    // any k > min_cut_size returns false. 
+    auto F_min_cut_size = stoer_wagner_min_cut(bu, 
+	make_static_property_map<UGraph::edge_descriptor>(1));
+
+    EXPECT_EQ(G_min_cut_size, U_min_cut_size);
   }
 }
