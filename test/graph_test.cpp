@@ -219,27 +219,39 @@ TEST(GraphTestSuite, TestSpanningForestOnRandomGraph)
   }
 }
 
-//TEST(GraphTestSuite, TestKConnectivityOnRandomGraphs)
-//{
-//  using namespace boost;
-//
-//  int num_trials = 10;
-//  while (num_trials--) {
-//    generate_stream(
-//	{100,0.5,0.5,0,"./sample.txt","./cum_sample.txt"});
-//    
-//    Graph g = ingest_stream("./sample.txt");
-//    UGraph bg = ingest_cum_graph(".cum_sample.txt");
-//
-//    auto min_cut_size = stoer_wagner_min_cut(bg, 
-//	make_static_property_map<UGraph::edge_descriptor>(1));
-//
-//    std::cout << "Testing " << min_cut_size << "-edge-connectivity on a graph with min edge cut of size " << min_cut_size;
-//
-//    EXPECT_TRUE(g.is_k_edge_connected(min_cut_size));
-////    EXPECT_FALSE(g.is_k_edge_connected(min_cut_size + 1));
-//
-//    // TODO: Ensure any k \in [min_cut_size] returns true, and
-//    // any k > min_cut_size returns false. 
-//  }
-//}
+TEST(GraphTestSuite, CopyTest)
+{
+  generate_stream(
+	{100,0.5,0.5,0,"./sample.txt","./cum_sample.txt"});
+ 
+  Graph g = ingest_stream("./sample.txt");
+  Graph g2{g};
+
+  g.spanning_forest();
+  g2.spanning_forest();
+}
+
+TEST(GraphTestSuite, RandomGraphIsMinCutSizeEdgeConnected)
+{
+  using namespace boost;
+
+  int num_trials = 10;
+  while (num_trials--) {
+    generate_stream(
+	{100,0.5,0.5,0,"./sample.txt","./cum_sample.txt"});
+    
+    Graph g = ingest_stream("./sample.txt");
+    UGraph bg = ingest_cum_graph("./cum_sample.txt");
+
+    auto min_cut_size = stoer_wagner_min_cut(bg, 
+	make_static_property_map<UGraph::edge_descriptor>(1));
+
+    std::cout << "Testing " << min_cut_size << "-edge-connectivity on a graph with min edge cut of size " << min_cut_size;
+
+    EXPECT_TRUE(g.is_k_edge_connected(min_cut_size));
+//    EXPECT_FALSE(g.is_k_edge_connected(min_cut_size + 1));
+
+    // TODO: Ensure any k \in [min_cut_size] returns true, and
+    // any k > min_cut_size returns false. 
+  }
+}

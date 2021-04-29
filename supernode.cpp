@@ -19,11 +19,13 @@ Supernode::~Supernode() {
 }
 
 Supernode::Supernode(const Supernode& t)
-	:sketches{vector<Sketch*>(t.sketches.size())},
-	 idk{t.idx},
+	:sketches{vector<Sketch*>()},
+	 idx{t.idx},
 	 logn{t.logn}
 {
-  for (Sketch* ptr : g.sketches)
+  sketches.reserve(t.sketches.size());
+
+  for (Sketch* ptr : t.sketches)
     sketches.push_back(new Sketch(*ptr));
 }
 
