@@ -231,43 +231,43 @@ TEST(GraphTestSuite, CopyTest)
   g2.spanning_forest();
 }
 
-TEST(GraphTestSuite, MinCutSizeEdgeConnectedIffHasMinCutSizedSkeleton)
-{	
-  using namespace boost;
-
-  int n = 100;
-  int num_trials = 10;
-  
-  while (num_trials--) {
-    generate_stream(
-	{n,0.2,0.5,0,"./sample.txt","./cum_sample.txt"});
-    
-    Graph g = ingest_stream("./sample.txt");
-    UGraph bg = ingest_cum_graph("./cum_sample.txt");
-
-    auto G_min_cut_size = stoer_wagner_min_cut(bg, 
-	make_static_property_map<UGraph::edge_descriptor>(1));
-
-    auto U = g.k_edge_disjoint_span_forests_union(G_min_cut_size);
-
-    UGraph bu(n);
-    for (Node i = 0; i < n; i++)
-    {
-      for (Node neighbor : U[i])
-      {
-	if (i < neighbor)
-        {
-	  ASSERT_FALSE(edge(i, neighbor, bu).second) 
-		  << "Forests are not edge-disjoint \n";
-	  
-          add_edge(i, neighbor, bu);
-        }
-      }
-    }
-
-    auto U_min_cut_size = stoer_wagner_min_cut(bu, 
-	make_static_property_map<UGraph::edge_descriptor>(1));
-
-    EXPECT_EQ(G_min_cut_size, U_min_cut_size);
-  }
-}
+//TEST(GraphTestSuite, MinCutSizeEdgeConnectedIffHasMinCutSizedSkeleton)
+//{	
+//  using namespace boost;
+//
+//  int n = 100;
+//  int num_trials = 10;
+//  
+//  while (num_trials--) {
+//    generate_stream(
+//	{n,0.2,0.5,0,"./sample.txt","./cum_sample.txt"});
+//    
+//    Graph g = ingest_stream("./sample.txt");
+//    UGraph bg = ingest_cum_graph("./cum_sample.txt");
+//
+//    auto G_min_cut_size = stoer_wagner_min_cut(bg, 
+//	make_static_property_map<UGraph::edge_descriptor>(1));
+//
+//    auto U = g.k_edge_disjoint_span_forests_union(G_min_cut_size);
+//
+//    UGraph bu(n);
+//    for (Node i = 0; i < n; i++)
+//    {
+//      for (Node neighbor : U[i])
+//      {
+//	if (i < neighbor)
+//        {
+//	  ASSERT_FALSE(edge(i, neighbor, bu).second) 
+//		  << "Forests are not edge-disjoint \n";
+//	  
+//          add_edge(i, neighbor, bu);
+//        }
+//      }
+//    }
+//
+//    auto U_min_cut_size = stoer_wagner_min_cut(bu, 
+//	make_static_property_map<UGraph::edge_descriptor>(1));
+//
+//    EXPECT_EQ(G_min_cut_size, U_min_cut_size);
+//  }
+//}
