@@ -15,11 +15,11 @@ extra_data = np.zeros((len(domain), 3))
 for k in range(len(domain)):
     print("Profiling on " + str(domain[k]) + " vertex graphs")
     for i in range(1, num_trials+1):
-        subprocess.run(["./bld/stream_gen", str(domain[k]),
+        subprocess.run(["../../build/stream_gen", str(domain[k]),
             "stream.txt"]) 
         for algo in range(3):
             subprocess.run(["valgrind", "--tool=massif", "--depth=1",
-                "--massif-out-file=memlog.txt", "./bld/runner", 
+                "--massif-out-file=memlog.txt", "../../build/runner", 
                 str(algo), "stream.txt"])
 
             req_heap = 0;

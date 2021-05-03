@@ -232,7 +232,7 @@ TEST(GraphTestSuite, CopyTest)
 }
 
 TEST(GraphTestSuite, MinCutSizeEdgeConnectedIffHasMinCutSizedSkeleton)
-{	
+{
   using namespace boost;
 
   int n = 100;
@@ -245,8 +245,14 @@ TEST(GraphTestSuite, MinCutSizeEdgeConnectedIffHasMinCutSizedSkeleton)
     Graph g = ingest_stream("./sample.txt");
     UGraph bg = ingest_cum_graph("./cum_sample.txt");
 
+    // Vertices that have the same parity after `stoer_wagner_min_cut` 
+    // runs are on the same side of the min-cut.
+    BOOST_AUTO(bg_parities, make_one_bit_color_map(
+			    num_vertices(bg), get(vertex_index, bg)));
+
     auto G_min_cut_size = stoer_wagner_min_cut(bg, 
-	make_static_property_map<UGraph::edge_descriptor>(1));
+	make_static_property_map<UGraph::edge_descriptor>(1),
+	parity_map(bg_parities));
 
     auto U = g.k_edge_disjoint_span_forests_union(G_min_cut_size);
 
@@ -264,9 +270,15 @@ TEST(GraphTestSuite, MinCutSizeEdgeConnectedIffHasMinCutSizedSkeleton)
         }
       }
     }
+  
+    // Vertices that have the same parity after `stoer_wagner_min_cut` 
+    // runs are on the same side of the min-cut.
+    BOOST_AUTO(bu_parities, make_one_bit_color_map(
+			    num_vertices(bu), get(vertex_index, bu)));
 
     auto U_min_cut_size = stoer_wagner_min_cut(bu, 
-	make_static_property_map<UGraph::edge_descriptor>(1));
+	make_static_property_map<UGraph::edge_descriptor>(1),
+	parity_map(bu_parities));
 
     EXPECT_EQ(G_min_cut_size, U_min_cut_size);
   }
