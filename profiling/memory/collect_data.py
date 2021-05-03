@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 domain = np.arange(100, 200, 10)
-num_trials = 5
+num_trials = 10
 
 req_data = np.zeros((len(domain), 3))
 extra_data = np.zeros((len(domain), 3))
@@ -19,8 +19,7 @@ for k in range(len(domain)):
             "stream.txt"]) 
         for algo in range(3):
             subprocess.run(["valgrind", "--tool=massif", "--depth=1",
-                "--massif-out-file=memlog.txt",
-                "--ignore-fn=main", "./bld/mem_profiler", 
+                "--massif-out-file=memlog.txt", "./bld/runner", 
                 str(algo), "stream.txt"])
 
             req_heap = 0;

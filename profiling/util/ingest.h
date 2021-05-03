@@ -13,4 +13,9 @@
 #include <boost/graph/adjacency_list.hpp>
 
 vector<set<Node>> ingest_con_comp (istream * udpates_stream);
-bool ingest_boost_bip (istream * updates_stream);
+
+vector<unordered_map<Node, vector<Node>>> 
+ingest_span_forest (istream * updates_stream);
+
+vector<vector<Node>> 
+ingest_k_edge_disjoint_span_forests_union (istream * updates_stream);

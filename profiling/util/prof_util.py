@@ -3,9 +3,10 @@ import matplotlib.pyplot as plt
 
 def graph_data (data, y_label):
     data = np.array(data)
-    plt.plot(data[:,0], data[:,1], "o-", label="Sketch-based CC")
-    plt.plot(data[:,0], data[:,2], "d-", label="Sketch-based bipartite test")
-    plt.plot(data[:,0], data[:,3], "s-", label="BGL bipartite test")
+    plt.plot(data[:,0], data[:,1], "o-", label="Connected Components")
+    plt.plot(data[:,0], data[:,2], "d-", label="Spanning Forest")
+    plt.plot(data[:,0], data[:,3], "s-", label="k edge-disjoint\
+            forests union")
     plt.legend()
     plt.xlabel("Number of Vertices")
     plt.ylabel(y_label)

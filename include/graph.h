@@ -4,6 +4,7 @@
 #include <exception>
 #include <set>
 #include <unordered_map>
+#include <map>
 #include <list>
 #include <fstream>
 #include "supernode.h"

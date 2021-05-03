@@ -1,4 +1,5 @@
 #include <utility>
+#include <string>
 
 #ifndef TEST_GRAPH_GEN_H
 #define TEST_GRAPH_GEN_H
