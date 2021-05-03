@@ -1,4 +1,4 @@
-#include "../../test/util/graph_gen.h"
+#include "../../../test/util/graph_gen.h"
 #include <cstdlib>
 
 //Command line wrapper for graph_gen
