@@ -170,6 +170,30 @@ include_directories("${Boost_INCLUDE_DIR}")
 #  target_compile_options(l0sampling PRIVATE /O2)
 #endif()
 
+#set(ENV{DEBUG} TRUE)
+
+add_executable(timer
+  profiling/time/profiler.cpp
+  test/util/graph_verifier.cpp
+  test/util/graph_gen.cpp
+  graph.cpp
+  supernode.cpp
+  l0_sampling/sketch.cpp
+  util.cpp)
+target_link_libraries(timer PRIVATE xxHash::xxhash GTest::gtest)
+#target_compile_definitions(timer PRIVATE VERIFY_SAMPLES_F)
+# optimize unless debug
+if (DEFINED ENV{DEBUG})
+  message("Disabling optimizations and enabling debug symbols")
+  target_compile_options(timer PRIVATE -g)
+else ()
+  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    target_compile_options(timer PRIVATE -O3)
+  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    target_compile_options(timer PRIVATE /O2)
+  endif()
+endif ()
+
 add_executable(runner
   profiling/memory/src/runner.cpp
   test/util/graph_verifier.cpp
@@ -179,7 +203,7 @@ add_executable(runner
   l0_sampling/sketch.cpp
   util.cpp)
 target_link_libraries(runner PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(runner PRIVATE VERIFY_SAMPLES_F)
+#target_compile_definitions(runner PRIVATE VERIFY_SAMPLES_F)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")
@@ -201,7 +225,7 @@ add_executable(stream_gen
   l0_sampling/sketch.cpp
   util.cpp)
 target_link_libraries(stream_gen PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(stream_gen PRIVATE VERIFY_SAMPLES_F)
+#target_compile_definitions(stream_gen PRIVATE VERIFY_SAMPLES_F)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")

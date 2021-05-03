@@ -2,27 +2,17 @@
 #include <cstdlib>
 #include <vector>
 #include <fstream>
+
+#include "../../include/graph.h"
 #include "../../test/util/graph_gen.h"
-#include "../util/ingest.h"
-#include "../../include/bipartite.h"
 
 #include <chrono>
 #include <utility>
 
-// Boiler-plate for timing execution of arbitrary function taken from:
-// https://stackoverflow.com/questions/22387586/measuring-execution-time-of-a-function-in-c
-
-typedef std::chrono::high_resolution_clock::time_point TimeVar;
+typedef std::chrono::steady_clock::time_point time_var;
 
 #define duration(a) std::chrono::duration_cast<std::chrono::milliseconds>(a).count()
-#define timeNow() std::chrono::high_resolution_clock::now()
-
-template<typename F, typename... Args>
-double funcTime(F func, Args&&... args){
-    TimeVar t1=timeNow();
-    func(std::forward<Args>(args)...);
-    return duration(timeNow()-t1);
-}
+#define time_now() std::chrono::steady_clock::now()
 
 /* Command line input specify range of graph sizes (in terms of
  * number of vertices) to run on: start, stop, step
@@ -41,7 +31,7 @@ int main (int argc, char * argv[])
 	int step = atoi(argv[3]);
 	int num_trials = atoi(argv[4]);
 	
-	int num_algos = 3;
+	int num_algos = 2;
 
 	int domain_size = (stop - start) / step;
 	vector<vector<double>> data(domain_size, 
@@ -52,38 +42,49 @@ int main (int argc, char * argv[])
 		int n = start + i * step; 
 		data[i][0] = n;
 
-		cout << "Profiling on " << n << " vertex graphs..." << endl;
+		cout << "Profiling on " << n << " vertex graph(s)..." << endl;
 
 		for (int k = 1; k < num_trials + 1; k++)
 		{
+			srand(time(NULL));
 			generate_stream({n, 0.03, 0.5, 0, 
 				"stream.txt", "cum_graph.txt"});
-			ifstream * updates_stream = new ifstream (
-					"stream.txt");
-			
+			ifstream updates_stream{"stream.txt"};
+		
+		        int n, m;
+		        updates_stream >> n >> m;
+		
+		        Graph g1{n};
+		
+		        int t, u, v;
+		        UpdateType type;
+		        for (int i = 0; i < m; i++)
+		        {
+		                updates_stream >> t >> u >> v;
+                		type = t ? DELETE : INSERT;
+
+                		g1.update({{u, v}, type});
+        		}
+
+			Graph g2(g1);
+
 			// CC Profile
-			double run_time = funcTime(ingest_con_comp, 
-					updates_stream);
+			time_var t1= time_now();
+			g1.connected_components();
+			double run_time = duration(time_now()-t1);
 			data[i][1] = ((k - 1) * data[i][1]
 				+ run_time) / k;	
-			updates_stream->clear();
-			updates_stream->seekg(0);	
+			updates_stream.clear();
+			updates_stream.seekg(0);	
 		
-			// is_bipartite Profile
-			run_time = funcTime(is_bipartite, 
-					updates_stream);
+			// span_forest profile
+			time_var t2= time_now();
+			g2.spanning_forest();
+			run_time = duration(time_now()-t2);
 			data[i][2] = ((k - 1) * data[i][2]
 				+ run_time) / k;	
-			updates_stream->clear();
-			updates_stream->seekg(0);	
-
-			// BGL Bipartite Profile
-			run_time = funcTime(ingest_boost_bip, 
-					updates_stream);
-			data[i][3] = ((k - 1) * data[i][3]
-				+ run_time) / k;	
-
-			delete updates_stream;
+			updates_stream.clear();
+			updates_stream.seekg(0);
 		}
 	}
 

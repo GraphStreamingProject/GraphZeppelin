@@ -8,16 +8,17 @@ import matplotlib.pyplot as plt
 
 domain = np.arange(100, 200, 10)
 num_trials = 10
+num_algos = 2
 
-req_data = np.zeros((len(domain), 3))
-extra_data = np.zeros((len(domain), 3))
+req_data = np.zeros((len(domain), num_algos))
+extra_data = np.zeros((len(domain), num_algos))
 
 for k in range(len(domain)):
     print("Profiling on " + str(domain[k]) + " vertex graphs")
     for i in range(1, num_trials+1):
         subprocess.run(["../../build/stream_gen", str(domain[k]),
             "stream.txt"]) 
-        for algo in range(3):
+        for algo in range(num_algos):
             subprocess.run(["valgrind", "--tool=massif", "--depth=1",
                 "--massif-out-file=memlog.txt", "../../build/runner", 
                 str(algo), "stream.txt"])
@@ -48,5 +49,3 @@ total_data = np.concatenate((domain.reshape((len(domain), 1)),
 
 pu.format_data(req_data, "req_mem.txt")
 pu.format_data(total_data, "total_mem.txt")
-pu.graph_data(req_data, "Peak memory consumption (bytes)")
-pu.graph_data(total_data, "Peak memory consumption (bytes)")
