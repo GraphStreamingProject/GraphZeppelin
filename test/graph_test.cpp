@@ -235,12 +235,12 @@ TEST(GraphTestSuite, MinCutSizeEdgeConnectedIffHasMinCutSizedSkeleton)
 {
   using namespace boost;
 
-  int n = 100;
+  int n = 10000;
   int num_trials = 10;
   
   while (num_trials--) {
     generate_stream(
-	{n,0.2,0.5,0,"./sample.txt","./cum_sample.txt"});
+	{n,0.004,0.5,0,"./sample.txt","./cum_sample.txt"});
     
     Graph g = ingest_stream("./sample.txt");
     UGraph bg = ingest_cum_graph("./cum_sample.txt");
@@ -253,6 +253,9 @@ TEST(GraphTestSuite, MinCutSizeEdgeConnectedIffHasMinCutSizedSkeleton)
     auto G_min_cut_size = stoer_wagner_min_cut(bg, 
 	make_static_property_map<UGraph::edge_descriptor>(1),
 	parity_map(bg_parities));
+
+    std::cout << "Evaluating on graph with " << G_min_cut_size 
+	    << "-edge-connectivity" << std::endl;
 
     auto U = g.k_edge_disjoint_span_forests_union(G_min_cut_size);
 

@@ -6,9 +6,9 @@ import prof_util as pu
 import numpy as np
 import matplotlib.pyplot as plt
 
-domain = np.arange(100, 200, 10)
-num_trials = 10
-num_algos = 2
+domain = np.arange(1000, 16000, 1000)
+num_trials = 1
+num_algos = 5
 
 req_data = np.zeros((len(domain), num_algos))
 extra_data = np.zeros((len(domain), num_algos))

@@ -30,7 +30,13 @@ int main (int argc, char * argv[])
 			G.spanning_forest();
 			break;
 		case 2:
-			G.k_edge_disjoint_span_forests_union(3);
+			G.k_edge_disjoint_span_forests_union(2);
+			break;
+		case 3:
+			G.k_edge_disjoint_span_forests_union(4);
+			break;
+		case 4:
+			G.k_edge_disjoint_span_forests_union(8);
 			break;
 	}
 

@@ -31,7 +31,7 @@ int main (int argc, char * argv[])
 	int step = atoi(argv[3]);
 	int num_trials = atoi(argv[4]);
 	
-	int num_algos = 2;
+	int num_algos = 5;
 
 	int domain_size = (stop - start) / step;
 	vector<vector<double>> data(domain_size, 
@@ -42,12 +42,16 @@ int main (int argc, char * argv[])
 		int n = start + i * step; 
 		data[i][0] = n;
 
-		cout << "Profiling on " << n << " vertex graph(s)..." << endl;
+		cout << "Profiling on " << n << " vertex graph(s)..." 
+			<< endl;
 
 		for (int k = 1; k < num_trials + 1; k++)
 		{
+			cout << "Trial " << k << endl;
+
 			srand(time(NULL));
-			generate_stream({n, 0.03, 0.5, 0, 
+			generate_stream({n, ((double) 1000 / n) * 0.04, 
+				0.5, 0, 
 				"stream.txt", "cum_graph.txt"});
 			ifstream updates_stream{"stream.txt"};
 		
@@ -66,7 +70,7 @@ int main (int argc, char * argv[])
                 		g1.update({{u, v}, type});
         		}
 
-			Graph g2(g1);
+			vector<Graph> graphs(num_algos - 1, g1);
 
 			// CC Profile
 			time_var t1= time_now();
@@ -79,12 +83,35 @@ int main (int argc, char * argv[])
 		
 			// span_forest profile
 			time_var t2= time_now();
-			g2.spanning_forest();
+			graphs[0].spanning_forest();
 			run_time = duration(time_now()-t2);
 			data[i][2] = ((k - 1) * data[i][2]
 				+ run_time) / k;	
 			updates_stream.clear();
 			updates_stream.seekg(0);
+
+			// k_edge_disjoint_span_forests_union profile
+			time_var t3= time_now();
+			graphs[1].k_edge_disjoint_span_forests_union(2);
+			run_time = duration(time_now()-t3);
+			data[i][3] = ((k - 1) * data[i][3]
+				+ run_time) / k;	
+			updates_stream.clear();
+			updates_stream.seekg(0);
+
+			time_var t4= time_now();
+			graphs[2].k_edge_disjoint_span_forests_union(4);
+			run_time = duration(time_now()-t4);
+			data[i][4] = ((k - 1) * data[i][4]
+				+ run_time) / k;	
+			updates_stream.clear();
+			updates_stream.seekg(0);
+
+			time_var t5= time_now();
+			graphs[3].k_edge_disjoint_span_forests_union(8);
+			run_time = duration(time_now()-t5);
+			data[i][5] = ((k - 1) * data[i][5]
+				+ run_time) / k;	
 		}
 	}
 
