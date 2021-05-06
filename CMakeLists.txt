@@ -172,71 +172,71 @@ include_directories("${Boost_INCLUDE_DIR}")
 
 #set(ENV{DEBUG} TRUE)
 
-add_executable(timer
-  profiling/time/profiler.cpp
-  test/util/graph_verifier.cpp
-  test/util/graph_gen.cpp
-  graph.cpp
-  supernode.cpp
-  l0_sampling/sketch.cpp
-  util.cpp)
-target_link_libraries(timer PRIVATE xxHash::xxhash GTest::gtest)
-#target_compile_definitions(timer PRIVATE VERIFY_SAMPLES_F)
-# optimize unless debug
-if (DEFINED ENV{DEBUG})
-  message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(timer PRIVATE -g)
-else ()
-  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(timer PRIVATE -O3)
-  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    target_compile_options(timer PRIVATE /O2)
-  endif()
-endif ()
-
-add_executable(runner
-  profiling/memory/src/runner.cpp
-  test/util/graph_verifier.cpp
-  test/util/graph_gen.cpp
-  graph.cpp
-  supernode.cpp
-  l0_sampling/sketch.cpp
-  util.cpp)
-target_link_libraries(runner PRIVATE xxHash::xxhash GTest::gtest)
-#target_compile_definitions(runner PRIVATE VERIFY_SAMPLES_F)
-# optimize unless debug
-if (DEFINED ENV{DEBUG})
-  message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(runner PRIVATE -g)
-else ()
-  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(runner PRIVATE -O3)
-  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    target_compile_options(runner PRIVATE /O2)
-  endif()
-endif ()
-
-add_executable(stream_gen
-  profiling/memory/src/stream_gen.cpp
-  test/util/graph_verifier.cpp
-  test/util/graph_gen.cpp
-  graph.cpp
-  supernode.cpp
-  l0_sampling/sketch.cpp
-  util.cpp)
-target_link_libraries(stream_gen PRIVATE xxHash::xxhash GTest::gtest)
-#target_compile_definitions(stream_gen PRIVATE VERIFY_SAMPLES_F)
-# optimize unless debug
-if (DEFINED ENV{DEBUG})
-  message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(stream_gen PRIVATE -g)
-else ()
-  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(stream_gen PRIVATE -O3)
-  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    target_compile_options(stream_gen PRIVATE /O2)
-  endif()
-endif ()
+#add_executable(timer
+#  profiling/time/profiler.cpp
+#  test/util/graph_verifier.cpp
+#  test/util/graph_gen.cpp
+#  graph.cpp
+#  supernode.cpp
+#  l0_sampling/sketch.cpp
+#  util.cpp)
+#target_link_libraries(timer PRIVATE xxHash::xxhash GTest::gtest)
+##target_compile_definitions(timer PRIVATE VERIFY_SAMPLES_F)
+## optimize unless debug
+#if (DEFINED ENV{DEBUG})
+#  message("Disabling optimizations and enabling debug symbols")
+#  target_compile_options(timer PRIVATE -g)
+#else ()
+#  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+#    target_compile_options(timer PRIVATE -O3)
+#  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+#    target_compile_options(timer PRIVATE /O2)
+#  endif()
+#endif ()
+#
+#add_executable(runner
+#  profiling/memory/src/runner.cpp
+#  test/util/graph_verifier.cpp
+#  test/util/graph_gen.cpp
+#  graph.cpp
+#  supernode.cpp
+#  l0_sampling/sketch.cpp
+#  util.cpp)
+#target_link_libraries(runner PRIVATE xxHash::xxhash GTest::gtest)
+##target_compile_definitions(runner PRIVATE VERIFY_SAMPLES_F)
+## optimize unless debug
+#if (DEFINED ENV{DEBUG})
+#  message("Disabling optimizations and enabling debug symbols")
+#  target_compile_options(runner PRIVATE -g)
+#else ()
+#  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+#    target_compile_options(runner PRIVATE -O3)
+#  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+#    target_compile_options(runner PRIVATE /O2)
+#  endif()
+#endif ()
+#
+#add_executable(stream_gen
+#  profiling/memory/src/stream_gen.cpp
+#  test/util/graph_verifier.cpp
+#  test/util/graph_gen.cpp
+#  graph.cpp
+#  supernode.cpp
+#  l0_sampling/sketch.cpp
+#  util.cpp)
+#target_link_libraries(stream_gen PRIVATE xxHash::xxhash GTest::gtest)
+##target_compile_definitions(stream_gen PRIVATE VERIFY_SAMPLES_F)
+## optimize unless debug
+#if (DEFINED ENV{DEBUG})
+#  message("Disabling optimizations and enabling debug symbols")
+#  target_compile_options(stream_gen PRIVATE -g)
+#else ()
+#  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+#    target_compile_options(stream_gen PRIVATE -O3)
+#  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+#    target_compile_options(stream_gen PRIVATE /O2)
+#  endif()
+#endif ()
 
 add_executable(tests
   test/test_runner.cpp
