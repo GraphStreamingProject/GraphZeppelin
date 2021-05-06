@@ -1,20 +1,16 @@
 #include "include/GraphWorker.h"
 #include "include/graph.h"
-#include "include/TokuInterface.h"
+#include <buffer_tree.h>
 
 #include <fstream>
 #include <string>
 
 bool GraphWorker::shutdown = false;
-std::mutex GraphWorker::queue_lock;
-std::condition_variable GraphWorker::queue_cond;
-
-std::queue<uint64_t> GraphWorker::work_queue;
 int GraphWorker::num_workers = 1;
 const char *GraphWorker::config_file = "graph_worker.conf";
 GraphWorker **GraphWorker::workers;
 
-void GraphWorker::startWorkers(Graph *_graph, TokuInterface *_db) {
+void GraphWorker::startWorkers(Graph *_graph, BufferTree *_bf) {
 	std::string line;
 	std::ifstream conf(config_file);
 	if (conf.is_open()) {
@@ -24,8 +20,10 @@ void GraphWorker::startWorkers(Graph *_graph, TokuInterface *_db) {
 	}
 	workers = (GraphWorker **) calloc(num_workers, sizeof(GraphWorker *));
 	for (int i = 0; i < num_workers; i++) {
-		workers[i] = new GraphWorker(i, _graph, _db);
+		workers[i] = new GraphWorker(i, _graph, _bf);
 	}
+
+	shutdown = false;
 }
 
 void GraphWorker::stopWorkers() {
@@ -36,11 +34,11 @@ void GraphWorker::stopWorkers() {
 	delete workers;
 }
 
-GraphWorker::GraphWorker(int _id, Graph *_graph, TokuInterface *_db) {
+GraphWorker::GraphWorker(int _id, Graph *_graph, BufferTree *_bf) {
 	// printf("Creating thread %i\n", _id);
 	pthread_create(&thr, NULL, GraphWorker::startWorker, this);
 	graph = _graph;
-	db = _db;
+	bf = _bf;
 	id = _id;
 }
 
@@ -50,23 +48,22 @@ GraphWorker::~GraphWorker() {
 
 void GraphWorker::doWork() {
 	while(true) {
-		std::unique_lock<std::mutex> queue_unique(queue_lock);
-		queue_cond.wait(queue_unique, [this]{return (work_queue.empty() == false || shutdown);});
+		std::unique_lock<std::mutex> queue_unique(bf->queue_lock);
+		bf->queue_cond.wait(queue_unique, [this]{return (bf->work_queue.empty() == false || shutdown);});
 
-		if (work_queue.empty() == false) {
-			uint64_t node = work_queue.front();
-			work_queue.pop();
+		if (bf->work_queue.empty() == false) {
+			work_t task = bf->work_queue.front();
+			bf->work_queue.pop();
 			queue_unique.unlock();  // unlock
-			if (db->update_counts[node] > 0) {
-				// printf("Worker %d handling updates for node %llu\n", id, node);
-				graph->batch_update(node, db->getEdges(node));
-			}
+			// printf("Worker %d handling updates for node %llu\n", id, node);
+			std::pair<Node, std::vector<Node>> data = bf->get_data(task);
+			graph->batch_update(data.first, data.second);
 		}
 		else queue_unique.unlock(); // unlock
 
 		// doesn't really matter if this part isn't thread safe I believe
 		// only reading and never should read empty when there is more to insert
-		if (shutdown && work_queue.empty()) {// if recieved shutdown and there's no more work to do
+		if (shutdown && bf->work_queue.empty()) {// if recieved shutdown and there's no more work to do
 			printf("Thread %i done and exiting\n", id);
 			return;
 		}

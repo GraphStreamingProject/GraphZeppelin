@@ -13,11 +13,9 @@
 
 using namespace std;
 
-#ifdef WODS_PROTOTYPE
-class TokuInterface;
-#ifdef MULTI_THREAD
+#ifdef BUF_PROTOTYPE
+class BufferTree;
 class GraphWorker;
-#endif
 #endif
 
 enum UpdateType {
@@ -41,9 +39,9 @@ class Graph{
   Node* parent;
   Node get_parent(Node node);
 
-#ifdef WODS_PROTOTYPE
+#ifdef BUF_PROTOTYPE
   // WOD implementation
-  TokuInterface *db;
+  BufferTree *bf;
 #endif
 public:
   explicit Graph(uint64_t num_nodes);

@@ -2,11 +2,9 @@
 #include <iostream>
 #include "include/graph.h"
 
-#ifdef WODS_PROTOTYPE
-#include "include/TokuInterface.h"
-#ifdef MULTI_THREAD
+#ifdef BUF_PROTOTYPE
+#include <buffer_tree.h>
 #include "include/GraphWorker.h"
-#endif
 #endif
 
 Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
@@ -23,13 +21,10 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
     parent[i] = i;
   }
   num_updates = 0; // REMOVE this later
-#ifdef WODS_PROTOTYPE
+#ifdef BUF_PROTOTYPE
   // WOD implementation
-  db = new TokuInterface();
-  db->graph = this;
-  #ifdef MULTI_THREAD
-  GraphWorker::startWorkers(this, db);
-  #endif
+  bf = new BufferTree("./BUFFTREEDATA/", (1<<20), 8, num_nodes, true);
+  GraphWorker::startWorkers(this, bf);
 #endif
 }
 
@@ -38,8 +33,8 @@ Graph::~Graph() {
     delete supernodes[i];
   delete supernodes;
   delete representatives;
-#ifdef WODS_PROTOTYPE
-  delete db;
+#ifdef BUF_PROTOTYPE
+  delete bf;
 #endif
 }
 
@@ -47,8 +42,10 @@ void Graph::update(GraphUpdate upd) {
   if (update_locked) throw UpdateLockedException();
   Edge &edge = upd.first;
 
-#ifdef WODS_PROTOTYPE // NEED CHANGE HERE!
-  db->putEdge(edge);
+#ifdef BUF_PROTOTYPE
+  bf->insert(edge);
+  std::swap(edge.first, edge.second);
+  bf->insert(edge);
 #else
   num_updates += 2; // REMOVE this later
   // ensure lhs < rhs
@@ -79,11 +76,9 @@ void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges) {
 }
 
 vector<set<Node>> Graph::connected_components() {
-#ifdef WODS_PROTOTYPE
-  db->flush(); // flush everything in toku to make final updates
-  #ifdef MULTI_THREAD
+#ifdef BUF_PROTOTYPE
+  bf->force_flush(); // flush everything in toku to make final updates
   GraphWorker::stopWorkers();
-  #endif
 #endif
   printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
   update_locked = true; // disallow updating the graph after we run the alg

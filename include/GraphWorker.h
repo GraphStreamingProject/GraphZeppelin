@@ -8,20 +8,16 @@
 #include <pthread.h>
 
 // forward declarations
-class TokuInterface;
+class BufferTree;
 class Graph;
 
 
 class GraphWorker {
 public:
-	GraphWorker(int _id, Graph *_graph, TokuInterface *_db);
+	GraphWorker(int _id, Graph *_graph, BufferTree *_db);
 	~GraphWorker();
 
-	static std::mutex queue_lock;
-	static std::condition_variable queue_cond;
-
-	static std::queue<uint64_t> work_queue;
-	static void startWorkers(Graph *_graph, TokuInterface *_db);
+	static void startWorkers(Graph *_graph, BufferTree *_db);
 	static void stopWorkers();
 private:
 	static void *startWorker(void *obj) {
@@ -32,7 +28,7 @@ private:
 	void doWork();
 	pthread_t thr;
 	Graph *graph;
-	TokuInterface *db;
+	BufferTree *bf;
 	int id;
 	static bool shutdown;
 	static int num_workers;
