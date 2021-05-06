@@ -235,12 +235,12 @@ TEST(GraphTestSuite, MinCutSizeEdgeConnectedIffHasMinCutSizedSkeleton)
 {
   using namespace boost;
 
-  int n = 10000;
+  int n = 1000;
   int num_trials = 10;
   
   while (num_trials--) {
     generate_stream(
-	{n,0.004,0.5,0,"./sample.txt","./cum_sample.txt"});
+	{n,0.04,0.5,0,"./sample.txt","./cum_sample.txt"});
     
     Graph g = ingest_stream("./sample.txt");
     UGraph bg = ingest_cum_graph("./cum_sample.txt");
