@@ -77,7 +77,7 @@ void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges) {
 
 vector<set<Node>> Graph::connected_components() {
 #ifdef BUF_PROTOTYPE
-  bf->force_flush(); // flush everything in toku to make final updates
+  bf->force_flush(); // flush everything in buffertree to make final updates
   GraphWorker::stopWorkers();
 #endif
   printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
