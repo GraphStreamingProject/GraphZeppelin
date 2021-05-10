@@ -26,9 +26,11 @@ void Sketch::update(const vec_t& update_idx) {
 }
 
 void Sketch::batch_update(const std::vector<vec_t>& updates) {
-  for (const auto update_idx : updates) {
-    update(update_idx);
+  Sketch delta(n, seed, num_bucket_factor);
+  for (const auto& update_idx : updates) {
+    delta.update(update_idx);
   }
+  *this += delta;
 }
 
 vec_t Sketch::query() {
