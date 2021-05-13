@@ -179,11 +179,13 @@ TEST_F(SupernodeTestSuite, TestBatchUpdate) {
     Sketch* sketch_batch = supernode_batch.sketches[i];
     ASSERT_EQ(sketch->seed, sketch_batch->seed);
     ASSERT_EQ(sketch->n, sketch_batch->n);
-    ASSERT_EQ(sketch->buckets.size(), sketch_batch->buckets.size());
-    for (auto it1 = sketch->buckets.cbegin(), it2 = sketch_batch->buckets.cbegin();
-         it1 != sketch->buckets.cend(); it1++, it2++) {
-      ASSERT_EQ(it1->a, it2->a);
-      ASSERT_EQ(it1->c, it2->c);
+    ASSERT_EQ(sketch->bucket_a.size(), sketch_batch->bucket_a.size());
+    ASSERT_EQ(sketch->bucket_c.size(), sketch_batch->bucket_c.size());
+    for (auto it1 = sketch->bucket_a.cbegin(), it2 = sketch_batch->bucket_a.cbegin(); it1 != sketch->bucket_a.cend(); it1++, it2++) {
+      ASSERT_EQ(*it1, *it2);
+    }
+    for (auto it1 = sketch->bucket_c.cbegin(), it2 = sketch_batch->bucket_c.cbegin(); it1 != sketch->bucket_c.cend(); it1++, it2++) {
+      ASSERT_EQ(*it1, *it2);
     }
   }
 }
