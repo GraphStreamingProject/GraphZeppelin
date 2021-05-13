@@ -174,11 +174,13 @@ include_directories("${Boost_INCLUDE_DIR}")
 
 #add_executable(timer
 #  profiling/time/profiler.cpp
+#  profiling/util/ingest.cpp
 #  test/util/graph_verifier.cpp
 #  test/util/graph_gen.cpp
 #  graph.cpp
 #  supernode.cpp
 #  l0_sampling/sketch.cpp
+#  k_skeleton.cpp
 #  util.cpp)
 #target_link_libraries(timer PRIVATE xxHash::xxhash GTest::gtest)
 ##target_compile_definitions(timer PRIVATE VERIFY_SAMPLES_F)
@@ -196,11 +198,13 @@ include_directories("${Boost_INCLUDE_DIR}")
 #
 #add_executable(runner
 #  profiling/memory/src/runner.cpp
+#  profiling/util/ingest.cpp
 #  test/util/graph_verifier.cpp
 #  test/util/graph_gen.cpp
 #  graph.cpp
 #  supernode.cpp
 #  l0_sampling/sketch.cpp
+#  k_skeleton.cpp
 #  util.cpp)
 #target_link_libraries(runner PRIVATE xxHash::xxhash GTest::gtest)
 ##target_compile_definitions(runner PRIVATE VERIFY_SAMPLES_F)
@@ -243,6 +247,7 @@ add_executable(tests
   test/graph_test.cpp
   test/sketch_test.cpp
   test/supernode_test.cpp
+  test/k_skeleton_test.cpp
   test/util_test.cpp
   test/util/graph_verifier.cpp
   test/util/graph_gen.cpp
@@ -251,6 +256,7 @@ add_executable(tests
   graph.cpp
   supernode.cpp
   l0_sampling/sketch.cpp
+  k_skeleton.cpp
   util.cpp)
 target_link_libraries(tests PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F)
@@ -271,6 +277,7 @@ add_executable(native_tests
   test/graph_test.cpp
   test/sketch_test.cpp
   test/supernode_test.cpp
+  test/k_skeleton_test.cpp
   test/util_test.cpp
   test/util/graph_verifier.cpp
   test/util/graph_gen.cpp
@@ -279,6 +286,7 @@ add_executable(native_tests
   graph.cpp
   supernode.cpp
   l0_sampling/sketch.cpp
+  k_skeleton.cpp
   util.cpp)
 target_link_libraries(native_tests PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(native_tests PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F)

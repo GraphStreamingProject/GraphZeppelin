@@ -39,6 +39,8 @@ public:
   explicit Graph(uint64_t num_nodes);
   ~Graph();
   Graph(const Graph& g);
+  Graph(Graph&& g) noexcept;
+
   void update(GraphUpdate upd);
 
   /**
@@ -64,20 +66,6 @@ public:
    * from nodes in the componenent to vectors of their neighbors.
    */
   vector<unordered_map<Node, vector<Node>>> spanning_forest();
-
-  /**
-   * Let $G$ be the graph represented by this sketch, and define 
-   * $F_i$ for $1 <= i <= k$ as a spanning forest of 
-   * $G - \cup_{j = 1}^{i-1} F_j$, where subtraction between graphs
-   * excludes nodes.
-   *
-   * @param k The number of edge-disjoint spanning forests to take
-   * the union of.
-   * 
-   * @return U $ = \cup_{i = 1}^{k} F_i$. A useful property of U is
-   * that G is k-edge-connected iff U is k-edge-connected.
-   */ 
-  vector<vector<Node>> k_edge_disjoint_span_forests_union (int k);
 
 #ifdef VERIFY_SAMPLES_F
   std::string cum_in = "./cum_sample.txt";

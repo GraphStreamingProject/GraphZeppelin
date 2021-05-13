@@ -3,9 +3,6 @@
 #include "include/graph.h"
 
 Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
-#ifdef VERIFY_SAMPLES_F
-  cout << "Verifying samples..." << endl;
-#endif
   // Each representative indexes the number of elements in its 
   // supernode.
   representatives = new map<Node, size_t>(); 
@@ -20,8 +17,9 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
 }
 
 Graph::~Graph() {
-  for (unsigned i=0;i<num_nodes;++i)
-    delete supernodes[i];
+  if (supernodes != nullptr)	  
+    for (unsigned i=0;i<num_nodes;++i)
+      delete supernodes[i];
   delete[] supernodes;
   delete[] parent;
   delete representatives;
@@ -38,6 +36,17 @@ Graph::Graph(const Graph& g)
     supernodes[i] = new Supernode(*(g.supernodes[i]));
     parent[i] = g.parent[i];
   } 
+}
+
+Graph::Graph(Graph&& g) noexcept
+	:num_nodes{g.num_nodes},
+	 representatives{g.representatives},
+	 supernodes{g.supernodes},
+	 parent{g.parent}
+{
+  g.representatives = nullptr;
+  g.supernodes = nullptr;
+  g.parent = nullptr;
 }
 
 void Graph::update(GraphUpdate upd) {
@@ -71,7 +80,8 @@ void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges) {
 vector<set<Node>> Graph::connected_components() {
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
-#ifdef VERIFY_SAMPLES_F
+#ifdef VERIFY_SAMPLES_F 
+  cout << "Verifying samples..." << endl;
   GraphVerifier verifier {cum_in};
 #endif
   do {
@@ -203,54 +213,6 @@ vector<unordered_map<Node, vector<Node>>> Graph::spanning_forest()
 	  retval.push_back(root_adj_list_pair.second);
 
   return retval;
-}
-
-vector<vector<Node>> Graph::k_edge_disjoint_span_forests_union (int k)
-{
-  vector<Graph> instances(k-1, *this);
-  auto F_0 = this->spanning_forest();
-  // Remove current forest edges from remaining instances 
-  for(Graph& g_i : instances)
-    for (const auto& node_list_pair : F_0[0])
-      for (const Node& neighbor : node_list_pair.second)
-        if (node_list_pair.first < neighbor) 
-          g_i.update({{node_list_pair.first, neighbor}, DELETE});
-  
-  vector<vector<Node>> forest_union(num_nodes);
-
-  // Insert current forest edges into union
-  for (int i = F_0.size() - 1; i >= 0; i--)
-  {
-    for (const auto& node_list_pair : F_0[i])
-      for (const auto& neighbor : node_list_pair.second)
-        forest_union[node_list_pair.first].push_back(neighbor);
-
-    F_0.erase(F_0.end());
-  }
-
-  // Repeat above for other instances
-  for (int i = k - 2; i >= 0; i--)
-  {
-    auto F_i = instances[i].spanning_forest();
-    instances.pop_back();
-   
-    // Remove current forest edges from remaining instances 
-    for (int j = i - 1; j >= 0; j--)
-      for (const auto& span_tree: F_i)
-        for (const auto& node_list_pair : span_tree)
-          for (const Node& neighbor : node_list_pair.second)
-            if (node_list_pair.first < neighbor) 
-              instances[j].update(
-                  {{node_list_pair.first, neighbor}, DELETE});
-    
-    // Insert current forest edges into union
-    for (const auto& span_tree : F_i)
-      for (const auto& node_list_pair : span_tree)
-        for (const auto& neighbor : node_list_pair.second)
-          forest_union[node_list_pair.first].push_back(neighbor);
-  }
-
-  return forest_union;
 }
 
 Node Graph::get_parent(Node node) {
