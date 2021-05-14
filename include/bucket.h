@@ -58,11 +58,12 @@ inline col_hash_t Bucket_Boruvka::col_index_hash(const unsigned bucket_col, cons
     unsigned bucket_col;
     vec_t update_idx;
   } __attribute__((packed)) buf = {bucket_col, update_idx};
-  return sizeof(col_hash_t) == 8 ? XXH3_64bits_withSeed(&buf, sizeof(buf), sketch_seed) : XXH32(&buf, sizeof(buf), sketch_seed);
+  return col_hash(&buf, sizeof(buf), sketch_seed);
 }
 
 inline vec_hash_t Bucket_Boruvka::index_hash(const vec_t& index, long sketch_seed) {
-  return sizeof(vec_hash_t) == 8 ? XXH3_64bits_withSeed(&index, sizeof(index), sketch_seed) : XXH32(&index, sizeof(index), sketch_seed);
+  return vec_hash(&index, sizeof(index), sketch_seed);
+
 }
 
 inline bool Bucket_Boruvka::contains(const col_hash_t& col_index_hash, const vec_t& guess_nonzero) {
