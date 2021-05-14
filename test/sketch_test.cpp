@@ -256,14 +256,5 @@ TEST(SketchTestSuite, TestBatchUpdate) {
   sketch_batch.batch_update(updates);
   std::cout << "Batched updates took " << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
 
-  ASSERT_EQ(sketch.seed, sketch_batch.seed);
-  ASSERT_EQ(sketch.n, sketch_batch.n);
-  ASSERT_EQ(sketch.bucket_a.size(), sketch_batch.bucket_a.size());
-  ASSERT_EQ(sketch.bucket_c.size(), sketch_batch.bucket_c.size());
-  for (auto it1 = sketch.bucket_a.cbegin(), it2 = sketch_batch.bucket_a.cbegin(); it1 != sketch.bucket_a.cend(); it1++, it2++) {
-    ASSERT_EQ(*it1, *it2);
-  }
-  for (auto it1 = sketch.bucket_c.cbegin(), it2 = sketch_batch.bucket_c.cbegin(); it1 != sketch.bucket_c.cend(); it1++, it2++) {
-    ASSERT_EQ(*it1, *it2);
-  }
+  ASSERT_EQ(sketch, sketch_batch);
 }

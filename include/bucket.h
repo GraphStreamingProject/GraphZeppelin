@@ -32,7 +32,9 @@ namespace Bucket_Boruvka {
   inline static bool contains(const col_hash_t& col_index_hash, const vec_t& guess_nonzero);
 
   /**
-   * Checks whether this Bucket is good.
+   * Checks whether a Bucket is good.
+   * @param a The bucket's a value.
+   * @param c The bucket's c value.
    * @param n Size of the vector being sketched.
    * @param bucket_col This Bucket's column index.
    * @param guess_nonzero The guess of nonzero elements in the vector being sketched.
@@ -42,7 +44,9 @@ namespace Bucket_Boruvka {
   inline static bool is_good(const vec_t& a, const vec_hash_t& c, const vec_t& n, const unsigned bucket_col, const vec_t& guess_nonzero, const long& sketch_seed);
 
   /**
-   * Updates this Bucket with the given update index
+   * Updates a Bucket with the given update index
+   * @param a The bucket's a value. Modified by this function.
+   * @param c The bucket's c value. Modified by this function.
    * @param update_idx The update index
    * @param update_hash The hash of the update index, generated with Bucket::index_hash.
    */

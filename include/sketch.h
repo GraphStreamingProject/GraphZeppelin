@@ -33,8 +33,6 @@ class Sketch {
   bool already_quered = false;
 
   FRIEND_TEST(SketchTestSuite, TestExceptions);
-  FRIEND_TEST(SketchTestSuite, TestBatchUpdate);
-  FRIEND_TEST(SupernodeTestSuite, TestBatchUpdate);
   FRIEND_TEST(EXPR_Parallelism, N10kU100k);
 
 public:
@@ -69,7 +67,7 @@ public:
 
   friend Sketch operator+ (const Sketch &sketch1, const Sketch &sketch2);
   friend Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2);
-  friend Sketch operator* (const Sketch &sketch1, long scaling_factor );
+  friend bool operator== (const Sketch &sketch1, const Sketch &sketch2);
   friend std::ostream& operator<< (std::ostream &os, const Sketch &sketch);
 };
 

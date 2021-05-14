@@ -1,8 +1,6 @@
 #include "../include/sketch.h"
 #include <cassert>
 
-
-
 Sketch::Sketch(vec_t n, long seed, double num_bucket_factor):
     seed(seed), n(n), num_bucket_factor(num_bucket_factor) {
   const unsigned num_buckets = bucket_gen(n, num_bucket_factor);
@@ -77,6 +75,14 @@ Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2) {
   }
   sketch1.already_quered = sketch1.already_quered || sketch2.already_quered;
   return sketch1;
+}
+
+bool operator== (const Sketch &sketch1, const Sketch &sketch2) {
+  return sketch1.n == sketch2.n && sketch1.seed == sketch2.seed &&
+    sketch1.num_bucket_factor == sketch2.num_bucket_factor &&
+    sketch1.bucket_a == sketch2.bucket_a &&
+    sketch1.bucket_c == sketch2.bucket_c &&
+    sketch1.already_quered == sketch2.already_quered;
 }
 
 std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
