@@ -5,7 +5,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <queue>
-#include <pthread.h>
+#include <thread>
 
 // forward declarations
 class BufferTree;
@@ -26,10 +26,11 @@ private:
 	}
 
 	void doWork();
-	pthread_t thr;
+	int id;
 	Graph *graph;
 	BufferTree *bf;
-	int id;
+	std::thread thr;
+	
 	static bool shutdown;
 	static int num_workers;
 	static const char *config_file;

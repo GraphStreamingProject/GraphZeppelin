@@ -34,16 +34,12 @@ void GraphWorker::stopWorkers() {
 	delete workers;
 }
 
-GraphWorker::GraphWorker(int _id, Graph *_graph, BufferTree *_bf) {
-	// printf("Creating thread %i\n", _id);
-	pthread_create(&thr, NULL, GraphWorker::startWorker, this);
-	graph = _graph;
-	bf = _bf;
-	id = _id;
+GraphWorker::GraphWorker(int _id, Graph *_graph, BufferTree *_bf) :
+  id(_id), graph(_graph), bf(_bf), thr(startWorker, this) {
 }
 
 GraphWorker::~GraphWorker() {
-	pthread_join(thr, NULL);
+	thr.join();
 }
 
 void GraphWorker::doWork() {
