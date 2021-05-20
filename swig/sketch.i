@@ -1,4 +1,7 @@
 %module sketch
+%begin %{
+#define SWIG_PYTHON_STRICT_BYTE_CHAR
+%}
 %{
 #include <stdint.h>
 #include <boost/serialization/serialization.hpp>
@@ -63,11 +66,7 @@ class Sketch {
 };
 
 %extend Sketch {
-  std::string __str__() const {
-    std::ostringstream out;
-    out << *$self;
-    return out.str();
-  }
+
 }
 
 %define %boost_picklable(cls...)
@@ -87,8 +86,17 @@ class Sketch {
             ar >> *($self);
         }
 
+        std::string __tostr__() const {
+            std::ostringstream out;
+	    out << *$self;
+	    return out.str();
+	}
+
         %pythoncode %{
-            def __setstate__(self, sState):
+	    def __str__(self):
+                return self.__tostr__().decode("utf-8")
+
+	    def __setstate__(self, sState):
                 self.__init__(0, 0)
                 self.__setstate_internal(sState)
         %}
