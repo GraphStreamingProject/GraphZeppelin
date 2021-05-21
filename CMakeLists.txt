@@ -244,7 +244,7 @@ endif()
 
 add_executable(experiment
   test/test_runner.cpp
-  test/experiment/BCHMK_2_toku.cpp
+  test/experiment/BCHMK_Graph.cpp
   test/util/graph_verifier.cpp
   test/util/graph_gen.cpp
   graph.cpp
