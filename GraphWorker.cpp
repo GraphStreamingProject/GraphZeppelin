@@ -7,6 +7,7 @@
 
 bool GraphWorker::shutdown = false;
 int GraphWorker::num_groups = 1;
+int GraphWorker::group_size = 1;
 const char *GraphWorker::config_file = "graph_worker.conf";
 GraphWorker **GraphWorker::workers;
 
@@ -15,9 +16,13 @@ void GraphWorker::startWorkers(Graph *_graph, BufferTree *_bf) {
 	std::ifstream conf(config_file);
 	if (conf.is_open()) {
 		while(getline(conf, line)) {
-			printf("Configuration line: %s\n", line.c_str());
 			if(line.substr(0, line.find('=')) == "num_groups") {
 				num_groups = std::stoi(line.substr(line.find('=')+1));
+				printf("Number of groups = %i\n", num_groups);
+			}
+			if(line.substr(0, line.find('=')) == "group_size") {
+				group_size = std::stoi(line.substr(line.find('=')+1));
+				printf("Size of groups = %i\n", group_size);
 			}
 		}
 			

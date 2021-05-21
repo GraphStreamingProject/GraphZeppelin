@@ -271,25 +271,3 @@ else ()
     target_compile_options(experiment PRIVATE /O2)
   endif()
 endif ()
-
-add_executable(omp_experiment
-  test/test_runner.cpp
-  test/experiment/parallelism.cpp
-  supernode.cpp
-  l0_sampling/sketch.cpp
-  util.cpp)
-target_link_libraries(omp_experiment PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(omp_experiment PRIVATE)
-# optimize unless debug
-if (DEFINED ENV{DEBUG})
-  message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(omp_experiment PRIVATE -g -fopenmp)
-  target_link_options(omp_experiment PRIVATE -fopenmp)
-else ()
-  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(omp_experiment PRIVATE -O3 -fopenmp)
-    target_link_options(omp_experiment PRIVATE -fopenmp)
-  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    target_compile_options(omp_experiment PRIVATE /O2)
-  endif()
-endif ()
