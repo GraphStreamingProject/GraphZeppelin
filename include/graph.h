@@ -13,10 +13,8 @@
 
 using namespace std;
 
-#ifdef BUF_PROTOTYPE
 class BufferTree;
 class GraphWorker;
-#endif
 
 enum UpdateType {
   INSERT = 0,
@@ -39,10 +37,8 @@ class Graph{
   Node* parent;
   Node get_parent(Node node);
 
-#ifdef BUF_PROTOTYPE
-  // WOD implementation
+  // BufferTree for buffering inputs
   BufferTree *bf;
-#endif
 public:
   explicit Graph(uint64_t num_nodes);
   ~Graph();

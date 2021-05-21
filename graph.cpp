@@ -2,10 +2,8 @@
 #include <iostream>
 #include "include/graph.h"
 
-#ifdef BUF_PROTOTYPE
 #include <buffer_tree.h>
 #include "include/GraphWorker.h"
-#endif
 
 Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
 #ifdef VERIFY_SAMPLES_F
@@ -21,11 +19,12 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
     parent[i] = i;
   }
   num_updates = 0; // REMOVE this later
-#ifdef BUF_PROTOTYPE
-  // WOD implementation
+
+  // Create buffer tree and start the graphWorkers
+  // startWorkers will additionally read the graph_worker.conf file 
+  // and set the system parallelism rules
   bf = new BufferTree("./BUFFTREEDATA/", (1<<20), 8, num_nodes, true);
   GraphWorker::startWorkers(this, bf);
-#endif
 }
 
 Graph::~Graph() {
@@ -33,28 +32,16 @@ Graph::~Graph() {
     delete supernodes[i];
   delete supernodes;
   delete representatives;
-#ifdef BUF_PROTOTYPE
   delete bf;
-#endif
 }
 
 void Graph::update(GraphUpdate upd) {
   if (update_locked) throw UpdateLockedException();
   Edge &edge = upd.first;
 
-#ifdef BUF_PROTOTYPE
   bf->insert(edge);
   std::swap(edge.first, edge.second);
   bf->insert(edge);
-#else
-  num_updates += 2; // REMOVE this later
-  // ensure lhs < rhs
-  if (edge.first > edge.second) {
-    std::swap(edge.first,edge.second);
-  }
-  supernodes[edge.first]->update(edge);
-  supernodes[edge.second]->update(edge);
-#endif
 }
 
 
@@ -76,10 +63,10 @@ void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges) {
 }
 
 vector<set<Node>> Graph::connected_components() {
-#ifdef BUF_PROTOTYPE
   bf->force_flush(); // flush everything in buffertree to make final updates
-  GraphWorker::stopWorkers();
-#endif
+  GraphWorker::stopWorkers(); // tell the workers to stop and wait for them to finish
+  // after this point all updates have been processed from the buffer tree
+
   printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;

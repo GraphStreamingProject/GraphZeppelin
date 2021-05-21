@@ -14,8 +14,6 @@ void GraphWorker::startWorkers(Graph *_graph, BufferTree *_bf) {
 	std::string line;
 	std::ifstream conf(config_file);
 	if (conf.is_open()) {
-		
-		
 		while(getline(conf, line))
 			printf("Configuration line: %s\n", line.c_str());
 			if(line.substr(0, line.find('=')) == "num_groups") {
@@ -23,6 +21,8 @@ void GraphWorker::startWorkers(Graph *_graph, BufferTree *_bf) {
 				printf("num_groups = %i\n", num_groups);
 			}
 			
+	} else {
+		printf("WARNING: Could not open thread configuration file!\n");
 	}
 	workers = (GraphWorker **) calloc(num_groups, sizeof(GraphWorker *));
 	for (int i = 0; i < num_groups; i++) {

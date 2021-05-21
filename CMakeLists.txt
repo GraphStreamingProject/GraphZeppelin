@@ -207,82 +207,27 @@ add_executable(tests
   test/util/graph_verifier_test.cpp
   graph.cpp
   supernode.cpp
-  l0_sampling/sketch.cpp
-  util.cpp)
-target_link_libraries(tests PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F)
-# optimize unless debug
-if (DEFINED ENV{DEBUG})
-  message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(tests PRIVATE -g)
-else ()
-  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(tests PRIVATE -O3)
-  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    target_compile_options(tests PRIVATE /O2)
-  endif()
-endif ()
-
-add_executable(native_tests
-  test/test_runner.cpp
-  test/graph_test.cpp
-  test/sketch_test.cpp
-  test/supernode_test.cpp
-  test/util_test.cpp
-  test/util/graph_verifier.cpp
-  test/util/graph_gen.cpp
-  test/util/graph_gen_test.cpp
-  test/util/graph_verifier_test.cpp
-  graph.cpp
-  supernode.cpp
-  l0_sampling/sketch.cpp
-  util.cpp)
-target_link_libraries(native_tests PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(native_tests PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F)
-# optimize unless debug
-if (DEFINED ENV{DEBUG})
-  message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(native_tests PRIVATE -g)
-else ()
-  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(native_tests PRIVATE -O3)
-  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    target_compile_options(native_tests PRIVATE /O2)
-  endif()
-endif ()
-
-add_executable(wods_test
-  test/test_runner.cpp
-  test/graph_test.cpp
-  test/sketch_test.cpp
-  test/supernode_test.cpp
-  test/util_test.cpp
-  test/util/graph_verifier.cpp
-  test/util/graph_gen.cpp
-  test/util/graph_gen_test.cpp
-  test/util/graph_verifier_test.cpp
-  graph.cpp
-  supernode.cpp
   GraphWorker.cpp
   l0_sampling/sketch.cpp
   l0_sampling/update.cpp
   util.cpp)
-target_link_libraries(wods_test PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(wods_test PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F)
+target_link_libraries(tests PRIVATE xxHash::xxhash GTest::gtest)
+target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F)
 # toku dependencies
-target_compile_definitions(wods_test PRIVATE -DBUF_PROTOTYPE)
-add_dependencies(wods_test BufferTree)
-target_link_libraries(wods_test PRIVATE libFastBufferTree.a)
-
+target_compile_definitions(tests PRIVATE -DBUF_PROTOTYPE)
+add_dependencies(tests BufferTree)
+target_link_libraries(tests PRIVATE libFastBufferTree.a)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(wods_test PRIVATE -g)
+  target_compile_options(tests PRIVATE -g -fopenmp)
+  target_link_options(tests PRIVATE -fopenmp)
 else ()
   if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(wods_test PRIVATE -O3)
+    target_compile_options(tests PRIVATE -O3 -fopenmp)
+    target_link_options(tests PRIVATE -fopenmp)
   elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    target_compile_options(wods_test PRIVATE /O2)
+    target_compile_options(tests PRIVATE /O2)
   endif()
 endif ()
 
@@ -305,43 +250,25 @@ add_executable(experiment
   test/util/graph_gen.cpp
   graph.cpp
   supernode.cpp
+  GraphWorker.cpp
   l0_sampling/sketch.cpp
   l0_sampling/update.cpp
   util.cpp)
 target_link_libraries(experiment PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(experiment PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F)
-# optimize
-if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-  target_compile_options(tests PRIVATE -O3)
-elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-  target_compile_options(tests PRIVATE /O2)
-endif()
-
-add_executable(buffertree_experiment
-  test/test_runner.cpp
-  test/experiment/BCHMK_2_toku.cpp
-  test/util/graph_verifier.cpp
-  test/util/graph_gen.cpp
-  graph.cpp
-  supernode.cpp
-  GraphWorker.cpp
-  l0_sampling/sketch.cpp
-  l0_sampling/update.cpp
-  util.cpp)
-target_link_libraries(buffertree_experiment PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(buffertree_experiment PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F)
 # dependencies
-target_compile_definitions(buffertree_experiment PRIVATE -DBUF_PROTOTYPE)
-add_dependencies(buffertree_experiment BufferTree)
-target_link_libraries(buffertree_experiment PRIVATE libFastBufferTree.a)
+add_dependencies(experiment BufferTree)
+target_link_libraries(experiment PRIVATE libFastBufferTree.a)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(buffertree_experiment PRIVATE -g)
+  target_compile_options(experiment PRIVATE -g -fopenmp)
+  target_link_options(experiment PRIVATE -fopenmp)
 else ()
   if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(buffertree_experiment PRIVATE -O3)
+    target_compile_options(experiment PRIVATE -O3 -fopenmp)
+    target_link_options(experiment PRIVATE -fopenmp)
   elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    target_compile_options(buffertree_experiment PRIVATE /O2)
+    target_compile_options(experiment PRIVATE /O2)
   endif()
 endif ()
