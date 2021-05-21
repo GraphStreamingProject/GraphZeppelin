@@ -30,7 +30,8 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
 Graph::~Graph() {
   for (unsigned i=0;i<num_nodes;++i)
     delete supernodes[i];
-  delete supernodes;
+  delete[] supernodes;
+  delete[] parent;
   delete representatives;
   delete bf;
 }
