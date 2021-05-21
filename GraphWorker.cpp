@@ -6,7 +6,7 @@
 #include <string>
 
 bool GraphWorker::shutdown = false;
-int GraphWorker::num_workers = 1;
+int GraphWorker::num_groups = 1;
 const char *GraphWorker::config_file = "graph_worker.conf";
 GraphWorker **GraphWorker::workers;
 
@@ -14,12 +14,18 @@ void GraphWorker::startWorkers(Graph *_graph, BufferTree *_bf) {
 	std::string line;
 	std::ifstream conf(config_file);
 	if (conf.is_open()) {
-		getline(conf, line);
-		printf("Thread configuration is %s\n", line.c_str());
-		num_workers = std::stoi(line.substr(line.find('=')+1));
+		
+		
+		while(getline(conf, line))
+			printf("Configuration line: %s\n", line.c_str());
+			if(line.substr(0, line.find('=')) == "num_groups") {
+				num_groups = std::stoi(line.substr(line.find('=')+1));
+				printf("num_groups = %i\n", num_groups);
+			}
+			
 	}
-	workers = (GraphWorker **) calloc(num_workers, sizeof(GraphWorker *));
-	for (int i = 0; i < num_workers; i++) {
+	workers = (GraphWorker **) calloc(num_groups, sizeof(GraphWorker *));
+	for (int i = 0; i < num_groups; i++) {
 		workers[i] = new GraphWorker(i, _graph, _bf);
 	}
 
@@ -28,7 +34,7 @@ void GraphWorker::startWorkers(Graph *_graph, BufferTree *_bf) {
 
 void GraphWorker::stopWorkers() {
 	shutdown = true;
-	for (int i = 0; i < num_workers; i++) {
+	for (int i = 0; i < num_groups; i++) {
 		delete workers[i];
 	}
 	delete workers;

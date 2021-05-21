@@ -1,7 +1,7 @@
 #TODO: write FindxxHash for libxxhash-dev compatibility?
 #Cmake for xxHash is unofficial, so libxxhash-dev doesn't have xxHashConfig.cmake
 
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.15)
 include (ExternalProject)
 
 set(CMAKE_CXX_STANDARD 11)

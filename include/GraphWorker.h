@@ -30,9 +30,9 @@ private:
 	Graph *graph;
 	BufferTree *bf;
 	std::thread thr;
-	
+
 	static bool shutdown;
-	static int num_workers;
+	static int num_groups;
 	static const char *config_file;
 	static GraphWorker **workers;
 };
