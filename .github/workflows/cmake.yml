@@ -90,5 +90,6 @@ jobs:
       - name: Extended Types Testing
         working-directory: ${{runner.workspace}}/build
         shell: bash
-        run: mkdir BUFFTREEDATA
+        run: |
+          mkdir BUFFTREEDATA
           ./tests
