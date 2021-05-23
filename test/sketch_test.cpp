@@ -141,9 +141,9 @@ void test_sketch_addition(unsigned long num_sketches,
       sketch1.update(test_vec1.get_update(j));
       sketch2.update(test_vec2.get_update(j));
     }
-    Sketch sketchsum = sketch1 + sketch2;
+    sketch1 += sketch2;
     try {
-      vec_t res_idx = sketchsum.query();
+      vec_t res_idx = sketch1.query();
       ASSERT_LT(res_idx, vec_size) << "Sampled index out of bounds";
       if (test_vec1.get_entry(res_idx) == test_vec2.get_entry(res_idx)) {
         sample_incorrect_failures++;

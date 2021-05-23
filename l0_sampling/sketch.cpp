@@ -59,12 +59,6 @@ vec_t Sketch::query() {
   }
 }
 
-Sketch operator+ (const Sketch &sketch1, const Sketch &sketch2){
-  Sketch result(sketch1);
-  result += sketch2;
-  return result;
-}
-
 Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2) {
   assert (sketch1.n == sketch2.n);
   assert (sketch1.seed == sketch2.seed);

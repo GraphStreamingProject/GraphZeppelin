@@ -65,7 +65,6 @@ public:
    */
   vec_t query();
 
-  friend Sketch operator+ (const Sketch &sketch1, const Sketch &sketch2);
   friend Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2);
   friend bool operator== (const Sketch &sketch1, const Sketch &sketch2);
   friend std::ostream& operator<< (std::ostream &os, const Sketch &sketch);
