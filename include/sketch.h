@@ -27,13 +27,12 @@ class Sketch {
   // Length is bucket_gen(n, num_bucket_factor) * guess_gen(n).
   // For buckets[i * guess_gen(n) + j], the bucket has a 1/2^j probability
   // of containing an index.
-  std::vector<Bucket_Boruvka> buckets;
+  std::vector<vec_t> bucket_a;
+  std::vector<vec_hash_t> bucket_c;
   // Flag to keep track if this sketch has already been queried.
   bool already_quered = false;
 
   FRIEND_TEST(SketchTestSuite, TestExceptions);
-  FRIEND_TEST(SketchTestSuite, TestBatchUpdate);
-  FRIEND_TEST(SupernodeTestSuite, TestBatchUpdate);
   FRIEND_TEST(EXPR_Parallelism, N10kU100k);
 
 public:
@@ -66,9 +65,8 @@ public:
    */
   vec_t query();
 
-  friend Sketch operator+ (const Sketch &sketch1, const Sketch &sketch2);
   friend Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2);
-  friend Sketch operator* (const Sketch &sketch1, long scaling_factor );
+  friend bool operator== (const Sketch &sketch1, const Sketch &sketch2);
   friend std::ostream& operator<< (std::ostream &os, const Sketch &sketch);
 };
 

@@ -175,15 +175,6 @@ TEST_F(SupernodeTestSuite, TestBatchUpdate) {
   ASSERT_EQ(supernode.logn, supernode_batch.logn);
   ASSERT_EQ(supernode.idx, supernode_batch.idx);
   for (int i=0;i<supernode.logn;++i) {
-    Sketch* sketch = supernode.sketches[i];
-    Sketch* sketch_batch = supernode_batch.sketches[i];
-    ASSERT_EQ(sketch->seed, sketch_batch->seed);
-    ASSERT_EQ(sketch->n, sketch_batch->n);
-    ASSERT_EQ(sketch->buckets.size(), sketch_batch->buckets.size());
-    for (auto it1 = sketch->buckets.cbegin(), it2 = sketch_batch->buckets.cbegin();
-         it1 != sketch->buckets.cend(); it1++, it2++) {
-      ASSERT_EQ(it1->a, it2->a);
-      ASSERT_EQ(it1->c, it2->c);
-    }
+    ASSERT_EQ(*supernode.sketches[i], *supernode_batch.sketches[i]);
   }
 }
