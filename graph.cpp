@@ -27,6 +27,21 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
   GraphWorker::startWorkers(this, bf);
 }
 
+Graph::Graph(std::ifstream& file) {
+  file >> num_nodes;
+#ifdef VERIFY_SAMPLES_F
+  cout << "Verifying samples..." << endl;
+#endif
+  representatives = new set<Node>();
+  supernodes = new Supernode*[num_nodes];
+  parent = new Node[num_nodes];
+  for (Node i=0;i<num_nodes;++i) {
+    representatives->insert(i);
+    supernodes[i] = new Supernode(num_nodes, file);
+    parent[i] = i;
+  }
+}
+
 Graph::~Graph() {
   for (unsigned i=0;i<num_nodes;++i)
     delete supernodes[i];
@@ -122,4 +137,11 @@ vector<set<Node>> Graph::connected_components() {
 Node Graph::get_parent(Node node) {
   if (parent[node] == node) return node;
   return parent[node] = get_parent(parent[node]);
+}
+
+void Graph::writeToFile(std::ofstream& file) {
+  file << num_nodes << '\n';
+  for (Node i = 0; i < num_nodes; ++i) {
+    supernodes[i]->writeToFile(file);
+  }
 }

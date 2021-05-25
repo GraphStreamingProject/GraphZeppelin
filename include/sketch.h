@@ -2,6 +2,7 @@
 #include <cmath>
 #include <exception>
 #include <iostream>
+#include <fstream>
 #include <vector>
 #include "bucket.h"
 #include "types.h"
@@ -18,7 +19,7 @@
  */
 class Sketch {
   // Seed used for hashing operations in this sketch.
-  const long seed;
+  long seed;
   // Length of the vector this is sketching.
   const vec_t n;
   // Factor for how many buckets there are in this sketch.
@@ -45,6 +46,14 @@ public:
   Sketch(vec_t n, long seed, double num_bucket_factor = 1);
 
   /**
+   * (Re)constructs a sketch from a filestream input.
+   * @param n
+   * @param file
+   * @param num_bucket_factor
+   */
+  Sketch(vec_t n, std::ifstream& file, double num_bucket_factor = 1);
+
+  /**
    * Update a sketch based on information about one of its indices.
    * @param update the point update.
    */
@@ -64,6 +73,12 @@ public:
    *                                index from.
    */
   vec_t query();
+
+  /**
+   * Serializes the sketch to a filestream.
+   * @param file
+   */
+  void writeToFile(std::ofstream& file);
 
   friend Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2);
   friend bool operator== (const Sketch &sketch1, const Sketch &sketch2);

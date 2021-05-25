@@ -9,6 +9,23 @@ Sketch::Sketch(vec_t n, long seed, double num_bucket_factor):
   bucket_c = std::vector<vec_hash_t>(num_buckets * num_guesses);
 }
 
+Sketch::Sketch(vec_t n, std::ifstream& file, double num_bucket_factor) : n(n)
+, num_bucket_factor(num_bucket_factor) {
+  file >> seed;
+  const unsigned num_buckets = bucket_gen(n, num_bucket_factor);
+  const unsigned num_guesses = guess_gen(n);
+  bucket_a = std::vector<vec_t>(num_buckets * num_guesses);
+  bucket_c = std::vector<vec_hash_t>(num_buckets * num_guesses);
+
+  // fill buckets from input stream
+  for (vec_t& i : bucket_a) {
+    file >> i;
+  }
+  for (vec_hash_t& i : bucket_c) {
+    file >> i;
+  }
+}
+
 void Sketch::update(const vec_t& update_idx) {
   const unsigned num_buckets = bucket_gen(n, num_bucket_factor);
   const unsigned num_guesses = guess_gen(n);
@@ -57,6 +74,18 @@ vec_t Sketch::query() {
   } else {
     throw NoGoodBucketException();
   }
+}
+
+void Sketch::writeToFile(std::ofstream& file) {
+  file << seed << '\n';
+  for (vec_t i : bucket_a) {
+    file << i << " ";
+  }
+  file << '\n';
+  for (vec_hash_t i : bucket_c) {
+    file << i << " ";
+  }
+  file << '\n';
 }
 
 Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2) {

@@ -178,3 +178,28 @@ TEST_F(SupernodeTestSuite, TestBatchUpdate) {
     ASSERT_EQ(*supernode.sketches[i], *supernode_batch.sketches[i]);
   }
 }
+
+TEST_F(SupernodeTestSuite, TestSerialization) {
+  unsigned long vec_size = 1000000000, num_updates = 100000;
+  srand(time(NULL));
+  std::vector<vec_t> updates(num_updates);
+  for (unsigned long i = 0; i < num_updates; i++) {
+    updates[i] = static_cast<vec_t>(rand() % vec_size);
+  }
+  auto seed = rand();
+  Supernode supernode_batch(vec_size, seed);
+  supernode_batch.batch_update(updates);
+
+  std::ofstream out("./SupernodeTestSuite_TestSerialization");
+  supernode_batch.writeToFile(out);
+  out.close();
+  std::ifstream in("./SupernodeTestSuite_TestSerialization");
+  Supernode supernode_reheated(vec_size, in);
+  in.close();
+
+  ASSERT_EQ(supernode_reheated.logn, supernode_batch.logn);
+  ASSERT_EQ(supernode_reheated.idx, supernode_batch.idx);
+  for (int i=0;i<supernode_batch.logn;++i) {
+    ASSERT_EQ(*supernode_reheated.sketches[i], *supernode_batch.sketches[i]);
+  }
+}

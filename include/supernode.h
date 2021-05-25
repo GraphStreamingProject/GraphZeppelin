@@ -1,5 +1,6 @@
 #pragma once
 #include <boost/optional.hpp>
+#include <fstream>
 #include "sketch.h"
 
 using namespace std;
@@ -19,6 +20,8 @@ class Supernode {
   int logn;
 
   FRIEND_TEST(SupernodeTestSuite, TestBatchUpdate);
+  FRIEND_TEST(SupernodeTestSuite, TestSerialization);
+  FRIEND_TEST(GraphTestSuite, TestSerialization);
   FRIEND_TEST(EXPR_Parallelism, N10kU100k);
 
 public:
@@ -27,6 +30,14 @@ public:
    * @param seed  the (fixed) seed value passed to each supernode.
    */
   Supernode(uint64_t n, long seed);
+
+  /**
+   * (Re)constructs a supernode from a filestream.
+   * @param n
+   * @param file
+   */
+  explicit Supernode(uint64_t n, std::ifstream& file);
+
   ~Supernode();
 
   /**
@@ -57,6 +68,12 @@ public:
    * @param updates a vector of encoded edge updates to process.
    */
   void batch_update(const std::vector<vec_t>& updates);
+
+  /**
+    * Serializes the supernode to a filestream.
+    * @param file
+    */
+  void writeToFile(std::ofstream& file);
 };
 
 

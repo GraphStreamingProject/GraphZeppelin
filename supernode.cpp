@@ -1,7 +1,6 @@
 #include <stdexcept>
 #include <cmath>
 #include <boost/multiprecision/cpp_int.hpp>
-#include <omp.h>
 #include "include/supernode.h"
 #include "include/util.h"
 #include "include/graph_worker.h"
@@ -13,6 +12,12 @@ Supernode::Supernode(uint64_t n, long seed): sketches(log2(n)), idx(0), logn(log
   long r = rand();
   for (int i=0;i<logn;++i)
     sketches[i] = new Sketch(n*n, r);
+}
+
+Supernode::Supernode(uint64_t n, std::ifstream& file) : sketches(log2(n)),
+idx(0), logn(log2(n)) {
+  for (int i=0;i<logn;++i)
+    sketches[i] = new Sketch(n*n, file);
 }
 
 Supernode::~Supernode() {
@@ -71,4 +76,9 @@ void Supernode::batch_update(const std::vector<vec_t>& updates) {
   for (unsigned i = 0; i < sketches.size(); ++i) {
     sketches[i]->batch_update(updates);
   }
+}
+
+void Supernode::writeToFile(std::ofstream& file) {
+  for (int i = 0; i < logn; ++i)
+    sketches[i]->writeToFile(file);
 }

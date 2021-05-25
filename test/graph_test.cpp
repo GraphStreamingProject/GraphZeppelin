@@ -88,3 +88,37 @@ TEST(GraphTestSuite, TestCorrectnessOnSmallSparseGraphs) {
     g.connected_components();
   }
 }
+
+TEST(GraphTestSuite, TestSerialization) {
+  const std::string fname = __FILE__;
+  size_t pos = fname.find_last_of("\\/");
+  const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
+  ifstream in{curr_dir + "/res/multiples_graph_1024.txt"};
+  Node num_nodes;
+  in >> num_nodes;
+  long m;
+  in >> m;
+  Node a, b;
+  Graph g{num_nodes};
+  while (m--) {
+    in >> a >> b;
+    g.update({{a, b}, INSERT});
+  }
+
+  std::ofstream out("./GraphTestSuite_TestSerialization");
+  g.writeToFile(out);
+  out.close();
+  std::ifstream fin("./GraphTestSuite_TestSerialization");
+  Graph g_reheated(fin);
+  in.close();
+
+  ASSERT_EQ(g.num_nodes, g_reheated.num_nodes);
+  for (Node i = 0; i < g.num_nodes; ++i) {
+    ASSERT_EQ(g.supernodes[i]->logn, g_reheated.supernodes[i]->logn);
+    ASSERT_EQ(g.supernodes[i]->idx, g_reheated.supernodes[i]->idx);
+    for (int j=0;j<g.supernodes[i]->logn;++j) {
+      ASSERT_EQ(*g.supernodes[i]->sketches[j],
+                *g_reheated.supernodes[i]->sketches[j]);
+    }
+  }
+}

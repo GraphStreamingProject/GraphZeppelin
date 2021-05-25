@@ -258,3 +258,23 @@ TEST(SketchTestSuite, TestBatchUpdate) {
 
   ASSERT_EQ(sketch, sketch_batch);
 }
+
+TEST(SketchTestSuite, TestSerialization) {
+  unsigned long vec_size = 1000000000, num_updates = 10000;
+  std::vector<vec_t> updates(num_updates);
+  for (unsigned long i = 0; i < num_updates; i++) {
+    updates[i] = static_cast<vec_t>(rand() % vec_size);
+  }
+  auto sketch_seed = rand();
+  Sketch sketch_batch(vec_size, sketch_seed);
+  sketch_batch.batch_update(updates);
+
+  std::ofstream out("./SketchTestSuite_TestSerialization");
+  sketch_batch.writeToFile(out);
+  out.close();
+  std::ifstream in("./SketchTestSuite_TestSerialization");
+  Sketch sketch_reheated(vec_size, in);
+  in.close();
+
+  ASSERT_EQ(sketch_batch, sketch_reheated);
+}

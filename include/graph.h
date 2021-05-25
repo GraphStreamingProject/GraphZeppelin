@@ -28,7 +28,7 @@ typedef pair<Edge, UpdateType> GraphUpdate;
  * multiple edges, or weights.
  */
 class Graph{
-  const uint64_t num_nodes;
+  uint64_t num_nodes;
   bool update_locked = false;
   // a set containing one "representative" from each supernode
   set<Node>* representatives;
@@ -39,8 +39,17 @@ class Graph{
 
   // BufferTree for buffering inputs
   BufferTree *bf;
+
+  FRIEND_TEST(GraphTestSuite, TestSerialization);
 public:
   explicit Graph(uint64_t num_nodes);
+
+  /**
+   * (Re)constructs a graph's supernodes from a filestream.
+   * @param file
+   */
+  explicit Graph(std::ifstream& file);
+
   ~Graph();
   void update(GraphUpdate upd);
 
@@ -70,6 +79,11 @@ public:
 
   // temp to verify number of updates -- REMOVE later
   std::atomic<uint64_t> num_updates;
+  /**
+   * Serializes the graph and supernodes to a filestream.
+   * @param file
+   */
+  void writeToFile(std::ofstream& file);
 };
 
 class UpdateLockedException : public exception {
