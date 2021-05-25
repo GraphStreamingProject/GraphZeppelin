@@ -1,4 +1,4 @@
-#include "include/GraphWorker.h"
+#include "include/graph_worker.h"
 #include "include/graph.h"
 #include <buffer_tree.h>
 

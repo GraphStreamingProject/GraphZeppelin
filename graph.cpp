@@ -3,7 +3,7 @@
 #include "include/graph.h"
 
 #include <buffer_tree.h>
-#include "include/GraphWorker.h"
+#include "include/graph_worker.h"
 
 Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
 #ifdef VERIFY_SAMPLES_F

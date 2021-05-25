@@ -207,7 +207,7 @@ add_executable(tests
   test/util/graph_verifier_test.cpp
   graph.cpp
   supernode.cpp
-  GraphWorker.cpp
+  graph_worker.cpp
   l0_sampling/sketch.cpp
   l0_sampling/update.cpp
   util.cpp)
@@ -249,7 +249,7 @@ add_executable(experiment
   test/util/graph_gen.cpp
   graph.cpp
   supernode.cpp
-  GraphWorker.cpp
+  graph_worker.cpp
   l0_sampling/sketch.cpp
   l0_sampling/update.cpp
   util.cpp)

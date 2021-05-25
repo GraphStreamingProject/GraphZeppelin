@@ -4,7 +4,7 @@
 #include <omp.h>
 #include "include/supernode.h"
 #include "include/util.h"
-#include "include/GraphWorker.h"
+#include "include/graph_worker.h"
 
 Supernode::Supernode(uint64_t n, long seed): sketches(log2(n)), idx(0), logn(log2
 (n)) {
