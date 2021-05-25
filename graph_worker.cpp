@@ -56,9 +56,9 @@ GraphWorker::~GraphWorker() {
 void GraphWorker::doWork() {
 	while(true) {
 		std::unique_lock<std::mutex> queue_unique(bf->queue_lock);
-		bf->queue_cond.wait(queue_unique, [this]{return (bf->work_queue.empty() == false || shutdown);});
+		bf->queue_cond.wait(queue_unique, [this]{return (!bf->work_queue.empty() || shutdown);});
 
-		if (bf->work_queue.empty() == false) {
+		if (!bf->work_queue.empty()) {
 			work_t task = bf->work_queue.front();
 			bf->work_queue.pop();
 			queue_unique.unlock();  // unlock

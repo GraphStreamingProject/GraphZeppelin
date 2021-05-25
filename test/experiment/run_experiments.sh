@@ -12,9 +12,9 @@ do
 		for ((i=0; i < $iterations; i++))
 		do
 			echo "experiment $((i+1)) groups=$((groups)) of size=$((size))"
-			echo "num_groups=$((groups))" > graph_worker.conf
-			echo "group_size=$((size))" >> graph_worker.conf
-			./experiment
+			echo "num_groups=$((groups))" > ../../graph_worker.conf
+			echo "group_size=$((size))" >> ../../graph_worker.conf
+			../../experiment
 		done
 		end=`date +%s`
 		echo "Number groups $((groups)), with $((size)) workers each: $((end-start)) seconds"
