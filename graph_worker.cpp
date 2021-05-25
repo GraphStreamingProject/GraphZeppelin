@@ -50,6 +50,8 @@ GraphWorker::GraphWorker(int _id, Graph *_graph, BufferTree *_bf) :
 }
 
 GraphWorker::~GraphWorker() {
+	// when a graph worker is deleted we must wait for the associated
+	// thread to finish its work. See stopWorkers and doWork
 	thr.join();
 }
 
