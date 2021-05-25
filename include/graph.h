@@ -5,12 +5,16 @@
 #include <set>
 #include <fstream>
 #include "supernode.h"
+#include <atomic>  // REMOVE LATER
 
 #ifdef VERIFY_SAMPLES_F
 #include "../test/util/graph_verifier.h"
 #endif
 
 using namespace std;
+
+class BufferTree;
+class GraphWorker;
 
 enum UpdateType {
   INSERT = 0,
@@ -32,6 +36,9 @@ class Graph{
   // DSU representation of supernode relationship
   Node* parent;
   Node get_parent(Node node);
+
+  // BufferTree for buffering inputs
+  BufferTree *bf;
 public:
   explicit Graph(uint64_t num_nodes);
   ~Graph();
@@ -49,7 +56,7 @@ public:
    * @return a vector of the connected components in the graph.
    */
   vector<set<Node>> connected_components();
-
+  
 #ifdef VERIFY_SAMPLES_F
   std::string cum_in = "./cum_sample.txt";
 
@@ -60,6 +67,9 @@ public:
     cum_in = input_file;
   }
 #endif
+
+  // temp to verify number of updates -- REMOVE later
+  std::atomic<uint64_t> num_updates;
 };
 
 class UpdateLockedException : public exception {

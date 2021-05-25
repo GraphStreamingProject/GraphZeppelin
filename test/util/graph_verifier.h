@@ -51,9 +51,10 @@ public:
 
 class BadEdgeException : public exception {
   virtual const char* what() const throw() {
-    return "The edge is not in the cut of the sample!";
+    return "The edge is not in the cut of the sample! (standard)";
   }
 };
+
 
 class NotCCException : public exception {
   virtual const char* what() const throw() {

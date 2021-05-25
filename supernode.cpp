@@ -4,6 +4,7 @@
 #include <omp.h>
 #include "include/supernode.h"
 #include "include/util.h"
+#include "include/graph_worker.h"
 
 Supernode::Supernode(uint64_t n, long seed): sketches(log2(n)), idx(0), logn(log2
 (n)) {
@@ -66,7 +67,7 @@ void Supernode::batch_update(const std::vector<vec_t>& updates) {
    * Considered using spin-threads and parallelism within sketch::update, but
    * this was slow (at least on small graph inputs).
    */
-  #pragma omp parallel for
+  #pragma omp parallel for num_threads(GraphWorker::get_group_size())
   for (unsigned i = 0; i < sketches.size(); ++i) {
     sketches[i]->batch_update(updates);
   }
