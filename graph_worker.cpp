@@ -28,6 +28,7 @@ void GraphWorker::startWorkers(Graph *_graph, BufferTree *_bf) {
 			
 	} else {
 		printf("WARNING: Could not open thread configuration file!\n");
+		printf("Using default configuration 1 group of size 1.\n");
 	}
 	workers = (GraphWorker **) calloc(num_groups, sizeof(GraphWorker *));
 	for (int i = 0; i < num_groups; i++) {
