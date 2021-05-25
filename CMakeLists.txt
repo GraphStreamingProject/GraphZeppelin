@@ -254,7 +254,6 @@ add_executable(experiment
   l0_sampling/update.cpp
   util.cpp)
 target_link_libraries(experiment PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(experiment PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F)
 # dependencies
 add_dependencies(experiment BufferTree)
 target_link_libraries(experiment PRIVATE libFastBufferTree.a)
