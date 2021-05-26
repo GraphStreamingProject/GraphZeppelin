@@ -88,3 +88,23 @@ TEST(GraphTestSuite, TestCorrectnessOnSmallSparseGraphs) {
     g.connected_components();
   }
 }
+
+TEST(GraphTestSuite, NewTestCorrectnessOnSmallRandomGraphs) {
+  int num_trials = 1;
+  while (num_trials--) {
+    generate_stream_extmem();
+    ifstream in{"./sample.txt"};
+    Node n, m;
+    in >> n >> m;
+    Graph g{n};
+    int type, a, b;
+    while (m--) {
+      in >> type >> a >> b;
+      if (type == INSERT) {
+        g.update({{a, b}, INSERT});
+      } else g.update({{a, b}, DELETE});
+    }
+    g.set_cum_in("./cum_sample.txt");
+    g.connected_components();
+  }
+}

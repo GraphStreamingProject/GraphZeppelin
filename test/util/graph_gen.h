@@ -25,4 +25,6 @@ typedef struct genSet {
 void generate_stream(GraphGenSettings settings =
       {1024,0.03,0.5,0,"./sample.txt", "./cum_sample.txt"});
 
+void generate_stream_extmem(GraphGenSettings settings =
+      {1024,0.03,0.5,0,"./sample.txt", "./cum_sample.txt"});
 #endif //TEST_GRAPH_GEN_H

@@ -1,8 +1,11 @@
 #include <fstream>
 #include <algorithm>
 #include <boost/multiprecision/cpp_int.hpp>
+#include <sstream>
+#include <string>
 #include "graph_gen.h"
 #include "../../include/graph.h"
+#include "../../include/types.h"
 
 #define endl '\n'
 
@@ -136,4 +139,84 @@ void generate_stream(GraphGenSettings settings) {
   insert_delete(settings.r, settings.max_appearances, "./TEMP_F", settings
   .out_file);
   write_cum(settings.out_file,settings.cum_out_file);
+}
+
+// Warning: pastes the file names directly into the string given to system(),
+// can't contain spaces or any other special shell characters
+void write_edges_extmem(node_t n, double p, std::string out_file,
+    std::string temp_file) {
+  std::ofstream ofs_temp(temp_file);
+  for (node_t i = 1; i < n; ++i) {
+    for (node_t j = 0; j < i; j++) {
+      // TODO a range of [0, RAND_MAX) might not be sufficient for huge graphs
+      ofs_temp << rand() << ' ' << j << ' ' << i << '\n';
+    }
+  }
+  ofs_temp.close();
+
+  vec_t num_edges = n*(n-1)/2*p;
+  std::ofstream ofs_out(out_file);
+  ofs_out << n << ' ' << num_edges << '\n';
+  ofs_out.close();
+
+  std::ostringstream cmd;
+  cmd << "sort -k1,1n " << temp_file << "|head -n" << num_edges <<
+      "|cut -d' ' -f2->>" << out_file;
+  system(cmd.str().c_str());
+}
+
+void insert_delete_extmem(double r, int max_appearances, std::string in_file,
+    std::string out_file, std::string cum_out_file, std::string temp_file) {
+  node_t n;
+  vec_t num_edges;
+  std::ifstream ifs (in_file);
+  ifs >> n >> num_edges;
+
+  // Simulate a pass through insertions/deletions to get total stream length
+  vec_t num_ins_del = num_edges, stream_len = 0, cum_stream_len = 0;
+  bool deletion = false;
+  for (int appearances = 0; num_ins_del > 0 &&
+      (max_appearances == 0 || appearances < max_appearances); appearances++) {
+    stream_len += num_ins_del;
+    if (!deletion) {
+      cum_stream_len += num_ins_del - static_cast<vec_t>(num_ins_del * r);
+    }
+    num_ins_del *= r;
+    deletion = !deletion;
+  }
+
+  std::ofstream ofs_out (out_file), ofs_cum_out(cum_out_file),
+      ofs_temp(temp_file);
+  ofs_out << n << ' ' << stream_len << '\n';
+  ofs_cum_out << n << ' ' << cum_stream_len << '\n';
+
+  std::streampos sp_edge_beg = ifs.tellg();
+  num_ins_del = num_edges;
+  deletion = false;
+  for (int appearances = 0; num_ins_del > 0 &&
+      (max_appearances == 0 || appearances < max_appearances); appearances++) {
+    node_t a, b;
+    ifs.seekg(sp_edge_beg);
+    for (vec_t i = 0; i < num_ins_del; i++) {
+      ifs >> a >> b;
+      ofs_out << deletion << ' ' << a << ' ' << b << '\n';
+      if (!deletion && i >= static_cast<vec_t>(num_ins_del * r)) {
+        ofs_temp << a << ' ' << b << '\n';
+      }
+    }
+    stream_len += num_ins_del;
+    num_ins_del *= r;
+    deletion = !deletion;
+  }
+  ifs.close();
+  ofs_out.close();
+  ofs_cum_out.close();
+  ofs_temp.close();
+  system(("sort -k1,1n -k2,2n " + temp_file + ">>" + cum_out_file).c_str());
+}
+
+void generate_stream_extmem(GraphGenSettings settings) {
+  write_edges_extmem(settings.n, settings.p, "./TEMP_F", "./TEMP_EDGE_PERM");
+  insert_delete_extmem(settings.r, settings.max_appearances, "./TEMP_F",
+      settings.out_file, settings.cum_out_file, "./TEMP_UNSORTED_CUM");
 }
