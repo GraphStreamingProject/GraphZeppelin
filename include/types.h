@@ -1,4 +1,5 @@
 #pragma once
+#include <xxhash.h>
 
 #ifdef USE_NATIVE_F
 //Small types
