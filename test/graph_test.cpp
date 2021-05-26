@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 #include <fstream>
+#include <buffer_tree.h>
 #include "../include/graph.h"
+#include "../include/graph_worker.h"
 #include "util/graph_verifier.h"
 #include "util/graph_gen.h"
 
@@ -104,21 +106,22 @@ TEST(GraphTestSuite, TestSerialization) {
     in >> a >> b;
     g.update({{a, b}, INSERT});
   }
+  g.bf->force_flush();
+  GraphWorker::stopWorkers();
 
   std::ofstream out("./GraphTestSuite_TestSerialization");
   g.writeToFile(out);
   out.close();
   std::ifstream fin("./GraphTestSuite_TestSerialization");
   Graph g_reheated(fin);
-  in.close();
+  fin.close();
 
   ASSERT_EQ(g.num_nodes, g_reheated.num_nodes);
   for (Node i = 0; i < g.num_nodes; ++i) {
     ASSERT_EQ(g.supernodes[i]->logn, g_reheated.supernodes[i]->logn);
-    ASSERT_EQ(g.supernodes[i]->idx, g_reheated.supernodes[i]->idx);
+    ASSERT_EQ(0, g_reheated.supernodes[i]->idx);
     for (int j=0;j<g.supernodes[i]->logn;++j) {
-      ASSERT_EQ(*g.supernodes[i]->sketches[j],
-                *g_reheated.supernodes[i]->sketches[j]);
+      ASSERT_EQ(*g.supernodes[i]->sketches[j], *g_reheated.supernodes[i]->sketches[j]);
     }
   }
 }

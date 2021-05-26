@@ -40,6 +40,7 @@ Graph::Graph(std::ifstream& file) {
     supernodes[i] = new Supernode(num_nodes, file);
     parent[i] = i;
   }
+  is_copy = true;
 }
 
 Graph::~Graph() {
@@ -48,7 +49,7 @@ Graph::~Graph() {
   delete[] supernodes;
   delete[] parent;
   delete representatives;
-  delete bf;
+  if (!is_copy) delete bf;
 }
 
 void Graph::update(GraphUpdate upd) {
@@ -79,8 +80,10 @@ void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges) {
 }
 
 vector<set<Node>> Graph::connected_components() {
-  bf->force_flush(); // flush everything in buffertree to make final updates
-  GraphWorker::stopWorkers(); // tell the workers to stop and wait for them to finish
+  if (!is_copy) {
+    bf->force_flush(); // flush everything in buffertree to make final updates
+    GraphWorker::stopWorkers(); // tell the workers to stop and wait for them to finish
+  }
   // after this point all updates have been processed from the buffer tree
 
   printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later

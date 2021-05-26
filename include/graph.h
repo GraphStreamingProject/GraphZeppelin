@@ -39,6 +39,7 @@ class Graph{
 
   // BufferTree for buffering inputs
   BufferTree *bf;
+  bool is_copy = false; // flag to determine if a buffer tree should be created
 
   FRIEND_TEST(GraphTestSuite, TestSerialization);
 public:
