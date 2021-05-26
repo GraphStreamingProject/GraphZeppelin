@@ -82,8 +82,8 @@ std::string configure_system() {
     printf("WARNING: Could not open thread configuration file!\n");
   }
   if (pre == "") {
-    printf("WARNING: Using default buffer-tree path prefix: ./BUFFTREEDIR/\n");
-    pre = "./BUFFTREEDIR/";
+    printf("WARNING: Using default buffer-tree path prefix: ./BUFFTREEDATA/\n");
+    pre = "./BUFFTREEDATA/";
   }
   if (num_groups == 0) {
     printf("WARNING: Defaulting to a single group\n");
