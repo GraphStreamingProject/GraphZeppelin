@@ -1,7 +1,10 @@
 #include <stdexcept>
 #include <boost/multiprecision/cpp_int.hpp>
 #include "include/util.h"
+#include "include/graph_worker.h"
+#include "include/graph.h"
 
+const char *config_file = "streaming.conf";
 using uint128_t = boost::multiprecision::uint128_t;
 
 typedef uint64_t ull;
@@ -52,4 +55,45 @@ ull cantor_pairing_fn(ull i, ull j) {
   if (ULLMAX - am < j)
     throw std::overflow_error("Computation would overflow unsigned long long max");
   return am+j;
+}
+
+std::string configure_system() {
+  std::string pre = "";
+  int num_groups = 0;
+  int group_size = 0;
+  std::string line;
+  std::ifstream conf(config_file);
+  if (conf.is_open()) {
+    while(getline(conf, line)) {
+      if(line.substr(0, line.find('=')) == "path_prefix") {
+        pre = line.substr(line.find('=') + 1);
+        printf("Buffertree path_prefix = %s\n", pre.c_str());
+      }
+      if(line.substr(0, line.find('=')) == "num_groups") {
+        num_groups = std::stoi(line.substr(line.find('=') + 1));
+        printf("Number of groups = %i\n", num_groups);
+      }
+      if(line.substr(0, line.find('=')) == "group_size") {
+        group_size = std::stoi(line.substr(line.find('=') + 1));
+        printf("Size of groups = %i\n", group_size);
+      }
+    }
+  } else {
+    printf("WARNING: Could not open thread configuration file!\n");
+  }
+  if (pre == "") {
+    printf("WARNING: Using default buffer-tree path prefix: ./BUFFTREEDIR/\n");
+    pre = "./BUFFTREEDIR/";
+  }
+  if (num_groups == 0) {
+    printf("WARNING: Defaulting to a single group\n");
+    num_groups = 1;
+  }
+  if (group_size == 0) {
+    printf("WARNING: Defaulting to a group size of 1\n");
+    group_size = 1;
+  }
+
+  GraphWorker::set_config(num_groups, group_size);
+  return pre;
 }

@@ -20,6 +20,7 @@ public:
 	static void startWorkers(Graph *_graph, BufferTree *_db);
 	static void stopWorkers();
 	static int get_group_size() {return group_size;}
+	static void set_config(int g, int s) { num_groups = g; group_size = s; }
 private:
 	static void *startWorker(void *obj) {
 		((GraphWorker *)obj)->doWork();
@@ -35,7 +36,6 @@ private:
 	static bool shutdown;
 	static int num_groups;
 	static int group_size;
-	static const char *config_file;
 	static GraphWorker **workers;
 };
 
