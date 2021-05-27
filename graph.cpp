@@ -1,19 +1,15 @@
-#include <map>
+#include <unordered_map>
 #include <iostream>
 #include "include/graph.h"
+#include "include/util.h"
 
-Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
-#ifdef VERIFY_SAMPLES_F
-  cout << "Verifying samples..." << endl;
-#endif
+Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes), dsu(num_nodes) {
   representatives = new set<Node>();
   supernodes = new Supernode*[num_nodes];
-  parent = new Node[num_nodes];
   time_t seed = time(nullptr);
   for (Node i=0;i<num_nodes;++i) {
     representatives->insert(i);
     supernodes[i] = new Supernode(num_nodes,seed);
-    parent[i] = i;
   }
 }
 
@@ -21,7 +17,6 @@ Graph::~Graph() {
   for (unsigned i=0;i<num_nodes;++i)
     delete supernodes[i];
   delete[] supernodes;
-  delete[] parent;
   delete representatives;
 }
 
@@ -54,57 +49,55 @@ void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges) {
   supernodes[src]->batch_update(updates);
 }
 
-vector<set<Node>> Graph::connected_components() {
+std::vector<std::pair<std::vector<Node>, std::vector<Edge>>>
+      Graph::connected_components() {
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
-#ifdef VERIFY_SAMPLES_F
-  GraphVerifier verifier {cum_in};
-#endif
+  std::vector<Edge> forest;
   do {
     modified = false;
-    vector<Node> removed;
+    std::vector<Node> removed;
     for (Node i: (*representatives)) {
-      if (parent[i] != i) continue;
+      if (!dsu.is_rep(i)) continue;
       boost::optional<Edge> edge = supernodes[i]->sample();
-#ifdef VERIFY_SAMPLES_F
-      if (edge.is_initialized())
-        verifier.verify_edge(edge.value());
-      else
-        verifier.verify_cc(i);
-#endif
       if (!edge.is_initialized()) continue;
 
-      Node n;
+      forest.push_back(edge.value());
+
+      Node n = dsu.find(edge->first);
       // DSU compression
-      if (get_parent(edge->first) == i) {
-        n = get_parent(edge->second);
-        removed.push_back(n);
-        parent[n] = i;
+      if (n == i) {
+        n = dsu.find(edge->second);
+      } else {
+        dsu.find(edge->second);
       }
-      else {
-        get_parent(edge->second);
-        n = get_parent(edge->first);
-        removed.push_back(n);
-        parent[n] = i;
-      }
+      removed.push_back(n);
+      dsu.link(n, i);
       supernodes[i]->merge(*supernodes[n]);
     }
     if (!removed.empty()) modified = true;
     for (Node i : removed) representatives->erase(i);
   } while (modified);
-  map<Node, set<Node>> temp;
-  for (Node i=0;i<num_nodes;++i)
-    temp[get_parent(i)].insert(i);
-  vector<set<Node>> retval;
-  retval.reserve(temp.size());
-  for (const auto& it : temp) retval.push_back(it.second);
-#ifdef VERIFY_SAMPLES_F
-  verifier.verify_soln(retval);
-#endif
-  return retval;
-}
 
-Node Graph::get_parent(Node node) {
-  if (parent[node] == node) return node;
-  return parent[node] = get_parent(parent[node]);
+  // Map parent to returned vector index
+  std::unordered_map<Node, Node> nodemap;
+  nodemap.reserve(num_nodes);
+  Node num_comp = 0;
+  std::vector<std::pair<std::vector<Node>, std::vector<Edge>>> retval;
+  for (Node i = 0; i < num_nodes; i++) {
+    Node parent = dsu.find(i);
+    if (nodemap.find(parent) == nodemap.end()) {
+      nodemap[parent] = num_comp++;
+      retval.emplace_back(std::vector<Node>(), std::vector<Edge>());
+    }
+    retval[nodemap[parent]].first.push_back(i);
+  }
+  for (const Edge& edge : forest) {
+    if (dsu.find(edge.first) != dsu.find(edge.second)) {
+      std::cerr << "Something weird happened with edge DSU" << std::endl;
+    }
+    retval[nodemap[dsu.find(edge.first)]].second.push_back(edge);
+  }
+
+  return retval;
 }

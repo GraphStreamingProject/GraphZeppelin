@@ -5,6 +5,7 @@
 #include <set>
 #include <fstream>
 #include "supernode.h"
+#include "dsu.h"
 
 #ifdef VERIFY_SAMPLES_F
 #include "../test/util/graph_verifier.h"
@@ -30,8 +31,7 @@ class Graph{
   set<Node>* representatives;
   Supernode** supernodes;
   // DSU representation of supernode relationship
-  Node* parent;
-  Node get_parent(Node node);
+  DSU dsu;
 public:
   explicit Graph(uint64_t num_nodes);
   ~Graph();
@@ -48,18 +48,8 @@ public:
    * Main algorithm utilizing Boruvka and L_0 sampling.
    * @return a vector of the connected components in the graph.
    */
-  vector<set<Node>> connected_components();
-
-#ifdef VERIFY_SAMPLES_F
-  std::string cum_in = "./cum_sample.txt";
-
-  /**
-   * Set the filepath to search for cumulative graph input.
-   */
-  void set_cum_in(const std::string& input_file) {
-    cum_in = input_file;
-  }
-#endif
+  std::vector<std::pair<std::vector<Node>, std::vector<Edge>>>
+      connected_components();
 };
 
 class UpdateLockedException : public exception {
