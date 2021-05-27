@@ -1,8 +1,9 @@
 #include <map>
 #include <iostream>
-#include "include/graph.h"
-
 #include <buffer_tree.h>
+
+#include "include/graph.h"
+#include "include/util.h"
 #include "include/graph_worker.h"
 
 Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
@@ -20,10 +21,9 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
   }
   num_updates = 0; // REMOVE this later
 
+  std::string buffer_loc_prefix = configure_system(); // read the configuration file to configure the system
   // Create buffer tree and start the graphWorkers
-  // startWorkers will additionally read the graph_worker.conf file 
-  // and set the system parallelism rules
-  bf = new BufferTree("./BUFFTREEDATA/", (1<<20), 8, num_nodes, true);
+  bf = new BufferTree(buffer_loc_prefix, (1<<20), 8, num_nodes, true);
   GraphWorker::startWorkers(this, bf);
 }
 
