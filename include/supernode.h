@@ -17,8 +17,10 @@ class Supernode {
   vector<Sketch*> sketches;
   int idx;
   int logn;
+  std::mutex node_mt;
 
   FRIEND_TEST(SupernodeTestSuite, TestBatchUpdate);
+  FRIEND_TEST(SupernodeTestSuite, TestConcurrency);
   FRIEND_TEST(EXPR_Parallelism, N10kU100k);
 
 public:

@@ -9,11 +9,16 @@ Sketch::Sketch(vec_t n, long seed, double num_bucket_factor):
   bucket_c = std::vector<vec_hash_t>(num_buckets * num_guesses);
 }
 
+Sketch::Sketch(const Sketch &old) : seed(old.seed), n(old.n),
+num_bucket_factor(old.num_bucket_factor) {
+  bucket_a = std::vector<vec_t>(old.bucket_a.size());
+  bucket_c = std::vector<vec_hash_t>(old.bucket_c.size());
+}
+
 void Sketch::update(const vec_t& update_idx) {
   const unsigned num_buckets = bucket_gen(n, num_bucket_factor);
   const unsigned num_guesses = guess_gen(n);
   XXH64_hash_t update_hash = Bucket_Boruvka::index_hash(update_idx, seed);
-//  #pragma omp parallel for
   for (unsigned i = 0; i < num_buckets; ++i) {
     col_hash_t col_index_hash = Bucket_Boruvka::col_index_hash(i, update_idx, seed);
     for (unsigned j = 0; j < num_guesses; ++j) {
@@ -26,11 +31,9 @@ void Sketch::update(const vec_t& update_idx) {
 }
 
 void Sketch::batch_update(const std::vector<vec_t>& updates) {
-  Sketch delta(n, seed, num_bucket_factor);
   for (const auto& update_idx : updates) {
-    delta.update(update_idx);
+    update(update_idx);
   }
-  *this += delta;
 }
 
 vec_t Sketch::query() {

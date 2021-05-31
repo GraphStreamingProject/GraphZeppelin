@@ -4,14 +4,14 @@
 #include "util/testing_vector.h"
 
 TEST(SketchTestSuite, TestExceptions) {
-  Sketch sketch1 = Sketch(10,rand());
+  Sketch sketch1(10,rand(), 1);
   ASSERT_THROW(sketch1.query(), AllBucketsZeroException);
   ASSERT_THROW(sketch1.query(), MultipleQueryException);
 
   /**
    * Find a vector that makes no good buckets
    */
-  Sketch sketch2 = Sketch(100, 0);
+  Sketch sketch2(100, 0);
   std::vector<bool> vec_idx(sketch2.n, true);
   unsigned long long num_buckets = bucket_gen(sketch2.n, 1);
   unsigned long long num_guesses = guess_gen(sketch2.n);
@@ -48,7 +48,7 @@ TEST(SketchTestSuite, GIVENonlyIndexZeroUpdatedTHENitWorks) {
   // GIVEN only the index 0 is updated
   srand(time(NULL));
   int vec_size = 1000;
-  Sketch sketch = Sketch(vec_size, rand());
+  Sketch sketch(vec_size, rand());
   sketch.update(0);
   sketch.update(0);
   sketch.update(0);
@@ -70,7 +70,7 @@ void test_sketch_sample(unsigned long num_sketches,
   unsigned long sample_incorrect_failures = 0;
   for (unsigned long i = 0; i < num_sketches; i++) {
     Testing_Vector test_vec = Testing_Vector(vec_size, num_updates);
-    Sketch sketch = Sketch(vec_size, rand());
+    Sketch sketch(vec_size, rand());
     auto start_time = std::chrono::steady_clock::now();
     for (unsigned long j = 0; j < num_updates; j++){
       sketch.update(test_vec.get_update(j));
@@ -132,8 +132,8 @@ void test_sketch_addition(unsigned long num_sketches,
   unsigned long sample_incorrect_failures = 0;
   for (unsigned long i = 0; i < num_sketches; i++){
     const long seed = rand();
-    Sketch sketch1 = Sketch(vec_size, seed);
-    Sketch sketch2 = Sketch(vec_size, seed);
+    Sketch sketch1(vec_size, seed);
+    Sketch sketch2(vec_size, seed);
     Testing_Vector test_vec1 = Testing_Vector(vec_size, num_updates);
     Testing_Vector test_vec2 = Testing_Vector(vec_size, num_updates);
 
@@ -186,7 +186,7 @@ TEST(SketchTestSuite, TestSketchAddition){
  */
 void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
   srand(time(NULL));
-  Sketch sketch = Sketch(vec_size, rand());
+  Sketch sketch(vec_size, rand());
   //Keep seed for replaying update stream later
   unsigned long seed = rand();
   srand(seed);
