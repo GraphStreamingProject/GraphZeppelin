@@ -68,7 +68,7 @@ void Supernode::batch_update(const std::vector<vec_t>& updates) {
    * this was slow (at least on small graph inputs).
    */
   std::vector<Sketch*> deltas(logn);
-  #pragma omp parallel for num_threads(GraphWorker::get_group_size())
+  #pragma omp parallel for num_threads(GraphWorker::get_group_size()) default(none) shared(deltas, updates)
   for (unsigned i = 0; i < sketches.size(); ++i) {
     deltas[i] = new Sketch(*sketches[i]);
     deltas[i]->batch_update(updates);
