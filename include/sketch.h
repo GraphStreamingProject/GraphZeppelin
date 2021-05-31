@@ -3,6 +3,7 @@
 #include <exception>
 #include <iostream>
 #include <vector>
+#include <mutex>
 #include "bucket.h"
 #include "types.h"
 #include "util.h"
@@ -23,6 +24,9 @@ class Sketch {
   const vec_t n;
   // Factor for how many buckets there are in this sketch.
   const double num_bucket_factor;
+  // Lock to ensure sequential write access to sketches
+  std::mutex sketch_mt;
+
   // Buckets of this sketch.
   // Length is bucket_gen(n, num_bucket_factor) * guess_gen(n).
   // For buckets[i * guess_gen(n) + j], the bucket has a 1/2^j probability
@@ -65,6 +69,14 @@ public:
    */
   vec_t query();
 
+  /**
+   * Operator to add a sketch to another one in-place. Guaranteed to be
+   * thread-safe for the sketch being added to. It is up to the user to
+   * handle concurrency of the other sketch.
+   * @param sketch1 the one being added to.
+   * @param sketch2 the one being added.
+   * @return a reference to the combined sketch.
+   */
   friend Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2);
   friend bool operator== (const Sketch &sketch1, const Sketch &sketch2);
   friend std::ostream& operator<< (std::ostream &os, const Sketch &sketch);

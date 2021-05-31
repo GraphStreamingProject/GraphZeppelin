@@ -13,7 +13,6 @@ void Sketch::update(const vec_t& update_idx) {
   const unsigned num_buckets = bucket_gen(n, num_bucket_factor);
   const unsigned num_guesses = guess_gen(n);
   XXH64_hash_t update_hash = Bucket_Boruvka::index_hash(update_idx, seed);
-//  #pragma omp parallel for
   for (unsigned i = 0; i < num_buckets; ++i) {
     col_hash_t col_index_hash = Bucket_Boruvka::col_index_hash(i, update_idx, seed);
     for (unsigned j = 0; j < num_guesses; ++j) {
@@ -60,6 +59,10 @@ vec_t Sketch::query() {
 }
 
 Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2) {
+  std::unique_lock<std::mutex> lk1(sketch1.sketch_mt);
+  // we'll assume the second sketch isn't being mutated since there's no case
+  // where two live copies of the same sketch are merged
+
   assert (sketch1.n == sketch2.n);
   assert (sketch1.seed == sketch2.seed);
   assert (sketch1.num_bucket_factor == sketch2.num_bucket_factor);
@@ -68,6 +71,7 @@ Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2) {
     sketch1.bucket_c[i] ^= sketch2.bucket_c[i];
   }
   sketch1.already_quered = sketch1.already_quered || sketch2.already_quered;
+  lk1.unlock();
   return sketch1;
 }
 
