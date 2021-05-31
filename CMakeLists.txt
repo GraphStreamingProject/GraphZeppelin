@@ -180,7 +180,7 @@ ExternalProject_Add(
 
   PREFIX          BufferTree
   GIT_REPOSITORY  "https://github.com/Victor-C-Zhang/FastBufferTree.git"
-  GIT_TAG         "circular_queue"
+  GIT_TAG         "main"
 
   BUILD_ALWAYS    OFF
   INSTALL_DIR     ${CMAKE_CURRENT_BINARY_DIR}/BufferTree/prefix
