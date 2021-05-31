@@ -23,7 +23,7 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
 
   std::string buffer_loc_prefix = configure_system(); // read the configuration file to configure the system
   // Create buffer tree and start the graphWorkers
-  bf = new BufferTree(buffer_loc_prefix, (1<<20), 8, num_nodes, true);
+  bf = new BufferTree(buffer_loc_prefix, (1<<20), 8, num_nodes, GraphWorker::get_num_groups(), true);
   GraphWorker::startWorkers(this, bf);
 }
 

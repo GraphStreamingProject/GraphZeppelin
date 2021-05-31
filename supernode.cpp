@@ -67,8 +67,18 @@ void Supernode::batch_update(const std::vector<vec_t>& updates) {
    * Considered using spin-threads and parallelism within sketch::update, but
    * this was slow (at least on small graph inputs).
    */
-  #pragma omp parallel for num_threads(GraphWorker::get_group_size())
+  std::vector<Sketch*> deltas(logn);
+  #pragma omp parallel for num_threads(GraphWorker::get_group_size()) default(none) shared(deltas, updates)
   for (unsigned i = 0; i < sketches.size(); ++i) {
-    sketches[i]->batch_update(updates);
+    deltas[i] = new Sketch(*sketches[i]);
+    deltas[i]->batch_update(updates);
+  }
+  std::unique_lock<std::mutex> lk(node_mt);
+  for (unsigned i = 0; i < sketches.size(); ++i) {
+    *sketches[i] += *deltas[i];
+  }
+  lk.unlock();
+  for (unsigned i = 0; i < sketches.size(); ++i) {
+    delete deltas[i];
   }
 }

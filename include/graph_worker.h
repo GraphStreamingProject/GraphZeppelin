@@ -19,6 +19,7 @@ public:
 
 	static void startWorkers(Graph *_graph, BufferTree *_db);
 	static void stopWorkers();
+	static int get_num_groups() {return num_groups;}
 	static int get_group_size() {return group_size;}
 	static void set_config(int g, int s) { num_groups = g; group_size = s; }
 private:

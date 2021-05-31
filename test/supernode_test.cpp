@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <cmath>
 #include <chrono>
+#include <thread>
 #include "../include/supernode.h"
 
 const long seed = 7000000001;
@@ -63,17 +64,17 @@ TEST_F(SupernodeTestSuite, IFsampledTooManyTimesTHENthrowOutOfQueries) {
 }
 
 TEST_F(SupernodeTestSuite, TestSampleInsertGrinder) {
-  vector<Supernode> snodes;
+  vector<Supernode*> snodes;
   snodes.reserve(num_nodes);
   for (unsigned i = 0; i < num_nodes; ++i)
-    snodes.emplace_back(num_nodes, seed);
+    snodes[i] = new Supernode(num_nodes, seed);
 
   // insert all edges
   for (auto edge : *graph_edges) {
     vec_t encoded = nondirectional_non_self_edge_pairing_fn(edge.first, edge
     .second);
-    snodes[edge.first].update(encoded);
-    snodes[edge.second].update(encoded);
+    snodes[edge.first]->update(encoded);
+    snodes[edge.second]->update(encoded);
   }
 
   // allow one NoGoodBucket-type failure
@@ -82,7 +83,7 @@ TEST_F(SupernodeTestSuite, TestSampleInsertGrinder) {
   for (unsigned i = 2; i < num_nodes; ++i) {
     for (int j = 0; j < (int) log2(num_nodes); ++j) {
       try {
-        sampled = snodes[i].sample();
+        sampled = snodes[i]->sample();
         if (i >= num_nodes/2 && prime[i]) {
           ASSERT_FALSE(sampled.is_initialized())
                             << "False positive in sample " << i;
@@ -101,27 +102,29 @@ TEST_F(SupernodeTestSuite, TestSampleInsertGrinder) {
       }
     }
   }
+  for (unsigned i = 0; i < num_nodes; ++i)
+    delete snodes[i];
 }
 
 TEST_F(SupernodeTestSuite, TestSampleDeleteGrinder) {
-  vector<Supernode> snodes;
+  vector<Supernode*> snodes;
   snodes.reserve(num_nodes);
   for (unsigned i = 0; i < num_nodes; ++i)
-    snodes.emplace_back(num_nodes, seed);
+    snodes[i] = new Supernode(num_nodes, seed);
 
   // insert all edges
   for (auto edge : *graph_edges) {
     vec_t encoded = nondirectional_non_self_edge_pairing_fn(edge.first, edge
     .second);
-    snodes[edge.first].update(encoded);
-    snodes[edge.second].update(encoded);
+    snodes[edge.first]->update(encoded);
+    snodes[edge.second]->update(encoded);
   }
   // then remove half of them (odds)
   for (auto edge : *odd_graph_edges) {
     vec_t encoded = nondirectional_non_self_edge_pairing_fn(edge.first, edge
     .second);
-    snodes[edge.first].update(encoded);
-    snodes[edge.second].update(encoded);
+    snodes[edge.first]->update(encoded);
+    snodes[edge.second]->update(encoded);
   }
 
   // allow one NoGoodBucket-type failure
@@ -130,7 +133,7 @@ TEST_F(SupernodeTestSuite, TestSampleDeleteGrinder) {
   for (unsigned i = 2; i < num_nodes; ++i) {
     for (int j = 0; j < (int) log2(num_nodes); ++j) {
       try {
-        sampled = snodes[i].sample();
+        sampled = snodes[i]->sample();
         if (i >= num_nodes/2 && i % 2) {
           ASSERT_FALSE(sampled.is_initialized())
                             << "False positive in sample " << i;
@@ -151,6 +154,8 @@ TEST_F(SupernodeTestSuite, TestSampleDeleteGrinder) {
       }
     }
   }
+  for (unsigned i = 0; i < num_nodes; ++i)
+    delete snodes[i];
 }
 
 TEST_F(SupernodeTestSuite, TestBatchUpdate) {
@@ -176,5 +181,45 @@ TEST_F(SupernodeTestSuite, TestBatchUpdate) {
   ASSERT_EQ(supernode.idx, supernode_batch.idx);
   for (int i=0;i<supernode.logn;++i) {
     ASSERT_EQ(*supernode.sketches[i], *supernode_batch.sketches[i]);
+  }
+}
+
+TEST_F(SupernodeTestSuite, TestConcurrency) {
+  unsigned num_threads = std::thread::hardware_concurrency() - 1; // hyperthreading?
+  unsigned vec_len = 1000000;
+  unsigned num_updates = 100000;
+
+  std::vector<std::vector<vec_t>> test_vec(num_threads,
+                                           std::vector<vec_t>(num_updates));
+  for (unsigned i = 0; i < num_threads; ++i) {
+    for (unsigned long j = 0; j < num_updates; ++j) {
+      test_vec[i][j] = static_cast<vec_t>(rand() % vec_len);
+    }
+  }
+  int seed = rand();
+
+  Supernode supernode(vec_len, seed);
+  Supernode piecemeal(vec_len, seed);
+
+  // concurrently run batch_updates
+  std::thread thd[num_threads];
+  for (unsigned i = 0; i < num_threads; ++i) {
+    thd[i] = std::thread(&Supernode::batch_update, &piecemeal, std::ref
+    (test_vec[i]));
+  }
+
+  // do single-update sketch in the meantime
+  for (unsigned i = 0; i < num_threads; ++i) {
+    for (unsigned long j = 0; j < num_updates; j++) {
+      supernode.update(test_vec[i][j]);
+    }
+  }
+
+  for (unsigned i = 0; i < num_threads; ++i) {
+    thd[i].join();
+  }
+
+  for (int i = 0; i < supernode.logn; ++i) {
+    ASSERT_EQ(*supernode.sketches[i], *piecemeal.sketches[i]);
   }
 }
