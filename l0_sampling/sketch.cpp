@@ -9,6 +9,12 @@ Sketch::Sketch(vec_t n, long seed, double num_bucket_factor):
   bucket_c = std::vector<vec_hash_t>(num_buckets * num_guesses);
 }
 
+Sketch::Sketch(const Sketch &old) : seed(old.seed), n(old.n),
+num_bucket_factor(old.num_bucket_factor) {
+  bucket_a = std::vector<vec_t>(old.bucket_a.size());
+  bucket_c = std::vector<vec_hash_t>(old.bucket_c.size());
+}
+
 void Sketch::update(const vec_t& update_idx) {
   const unsigned num_buckets = bucket_gen(n, num_bucket_factor);
   const unsigned num_guesses = guess_gen(n);
@@ -25,11 +31,9 @@ void Sketch::update(const vec_t& update_idx) {
 }
 
 void Sketch::batch_update(const std::vector<vec_t>& updates) {
-  Sketch delta(n, seed, num_bucket_factor);
   for (const auto& update_idx : updates) {
-    delta.update(update_idx);
+    update(update_idx);
   }
-  *this += delta;
 }
 
 vec_t Sketch::query() {
@@ -59,10 +63,6 @@ vec_t Sketch::query() {
 }
 
 Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2) {
-  std::unique_lock<std::mutex> lk1(sketch1.sketch_mt);
-  // we'll assume the second sketch isn't being mutated since there's no case
-  // where two live copies of the same sketch are merged
-
   assert (sketch1.n == sketch2.n);
   assert (sketch1.seed == sketch2.seed);
   assert (sketch1.num_bucket_factor == sketch2.num_bucket_factor);
@@ -71,7 +71,6 @@ Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2) {
     sketch1.bucket_c[i] ^= sketch2.bucket_c[i];
   }
   sketch1.already_quered = sketch1.already_quered || sketch2.already_quered;
-  lk1.unlock();
   return sketch1;
 }
 

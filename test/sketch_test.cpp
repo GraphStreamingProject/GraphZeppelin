@@ -1,7 +1,6 @@
 #include "../include/sketch.h"
 #include <chrono>
 #include <gtest/gtest.h>
-#include <thread>
 #include "util/testing_vector.h"
 
 TEST(SketchTestSuite, TestExceptions) {
@@ -258,41 +257,4 @@ TEST(SketchTestSuite, TestBatchUpdate) {
   std::cout << "Batched updates took " << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
 
   ASSERT_EQ(sketch, sketch_batch);
-}
-
-TEST(SketchTestSuite, TestConcurrency) {
-  unsigned num_threads = std::thread::hardware_concurrency() - 1; // hyperthreading?
-  unsigned vec_len = 1000000;
-  unsigned num_updates = 500000;
-
-  std::vector<std::vector<vec_t>> test_vec(num_threads,
-                                           std::vector<vec_t>(num_updates));
-  for (unsigned i = 0; i < num_threads; ++i) {
-    for (unsigned long j = 0; j < num_updates; ++j) {
-      test_vec[i][j] = static_cast<vec_t>(rand() % vec_len);
-    }
-  }
-  int seed = rand();
-
-  Sketch sketch(vec_len, seed);
-  Sketch piecemeal(vec_len, seed);
-
-  // concurrently run batch_updates
-  std::thread thd[num_threads];
-  for (unsigned i = 0; i < num_threads; ++i) {
-    thd[i] = std::thread(&Sketch::batch_update, &piecemeal, std::ref(test_vec[i]));
-  }
-
-  // do single-update sketch in the meantime
-  for (unsigned i = 0; i < num_threads; ++i) {
-    for (unsigned long j = 0; j < num_updates; j++) {
-      sketch.update(test_vec[i][j]);
-    }
-  }
-
-  for (unsigned i = 0; i < num_threads; ++i) {
-    thd[i].join();
-  }
-
-  ASSERT_EQ(sketch, piecemeal);
 }

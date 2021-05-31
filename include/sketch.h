@@ -24,8 +24,6 @@ class Sketch {
   const vec_t n;
   // Factor for how many buckets there are in this sketch.
   const double num_bucket_factor;
-  // Lock to ensure sequential write access to sketches
-  std::mutex sketch_mt;
 
   // Buckets of this sketch.
   // Length is bucket_gen(n, num_bucket_factor) * guess_gen(n).
@@ -47,6 +45,7 @@ public:
    * @param num_bucket_factor Factor to scale the number of buckets in this sketch
    */
   Sketch(vec_t n, long seed, double num_bucket_factor = 1);
+  Sketch(const Sketch &old);
 
   /**
    * Update a sketch based on information about one of its indices.
@@ -55,7 +54,7 @@ public:
   void update(const vec_t& update_idx);
 
   /**
-   * Update a sketch given a batch of updates
+   * Update a sketch given a batch of updates.
    * @param updates A vector of updates
    */
   void batch_update(const std::vector<vec_t>& updates);
