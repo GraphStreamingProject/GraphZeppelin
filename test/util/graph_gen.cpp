@@ -148,8 +148,10 @@ void write_edges_extmem(node_t n, double p, std::string out_file,
   std::ofstream ofs_temp(temp_file);
   for (node_t i = 1; i < n; ++i) {
     for (node_t j = 0; j < i; j++) {
-      // TODO a range of [0, RAND_MAX) might not be sufficient for huge graphs
-      ofs_temp << rand() << ' ' << j << ' ' << i << '\n';
+      for (int chars = 0; chars < 8; chars++) {
+        ofs_temp << "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"[rand() % 64];
+      }
+      ofs_temp << ' ' << j << ' ' << i << '\n';
     }
   }
   ofs_temp.close();
@@ -160,7 +162,7 @@ void write_edges_extmem(node_t n, double p, std::string out_file,
   ofs_out.close();
 
   std::ostringstream cmd;
-  cmd << "sort -k1,1n " << temp_file << "|head -n" << num_edges <<
+  cmd << "sort -k1,1 " << temp_file << "|head -n" << num_edges <<
       "|cut -d' ' -f2->>" << out_file;
   system(cmd.str().c_str());
 }
