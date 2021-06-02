@@ -5,14 +5,14 @@
 #include "util/testing_vector.h"
 
 TEST(SketchTestSuite, TestExceptions) {
-  Sketch sketch1 = Sketch(10,rand());
+  Sketch sketch1(10,rand(), 1);
   ASSERT_THROW(sketch1.query(), AllBucketsZeroException);
   ASSERT_THROW(sketch1.query(), MultipleQueryException);
 
   /**
    * Find a vector that makes no good buckets
    */
-  Sketch sketch2 = Sketch(100, 0);
+  Sketch sketch2(100, 0);
   std::vector<bool> vec_idx(sketch2.n, true);
   unsigned long long num_buckets = bucket_gen(sketch2.n, 1);
   unsigned long long num_guesses = guess_gen(sketch2.n);
@@ -49,7 +49,7 @@ TEST(SketchTestSuite, GIVENonlyIndexZeroUpdatedTHENitWorks) {
   // GIVEN only the index 0 is updated
   srand(time(NULL));
   int vec_size = 1000;
-  Sketch sketch = Sketch(vec_size, rand());
+  Sketch sketch(vec_size, rand());
   sketch.update(0);
   sketch.update(0);
   sketch.update(0);

@@ -47,3 +47,6 @@
 
 #Doxygen docs
 /docs/
+
+# Our configuration file
+streaming.conf
