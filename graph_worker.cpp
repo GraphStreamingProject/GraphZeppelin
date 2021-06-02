@@ -63,7 +63,7 @@ void GraphWorker::unpause_workers() {
  ************** GraphWorker class **************
  ***********************************************/
 GraphWorker::GraphWorker(int _id, Graph *_graph, BufferTree *_bf) :
-  id(_id), graph(_graph), bf(_bf), thr(start_worker, this) {
+  id(_id), graph(_graph), bf(_bf), thr(start_worker, this), thr_paused(false) {
 }
 
 GraphWorker::~GraphWorker() {
@@ -76,10 +76,8 @@ void GraphWorker::do_work() {
 	while(true) {
 		if(shutdown)
 			return;
-		pause_lock.lock();
 		thr_paused = true; // this thread is currently paused
-		pause_lock.unlock();
-		pause_condition.notify_one(); // notify pause_workers()
+		pause_condition.notify_all(); // notify pause_workers()
 
 		// wait until we are unpaused
 		std::unique_lock<std::mutex> lk(pause_lock);

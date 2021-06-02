@@ -4,7 +4,6 @@
 #include <atomic>
 #include <mutex>
 #include <condition_variable>
-#include <queue>
 #include <thread>
 
 // forward declarations
@@ -39,7 +38,7 @@ private:
 	Graph *graph;
 	BufferTree *bf;
 	std::thread thr;
-	bool thr_paused = false; // indicates if this individual thread is paused
+	std::atomic<bool> thr_paused; // indicates if this individual thread is paused
 
 	// thread status and status management
 	static bool shutdown;
