@@ -1,6 +1,8 @@
 #include <map>
 #include <iostream>
 #include "include/graph.h"
+#include <buffer_tree.h>
+#include "include/graph_worker.h"
 
 Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes), supernodes(num_nodes),
     parent(num_nodes) {
@@ -13,8 +15,16 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes), supernodes(num_nodes),
     parent[i] = i;
     supernodes[i] = std::unique_ptr<Supernode>(new Supernode(num_nodes, seed));
   }
+  num_updates = 0; // REMOVE this later
+
+  // Create buffer tree and start the graphWorkers
+  // startWorkers will additionally read the graph_worker.conf file 
+  // and set the system parallelism rules
+  bf = std::unique_ptr<BufferTree>(new BufferTree("./BUFFTREEDATA/", (1<<20), 8, num_nodes, true));
+  GraphWorker::startWorkers(this, bf);
 }
 
+/*
 Graph::Graph(const Graph& g) : num_nodes(g.num_nodes),
     update_locked(g.update_locked), representatives(g.representatives),
     supernodes(num_nodes), parent(g.parent) {
@@ -22,16 +32,15 @@ Graph::Graph(const Graph& g) : num_nodes(g.num_nodes),
     supernodes[i] = std::unique_ptr<Supernode>(new Supernode(*g.supernodes[i]));
   }
 }
+*/
 
 void Graph::update(GraphUpdate upd) {
   if (update_locked) throw UpdateLockedException();
   Edge &edge = upd.first;
-  // ensure lhs < rhs
-  if (edge.first > edge.second) {
-    std::swap(edge.first,edge.second);
-  }
-  supernodes[edge.first]->update(edge);
-  supernodes[edge.second]->update(edge);
+
+  bf->insert(edge);
+  std::swap(edge.first, edge.second);
+  bf->insert(edge);
 }
 
 
@@ -47,16 +56,23 @@ void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges) {
       updates.push_back(static_cast<vec_t>(
           nondirectional_non_self_edge_pairing_fn(edge, src)));
     }
+    num_updates += 1; // REMOVE this later
   }
   supernodes[src]->batch_update(updates);
 }
 
 vector<set<Node>> Graph::connected_components() {
+  bf->force_flush(); // flush everything in buffertree to make final updates
+  GraphWorker::stopWorkers(); // tell the workers to stop and wait for them to finish
+  // after this point all updates have been processed from the buffer tree
+
+  printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
 #ifdef VERIFY_SAMPLES_F
   GraphVerifier verifier {cum_in};
 #endif
+
   do {
     modified = false;
     vector<Node> removed;

@@ -1,11 +1,15 @@
 #TODO: write FindxxHash for libxxhash-dev compatibility?
 #Cmake for xxHash is unofficial, so libxxhash-dev doesn't have xxHashConfig.cmake
 
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.15)
+include (ExternalProject)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
+
+#Uncomment to enable debug
+#set(ENV{DEBUG} ON)
 
 project(test)
 
@@ -170,6 +174,27 @@ include_directories("${Boost_INCLUDE_DIR}")
 #  target_compile_options(l0sampling PRIVATE /O2)
 #endif()
 
+# Install BufferTree Project
+ExternalProject_Add(
+  BufferTree
+
+  PREFIX          BufferTree
+  GIT_REPOSITORY  "https://github.com/Victor-C-Zhang/FastBufferTree.git"
+  GIT_TAG         "main"
+
+  BUILD_ALWAYS    OFF
+  INSTALL_DIR     ${CMAKE_CURRENT_BINARY_DIR}/BufferTree/prefix
+
+  CMAKE_CACHE_ARGS
+        -DAUTODOWNLOAD:BOOL=ON
+        -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
+
+  BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target install
+)
+
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/BufferTree/prefix/include)
+link_directories(${CMAKE_CURRENT_BINARY_DIR}/BufferTree/prefix/lib)
+
 add_executable(tests
   test/test_runner.cpp
   test/graph_test.cpp
@@ -182,46 +207,66 @@ add_executable(tests
   test/util/graph_verifier_test.cpp
   graph.cpp
   supernode.cpp
+  graph_worker.cpp
   l0_sampling/sketch.cpp
+  l0_sampling/update.cpp
   util.cpp)
 target_link_libraries(tests PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F)
+target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F)
+# dependencies
+add_dependencies(tests BufferTree)
+target_link_libraries(tests PRIVATE libFastBufferTree.a)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(tests PRIVATE -g)
+  target_compile_options(tests PRIVATE -g -fopenmp)
+  target_link_options(tests PRIVATE -fopenmp)
 else ()
   if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(tests PRIVATE -O3)
+    target_compile_options(tests PRIVATE -O3 -fopenmp)
+    target_link_options(tests PRIVATE -fopenmp)
   elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
     target_compile_options(tests PRIVATE /O2)
   endif()
 endif ()
 
-add_executable(native_tests
+# executables for experiment/benchmarking
+add_executable(efficient_gen
+  test/util/efficient_gen/edge_gen.cpp
+  test/util/efficient_gen/cum_gen.cpp
+  test/util/efficient_gen/efficient_gen.cpp)
+target_link_libraries(efficient_gen PRIVATE xxHash::xxhash)
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+  target_compile_options(efficient_gen PRIVATE -O3)
+elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+  target_compile_options(efficient_gen PRIVATE /O2)
+endif()
+
+add_executable(experiment
   test/test_runner.cpp
-  test/graph_test.cpp
-  test/sketch_test.cpp
-  test/supernode_test.cpp
-  test/util_test.cpp
+  test/experiment/BCHMK_Graph.cpp
   test/util/graph_verifier.cpp
   test/util/graph_gen.cpp
-  test/util/graph_gen_test.cpp
-  test/util/graph_verifier_test.cpp
   graph.cpp
   supernode.cpp
+  graph_worker.cpp
   l0_sampling/sketch.cpp
+  l0_sampling/update.cpp
   util.cpp)
-target_link_libraries(native_tests PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(native_tests PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F)
+target_link_libraries(experiment PRIVATE xxHash::xxhash GTest::gtest)
+# dependencies
+add_dependencies(experiment BufferTree)
+target_link_libraries(experiment PRIVATE libFastBufferTree.a)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(native_tests PRIVATE -g)
+  target_compile_options(experiment PRIVATE -g -fopenmp)
+  target_link_options(experiment PRIVATE -fopenmp)
 else ()
   if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(native_tests PRIVATE -O3)
+    target_compile_options(experiment PRIVATE -O3 -fopenmp)
+    target_link_options(experiment PRIVATE -fopenmp)
   elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    target_compile_options(native_tests PRIVATE /O2)
+    target_compile_options(experiment PRIVATE /O2)
   endif()
 endif ()

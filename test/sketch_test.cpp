@@ -18,10 +18,9 @@ TEST(SketchTestSuite, TestExceptions) {
   unsigned long long num_guesses = guess_gen(sketch2.n);
   for (unsigned long long i = 0; i < num_buckets; ++i) {
     for (unsigned long long j = 0; j < num_guesses;) {
-      unsigned bucket_id = i * num_guesses + j;
       uint64_t index = 0;
       for (uint64_t k = 0; k < sketch2.n; ++k) {
-        if (vec_idx[k] && sketch2.buckets[bucket_id].contains(Bucket_Boruvka::col_index_hash(i, k, sketch2.seed), 1 << j)) {
+        if (vec_idx[k] && Bucket_Boruvka::contains(Bucket_Boruvka::col_index_hash(i, k, sketch2.seed), 1 << j)) {
           if (index == 0) {
             index = k + 1;
           } else {
@@ -145,9 +144,9 @@ void test_sketch_addition(unsigned long num_sketches, unsigned long vec_size,
       sketch1.update(test_vec1.get_update(j));
       sketch2.update(test_vec2.get_update(j));
     }
-    Sketch sketchsum = sketch1 + sketch2;
+    sketch1 += sketch2;
     try {
-      vec_t res_idx = sketchsum.query();
+      vec_t res_idx = sketch1.query();
       ASSERT_LT(res_idx, vec_size) << "Sampled index out of bounds";
       if (test_vec1.get_entry(res_idx) == test_vec2.get_entry(res_idx)) {
         sample_incorrect_failures++;
@@ -287,13 +286,7 @@ TEST(SketchTestSuite, TestBatchUpdate) {
   sketch_batch.batch_update(updates);
   std::cout << "Batched updates took " << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
 
-  ASSERT_EQ(sketch.seed, sketch_batch.seed);
-  ASSERT_EQ(sketch.n, sketch_batch.n);
-  ASSERT_EQ(sketch.buckets.size(), sketch_batch.buckets.size());
-  for (auto it1 = sketch.buckets.cbegin(), it2 = sketch_batch.buckets.cbegin(); it1 != sketch.buckets.cend(); it1++, it2++) {
-    ASSERT_EQ(it1->a, it2->a);
-    ASSERT_EQ(it1->c, it2->c);
-  }
+  ASSERT_EQ(sketch, sketch_batch);
 }
 
 TEST(SketchTestSuite, DISABLED_TestFailureRate) {
