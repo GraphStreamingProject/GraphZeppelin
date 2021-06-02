@@ -144,36 +144,6 @@ if(NOT Boost_FOUND)
 endif()
 include_directories("${Boost_INCLUDE_DIR}")
 
-#add_executable(main
-#  main.cpp
-#  graph.cpp
-#  supernode.cpp
-#  l0_sampling/sketch.cpp
-#  l0_sampling/update.cpp
-#  l0_sampling/bucket.cpp
-#  util.cpp
-#  l0_sampling/int127.cpp)
-#target_link_libraries(main PRIVATE xxHash::xxhash)
-#if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-#  target_compile_options(main PRIVATE -O3)
-#elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-#  target_compile_options(main PRIVATE /O2)
-#endif()
-
-#add_executable(l0sampling
-#  l0sampling.cpp
-#  l0_sampling/sketch.cpp
-#  l0_sampling/update.cpp
-#  l0_sampling/bucket.cpp
-#  util.cpp
-#  l0_sampling/int127.cpp)
-#target_link_libraries(l0sampling PRIVATE xxHash::xxhash)
-#if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-#  target_compile_options(l0sampling PRIVATE -O3)
-#elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-#  target_compile_options(l0sampling PRIVATE /O2)
-#endif()
-
 # Install BufferTree Project
 ExternalProject_Add(
   BufferTree
@@ -195,6 +165,15 @@ ExternalProject_Add(
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/BufferTree/prefix/include)
 link_directories(${CMAKE_CURRENT_BINARY_DIR}/BufferTree/prefix/lib)
 
+
+# AVAILABLE COMPILATION DEFINITIONS:
+# VERIFY_SAMPLES_F   Use a deterministic connected-components algorithm to
+#                    verify post-processing
+# USE_NATIVE_F       ???
+# USE_FBT_F          Use a Fast Buffer Tree living on secondary storage
+#                    (github.com/Victor-C-Zhang/FastBufferTree) to buffer updates
+#                    instead of in-memory buffering.
+
 add_executable(tests
   test/test_runner.cpp
   test/graph_test.cpp
@@ -212,7 +191,8 @@ add_executable(tests
   l0_sampling/update.cpp
   util.cpp)
 target_link_libraries(tests PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F)
+target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F
+    USE_FBT_F)
 # dependencies
 add_dependencies(tests BufferTree)
 target_link_libraries(tests PRIVATE libFastBufferTree.a)
@@ -254,6 +234,7 @@ add_executable(experiment
   l0_sampling/update.cpp
   util.cpp)
 target_link_libraries(experiment PRIVATE xxHash::xxhash GTest::gtest)
+target_compile_definitions(experiment PRIVATE USE_FBT_F)
 # dependencies
 add_dependencies(experiment BufferTree)
 target_link_libraries(experiment PRIVATE libFastBufferTree.a)

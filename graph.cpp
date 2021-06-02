@@ -40,9 +40,14 @@ void Graph::update(GraphUpdate upd) {
   if (update_locked) throw UpdateLockedException();
   Edge &edge = upd.first;
 
+#ifdef USE_FBT_F
   bf->insert(edge);
   std::swap(edge.first, edge.second);
   bf->insert(edge);
+#else
+  // TODO
+  std::swap(edge.first, edge.second);
+#endif
 }
 
 
