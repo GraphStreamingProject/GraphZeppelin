@@ -1,9 +1,5 @@
 #include <map>
 #include <iostream>
-<<<<<<< HEAD
-#include "include/graph.h"
-=======
->>>>>>> master
 #include <buffer_tree.h>
 
 #include "include/graph.h"

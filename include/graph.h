@@ -39,7 +39,7 @@ class Graph{
   Node get_parent(Node node);
 
   // BufferTree for buffering inputs
-  std::unique_ptr<BufferTree> bf;
+  BufferTree* bf;
 public:
   explicit Graph(uint64_t num_nodes);
   Graph(const Graph& g);
