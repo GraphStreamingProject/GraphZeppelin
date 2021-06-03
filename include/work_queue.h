@@ -13,7 +13,7 @@
  * In-memory wrapper to offer the same interface as a buffer tree.
  */
 class WorkQueue {
-  const uint32_t size; // size of a buffer (including metadata)
+  const uint32_t buffer_size; // size of a buffer (including metadata)
   CircularQueue cq;
   std::vector<Node*> buffers; // array dump of numbers for performance: DO NOT
   // try to access directly!
@@ -21,9 +21,9 @@ class WorkQueue {
   /**
    * Flushes the corresponding buffer to the queue.
    * @param buffer a pointer to the head of the buffer to flush.
-   * @param length the length (in number of bytes) to flush.
+   * @param num_bytes the number of bytes to flush.
    */
-  void flush(Node* buffer, uint32_t length);
+  void flush(Node* buffer, uint32_t num_bytes);
 public:
   /**
    * Constructs a new queue.

@@ -7,9 +7,9 @@
 const unsigned first_idx = 2;
 
 WorkQueue::WorkQueue(uint32_t buffer_size, Node nodes) : buffer_size
-(buffer_size), cq(20,size*sizeof(Node)), buffers(nodes) {
+(buffer_size), cq(20,buffer_size*sizeof(Node)), buffers(nodes) {
   for (Node i = 0; i < nodes; ++i) {
-    buffers[i] = static_cast<unsigned long *>(malloc(size * sizeof(Node)));
+    buffers[i] = static_cast<unsigned long *>(malloc(buffer_size * sizeof(Node)));
     buffers[i][0] = first_idx; // first spot will point to the next free space
     buffers[i][1] = i; // second spot identifies the node to which the buffer
     // belongs
@@ -22,8 +22,8 @@ WorkQueue::~WorkQueue() {
   }
 }
 
-void WorkQueue::flush(Node *buffer, uint32_t length) {
-  cq.push(reinterpret_cast<char *>(buffer), length);
+void WorkQueue::flush(Node *buffer, uint32_t num_bytes) {
+  cq.push(reinterpret_cast<char *>(buffer), num_bytes);
 }
 
 insert_ret_t WorkQueue::insert(update_t upd) {
@@ -73,7 +73,7 @@ bool WorkQueue::get_data(data_ret_t &data) {
 flush_ret_t WorkQueue::force_flush() {
   for (auto & buffer : buffers) {
     if (buffer[0] != first_idx) { // have stuff to flush
-      flush(buffer, buffer[0]);
+      flush(buffer, buffer[0]*sizeof(Node));
       buffer[0] = first_idx;
     }
   }

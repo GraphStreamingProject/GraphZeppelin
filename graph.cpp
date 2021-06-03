@@ -83,7 +83,6 @@ void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges) {
 vector<set<Node>> Graph::connected_components() {
 #ifdef USE_FBT_F
   bf->force_flush(); // flush everything in buffertree to make final updates
-<<<<<<< HEAD
 #else
   wq->force_flush();
 #endif
