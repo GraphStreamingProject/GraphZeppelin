@@ -6,9 +6,8 @@
 
 const unsigned first_idx = 2;
 
-WorkQueue::WorkQueue(uint32_t size, Node nodes) : size(size), cq(20, size*sizeof
-(Node)),
-buffers(nodes) {
+WorkQueue::WorkQueue(uint32_t buffer_size, Node nodes) : buffer_size
+(buffer_size), cq(20,size*sizeof(Node)), buffers(nodes) {
   for (Node i = 0; i < nodes; ++i) {
     buffers[i] = static_cast<unsigned long *>(malloc(size * sizeof(Node)));
     buffers[i][0] = first_idx; // first spot will point to the next free space
@@ -31,8 +30,8 @@ insert_ret_t WorkQueue::insert(update_t upd) {
   Node& idx = buffers[upd.first][0];
   buffers[upd.first][idx] = upd.second;
   ++idx;
-  if (idx == size) { // full, so request flush
-    flush(buffers[upd.first], size*sizeof(Node));
+  if (idx == buffer_size) { // full, so request flush
+    flush(buffers[upd.first], buffer_size*sizeof(Node));
     idx = first_idx;
   }
 }
@@ -77,5 +76,14 @@ flush_ret_t WorkQueue::force_flush() {
       flush(buffer, buffer[0]);
       buffer[0] = first_idx;
     }
+  }
+}
+
+void WorkQueue::set_non_block(bool block) {
+  if (block) {
+    cq.no_block = true; // circular queue operations should no longer block
+    cq.cirq_empty.notify_all();
+  } else {
+    cq.no_block = false; // set circular queue to block if necessary
   }
 }

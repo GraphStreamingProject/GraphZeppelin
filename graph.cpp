@@ -6,7 +6,7 @@
 #include "include/util.h"
 #include "include/graph_worker.h"
 
-Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes), wq(1<<10, num_nodes) {
+Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
 #ifdef VERIFY_SAMPLES_F
   cout << "Verifying samples..." << endl;
 #endif
@@ -25,10 +25,11 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes), wq(1<<10, num_nodes) {
   std::string buffer_loc_prefix = configure_system(); // read the configuration file to configure the system
   // Create buffer tree and start the graphWorkers
   bf = new BufferTree(buffer_loc_prefix, (1<<20), 8, num_nodes, GraphWorker::get_num_groups(), true);
-  GraphWorker::startWorkers(this, bf);
+  GraphWorker::start_workers(this, bf);
 #else
   GraphWorker::set_config(1,1); // TODO: actually get config
-  GraphWorker::startWorkers(this);
+  wq = new WorkQueue(1 << 10, num_nodes);
+  GraphWorker::start_workers(this, wq);
 #endif
 }
 
@@ -38,8 +39,11 @@ Graph::~Graph() {
   delete[] supernodes;
   delete[] parent;
   delete representatives;
+  GraphWorker::stop_workers(); // join the worker threads
 #ifdef USE_FBT_F
   delete bf;
+#else
+  delete wq;
 #endif
 }
 
@@ -52,9 +56,9 @@ void Graph::update(GraphUpdate upd) {
   std::swap(edge.first, edge.second);
   bf->insert(edge);
 #else
-  wq.insert(edge);
+  wq->insert(edge);
   std::swap(edge.first, edge.second);
-  wq.insert(edge);
+  wq->insert(edge);
 #endif
 }
 
@@ -79,10 +83,11 @@ void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges) {
 vector<set<Node>> Graph::connected_components() {
 #ifdef USE_FBT_F
   bf->force_flush(); // flush everything in buffertree to make final updates
+<<<<<<< HEAD
 #else
-  wq.force_flush();
+  wq->force_flush();
 #endif
-  GraphWorker::stopWorkers(); // tell the workers to stop and wait for them to finish
+  GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
   // after this point all updates have been processed from the buffer tree
 
   printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
@@ -133,7 +138,13 @@ vector<set<Node>> Graph::connected_components() {
 #ifdef VERIFY_SAMPLES_F
   verifier.verify_soln(retval);
 #endif
+
   return retval;
+}
+
+void Graph::post_cc_resume() {
+  GraphWorker::unpause_workers();
+  update_locked = false;
 }
 
 Node Graph::get_parent(Node node) {

@@ -53,6 +53,17 @@ public:
    * @return nothing.
    */
   flush_ret_t force_flush();
+
+  /**
+   * Notifies all threads waiting on condition variables that
+   * they should check their wait condition again
+   * Useful when switching from blocking to non-blocking calls
+   * to the circular queue
+   * For example: we set this to true when shutting down the graph_workers
+   * @param    block is true if we should turn on non-blocking operations
+   *           and false if we should turn them off
+   */
+  void set_non_block(bool block);
 };
 
 #endif //TEST_WORK_QUEUE_H
