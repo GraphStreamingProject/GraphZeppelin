@@ -210,6 +210,42 @@ else ()
   endif()
 endif ()
 
+add_executable(mem_tests
+    test/test_runner.cpp
+    test/graph_test.cpp
+    test/sketch_test.cpp
+    test/supernode_test.cpp
+    test/util_test.cpp
+    test/util/graph_verifier.cpp
+    test/util/graph_gen.cpp
+    test/util/graph_gen_test.cpp
+    test/util/graph_verifier_test.cpp
+    graph.cpp
+    supernode.cpp
+    graph_worker.cpp
+    work_queue.cpp
+    l0_sampling/sketch.cpp
+    l0_sampling/update.cpp
+    util.cpp)
+target_link_libraries(mem_tests PRIVATE xxHash::xxhash GTest::gtest)
+target_compile_definitions(mem_tests PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F)
+# dependencies
+add_dependencies(mem_tests BufferTree)
+target_link_libraries(mem_tests PRIVATE libFastBufferTree.a)
+# optimize unless debug
+if (DEFINED ENV{DEBUG})
+  message("Disabling optimizations and enabling debug symbols")
+  target_compile_options(mem_tests PRIVATE -g -fopenmp)
+  target_link_options(mem_tests PRIVATE -fopenmp)
+else ()
+  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    target_compile_options(mem_tests PRIVATE -O3 -fopenmp)
+    target_link_options(mem_tests PRIVATE -fopenmp)
+  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    target_compile_options(mem_tests PRIVATE /O2)
+  endif()
+endif ()
+
 # executables for experiment/benchmarking
 add_executable(efficient_gen
   test/util/efficient_gen/edge_gen.cpp
