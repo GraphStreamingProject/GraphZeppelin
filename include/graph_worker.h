@@ -12,28 +12,44 @@ class Graph;
 
 class GraphWorker {
 public:
+	/*
+	 * Create a GraphWorker object by setting metadata and
+	 * spinning up a thread
+	 * @param _id     the id of the new GraphWorker
+	 * @param _graph  the graph which this GraphWorker will be updating
+	 * @param _db     the database data will be extracted from
+	 */
 	GraphWorker(int _id, Graph *_graph, BufferTree *_db);
 	~GraphWorker();
 
+	/*
+	 * Returns if the current thread is paused
+	 */
 	bool get_thr_paused() {return thr_paused;}
 
 	// manage threads
-	static void start_workers(Graph *_graph, BufferTree *_db);
-	static void stop_workers();
-	static void pause_workers();
-	static void unpause_workers();
+	static void start_workers(Graph *_graph, BufferTree *_db); // start the graph workers
+	static void stop_workers();    // shutdown and delete GraphWorkers
+	static void pause_workers();   // pause the GraphWorkers before CC
+	static void unpause_workers(); // unpause the GraphWorkers to resume updates
 
 	// manage configuration
-	static int get_num_groups() {return num_groups;}
-	static int get_group_size() {return group_size;}
+	// configuration should be set before calling start_workers
+	static int get_num_groups() {return num_groups;} // return the number of GraphWorkers
+	static int get_group_size() {return group_size;} // return the number of threads in each worker
 	static void set_config(int g, int s) { num_groups = g; group_size = s; }
 private:
+	/*
+	 * This function is used by a new thread to capture the
+	 * GraphWorker object and begin running do_work
+	 * @param obj is the memory where we will store the GraphWorker obj
+	 */
 	static void *start_worker(void *obj) {
 		((GraphWorker *)obj)->do_work();
 		return NULL;
 	}
 
-	void do_work();
+	void do_work();               // function which runs the GraphWorker process
 	int id;
 	Graph *graph;
 	BufferTree *bf;
