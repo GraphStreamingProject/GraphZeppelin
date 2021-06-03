@@ -118,14 +118,12 @@ vector<set<Node>> Graph::connected_components() {
   verifier.verify_soln(retval);
 #endif
 
-  // the GraphWorkers may now process more updates
-  // However! because sketches are modified in place continuing
-  // without being careful will cause bad sketch behavior!
-  // So, only give more updates after CC if you have restored
-  // the sketch state from before CC
-  GraphWorker::unpause_workers();
-
   return retval;
+}
+
+void Graph::post_cc_resume() {
+  GraphWorker::unpause_workers();
+  update_locked = false;
 }
 
 Node Graph::get_parent(Node node) {

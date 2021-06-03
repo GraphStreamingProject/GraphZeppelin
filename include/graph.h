@@ -56,6 +56,15 @@ public:
    * @return a vector of the connected components in the graph.
    */
   vector<set<Node>> connected_components();
+
+  /*
+   * Call this function to indicate to the graph that it should
+   * begin accepting updates again. It is important that the sketches
+   * be restored to their pre-connected_components state before
+   * calling this function
+   * Unpauses the graph workers and sets allow update flag
+   */
+  void post_cc_resume();
   
 #ifdef VERIFY_SAMPLES_F
   std::string cum_in = "./cum_sample.txt";
