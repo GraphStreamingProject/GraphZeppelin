@@ -22,6 +22,7 @@ std::mutex GraphWorker::pause_lock;
 
 void GraphWorker::start_workers(Graph *_graph, BufferTree *_bf) {
 	shutdown = false;
+	paused   = false;
 
 	workers = (GraphWorker **) calloc(num_groups, sizeof(GraphWorker *));
 	for (int i = 0; i < num_groups; i++) {
@@ -31,7 +32,7 @@ void GraphWorker::start_workers(Graph *_graph, BufferTree *_bf) {
 
 void GraphWorker::stop_workers() {
 	shutdown = true;
-	workers[0]->bf->bypass_wait(true); // make the GraphWorkers bypass waiting in queue
+	workers[0]->bf->set_non_block(true); // make the GraphWorkers bypass waiting in queue
 	pause_condition.notify_all();      // tell any paused threads to continue and exit
 	for (int i = 0; i < num_groups; i++) {
 		delete workers[i];
@@ -41,7 +42,7 @@ void GraphWorker::stop_workers() {
 
 void GraphWorker::pause_workers() {
 	paused = true;
-	workers[0]->bf->bypass_wait(true); // make the GraphWorkers bypass waiting in queue
+	workers[0]->bf->set_non_block(true); // make the GraphWorkers bypass waiting in queue
 
 	// wait until all GraphWorkers are paused
 	std::unique_lock<std::mutex> lk(pause_lock);
@@ -54,7 +55,7 @@ void GraphWorker::pause_workers() {
 }
 
 void GraphWorker::unpause_workers() {
-	workers[0]->bf->bypass_wait(false); // buffer-tree operations should block when necessary
+	workers[0]->bf->set_non_block(false); // buffer-tree operations should block when necessary
 	paused = false;
 	pause_condition.notify_all();       // tell all paused workers to get back to work
 }
