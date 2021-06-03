@@ -24,7 +24,7 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
   std::string buffer_loc_prefix = configure_system(); // read the configuration file to configure the system
   // Create buffer tree and start the graphWorkers
   bf = new BufferTree(buffer_loc_prefix, (1<<20), 8, num_nodes, GraphWorker::get_num_groups(), true);
-  GraphWorker::startWorkers(this, bf);
+  GraphWorker::start_workers(this, bf);
 }
 
 Graph::~Graph() {
@@ -33,6 +33,7 @@ Graph::~Graph() {
   delete[] supernodes;
   delete[] parent;
   delete representatives;
+  GraphWorker::stop_workers(); // join the worker threads
   delete bf;
 }
 
@@ -65,7 +66,7 @@ void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges) {
 
 vector<set<Node>> Graph::connected_components() {
   bf->force_flush(); // flush everything in buffertree to make final updates
-  GraphWorker::stopWorkers(); // tell the workers to stop and wait for them to finish
+  GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
   // after this point all updates have been processed from the buffer tree
 
   printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
@@ -116,7 +117,13 @@ vector<set<Node>> Graph::connected_components() {
 #ifdef VERIFY_SAMPLES_F
   verifier.verify_soln(retval);
 #endif
+
   return retval;
+}
+
+void Graph::post_cc_resume() {
+  GraphWorker::unpause_workers();
+  update_locked = false;
 }
 
 Node Graph::get_parent(Node node) {
