@@ -11,7 +11,7 @@ WorkQueue::WorkQueue(uint32_t buffer_size, Node nodes, int queue_len) :
 buffer_size(buffer_size), cq(queue_len,buffer_size*sizeof(Node)),
 buffers(nodes) {
   for (Node i = 0; i < nodes; ++i) {
-    buffers[i] = static_cast<unsigned long *>(malloc(buffer_size * sizeof(Node)));
+    buffers[i] = static_cast<Node *>(malloc(buffer_size * sizeof(Node)));
     buffers[i][0] = first_idx; // first spot will point to the next free space
     buffers[i][1] = i; // second spot identifies the node to which the buffer
     // belongs
