@@ -20,17 +20,18 @@ class WorkQueue {
 
   /**
    * Flushes the corresponding buffer to the queue.
-   * @param buffer a pointer to the head of the buffer to flush.
-   * @param num_bytes the number of bytes to flush.
+   * @param buffer      a pointer to the head of the buffer to flush.
+   * @param num_bytes   the number of bytes to flush.
    */
   void flush(Node* buffer, uint32_t num_bytes);
 public:
   /**
    * Constructs a new queue.
-   * @param size    the total length of a buffer, in updates.
-   * @param nodes   number of nodes in the graph
+   * @param size        the total length of a buffer, in updates.
+   * @param nodes       number of nodes in the graph.
+   * @param queue_len   the length of the work queue.
    */
-  WorkQueue(uint32_t size, Node nodes);
+  WorkQueue(uint32_t size, Node nodes, int queue_len);
 
   ~WorkQueue();
 
@@ -43,8 +44,8 @@ public:
 
   /**
    * Ask the buffer queue for data and sleep if necessary until it is available.
-   * @param data       to store the fetched data.
-   * @return           true if got valid data, false if unable to get data.
+   * @param data        to store the fetched data.
+   * @return            true if got valid data, false if unable to get data.
    */
   bool get_data(data_ret_t& data);
 

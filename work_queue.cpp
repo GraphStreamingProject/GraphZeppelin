@@ -3,11 +3,13 @@
 //
 
 #include "include/work_queue.h"
+#include "include/graph_worker.h"
 
 const unsigned first_idx = 2;
 
-WorkQueue::WorkQueue(uint32_t buffer_size, Node nodes) : buffer_size
-(buffer_size), cq(20,buffer_size*sizeof(Node)), buffers(nodes) {
+WorkQueue::WorkQueue(uint32_t buffer_size, Node nodes, int queue_len) :
+buffer_size(buffer_size), cq(queue_len,buffer_size*sizeof(Node)),
+buffers(nodes) {
   for (Node i = 0; i < nodes; ++i) {
     buffers[i] = static_cast<unsigned long *>(malloc(buffer_size * sizeof(Node)));
     buffers[i][0] = first_idx; // first spot will point to the next free space
@@ -62,7 +64,7 @@ bool WorkQueue::get_data(data_ret_t &data) {
   uint32_t vec_len  = len / sizeof(Node);
   data.second.reserve(vec_len); // reserve space for our updates
 
-  for (uint32_t j = first_idx; j < len / sizeof(Node); ++j) {
+  for (uint32_t j = first_idx; j < vec_len; ++j) {
     data.second.push_back(serial_data[j]);
   }
 

@@ -20,15 +20,13 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
     parent[i] = i;
   }
   num_updates = 0; // REMOVE this later
-
-#ifdef USE_FBT_F
   std::string buffer_loc_prefix = configure_system(); // read the configuration file to configure the system
+#ifdef USE_FBT_F
   // Create buffer tree and start the graphWorkers
   bf = new BufferTree(buffer_loc_prefix, (1<<20), 8, num_nodes, GraphWorker::get_num_groups(), true);
   GraphWorker::start_workers(this, bf);
 #else
-  GraphWorker::set_config(1,1); // TODO: actually get config
-  wq = new WorkQueue(1 << 10, num_nodes);
+  wq = new WorkQueue(1 << 10, num_nodes, 2*GraphWorker::get_num_groups());
   GraphWorker::start_workers(this, wq);
 #endif
 }
