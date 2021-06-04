@@ -81,10 +81,17 @@ std::string configure_system() {
   } else {
     printf("WARNING: Could not open thread configuration file!\n");
   }
+#ifdef USE_FBT_F
   if (pre == "") {
     printf("WARNING: Using default buffer-tree path prefix: ./BUFFTREEDATA/\n");
     pre = "./BUFFTREEDATA/";
   }
+#else
+  if (pre != "") {
+    printf("WARNING: Running with in-memory buffering. Buffer-tree path prefix "
+           "will be ignored/\n");
+  }
+#endif
   if (num_groups == 0) {
     printf("WARNING: Defaulting to a single group\n");
     num_groups = 1;

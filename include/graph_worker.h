@@ -6,12 +6,19 @@
 #include <condition_variable>
 #include <thread>
 
+#ifndef USE_FBT_T
+#include "work_queue.h"
+#endif
+
 // forward declarations
+#ifdef USE_FBT_T
 class BufferTree;
+#endif
 class Graph;
 
 class GraphWorker {
 public:
+#ifdef USE_FBT_F
 	/*
 	 * Create a GraphWorker object by setting metadata and
 	 * spinning up a thread
@@ -20,6 +27,9 @@ public:
 	 * @param _db     the database data will be extracted from
 	 */
 	GraphWorker(int _id, Graph *_graph, BufferTree *_db);
+#else
+  GraphWorker(int _id, Graph *_graph, WorkQueue *_wq);
+#endif
 	~GraphWorker();
 
 	/*
@@ -28,7 +38,11 @@ public:
 	bool get_thr_paused() {return thr_paused;}
 
 	// manage threads
-	static void start_workers(Graph *_graph, BufferTree *_db); // start the graph workers
+#ifdef USE_FBT_F
+  static void start_workers(Graph *_graph, BufferTree *_db); // start the graph workers
+#else
+  static void start_workers(Graph *_graph, WorkQueue *_wq); // start the graph workers
+#endif
 	static void stop_workers();    // shutdown and delete GraphWorkers
 	static void pause_workers();   // pause the GraphWorkers before CC
 	static void unpause_workers(); // unpause the GraphWorkers to resume updates
@@ -52,7 +66,11 @@ private:
 	void do_work();               // function which runs the GraphWorker process
 	int id;
 	Graph *graph;
+#ifdef USE_FBT_F
 	BufferTree *bf;
+#else
+	WorkQueue *wq;
+#endif
 	std::thread thr;
 	std::atomic<bool> thr_paused; // indicates if this individual thread is paused
 

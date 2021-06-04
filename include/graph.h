@@ -7,6 +7,10 @@
 #include "supernode.h"
 #include <atomic>  // REMOVE LATER
 
+#ifndef USE_FBT_F
+#include "work_queue.h"
+#endif
+
 #ifdef VERIFY_SAMPLES_F
 #include "../test/util/graph_verifier.h"
 #endif
@@ -37,8 +41,13 @@ class Graph{
   Node* parent;
   Node get_parent(Node node);
 
+#ifdef USE_FBT_F
   // BufferTree for buffering inputs
   BufferTree *bf;
+#else
+  // In-memory buffering system
+  WorkQueue *wq;
+#endif
 public:
   explicit Graph(uint64_t num_nodes);
   ~Graph();

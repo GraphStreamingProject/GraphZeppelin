@@ -20,11 +20,18 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
     parent[i] = i;
   }
   num_updates = 0; // REMOVE this later
-
   std::string buffer_loc_prefix = configure_system(); // read the configuration file to configure the system
+#ifdef USE_FBT_F
   // Create buffer tree and start the graphWorkers
   bf = new BufferTree(buffer_loc_prefix, (1<<20), 8, num_nodes, GraphWorker::get_num_groups(), true);
   GraphWorker::start_workers(this, bf);
+#else
+  unsigned node_size = sizeof(Supernode) + double_to_ull(log2(num_nodes))*(
+        sizeof(Sketch) + bucket_gen(num_nodes*num_nodes, 1)*sizeof(vec_t) +
+        guess_gen(num_nodes)*sizeof(vec_hash_t));
+  wq = new WorkQueue(node_size, num_nodes, 2*GraphWorker::get_num_groups());
+  GraphWorker::start_workers(this, wq);
+#endif
 }
 
 Graph::~Graph() {
@@ -34,16 +41,26 @@ Graph::~Graph() {
   delete[] parent;
   delete representatives;
   GraphWorker::stop_workers(); // join the worker threads
+#ifdef USE_FBT_F
   delete bf;
+#else
+  delete wq;
+#endif
 }
 
 void Graph::update(GraphUpdate upd) {
   if (update_locked) throw UpdateLockedException();
   Edge &edge = upd.first;
 
+#ifdef USE_FBT_F
   bf->insert(edge);
   std::swap(edge.first, edge.second);
   bf->insert(edge);
+#else
+  wq->insert(edge);
+  std::swap(edge.first, edge.second);
+  wq->insert(edge);
+#endif
 }
 
 
@@ -65,7 +82,11 @@ void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges) {
 }
 
 vector<set<Node>> Graph::connected_components() {
+#ifdef USE_FBT_F
   bf->force_flush(); // flush everything in buffertree to make final updates
+#else
+  wq->force_flush();
+#endif
   GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
   // after this point all updates have been processed from the buffer tree
 
