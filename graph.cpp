@@ -10,14 +10,10 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
 #ifdef VERIFY_SAMPLES_F
   cout << "Verifying samples..." << endl;
 #endif
-  representatives = new set<Node>();
   supernodes = new Supernode*[num_nodes];
-  parent = new Node[num_nodes];
   time_t seed = time(nullptr);
   for (Node i=0;i<num_nodes;++i) {
-    representatives->insert(i);
     supernodes[i] = new Supernode(num_nodes,seed);
-    parent[i] = i;
   }
   num_updates = 0; // REMOVE this later
   std::string buffer_loc_prefix = configure_system(); // read the configuration file to configure the system
@@ -38,8 +34,6 @@ Graph::~Graph() {
   for (unsigned i=0;i<num_nodes;++i)
     delete supernodes[i];
   delete[] supernodes;
-  delete[] parent;
-  delete representatives;
   GraphWorker::stop_workers(); // join the worker threads
 #ifdef USE_FBT_F
   delete bf;
@@ -91,11 +85,20 @@ vector<set<Node>> Graph::connected_components() {
   // after this point all updates have been processed from the buffer tree
 
   printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
-  update_locked = true; // disallow updating the graph after we run the alg
+//  update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
 #ifdef VERIFY_SAMPLES_F
   GraphVerifier verifier {cum_in};
 #endif
+
+  representatives = new set<Node>();
+  parent = new Node[num_nodes];
+  Supernode* supernodes[] = new Supernode*[num_nodes];
+  for (Node i=0;i<num_nodes;++i) {
+    supernodes[i] = new Supernode(*this->supernodes[i]);
+    representatives->insert(i);
+    parent[i] = i;
+  }
 
   do {
     modified = false;
@@ -138,6 +141,12 @@ vector<set<Node>> Graph::connected_components() {
 #ifdef VERIFY_SAMPLES_F
   verifier.verify_soln(retval);
 #endif
+
+  for (unsigned i=0;i<num_nodes;++i)
+    delete supernodes[i];
+  delete[] supernodes;
+  delete[] parent;
+  delete representatives;
 
   return retval;
 }
