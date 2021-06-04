@@ -287,3 +287,35 @@ else ()
     target_compile_options(experiment PRIVATE /O2)
   endif()
 endif ()
+
+add_executable(cont_test
+  test/test_runner.cpp
+  test/cont_test.cpp
+  test/util/graph_verifier.cpp
+  test/util/graph_gen.cpp
+  test/util/graph_verifier_test.cpp
+  graph.cpp
+  supernode.cpp
+  graph_worker.cpp
+  l0_sampling/sketch.cpp
+  l0_sampling/update.cpp
+  util.cpp)
+target_link_libraries(tests PRIVATE xxHash::xxhash GTest::gtest)
+target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F
+    USE_FBT_F)
+# dependencies
+add_dependencies(tests BufferTree)
+target_link_libraries(tests PRIVATE libFastBufferTree.a)
+# optimize unless debug
+if (DEFINED ENV{DEBUG})
+  message("Disabling optimizations and enabling debug symbols")
+  target_compile_options(tests PRIVATE -g -fopenmp)
+  target_link_options(tests PRIVATE -fopenmp)
+else ()
+  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    target_compile_options(tests PRIVATE -O3 -fopenmp)
+    target_link_options(tests PRIVATE -fopenmp)
+  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    target_compile_options(tests PRIVATE /O2)
+  endif()
+endif ()

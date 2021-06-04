@@ -41,6 +41,7 @@ void test_continuous(unsigned nodes, unsigned long updates_per_sample, unsigned 
       out.close();
       g.set_cum_in("./cum_sample.txt");
       g.connected_components();
+      g.post_cc_resume();
     } catch (const NoGoodBucketException& e) {
       num_failure++;
     } catch (const NotCCException& e) {
