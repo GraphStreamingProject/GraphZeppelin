@@ -87,7 +87,12 @@ jobs:
         # Execute the build.  You can specify a specific target with "--target <NAME>"
         run: cmake --build . --config $BUILD_TYPE
 
-      - name: Extended Types Testing
+      - name: In-memory Testing
+        working-directory: ${{runner.workspace}}/build
+        shell: bash
+        run: ./mem_tests
+
+      - name: Buffer Tree Testing
         working-directory: ${{runner.workspace}}/build
         shell: bash
         run: |
