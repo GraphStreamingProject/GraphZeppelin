@@ -68,6 +68,8 @@ public:
    */
   vec_t query();
 
+  Sketch* actual_copy();
+
   /**
    * Operator to add a sketch to another one in-place. Guaranteed to be
    * thread-safe for the sketch being added to. It is up to the user to

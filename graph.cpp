@@ -93,7 +93,7 @@ vector<set<Node>> Graph::connected_components() {
 
   representatives = new set<Node>();
   parent = new Node[num_nodes];
-  Supernode* supernodes[] = new Supernode*[num_nodes];
+  Supernode** supernodes = new Supernode*[num_nodes];
   for (Node i=0;i<num_nodes;++i) {
     supernodes[i] = new Supernode(*this->supernodes[i]);
     representatives->insert(i);

@@ -29,6 +29,7 @@ public:
    * @param seed  the (fixed) seed value passed to each supernode.
    */
   Supernode(uint64_t n, long seed);
+  Supernode(const Supernode& s);
   ~Supernode();
 
   /**

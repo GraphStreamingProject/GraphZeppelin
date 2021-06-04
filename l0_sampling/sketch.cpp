@@ -62,6 +62,14 @@ vec_t Sketch::query() {
   }
 }
 
+Sketch* Sketch::actual_copy() {
+  Sketch* ret = new Sketch(n, seed, num_bucket_factor);
+  ret->bucket_a = bucket_a;
+  ret->bucket_c = bucket_c;
+  return ret;
+}
+
+
 Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2) {
   assert (sketch1.n == sketch2.n);
   assert (sketch1.seed == sketch2.seed);
