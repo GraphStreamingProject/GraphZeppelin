@@ -58,5 +58,5 @@ void test_continuous(unsigned nodes, unsigned long updates_per_sample, unsigned 
 }
 
 TEST(TestContinuous, TestContinuous) {
-  test_continuous(100'000, 100'000'000, 10);
+  test_continuous(100000, 100000000, 10);
 }
