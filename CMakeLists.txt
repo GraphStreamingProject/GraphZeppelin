@@ -293,7 +293,6 @@ add_executable(cont_test
   test/cont_test.cpp
   test/util/graph_verifier.cpp
   test/util/graph_gen.cpp
-  test/util/graph_verifier_test.cpp
   graph.cpp
   supernode.cpp
   graph_worker.cpp

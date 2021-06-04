@@ -9,8 +9,10 @@ void test_continuous(unsigned nodes, unsigned long updates_per_sample, unsigned 
   Graph g(nodes);
   size_t total_edges = static_cast<size_t>(nodes - 1) * nodes / 2;
   std::vector<bool> adj(total_edges);
+  uint64_t num_edges = 0;
   unsigned long num_failure = 0;
   for (unsigned long i = 0; i < samples; i++) {
+    std::cout << "Starting updates" << std::endl;
     for (unsigned long j = 0; j < updates_per_sample; j++) {
       unsigned edgei = rand() % nodes;
       unsigned edgej = rand() % (nodes - 1);
@@ -21,15 +23,16 @@ void test_continuous(unsigned nodes, unsigned long updates_per_sample, unsigned 
       }
       uint64_t edgeidx = nondirectional_non_self_edge_pairing_fn(edgei, edgej);
       g.update({{edgei, edgej}, INSERT});
-      adj[edgeidx] = !adj[edgeidx];
+      if (adj[edgeidx]) {
+        num_edges--;
+        adj[edgeidx] = false;
+      } else {
+        num_edges++;
+        adj[edgeidx] = true;
+      }
     }
     try {
-      vec_t num_edges = 0;
-      for (uint64_t i = 0; i < total_edges; i++) {
-        if (adj[i]) {
-          num_edges++;
-        }
-      }
+      std::cout << "Writing cumulative" << std::endl;
       std::ofstream out("./cum_sample.txt");
       out << nodes << " " << num_edges << std::endl;
       for (unsigned i = 0; i < total_edges; i++) {
@@ -40,6 +43,7 @@ void test_continuous(unsigned nodes, unsigned long updates_per_sample, unsigned 
       }
       out.close();
       g.set_cum_in("./cum_sample.txt");
+      std::cout << "Running cc" << std::endl;
       g.connected_components();
       g.post_cc_resume();
     } catch (const NoGoodBucketException& e) {
@@ -53,9 +57,6 @@ void test_continuous(unsigned nodes, unsigned long updates_per_sample, unsigned 
   std::clog << nodes << ',' << num_failure << std::endl;
 }
 
-TEST(GraphTestSuite, DISABLED_TestContinuous) {
-  for (int i = 10, n = i; i < 1e4; n = n > i ? (i *= 10) : n * sqrt(10)) {
-    if (n == 10) continue; // Supernode cannot be sampled more times, probably bug
-    test_continuous(n, 1000, 1000);
-  }
+TEST(TestContinuous, TestContinuous) {
+  test_continuous(100'000, 100'000'000, 10);
 }
