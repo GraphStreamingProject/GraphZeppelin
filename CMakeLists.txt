@@ -300,22 +300,22 @@ add_executable(cont_test
   l0_sampling/sketch.cpp
   l0_sampling/update.cpp
   util.cpp)
-target_link_libraries(tests PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F
+target_link_libraries(cont_test PRIVATE xxHash::xxhash GTest::gtest)
+target_compile_definitions(cont_test PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F
     USE_FBT_F)
 # dependencies
-add_dependencies(tests BufferTree)
-target_link_libraries(tests PRIVATE libFastBufferTree.a)
+add_dependencies(cont_test BufferTree)
+target_link_libraries(cont_test PRIVATE libFastBufferTree.a)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(tests PRIVATE -g -fopenmp)
-  target_link_options(tests PRIVATE -fopenmp)
+  target_compile_options(cont_test PRIVATE -g -fopenmp)
+  target_link_options(cont_test PRIVATE -fopenmp)
 else ()
   if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(tests PRIVATE -O3 -fopenmp)
-    target_link_options(tests PRIVATE -fopenmp)
+    target_compile_options(cont_test PRIVATE -O3 -fopenmp)
+    target_link_options(cont_test PRIVATE -fopenmp)
   elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    target_compile_options(tests PRIVATE /O2)
+    target_compile_options(cont_test PRIVATE /O2)
   endif()
 endif ()
