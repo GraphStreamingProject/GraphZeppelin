@@ -44,7 +44,7 @@ public:
    * @param seed Seed to use for hashing operations
    * @param num_bucket_factor Factor to scale the number of buckets in this sketch
    */
-  Sketch(vec_t n, long seed, double num_bucket_factor = 1);
+  Sketch(vec_t n, long seed, double num_bucket_factor = .5);
   Sketch(const Sketch &old);
 
   /**
