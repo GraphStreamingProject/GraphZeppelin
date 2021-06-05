@@ -86,8 +86,9 @@ public:
   }
 #endif
 
-  // temp to verify number of updates -- REMOVE later
+  // number of updates and time when updating completes
   std::atomic<uint64_t> num_updates;
+  clock_t end_time;
 };
 
 class UpdateLockedException : public exception {

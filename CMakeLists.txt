@@ -258,7 +258,7 @@ elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
   target_compile_options(efficient_gen PRIVATE /O2)
 endif()
 
-add_executable(experiment
+add_executable(experiment_external
   test/test_runner.cpp
   test/experiment/BCHMK_Graph.cpp
   test/util/graph_verifier.cpp
@@ -269,21 +269,51 @@ add_executable(experiment
   l0_sampling/sketch.cpp
   l0_sampling/update.cpp
   util.cpp)
-target_link_libraries(experiment PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(experiment PRIVATE USE_FBT_F)
+target_link_libraries(experiment_external PRIVATE xxHash::xxhash GTest::gtest)
+target_compile_definitions(experiment_external PRIVATE USE_FBT_F)
 # dependencies
-add_dependencies(experiment BufferTree)
-target_link_libraries(experiment PRIVATE libFastBufferTree.a)
+add_dependencies(experiment_external BufferTree)
+target_link_libraries(experiment_external PRIVATE libFastBufferTree.a)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(experiment PRIVATE -g -fopenmp)
-  target_link_options(experiment PRIVATE -fopenmp)
+  target_compile_options(experiment_external PRIVATE -g -fopenmp)
+  target_link_options(experiment_external PRIVATE -fopenmp)
 else ()
   if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(experiment PRIVATE -O3 -fopenmp)
-    target_link_options(experiment PRIVATE -fopenmp)
+    target_compile_options(experiment_external PRIVATE -O3 -fopenmp)
+    target_link_options(experiment_external PRIVATE -fopenmp)
   elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    target_compile_options(experiment PRIVATE /O2)
+    target_compile_options(experiment_external PRIVATE /O2)
+  endif()
+endif ()
+
+add_executable(experiment_memory
+  test/test_runner.cpp
+  test/experiment/BCHMK_Graph.cpp
+  test/util/graph_verifier.cpp
+  test/util/graph_gen.cpp
+  graph.cpp
+  supernode.cpp
+  graph_worker.cpp
+  l0_sampling/sketch.cpp
+  l0_sampling/update.cpp
+  util.cpp)
+target_link_libraries(experiment_memory PRIVATE xxHash::xxhash GTest::gtest)
+target_compile_definitions(experiment_memory PRIVATE USE_FBT_F)
+# dependencies
+add_dependencies(experiment_memory BufferTree)
+target_link_libraries(experiment_memory PRIVATE libFastBufferTree.a)
+# optimize unless debug
+if (DEFINED ENV{DEBUG})
+  message("Disabling optimizations and enabling debug symbols")
+  target_compile_options(experiment_memory PRIVATE -g -fopenmp)
+  target_link_options(experiment_memory PRIVATE -fopenmp)
+else ()
+  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    target_compile_options(experiment_memory PRIVATE -O3 -fopenmp)
+    target_link_options(experiment_memory PRIVATE -fopenmp)
+  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    target_compile_options(experiment_memory PRIVATE /O2)
   endif()
 endif ()

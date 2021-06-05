@@ -19,7 +19,7 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
     supernodes[i] = new Supernode(num_nodes,seed);
     parent[i] = i;
   }
-  num_updates = 0; // REMOVE this later
+  num_updates = 0;
   std::string buffer_loc_prefix = configure_system(); // read the configuration file to configure the system
 #ifdef USE_FBT_F
   // Create buffer tree and start the graphWorkers
@@ -76,7 +76,7 @@ void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges) {
       updates.push_back(static_cast<vec_t>(
           nondirectional_non_self_edge_pairing_fn(edge, src)));
     }
-    num_updates += 1; // REMOVE this later
+    num_updates += 1;
   }
   supernodes[src]->batch_update(updates);
 }
@@ -89,8 +89,8 @@ vector<set<Node>> Graph::connected_components() {
 #endif
   GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
   // after this point all updates have been processed from the buffer tree
-
-  printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
+  end_time = clock();
+  
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
 #ifdef VERIFY_SAMPLES_F
