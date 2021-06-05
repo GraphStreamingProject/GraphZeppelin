@@ -191,8 +191,7 @@ add_executable(tests
   l0_sampling/update.cpp
   util.cpp)
 target_link_libraries(tests PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F
-    USE_FBT_F)
+target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F USE_FBT_F)
 # dependencies
 add_dependencies(tests BufferTree)
 target_link_libraries(tests PRIVATE libFastBufferTree.a)
@@ -228,7 +227,7 @@ add_executable(mem_tests
     l0_sampling/update.cpp
     util.cpp)
 target_link_libraries(mem_tests PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(mem_tests PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F)
+target_compile_definitions(mem_tests PRIVATE VERIFY_SAMPLES_F)
 # dependencies
 add_dependencies(mem_tests BufferTree)
 target_link_libraries(mem_tests PRIVATE libFastBufferTree.a)
