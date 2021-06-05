@@ -88,6 +88,6 @@ TEST(Benchmark, BCHMKGraph) {
     else
       g.update({{a,b}, DELETE});
   }
-  ASSERT_EQ(1, g.connected_components().size());
+  printf("Number of connected components is %lu\n", g.connected_components().size());
   querier.join();
 }
