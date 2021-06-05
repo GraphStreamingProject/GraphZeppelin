@@ -1,23 +1,40 @@
 #! /bin/bash
-iterations=$1
 
-total=1
-for ((j=0; j < 5; j++))
+# The specific test we want to run
+executable=$1
+
+# for every input file specified on the command line
+for input in "${@:2}"
 do
-	for ((size=1; size <= total; size*=2))
+	echo ""
+	echo "input file: $input"
+	
+	mkdir test_`basename $input`_data
+	cp $input test/res/current_test.stream
+	total=1
+	for ((j=0; j < 5; j++))
 	do
-		groups=$((total/size))
-
-		start=`date +%s`
-		for ((i=0; i < $iterations; i++))
+		for ((size=1; size <= total; size*=2))
 		do
-			echo "experiment $((i+1)) groups=$((groups)) of size=$((size))"
-			echo "num_groups=$((groups))" > ../../graph_worker.conf
-			echo "group_size=$((size))" >> ../../graph_worker.conf
-			../../experiment
+			groups=$((total/size))
+
+			start=`date +%s`
+			
+			echo "path_prefix=./BUFFTREEDATA/" > streaming.conf
+			echo "num_groups=$((groups))"      >> streaming.conf
+			echo "group_size=$((size))"        >> streaming.conf
+			
+			"$executable"
+			
+			mv runtime_data.txt test_`basename $input`_data/g$((groups))_s$((size))_data.txt
+			
+			end=`date +%s`
 		done
-		end=`date +%s`
-		echo "Number groups $((groups)), with $((size)) workers each: $((end-start)) seconds"
+		total=$((total*2))
 	done
-	total=$((total*2))
 done
+
+# delete buffer tree data if it exists
+rm BUFFTREEDATA/*
+
+

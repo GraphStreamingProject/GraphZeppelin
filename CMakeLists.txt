@@ -296,11 +296,12 @@ add_executable(experiment_memory
   graph.cpp
   supernode.cpp
   graph_worker.cpp
+  work_queue.cpp
   l0_sampling/sketch.cpp
   l0_sampling/update.cpp
   util.cpp)
 target_link_libraries(experiment_memory PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(experiment_memory PRIVATE USE_FBT_F)
+target_compile_definitions(experiment_memory PRIVATE)
 # dependencies
 add_dependencies(experiment_memory BufferTree)
 target_link_libraries(experiment_memory PRIVATE libFastBufferTree.a)
