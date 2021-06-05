@@ -3,6 +3,7 @@
 #include <chrono>
 #include <thread>
 #include "../include/supernode.h"
+#include "../include/graph_worker.h"
 
 const long seed = 7000000001;
 const unsigned long long int num_nodes = 2000;
@@ -185,7 +186,9 @@ TEST_F(SupernodeTestSuite, TestBatchUpdate) {
 }
 
 TEST_F(SupernodeTestSuite, TestConcurrency) {
-  unsigned num_threads = std::thread::hardware_concurrency() - 1; // hyperthreading?
+  int num_threads_per_group = 2;
+  unsigned num_threads =
+        std::thread::hardware_concurrency() / num_threads_per_group - 1; // hyperthreading?
   unsigned vec_len = 1000000;
   unsigned num_updates = 100000;
 
@@ -200,6 +203,9 @@ TEST_F(SupernodeTestSuite, TestConcurrency) {
 
   Supernode supernode(vec_len, seed);
   Supernode piecemeal(vec_len, seed);
+
+  GraphWorker::set_config(0,num_threads_per_group); // set number of threads per omp
+  // parallel
 
   // concurrently run batch_updates
   std::thread thd[num_threads];
