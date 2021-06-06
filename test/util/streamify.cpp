@@ -69,7 +69,7 @@ int main (int argc, char * argv [])
 		{	
 			vector<char> random_prefix(rand_prefix_length);
 			for (int k; k < rand_prefix_len; k++)
-				random_prefix[k] = atoi(rand_char(generator));
+				random_prefix[k] = itoa(rand_char(generator));
 		
 			stream_file << random_prefix << "\t" << rand_u << "\t" << rand_v << "\n";
 		}
@@ -103,8 +103,8 @@ int main (int argc, char * argv [])
 		stream_file_in >> prefix >> u >> v;
 		
 		index = u * num_nodes + v;
-		char upd_type = edge_present[index] ? '1' : '0';	
-		edge_present[index] = !edge_present[index]
+		char upd_type = edge_present[index] ? '1' : '0';
+		edge_present[index] = !edge_present[index];
 
 		stream_file_out << upd_type << '\t' << u << '\t' << v << '\n';
 	}
