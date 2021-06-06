@@ -29,13 +29,16 @@ int main (int argc, char * argv [])
 	default_random_engine generator(seed);
 	uniform_int_distribution<int> rand_char(0, 255);
 
-	rand_prefix_len = log((double) num_edges * (2 * 1 / static_reinsertion_param + 1) 
+	int rand_prefix_len = log((double) num_edges * (2 * 1 / static_reinsertion_param + 1) 
 			+ num_general_inserts * (2 * 1 / general_insertion_param)) / log(10.0);
 
+	long total_num_updates = 0;	
+	char * random_prefix = new char [rand_prefix_len];
+
 	// Static graph geometric inserts/deletes	
-	geometric_distribution<int> static_reinsertions(static_insertion_param);
+	geometric_distribution<int> static_reinsertions(static_reinsertion_param);
 	long u, v;
-	int num_inserts;
+	int num_reinserts, num_updates;
 	for (long i = 0; i < num_edges; i++)
 	{
 		static_graph_file >> u >> v;
@@ -45,17 +48,19 @@ int main (int argc, char * argv [])
 
 		for (int j = 0; j < num_updates; j++)
 		{	
-			vector<char> random_prefix (rand_prefix_length);
 			for (int k; k < rand_prefix_len; k++)
-				random_prefix[k] = atoi(rand_char(generator));
+				random_prefix[k] = (char) rand_char(generator);
 		
-			stream_file << random_prefix "\t" << u << "\t" << v << "\n";
+			stream_file_out << random_prefix << "\t" << u << "\t" << v << "\n";
 		}
+
+		total_num_updates += num_updates;
 	}	
 
 	// General geometric inserts/deletes	
 	geometric_distribution<int> general_insertions(general_insertion_param);
 	uniform_int_distribution<long> random_node(0, num_nodes);
+	int num_inserts;
 	for (long i = 0; i < num_general_inserts; i++)
 	{
 		long rand_u = random_node(generator);
@@ -67,19 +72,21 @@ int main (int argc, char * argv [])
 
 		for (int j = 0; j < num_updates; j++)
 		{	
-			vector<char> random_prefix(rand_prefix_length);
 			for (int k; k < rand_prefix_len; k++)
-				random_prefix[k] = itoa(rand_char(generator));
+				random_prefix[k] = (char) rand_char(generator);
 		
-			stream_file << random_prefix << "\t" << rand_u << "\t" << rand_v << "\n";
+			stream_file_out << random_prefix << "\t" << rand_u << "\t" << rand_v << "\n";
 		}
+
+		total_num_updates += num_updates;
 	}
 
+	delete [] random_prefix;
 
 	// External memory sort by the random prefix to produce 
 	// a random permutation
 	
-	system("sort -k 1,1 " + stream_file_name);
+	system((string("sort -k 1,1 ") + stream_file_name).c_str());
 
 	// Remove random prefixes used for permuting
 	// Insert prefix denoting insertion or deletion
@@ -111,7 +118,7 @@ int main (int argc, char * argv [])
 
 	// Truncate remainder of file
 	
-	if (-1 == truncate(stream_file_name, stream_file_out.tellp()))
+	if (-1 == truncate(stream_file_name.c_str(), stream_file_out.tellp()))
 	{
 		cout << "Truncation error" << endl;
 		return 1;
