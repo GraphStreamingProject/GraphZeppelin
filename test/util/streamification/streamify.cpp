@@ -92,7 +92,7 @@ int main (int argc, char * argv [])
 	// Remove random prefixes used for permuting
 	// Insert prefix denoting insertion or deletion
 
-	vector<bool> edge_present(num_nodes * num_nodes, false);
+	vector<bool> edge_present(num_nodes * (num_nodes - 1), false);
 
 	stream_file_out.clear();
 	stream_file_out.seekp(0);
@@ -107,7 +107,7 @@ int main (int argc, char * argv [])
 	stream_file_in >> prefix >> temp_u >> temp_v;
 	stream_file_out << num_nodes << '\t' << total_num_updates << '\n';
 
-	while (!stream_file_in.eof())
+	for (int i = 0; i < total_num_updates - 1; i++)
 	{
 		stream_file_in >> prefix >> u >> v;
 		
