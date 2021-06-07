@@ -11,16 +11,21 @@ using namespace std;
 
 int main (int argc, char * argv [])
 {
+	int notification_frequency = 5000000;
+
 	string static_graph_file_name = argv[1];
 	double static_reinsertion_param = atof(argv[2]);
-	int static_reinsertion_cap = atoi(argv[3]);
+	unsigned long static_reinsertion_cap;
+	sscanf(argv[3], "%lu", &static_reinsertion_cap);
 	double general_insertion_param = atof(argv[4]);
-	int general_insertion_cap = atoi(argv[5]);
-	int num_general_inserts = atoi(argv[6]);
+	unsigned long general_insertion_cap;
+	sscanf(argv[5], "%lu", &general_insertion_cap);
+	unsigned long num_general_inserts;
+	sscanf(argv[6], "%lu", &num_general_inserts);
 	string stream_file_name = argv[7];
 
 	ifstream static_graph_file{static_graph_file_name};
-	long num_nodes, num_edges;
+	unsigned long num_nodes, num_edges;
 	static_graph_file >> num_nodes >> num_edges;
 
 	ofstream stream_file_out{stream_file_name}; 
@@ -32,21 +37,27 @@ int main (int argc, char * argv [])
 	int rand_prefix_len = log((double) num_edges * (2 * 1 / static_reinsertion_param + 1) 
 			+ num_general_inserts * (2 * 1 / general_insertion_param)) / log(10.0);
 
-	long total_num_updates = 0;	
+	unsigned long total_num_updates = 0;	
 	char * random_prefix = new char [rand_prefix_len];
 
 	// Static graph geometric inserts/deletes	
-	geometric_distribution<int> static_reinsertions(static_reinsertion_param);
-	long u, v;
-	int num_reinserts, num_updates;
-	for (long i = 0; i < num_edges; i++)
+	
+	cout << "Constructing updates for edges in input graph..." << endl;
+
+	geometric_distribution<unsigned long> static_reinsertions(static_reinsertion_param);
+	unsigned long u, v;
+	unsigned long num_reinserts, num_updates;
+	for (unsigned long i = 0; i < num_edges; i++)
 	{
+		if (i % notification_frequency == 0 && i != 0)
+			cout << i << " edges completed..." << endl; 
+
 		static_graph_file >> u >> v;
 		num_reinserts = min(static_reinsertion_cap, static_reinsertions(generator));
 		// Want edges to be contained in final state of graph
 		num_updates = 2 * num_reinserts + 1;
 
-		for (int j = 0; j < num_updates; j++)
+		for (unsigned long j = 0; j < num_updates; j++)
 		{	
 			for (int k = 0; k < rand_prefix_len; k++)
 				random_prefix[k] = (char) rand_char(generator);
@@ -58,19 +69,25 @@ int main (int argc, char * argv [])
 	}	
 
 	// General geometric inserts/deletes	
-	geometric_distribution<int> general_insertions(general_insertion_param);
-	uniform_int_distribution<long> random_node(0, num_nodes);
-	int num_inserts;
-	for (long i = 0; i < num_general_inserts; i++)
+	
+	cout << "Constructing updates for random possible edges..." << endl;
+
+	geometric_distribution<unsigned long> general_insertions(general_insertion_param);
+	uniform_int_distribution<unsigned long> random_node(0, num_nodes);
+	unsigned long num_inserts;
+	for (unsigned long i = 0; i < num_general_inserts; i++)
 	{
-		long rand_u = random_node(generator);
-		long rand_v = random_node(generator);
+		if (i % notification_frequency == 0 && i != 0)
+			cout << i << " edges completed..." << endl; 
+
+		unsigned long rand_u = random_node(generator);
+		unsigned long rand_v = random_node(generator);
 		
 		num_inserts = min(general_insertion_cap, general_insertions(generator));
 		// These edges do not persist to the end of the stream
 		num_updates = 2 * num_inserts;
 
-		for (int j = 0; j < num_updates; j++)
+		for (unsigned long j = 0; j < num_updates; j++)
 		{	
 			for (int k = 0; k < rand_prefix_len; k++)
 				random_prefix[k] = (char) rand_char(generator);
@@ -87,10 +104,13 @@ int main (int argc, char * argv [])
 	// External memory sort by the random prefix to produce 
 	// a random permutation
 
+	cout << "Conducting random external memory permutation of updates..." << endl;
 	system((string("sort -k 1,1 ") + stream_file_name + string(" -o ") + stream_file_name).c_str());
 
 	// Remove random prefixes used for permuting
 	// Insert prefix denoting insertion or deletion
+	
+	cout << "Pruning temporary prefixes and adding update types..." << endl;
 
 	vector<bool> edge_present(num_nodes * (num_nodes - 1), false);
 
@@ -100,15 +120,18 @@ int main (int argc, char * argv [])
 	ifstream stream_file_in{stream_file_name};
 
 	string prefix;
-	long index;
+	unsigned long index;
 	char upd_type;
 
-	long temp_u, temp_v;
+	unsigned long temp_u, temp_v;
 	stream_file_in >> prefix >> temp_u >> temp_v;
 	stream_file_out << num_nodes << '\t' << total_num_updates << '\n';
 
-	for (int i = 0; i < total_num_updates - 1; i++)
+	for (unsigned long i = 0; i < total_num_updates - 1; i++)
 	{
+		if (i % notification_frequency == 0 && i != 0)
+			cout << i << " updates completed..." << endl;
+
 		stream_file_in >> prefix >> u >> v;
 		
 		index = u * num_nodes + v;
