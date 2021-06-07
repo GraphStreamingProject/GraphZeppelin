@@ -73,7 +73,7 @@ int main (int argc, char * argv [])
 	cout << "Constructing updates for random possible edges..." << endl;
 
 	geometric_distribution<unsigned long> general_insertions(general_insertion_param);
-	uniform_int_distribution<unsigned long> random_node(0, num_nodes);
+	uniform_int_distribution<unsigned long> random_node(0, num_nodes - 1);
 	unsigned long num_inserts;
 	for (unsigned long i = 0; i < num_general_inserts; i++)
 	{
