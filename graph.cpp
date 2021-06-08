@@ -23,7 +23,7 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
   std::string buffer_loc_prefix = configure_system(); // read the configuration file to configure the system
 #ifdef USE_FBT_F
   // Create buffer tree and start the graphWorkers
-  bf = new BufferTree(buffer_loc_prefix, (1<<20), 8, num_nodes, GraphWorker::get_num_groups(), true);
+  bf = new BufferTree(buffer_loc_prefix, (1<<20), 16, num_nodes, GraphWorker::get_num_groups(), true);
   GraphWorker::start_workers(this, bf);
 #else
   unsigned num_buckets = bucket_gen(num_nodes*num_nodes, 1); // TODO: don't fix num_bucket_factor
