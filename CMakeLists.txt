@@ -286,3 +286,45 @@ else ()
     target_compile_options(experiment PRIVATE /O2)
   endif()
 endif ()
+
+add_executable(run_with_fbt
+    test/experiment/runner.cpp
+    graph.cpp
+    supernode.cpp
+    graph_worker.cpp
+    l0_sampling/sketch.cpp
+    l0_sampling/update.cpp
+    util.cpp)
+target_link_libraries(run_with_fbt PRIVATE xxHash::xxhash GTest::gtest)
+target_compile_definitions(run_with_fbt PRIVATE USE_FBT_F)
+# dependencies
+add_dependencies(run_with_fbt BufferTree)
+target_link_libraries(run_with_fbt PRIVATE libFastBufferTree.a)
+# optimize unless debug
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+  target_compile_options(run_with_fbt PRIVATE -O3 -fopenmp)
+  target_link_options(run_with_fbt PRIVATE -fopenmp)
+else()
+  message(SEND_ERROR "This exectuable is only meant to be run on *nix machines!")
+endif()
+
+add_executable(run_without_fbt
+    test/experiment/runner.cpp
+    graph.cpp
+    supernode.cpp
+    graph_worker.cpp
+    l0_sampling/sketch.cpp
+    l0_sampling/update.cpp
+    util.cpp)
+target_link_libraries(run_without_fbt PRIVATE xxHash::xxhash GTest::gtest)
+target_compile_definitions(run_without_fbt PRIVATE USE_FBT_F)
+# dependencies
+add_dependencies(run_without_fbt BufferTree)
+target_link_libraries(run_without_fbt PRIVATE libFastBufferTree.a)
+# optimize unless debug
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+  target_compile_options(run_without_fbt PRIVATE -O3 -fopenmp)
+  target_link_options(run_without_fbt PRIVATE -fopenmp)
+else()
+  message(SEND_ERROR "This exectuable is only meant to be run on *nix machines!")
+endif()
