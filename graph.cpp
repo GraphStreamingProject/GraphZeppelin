@@ -26,13 +26,8 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
   bf = new BufferTree(buffer_loc_prefix, (1<<20), 8, num_nodes, GraphWorker::get_num_groups(), true);
   GraphWorker::start_workers(this, bf);
 #else
-  unsigned long num_buckets = bucket_gen((long double)num_nodes * (long
-  double)num_nodes,0.5);
-  unsigned long num_guesses = guess_gen((long double)num_nodes * (long double)
-        num_nodes);
-  unsigned long node_size = sizeof(Supernode) + double_to_ull(log2(num_nodes))
-        * ( sizeof(Sketch)
-        + num_buckets * num_guesses * (sizeof(vec_t) + sizeof(vec_hash_t)));
+  unsigned long node_size = 24*pow((log2(num_nodes)), 3);
+  node_size /= sizeof(Node);
   wq = new WorkQueue(node_size, num_nodes, 2*GraphWorker::get_num_groups());
   GraphWorker::start_workers(this, wq);
 #endif

@@ -88,37 +88,3 @@ TEST(GraphTestSuite, TestCorrectnessOnSmallSparseGraphs) {
     g.connected_components();
   }
 }
-
-TEST(GraphTestSuite, NodeSizeTest) {
-  for (unsigned i = 5; i < 20; ++i) {
-    unsigned long num_nodes = 1 << i;
-    unsigned long num_buckets = bucket_gen((long double)num_nodes * (long
-          double)num_nodes,0.5);
-    unsigned long num_guesses = guess_gen((long double)num_nodes * (long double)
-          num_nodes);
-    unsigned long node_size = sizeof(Supernode) + double_to_ull(log2(num_nodes))
-          * (
-          sizeof(Sketch)
-          + num_buckets * num_guesses * (sizeof(vec_t) + sizeof(vec_hash_t)));
-    unsigned long refe = 24*pow((log2(num_nodes)), 3);
-    std::cout << node_size << ": " << (double) node_size / refe << std::endl;
-    ASSERT_LT((double) node_size / refe, 1.5);
-  }
-
-  unsigned long nums[] = {10000, 40000, 80000, 120000, 400000, 4176593,
-                          9038215};
-
-  for (auto num_nodes : nums) {
-    unsigned long num_buckets = bucket_gen((long double)num_nodes * (long
-    double)num_nodes,0.5);
-    unsigned long num_guesses = guess_gen((long double)num_nodes * (long double)
-          num_nodes);
-    unsigned long node_size = sizeof(Supernode) + double_to_ull(log2(num_nodes))
-          * (
-          sizeof(Sketch)
-          + num_buckets * num_guesses * (sizeof(vec_t) + sizeof(vec_hash_t)));
-    unsigned long refe = 24*pow((log2(num_nodes)), 3);
-    std::cout << node_size << ": " << (double) node_size / refe << std::endl;
-    ASSERT_LT((double) node_size / refe, 1.5);
-  }
-}
