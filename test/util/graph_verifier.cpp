@@ -17,25 +17,17 @@ void dsu_union(Node i, Node j, Node* parent, Node* size) {
   size[i] += size[j];
 }
 
-GraphVerifier::GraphVerifier(const string &input_file) {
-  kruskal_ref = kruskal(input_file);
-  ifstream in(input_file);
-  Node n,m; in >> n >> m;
+GraphVerifier::GraphVerifier(Node n, const std::vector<bool>& input) {
+  kruskal_ref = kruskal(n, input);
+  det_graph = &input;
   Node a,b;
   parent = (Node*) malloc(n*sizeof(Node));
   size = (Node*) malloc(n*sizeof(Node));
   for (unsigned i = 0; i < n; ++i) {
     boruvka_cc.push_back({i});
-    det_graph.emplace_back();
     parent[i] = i;
     size[i] = 1;
   }
-  while (m--) {
-    in >> a >> b;
-    det_graph[a].insert(b);
-    det_graph[b].insert(a);
-  }
-  in.close();
 }
 
 GraphVerifier::~GraphVerifier() {
@@ -43,7 +35,7 @@ GraphVerifier::~GraphVerifier() {
   free(size);
 }
 
-std::vector<std::set<Node>> kruskal(const string& input_file) {
+std::vector<std::set<Node>> kruskal(Node n, const std::vector<bool>& input) {
   ifstream in(input_file);
   Node n, m; in >> n >> m;
   Node* parent = (Node*) malloc(n*sizeof(Node));
@@ -53,12 +45,13 @@ std::vector<std::set<Node>> kruskal(const string& input_file) {
     parent[i] = i;
     size[i] = 1;
   }
-  int a,b;
-  while (m--) {
-    in >> a >> b;
-    dsu_union(a,b, parent, size);
+  uint64_t num_edges = n * (n - 1) / 2;
+  for (uint64_t i = 0; i < num_edges; i++) {
+    if (input[i]) {
+      Edge e = inv_nondir_non_self_edge_pairing_fn(i);
+      dsu_union(e.first, e.second, parent, size);
+    }
   }
-  in.close();
 
   std::map<Node, std::set<Node>> temp;
   for (unsigned i = 0; i < n; ++i) {

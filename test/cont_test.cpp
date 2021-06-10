@@ -32,17 +32,7 @@ void test_continuous(unsigned nodes, unsigned long updates_per_sample, unsigned 
       }
     }
     try {
-      std::cout << "Writing cumulative" << std::endl;
-      std::ofstream out("./cum_sample.txt");
-      out << nodes << " " << num_edges << std::endl;
-      for (unsigned i = 0; i < total_edges; i++) {
-        if (adj[i]) {
-          auto edge = inv_nondir_non_self_edge_pairing_fn(i);
-          out << edge.first << " " << edge.second << std::endl;
-        }
-      }
-      out.close();
-      g.set_cum_in("./cum_sample.txt");
+      g.set_cum_in(adj);
       std::cout << "Running cc" << std::endl;
       g.connected_components();
       g.post_cc_resume();

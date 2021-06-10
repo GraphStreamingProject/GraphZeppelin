@@ -88,7 +88,7 @@ vector<set<Node>> Graph::connected_components() {
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
 #ifdef VERIFY_SAMPLES_F
-  GraphVerifier verifier {cum_in};
+  GraphVerifier verifier {num_nodes, *cum_in};
 #endif
 
   representatives = new set<Node>();
