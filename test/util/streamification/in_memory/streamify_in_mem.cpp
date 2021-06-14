@@ -97,14 +97,30 @@ int main (int argc, char * argv [])
 	cout << "Conducting in-memory shuffle of generated updates..." << endl;
 	std::shuffle(updates.begin(), updates.end(), generator);
 
-	// Output updates to stream file	
+	// Output updates to stream file and add update types
 	
 	cout << "Writing stream to file..." << endl;
 	ofstream stream_file_out{stream_file_name}; 
-	stream_file_out << num_nodes << '\t' << total_num_updates << '\n';
+	stream_file_out << num_nodes << ' ' << total_num_updates << '\n';
 
-	for (unsigned long i = 0; i < total_num_updates; i++)
-		stream_file_out << updates[i].first << '\t' << updates[i].second << '\n';	
+//	for (unsigned long i = 0; i < total_num_updates; i++)
+//		stream_file_out << updates[i].first << '\t' << updates[i].second << '\n';	      
+	
+	vector<bool> edge_present(num_nodes * (num_nodes - 1), false);
+
+        unsigned long index;
+        char upd_type;
+        for (unsigned long i = 0; i < total_num_updates; i++)
+        {
+                index = updates[i].first * num_nodes + updates[i].second;
+                upd_type = edge_present[index] ? '1' : '0';
+                edge_present[index] = !edge_present[index];
+ 
+    		stream_file_out << upd_type << '\t' << 
+			updates[i].first << '\t' << 
+			updates[i].second << '\n';
+        }
+
 
 	return 0;
 }

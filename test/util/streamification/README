@@ -1,0 +1,33 @@
+The command line arguments to the streamifiers are as follows:
+
+(0) Input stream file name
+
+(1) Parameter of geometric random variable describing the number of
+reinsertions (or deletions) that an edge in the static graph gets. By
+the end of the stream, exactly these edges will remain.  
+
+(2) Maximum value for geometric random variable in (1) 
+
+(3) Parameter of geometric random variable describing the number of
+insert-delete pairs that any possible edge in the static graph gets. 
+The number of such edges to consider is given in (5)
+
+(4) Maximum value for geometric random variable in (3) 
+
+(5) Number of edges not in the static graph to appear in the stream
+(selected randomly)
+
+(6) Output stream file name
+
+
+The parameters that we have been using to generate graphs so far are:
+
+(1) 0.99
+
+(2) 10000
+
+(3) 0.99
+
+(4) 10000
+
+(5) 1.01 times the number of edges in the static input graph
