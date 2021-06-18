@@ -11,7 +11,7 @@
 
 using namespace std;
 
-// NOTE: Only assumesup to 2^32 nodes in graph
+// NOTE: Only assumes up to 2^32 nodes in graph
 
 int main (int argc, char * argv [])
 {
@@ -26,13 +26,14 @@ int main (int argc, char * argv [])
 	sscanf(argv[5], "%lu", &general_insertion_cap);
 	unsigned long num_general_inserts;
 	sscanf(argv[6], "%lu", &num_general_inserts);
-	string stream_file_name = argv[7];
+	unsigned int num_iso_nodes;
+	sscanf(argv[7], "%u", &num_iso_nodes);
+	string stream_file_name = argv[8];
 
 	ifstream static_graph_file{static_graph_file_name};
 	unsigned int num_nodes;
         unsigned long num_edges;
 	static_graph_file >> num_nodes >> num_edges;
-
 
 	typedef std::pair<unsigned int, unsigned int> edge;
 	vector<edge> updates;
@@ -56,6 +57,11 @@ int main (int argc, char * argv [])
 			cout << i << " edges completed..." << endl; 
 
 		static_graph_file >> u >> v;
+
+		// Isolate the last num_iso_nodes nodes 
+		if (u > num_nodes - num_iso_nodes - 1 || v > num_nodes - num_iso_nodes - 1)
+			continue;
+
 		num_reinserts = min(static_reinsertion_cap, static_reinsertions(generator));
 		// Want edges to be contained in final state of graph
 		num_updates = 2 * num_reinserts + 1;
@@ -71,15 +77,15 @@ int main (int argc, char * argv [])
 	cout << "Constructing updates for random possible edges..." << endl;
 
 	geometric_distribution<unsigned long> general_insertions(general_insertion_param);
-	uniform_int_distribution<unsigned long> random_node(0, num_nodes - 1);
+	uniform_int_distribution<unsigned int> random_node(0, num_nodes - 1);
 	unsigned long num_inserts;
 	for (unsigned long i = 0; i < num_general_inserts; i++)
 	{
 		if (i % notification_frequency == 0 && i != 0)
 			cout << i << " edges completed..." << endl; 
 
-		unsigned long rand_u = random_node(generator);
-		unsigned long rand_v = random_node(generator);
+		unsigned int rand_u = random_node(generator);
+		unsigned int rand_v = random_node(generator);
 		
 		num_inserts = min(general_insertion_cap, general_insertions(generator));
 		// These edges do not persist to the end of the stream
@@ -91,7 +97,6 @@ int main (int argc, char * argv [])
 		total_num_updates += num_updates;
 	}
 
-	
 	// In-memory shuffle of updates
 	
 	cout << "Conducting in-memory shuffle of generated updates..." << endl;
