@@ -15,6 +15,8 @@ using namespace std;
 
 int main (int argc, char * argv [])
 {
+	// Determine number of lines (i.e edges) in input graph
+
 	int notification_frequency = 5000000;
 
 	string static_graph_file_name = argv[1];
@@ -28,12 +30,17 @@ int main (int argc, char * argv [])
 	sscanf(argv[6], "%lu", &num_general_inserts);
 	unsigned int num_iso_nodes;
 	sscanf(argv[7], "%u", &num_iso_nodes);
-	string stream_file_name = argv[8];
+	unsigned int num_nodes;
+	sscanf(argv[8], "%u", &num_iso_nodes);
+	string stream_file_name = argv[9];
 
 	ifstream static_graph_file{static_graph_file_name};
-	unsigned int num_nodes;
-        unsigned long num_edges;
-	static_graph_file >> num_nodes >> num_edges;
+	if (!static_graph_file.is_open())
+	{
+		std::cout << "Couldn't open input graph file!" << std::endl;
+		return 1;
+	}
+
 
 	typedef std::pair<unsigned int, unsigned int> edge;
 	vector<edge> updates;
@@ -49,14 +56,13 @@ int main (int argc, char * argv [])
 	cout << "Constructing updates for edges in input graph..." << endl;
 
 	geometric_distribution<unsigned long> static_reinsertions(static_reinsertion_param);
-	unsigned long u, v;
+	unsigned int u, v;
 	unsigned long num_reinserts, num_updates;
-	for (unsigned long i = 0; i < num_edges; i++)
+	unsigned long k = 0;
+	while (static_graph_file >> u >> v)
 	{
-		if (i % notification_frequency == 0 && i != 0)
-			cout << i << " edges completed..." << endl; 
-
-		static_graph_file >> u >> v;
+		if (k % notification_frequency == 0 && k != 0)
+			cout << k << " edges completed..." << endl; 
 
 		// Isolate the last num_iso_nodes nodes 
 		if (u > num_nodes - num_iso_nodes - 1 || v > num_nodes - num_iso_nodes - 1)
@@ -70,6 +76,7 @@ int main (int argc, char * argv [])
 			updates.push_back(std::make_pair(u, v));
 
 		total_num_updates += num_updates;
+		k++;
 	}	
 
 	// General geometric inserts/deletes	

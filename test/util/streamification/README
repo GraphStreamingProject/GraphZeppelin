@@ -19,7 +19,9 @@ The number of such edges to consider is given in (5)
 
 (6) If this parameter is N, then isolate the last N vertices of the graph.
 
-(7) Output stream file name
+(7) Total number of nodes in input graph
+
+(8) Output stream file name
 
 
 The parameters that we have been using to generate graphs so far are:
@@ -35,3 +37,7 @@ The parameters that we have been using to generate graphs so far are:
 (5) 1.01 times the number of edges in the static input graph
 
 (6) 25 for kron_13, 50 for kron_15, 75 for kron_16 and 100 for kron_17
+
+
+NOTE: The streamifier no longer expects the first line of the input 
+graph file to consist of the number of nodes and the number of edges.
