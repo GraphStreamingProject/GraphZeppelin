@@ -17,7 +17,9 @@ The number of such edges to consider is given in (5)
 (5) Number of edges not in the static graph to appear in the stream
 (selected randomly)
 
-(6) Output stream file name
+(6) If this parameter is N, then isolate the last N vertices of the graph.
+
+(7) Output stream file name
 
 
 The parameters that we have been using to generate graphs so far are:
@@ -31,3 +33,5 @@ The parameters that we have been using to generate graphs so far are:
 (4) 10000
 
 (5) 1.01 times the number of edges in the static input graph
+
+(6) 25 for kron_13, 50 for kron_15, 75 for kron_16 and 100 for kron_17

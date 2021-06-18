@@ -28,13 +28,12 @@ int main (int argc, char * argv [])
 	sscanf(argv[6], "%lu", &num_general_inserts);
 	unsigned int num_iso_nodes;
 	sscanf(argv[7], "%u", &num_iso_nodes);
-	string stream_file_name = argv[7];
+	string stream_file_name = argv[8];
 
 	ifstream static_graph_file{static_graph_file_name};
 	unsigned int num_nodes;
         unsigned long num_edges;
 	static_graph_file >> num_nodes >> num_edges;
-	num_nodes += num_iso_nodes;
 
 	typedef std::pair<unsigned int, unsigned int> edge;
 	vector<edge> updates;
@@ -58,6 +57,11 @@ int main (int argc, char * argv [])
 			cout << i << " edges completed..." << endl; 
 
 		static_graph_file >> u >> v;
+
+		// Isolate the last num_iso_nodes nodes 
+		if (u > num_nodes - num_iso_nodes - 1 || v > num_nodes - num_iso_nodes - 1)
+			continue;
+
 		num_reinserts = min(static_reinsertion_cap, static_reinsertions(generator));
 		// Want edges to be contained in final state of graph
 		num_updates = 2 * num_reinserts + 1;
