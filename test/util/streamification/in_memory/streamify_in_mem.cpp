@@ -31,7 +31,7 @@ int main (int argc, char * argv [])
 	unsigned int num_iso_nodes;
 	sscanf(argv[7], "%u", &num_iso_nodes);
 	unsigned int num_nodes;
-	sscanf(argv[8], "%u", &num_iso_nodes);
+	sscanf(argv[8], "%u", &num_nodes);
 	string stream_file_name = argv[9];
 
 	ifstream static_graph_file{static_graph_file_name};
