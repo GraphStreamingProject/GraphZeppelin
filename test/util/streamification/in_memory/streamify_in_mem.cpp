@@ -11,15 +11,15 @@
 
 using namespace std;
 
-// Only assumes up to 2^32 nodes in graph.
-// Will disregard symmetric edges: if (0, 1) and (1, 0) 
-// both appear in the edge list, only (0, 1) will present
-// in the stream
+/** ASSUMPTIONS
+ * 1. only up to 2^32 nodes
+ * 2. Input graph is undirected - i.e. if an edge (u, v) appears in the
+ *    graph, then (v, u) doesn't.
+ * 3. Input graph is simple.
+ */
 
 int main (int argc, char * argv [])
 {
-	// Determine number of lines (i.e edges) in input graph
-
 	int notification_frequency = 5000000;
 
 	string static_graph_file_name = argv[1];
@@ -54,8 +54,12 @@ int main (int argc, char * argv [])
 
 	unsigned long total_num_updates = 0;	
 
-	// Allocate a bitvector with one entry per possible edge
-	vector<bool> edge_present((unsigned long) num_nodes * num_nodes, false);
+	// Allocate a bitvector array with one entry per possible edge
+	
+	cout << "Allocating bit vectors" << endl;
+	vector<vector<bool>> edge_present(num_nodes);
+	for (unsigned int i = 0; i < num_nodes - 1; i++)
+		edge_present[i] = vector<bool>(num_nodes - 1 - i, false);
 
 	// Static graph geometric inserts/deletes	
 	
@@ -67,9 +71,6 @@ int main (int argc, char * argv [])
 	unsigned long k = 0;
 	while (static_graph_file >> u >> v)
 	{
-		if (edge_present[(unsigned long) v * num_nodes + u] == 1)
-			
-
 		if (k % notification_frequency == 0 && k != 0)
 			cout << k << " edges completed..." << endl; 
 
@@ -86,7 +87,6 @@ int main (int argc, char * argv [])
 
 		total_num_updates += num_updates;
 		k++;
-		edge_present[(unsigned long) ]
 	}	
 
 	// General geometric inserts/deletes	
@@ -136,15 +136,28 @@ int main (int argc, char * argv [])
         char upd_type;
         for (unsigned long i = 0; i < total_num_updates; i++)
         {
-                index = (unsigned long) updates[i].first * num_nodes + updates[i].second;
-                upd_type = edge_present[index] ? '1' : '0';
-                edge_present[index] = !edge_present[index];
+		if (updates[i].first <= updates[i].second)
+		{
+			u = updates[i].first;
+			v = updates[i].second;
+		}
+		else 
+		{
+			u = updates[i].second;
+			v = updates[i].first;
+		}
+		
+		upd_type = edge_present[u][v - u - 1] ? '1' : '0';
+		edge_present[u][v - u - 1] = !edge_present[u][v - u - 1];
+
+                //index = (unsigned long) updates[i].first * num_nodes + updates[i].second;
+                //upd_type = edge_present[index] ? '1' : '0';
+                //edge_present[index] = !edge_present[index];
  
     		stream_file_out << upd_type << '\t' << 
 			updates[i].first << '\t' << 
 			updates[i].second << '\n';
         }
-
 
 	return 0;
 }
