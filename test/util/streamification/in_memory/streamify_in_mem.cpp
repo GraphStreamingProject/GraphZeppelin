@@ -118,7 +118,7 @@ int main (int argc, char * argv [])
 //	for (unsigned long i = 0; i < total_num_updates; i++)
 //		stream_file_out << updates[i].first << '\t' << updates[i].second << '\n';	      
 	
-	vector<bool> edge_present(num_nodes * (num_nodes - 1), false);
+	vector<bool> edge_present((unsigned long) num_nodes * num_nodes, false);
 
         unsigned long index;
         char upd_type;
