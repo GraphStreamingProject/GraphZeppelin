@@ -11,7 +11,10 @@
 
 using namespace std;
 
-// NOTE: Only assumes up to 2^32 nodes in graph
+// Only assumes up to 2^32 nodes in graph.
+// Will disregard symmetric edges: if (0, 1) and (1, 0) 
+// both appear in the edge list, only (0, 1) will present
+// in the stream
 
 int main (int argc, char * argv [])
 {
@@ -51,6 +54,9 @@ int main (int argc, char * argv [])
 
 	unsigned long total_num_updates = 0;	
 
+	// Allocate a bitvector with one entry per possible edge
+	vector<bool> edge_present((unsigned long) num_nodes * num_nodes, false);
+
 	// Static graph geometric inserts/deletes	
 	
 	cout << "Constructing updates for edges in input graph..." << endl;
@@ -61,6 +67,9 @@ int main (int argc, char * argv [])
 	unsigned long k = 0;
 	while (static_graph_file >> u >> v)
 	{
+		if (edge_present[(unsigned long) v * num_nodes + u] == 1)
+			
+
 		if (k % notification_frequency == 0 && k != 0)
 			cout << k << " edges completed..." << endl; 
 
@@ -77,6 +86,7 @@ int main (int argc, char * argv [])
 
 		total_num_updates += num_updates;
 		k++;
+		edge_present[(unsigned long) ]
 	}	
 
 	// General geometric inserts/deletes	
@@ -122,16 +132,11 @@ int main (int argc, char * argv [])
 
 	stream_file_out << num_nodes << ' ' << total_num_updates << '\n';
 
-//	for (unsigned long i = 0; i < total_num_updates; i++)
-//		stream_file_out << updates[i].first << '\t' << updates[i].second << '\n';	      
-	
-	vector<bool> edge_present((unsigned long) num_nodes * num_nodes, false);
-
         unsigned long index;
         char upd_type;
         for (unsigned long i = 0; i < total_num_updates; i++)
         {
-                index = updates[i].first * num_nodes + updates[i].second;
+                index = (unsigned long) updates[i].first * num_nodes + updates[i].second;
                 upd_type = edge_present[index] ? '1' : '0';
                 edge_present[index] = !edge_present[index];
  
