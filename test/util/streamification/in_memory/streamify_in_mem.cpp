@@ -112,7 +112,14 @@ int main (int argc, char * argv [])
 	// Output updates to stream file and add update types
 	
 	cout << "Writing stream to file..." << endl;
-	ofstream stream_file_out{stream_file_name}; 
+	
+	ofstream stream_file_out{stream_file_name}; 	
+	if (!stream_file_out.is_open())
+	{
+		std::cout << "Couldn't open output stream file!" << std::endl;
+		return 1;
+	}
+
 	stream_file_out << num_nodes << ' ' << total_num_updates << '\n';
 
 //	for (unsigned long i = 0; i < total_num_updates; i++)
