@@ -103,6 +103,10 @@ int main (int argc, char * argv [])
 
 		unsigned int rand_u = random_node(generator);
 		unsigned int rand_v = random_node(generator);
+
+		// Avoid self-loops
+		if (rand_u == rand_v)
+			continue;
 		
 		num_inserts = min(general_insertion_cap, general_insertions(generator));
 		// These edges do not persist to the end of the stream
