@@ -44,15 +44,16 @@ int main() {
   }
 
   // output
-  cout << n << " " << m << endl;
+  cout << "AdjacencyGraph" << endl;
+  cout << n << endl;
+  cout << m << endl;
   for (int i = 0; i < n; ++i) {
     cout << offsets[i] << endl;
   }
   for (int i = 0; i < n; ++i) {
     for (int j = 0; j < n; ++j) {
       if (adj[i][j]) {
-//        cout << i << " " << j << endl;
-        cout << j << endl; // TODO: do we output edge (a,b) as "a b" or "b"?
+        cout << j << endl;
       }
     }
   }
