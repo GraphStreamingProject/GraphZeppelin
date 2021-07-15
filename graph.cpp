@@ -141,6 +141,58 @@ vector<set<Node>> Graph::connected_components() {
   return retval;
 }
 
+vector<set<Node>> Graph::parallel_connected_components() {
+#ifdef USE_FBT_F
+  bf->force_flush(); // flush everything in buffertree to make final updates
+#else
+  wq->force_flush();
+#endif
+  GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
+  // after this point all updates have been processed from the buffer tree
+
+  printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
+  update_locked = true; // disallow updating the graph after we run the alg
+  bool modified;
+#ifdef VERIFY_SAMPLES_F
+  throw UnableToVerifyException();
+#endif
+  Node query[num_nodes];
+  Node size[num_nodes];
+  fill(size, size + num_nodes, 1);
+  do {
+    modified = false;
+    #pragma omp parallel for default(none) shared(representatives, query)
+    for (auto it = (*representatives).begin(); it != (*representatives).end(); ++it) { // this must be a canonical for loop for OpenMP to work!
+      auto edge = supernodes[*it]->sample();
+      if (!edge.is_initialized()) continue;
+      query[*it] = edge->first ^ edge->second ^ *it;
+    }
+
+    vector<Node> to_remove;
+    for (Node i : (*representatives)) {
+      Node a = get_parent(i);
+      Node b = get_parent(query[i]);
+      if (a == b) continue;
+      // make sure a is the one to be merged into
+      if (size[a] < size[b]) std::swap(a,b);
+      to_remove.push_back(b);
+      parent[b] = a;
+      supernodes[a]->merge(*supernodes[b]);
+    }
+    if (!to_remove.empty()) modified = true;
+    for (Node i : to_remove) representatives->erase(i);
+  } while (modified);
+
+  map<Node, set<Node>> temp;
+  for (Node i=0;i<num_nodes;++i)
+    temp[get_parent(i)].insert(i);
+  vector<set<Node>> retval;
+  retval.reserve(temp.size());
+  for (const auto& it : temp) retval.push_back(it.second);
+
+  return retval;
+}
+
 void Graph::post_cc_resume() {
   GraphWorker::unpause_workers();
   update_locked = false;

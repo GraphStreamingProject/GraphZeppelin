@@ -66,6 +66,11 @@ public:
    */
   vector<set<Node>> connected_components();
 
+  /**
+   * Parallel version of Boruvka.
+   * @return a vector of the connected components in the graph.
+   */
+  __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) vector<set<Node>> parallel_connected_components();
   /*
    * Call this function to indicate to the graph that it should
    * begin accepting updates again. It is important that the sketches
@@ -94,6 +99,13 @@ class UpdateLockedException : public exception {
   virtual const char* what() const throw() {
     return "The graph cannot be updated: Connected components algorithm has "
            "already started";
+  }
+};
+
+class UnableToVerifyException : public exception {
+  virtual const char* what() const throw() {
+    return "Cannot verify insertions while running connected components "
+           "algorithm in parallel";
   }
 };
 

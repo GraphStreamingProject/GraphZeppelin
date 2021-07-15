@@ -168,11 +168,19 @@ link_directories(${CMAKE_CURRENT_BINARY_DIR}/BufferTree/prefix/lib)
 
 # AVAILABLE COMPILATION DEFINITIONS:
 # VERIFY_SAMPLES_F   Use a deterministic connected-components algorithm to
-#                    verify post-processing
+#                    verify post-processing.
+#                    INCOMPATIBLE with PARALLEL_PP_F.
+#
 # USE_NATIVE_F       ???
+#
 # USE_FBT_F          Use a Fast Buffer Tree living on secondary storage
 #                    (github.com/Victor-C-Zhang/FastBufferTree) to buffer updates
 #                    instead of in-memory buffering.
+#
+# PARALLEL_PP_F      Use parallel post-processing (connected components)
+#                    function.
+#                    INCOMPATIBLE with VERIFY_SAMPLES_F
+
 
 add_executable(tests
   test/test_runner.cpp
@@ -284,5 +292,31 @@ else ()
     target_link_options(experiment PRIVATE -fopenmp)
   elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
     target_compile_options(experiment PRIVATE /O2)
+  endif()
+endif ()
+
+add_executable(parallelPP
+    graph.cpp
+    supernode.cpp
+    graph_worker.cpp
+    l0_sampling/sketch.cpp
+    l0_sampling/update.cpp
+    util.cpp)
+target_link_libraries(parallelPP PRIVATE xxHash::xxhash GTest::gtest)
+target_compile_definitions(parallelPP PRIVATE USE_FBT_F PARALLEL_PP_F)
+# dependencies
+add_dependencies(parallelPP BufferTree)
+target_link_libraries(parallelPP PRIVATE libFastBufferTree.a)
+# optimize unless debug
+if (DEFINED ENV{DEBUG})
+  message("Disabling optimizations and enabling debug symbols")
+  target_compile_options(parallelPP PRIVATE -g -fopenmp)
+  target_link_options(parallelPP PRIVATE -fopenmp)
+else ()
+  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    target_compile_options(parallelPP PRIVATE -O3 -fopenmp)
+    target_link_options(parallelPP PRIVATE -fopenmp)
+  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    target_compile_options(parallelPP PRIVATE /O2)
   endif()
 endif ()
