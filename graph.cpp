@@ -154,33 +154,64 @@ vector<set<Node>> Graph::parallel_connected_components() {
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
 #ifdef VERIFY_SAMPLES_F
-  throw UnableToVerifyException();
+  GraphVerifier verifier { cum_in };
 #endif
-  Node query[num_nodes];
+  pair<Node,Node> query[num_nodes];
   Node size[num_nodes];
+  vector<Node> reps(num_nodes);
   fill(size, size + num_nodes, 1);
+  for (Node i = 0; i < num_nodes; ++i) {
+    reps[i] = i;
+  }
+
   do {
     modified = false;
-    #pragma omp parallel for default(none) shared(representatives, query)
-    for (auto it = (*representatives).begin(); it != (*representatives).end(); ++it) { // this must be a canonical for loop for OpenMP to work!
-      auto edge = supernodes[*it]->sample();
-      if (!edge.is_initialized()) continue;
-      query[*it] = edge->first ^ edge->second ^ *it;
+    #pragma omp parallel for default(none) shared(query, reps)
+    for (Node i = 0; i < reps.size(); ++i) {
+      auto edge = supernodes[reps[i]]->sample();
+      if (!edge.is_initialized()) {
+        query[reps[i]] = {i,i};
+        continue;
+      }
+      query[reps[i]] = edge.get();
     }
 
     vector<Node> to_remove;
-    for (Node i : (*representatives)) {
-      Node a = get_parent(i);
-      Node b = get_parent(query[i]);
+    for (Node i : reps) {
+      Node a = get_parent(query[i].first);
+      Node b = get_parent(query[i].second);
       if (a == b) continue;
+#ifdef VERIFY_SAMPLES_F
+      verifier.verify_edge({query[i].first,query[i].second});
+#endif
       // make sure a is the one to be merged into
       if (size[a] < size[b]) std::swap(a,b);
       to_remove.push_back(b);
       parent[b] = a;
+      size[a] += size[b];
       supernodes[a]->merge(*supernodes[b]);
     }
     if (!to_remove.empty()) modified = true;
-    for (Node i : to_remove) representatives->erase(i);
+    sort(to_remove.begin(), to_remove.end());
+
+    // 2-pointer to find set difference
+    vector<Node> temp_diff;
+    Node ptr1 = 0;
+    Node ptr2 = 0;
+    while (ptr1 < reps.size() && ptr2 < to_remove.size()) {
+      if (reps[ptr1] == to_remove[ptr2]) {
+        ++ ptr1; ++ptr2;
+      } else {
+        temp_diff.push_back(reps[ptr1]);
+        ++ptr1;
+      }
+    }
+    while (ptr1 < reps.size()) {
+      temp_diff.push_back(reps[ptr1]);
+      ++ptr1;
+    }
+
+    swap(reps, temp_diff);
   } while (modified);
 
   map<Node, set<Node>> temp;

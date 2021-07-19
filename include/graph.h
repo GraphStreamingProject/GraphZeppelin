@@ -102,11 +102,4 @@ class UpdateLockedException : public exception {
   }
 };
 
-class UnableToVerifyException : public exception {
-  virtual const char* what() const throw() {
-    return "Cannot verify insertions while running connected components "
-           "algorithm in parallel";
-  }
-};
-
 #endif //MAIN_GRAPH_H

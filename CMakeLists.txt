@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 
 #Uncomment to enable debug
-#set(ENV{DEBUG} ON)
+set(ENV{DEBUG} ON)
 
 project(test)
 
@@ -169,7 +169,6 @@ link_directories(${CMAKE_CURRENT_BINARY_DIR}/BufferTree/prefix/lib)
 # AVAILABLE COMPILATION DEFINITIONS:
 # VERIFY_SAMPLES_F   Use a deterministic connected-components algorithm to
 #                    verify post-processing.
-#                    INCOMPATIBLE with PARALLEL_PP_F.
 #
 # USE_NATIVE_F       ???
 #
@@ -179,7 +178,6 @@ link_directories(${CMAKE_CURRENT_BINARY_DIR}/BufferTree/prefix/lib)
 #
 # PARALLEL_PP_F      Use parallel post-processing (connected components)
 #                    function.
-#                    INCOMPATIBLE with VERIFY_SAMPLES_F
 
 
 add_executable(tests
@@ -296,14 +294,19 @@ else ()
 endif ()
 
 add_executable(parallelPP
+    test/test_runner.cpp
+    test/util/graph_gen.cpp
+    test/util/graph_verifier.cpp
+    test/parallel_graph_test.cpp
     graph.cpp
     supernode.cpp
     graph_worker.cpp
+    work_queue.cpp
     l0_sampling/sketch.cpp
     l0_sampling/update.cpp
     util.cpp)
 target_link_libraries(parallelPP PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(parallelPP PRIVATE USE_FBT_F PARALLEL_PP_F)
+target_compile_definitions(parallelPP PRIVATE PARALLEL_PP_F VERIFY_SAMPLES_F)
 # dependencies
 add_dependencies(parallelPP BufferTree)
 target_link_libraries(parallelPP PRIVATE libFastBufferTree.a)
