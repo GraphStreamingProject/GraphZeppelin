@@ -27,7 +27,9 @@ int main() {
   while (m--) {
     cin >> t >> a >> b;
     adj[a][b] = !adj[a][b];
-    adj[b][a] = !adj[b][a]; // undirected edges
+    // ahmed: Since we're computing WCC, it would be unfair to needlessly
+    // symmetrize the input graph.  
+//    adj[b][a] = !adj[b][a]; // undirected edges
   }
 
   m = 0;
@@ -41,6 +43,14 @@ int main() {
         ++m;
       }
     }
+  }
+
+  // ahmed: offsets are cumulative.
+  ll sum = 0; 
+  for(int i = 0; i < n; i++)
+  {
+	sum += offsets[i];
+	offsets[i] = sum;
   }
 
   // output
