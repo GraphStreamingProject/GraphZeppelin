@@ -175,7 +175,9 @@ TEST_F(SupernodeTestSuite, TestBatchUpdate) {
   }
   std::cout << "One by one updates took " << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
   start_time = std::chrono::steady_clock::now();
-  supernode_batch.apply_delta_update(updates);
+  Supernode* delta_node = Supernode::delta_supernode(vec_size, seed, updates);
+  supernode_batch.apply_delta_update(delta_node);
+  delete(delta_node);
   std::cout << "Batched updates took " << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
 
   ASSERT_EQ(supernode.logn, supernode_batch.logn);
