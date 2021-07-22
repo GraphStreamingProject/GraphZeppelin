@@ -77,7 +77,7 @@ Supernode* Supernode::delta_supernode(uint64_t n, long seed,
    * Considered using spin-threads and parallelism within sketch::update, but
    * this was slow (at least on small graph inputs).
    */
-#pragma omp parallel for num_threads(GraphWorker::get_group_size()) default(none) shared(deltas, updates)
+#pragma omp parallel for num_threads(GraphWorker::get_group_size()) default(shared)
   for (auto & delta_sketch : delta_node->sketches) {
     delta_sketch->batch_update(updates);
   }
