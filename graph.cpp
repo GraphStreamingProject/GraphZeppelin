@@ -62,22 +62,28 @@ void Graph::update(GraphUpdate upd) {
 #endif
 }
 
-
-void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges) {
-  if (update_locked) throw UpdateLockedException();
+Supernode* Graph::generate_delta_node(uint64_t node_n, long node_seed, uint64_t
+                                src, const std::vector<uint64_t>& edges) {
   std::vector<vec_t> updates;
   updates.reserve(edges.size());
   for (const auto& edge : edges) {
     if (src < edge) {
       updates.push_back(static_cast<vec_t>(
-          nondirectional_non_self_edge_pairing_fn(src, edge)));
+                            nondirectional_non_self_edge_pairing_fn(src, edge)));
     } else {
       updates.push_back(static_cast<vec_t>(
-          nondirectional_non_self_edge_pairing_fn(edge, src)));
+                            nondirectional_non_self_edge_pairing_fn(edge, src)));
     }
-    num_updates += 1; // REMOVE this later
   }
-  supernodes[src]->batch_update(updates);
+  return Supernode::delta_supernode(node_n, node_seed, updates);
+}
+void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges) {
+  if (update_locked) throw UpdateLockedException();
+  num_updates += edges.size(); // REMOVE this later
+  auto* delta_node = generate_delta_node(supernodes[src]->n,
+                                         supernodes[src]->seed, src, edges);
+  supernodes[src]->apply_delta_update(delta_node);
+  delete(delta_node);
 }
 
 vector<set<Node>> Graph::connected_components() {
