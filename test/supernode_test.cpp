@@ -187,6 +187,12 @@ TEST_F(SupernodeTestSuite, TestBatchUpdate) {
   }
 }
 
+void apply_delta_to_node(Supernode* node, const std::vector<vec_t>& updates) {
+  auto* delta_node = Supernode::delta_supernode(node->n, node->seed, updates);
+  node->apply_delta_update(delta_node);
+  delete(delta_node);
+}
+
 TEST_F(SupernodeTestSuite, TestConcurrency) {
   int num_threads_per_group = 2;
   unsigned num_threads =
@@ -212,7 +218,7 @@ TEST_F(SupernodeTestSuite, TestConcurrency) {
   // concurrently run batch_updates
   std::thread thd[num_threads];
   for (unsigned i = 0; i < num_threads; ++i) {
-    thd[i] = std::thread(&Supernode::apply_delta_update, &piecemeal, std::ref
+    thd[i] = std::thread(apply_delta_to_node, &piecemeal, std::ref
     (test_vec[i]));
   }
 
