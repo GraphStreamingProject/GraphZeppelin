@@ -8,7 +8,7 @@
 
 Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
 #ifdef VERIFY_SAMPLES_F
-  cout << "Verifying samples..." << endl;
+  cout << "Verifying samples... testing" << endl;
 #endif
   representatives = new set<Node>();
   supernodes = new Supernode*[num_nodes];
@@ -19,10 +19,11 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
     supernodes[i] = new Supernode(num_nodes,seed);
     parent[i] = i;
   }
-  num_updates = 0; // REMOVE this later
   std::string buffer_loc_prefix = configure_system(); // read the configuration file to configure the system
+  std::cout << "Done configuring" << std::endl;
 #ifdef USE_FBT_F
   // Create buffer tree and start the graphWorkers
+  std::cout << "Using buffer tree" << std:;endl;
   bf = new BufferTree(buffer_loc_prefix, (1<<20), 16, num_nodes, GraphWorker::get_num_groups(), true);
   GraphWorker::start_workers(this, bf);
 #else
@@ -30,6 +31,7 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
   node_size /= sizeof(Node);
   wq = new WorkQueue(node_size, num_nodes, 2*GraphWorker::get_num_groups());
   GraphWorker::start_workers(this, wq);
+  std::cout << "starting workers" << std::endl;
 #endif
 }
 
@@ -47,9 +49,32 @@ Graph::~Graph() {
 #endif
 }
 
+void Graph::ingest_graph(std::string path)
+{
+  ifstream in{path};
+  Node num_nodes;
+  in >> num_nodes;
+  long m;
+  in >> m;
+  Node a, b;
+  auto start = std::chrono::system_clock::now();
+  for (int i = 0; i < m; ++i) {
+    in >> a >> b;
+    update({{a, b}, UpdateType::INSERT});
+    if (i % 1000000 == 0)
+      {
+        auto now = std::chrono::system_clock::now();
+        std::chrono::duration<double> elapsed_seconds = now - start;
+        std::cout << i << " of " << m << " processed, running at " << i / (elapsed_seconds.count() * 1e6) << " million edges per second" << std::endl;
+      }
+  }
+  std::cout << connected_components().size() << std::endl;
+}
+
+
 void Graph::update(GraphUpdate upd) {
   if (update_locked) throw UpdateLockedException();
-  Edge &edge = upd.first;
+  Edge &edge = upd.edge;
 
 #ifdef USE_FBT_F
   bf->insert(edge);
@@ -62,9 +87,7 @@ void Graph::update(GraphUpdate upd) {
 #endif
 }
 
-
-void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges) {
-  if (update_locked) throw UpdateLockedException();
+std::vector<vec_t> Graph::make_updates(uint64_t src, const std::vector<uint64_t>& edges) {
   std::vector<vec_t> updates;
   updates.reserve(edges.size());
   for (const auto& edge : edges) {
@@ -75,10 +98,37 @@ void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges) {
       updates.push_back(static_cast<vec_t>(
           nondirectional_non_self_edge_pairing_fn(edge, src)));
     }
-    num_updates += 1; // REMOVE this later
   }
-  supernodes[src]->batch_update(updates);
+  return updates;
 }
+
+const std::vector<Sketch> &Graph::get_supernode_sketches(uint64_t src) const
+{
+  return supernodes[src]->get_sketches();
+}
+
+void Graph::apply_supernode_deltas(uint64_t src, const std::vector<Sketch>& deltas)
+{
+  supernodes[src]->apply_deltas(deltas);
+}
+
+void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges) {
+  if (update_locked) throw UpdateLockedException();
+  supernodes[src]->batch_update(make_updates(src, edges));
+}
+
+/*void Graph::wait_for_completion()
+{
+  if (use_external_worker)
+  {
+    while (!external_workers_completed);
+  }
+  else
+  {
+    GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
+  }
+}*/
+
 
 vector<set<Node>> Graph::connected_components() {
 #ifdef USE_FBT_F
@@ -89,7 +139,6 @@ vector<set<Node>> Graph::connected_components() {
   GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
   // after this point all updates have been processed from the buffer tree
 
-  printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
 #ifdef VERIFY_SAMPLES_F
@@ -139,11 +188,6 @@ vector<set<Node>> Graph::connected_components() {
 #endif
 
   return retval;
-}
-
-void Graph::post_cc_resume() {
-  GraphWorker::unpause_workers();
-  update_locked = false;
 }
 
 Node Graph::get_parent(Node node) {

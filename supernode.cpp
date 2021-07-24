@@ -6,25 +6,23 @@
 #include "include/util.h"
 #include "include/graph_worker.h"
 
-Supernode::Supernode(uint64_t n, long seed): sketches(log2(n)), idx(0), logn(log2
+Supernode::Supernode(uint64_t n, long seed): sketches(), idx(0), logn(log2
 (n)) {
   // generate logn sketches for each supernode (read: node)
   srand(seed);
   long r = rand();
   for (int i=0;i<logn;++i)
-    sketches[i] = new Sketch(n*n, r);
+	sketches.emplace_back(n*n, r);
 }
 
 Supernode::~Supernode() {
-  for (int i=0;i<logn;++i)
-    delete sketches[i];
 }
 
 boost::optional<Edge> Supernode::sample() {
   if (idx == logn) throw OutOfQueriesException();
   vec_t query_idx;
   try {
-    query_idx = sketches[idx]->query();
+	  query_idx = sketches[idx].query();
   } catch (AllBucketsZeroException &e) {
     ++idx;
     return {};
@@ -36,13 +34,13 @@ boost::optional<Edge> Supernode::sample() {
 void Supernode::merge(Supernode &other) {
   idx = max(idx, other.idx);
   for (int i=idx;i<logn;++i) {
-    (*sketches[i])+=(*other.sketches[i]);
+  	sketches[i] += other.sketches[i];
   }
 }
 
 void Supernode::update(vec_t upd) {
-  for (Sketch* s : sketches)
-    s->update(upd);
+  for (Sketch& s : sketches)
+    s.update(upd);
 }
 
 void Supernode::batch_update(const std::vector<vec_t>& updates) {
@@ -67,18 +65,12 @@ void Supernode::batch_update(const std::vector<vec_t>& updates) {
    * Considered using spin-threads and parallelism within sketch::update, but
    * this was slow (at least on small graph inputs).
    */
-  std::vector<Sketch*> deltas(logn);
+  std::vector<Sketch> deltas(logn);
   #pragma omp parallel for num_threads(GraphWorker::get_group_size()) default(none) shared(deltas, updates)
   for (unsigned i = 0; i < sketches.size(); ++i) {
-    deltas[i] = new Sketch(*sketches[i]);
-    deltas[i]->batch_update(updates);
+    deltas[i] = Sketch(sketches[i]);
+    deltas[i].clear();
+    deltas[i].batch_update(updates);
   }
-  std::unique_lock<std::mutex> lk(node_mt);
-  for (unsigned i = 0; i < sketches.size(); ++i) {
-    *sketches[i] += *deltas[i];
-  }
-  lk.unlock();
-  for (unsigned i = 0; i < sketches.size(); ++i) {
-    delete deltas[i];
-  }
+  apply_deltas(deltas);
 }

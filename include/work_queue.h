@@ -7,6 +7,7 @@
 
 #include <buffer_tree.h>
 #include "supernode.h"
+//#include <mqueue.h>
 // TODO: switch references from Node to node_t in types, change CMake flags
 
 /**
@@ -24,6 +25,8 @@ class WorkQueue {
    * @param num_bytes   the number of bytes to flush.
    */
   void flush(Node* buffer, uint32_t num_bytes);
+  void push_data();
+  //mqd_t mqd;
 public:
   /**
    * Constructs a new queue.
@@ -34,7 +37,8 @@ public:
   WorkQueue(uint32_t size, Node nodes, int queue_len);
 
   ~WorkQueue();
-
+  static std::vector<char> serialize_data_ret_t(const data_ret_t &data);
+  static data_ret_t deserialize_data_ret_t(const char* buf);
   /**
    * Puts an update into the data structure.
    * @param upd the edge update.

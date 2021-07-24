@@ -1,17 +1,19 @@
 #include "include/graph_worker.h"
 #include "include/graph.h"
-
+#include <mpi.h>
 #ifdef USE_FBT_F
 #include <buffer_tree.h>
 #endif
-
+#include <vector>
 #include <fstream>
 #include <string>
+#include <iostream>
 
 bool GraphWorker::shutdown = false;
 bool GraphWorker::paused   = false; // controls whether threads should pause or resume work
 int GraphWorker::num_groups = 1;
 int GraphWorker::group_size = 1;
+int GraphWorker::next_worker = 1;
 GraphWorker **GraphWorker::workers;
 std::condition_variable GraphWorker::pause_condition;
 std::mutex GraphWorker::pause_lock;
@@ -108,32 +110,62 @@ GraphWorker::~GraphWorker() {
 
 void GraphWorker::do_work() {
 	data_ret_t data;
-	while(true) {
-		if(shutdown)
-			return;
-		thr_paused = true; // this thread is currently paused
-		pause_condition.notify_all(); // notify pause_workers()
-
-		// wait until we are unpaused
-		std::unique_lock<std::mutex> lk(pause_lock);
-		pause_condition.wait(lk, []{return !paused || shutdown;});
-		thr_paused = false; // no longer paused
-		lk.unlock();
-		while(!thr_paused) {
+	std::cout << "testing code\n";
+	if (id == 0) {
+		std::cout << "MasterA" << std::endl;
+		while(true) {
+			if(shutdown)
+				return;
+			thr_paused = true; // this thread is currently paused
+			pause_condition.notify_all(); // notify pause_workers()
+			// wait until we are unpaused
+			std::unique_lock<std::mutex> lk(pause_lock);
+			pause_condition.wait(lk, []{return !paused || shutdown;});
+			thr_paused = false; // no longer paused
+			lk.unlock();
+			while(!thr_paused) {
 			// call get_data which will handle waiting on the queue
 			// and will enforce locking.
 #ifdef USE_FBT_F
-			bool valid = bf->get_data(data);
+				bool valid = bf->get_data(data);
 #else
-			bool valid = wq->get_data(data);
+				bool valid = wq->get_data(data);
 #endif
-
-			if (valid)
-				graph->batch_update(data.first, data.second);
-			else if(shutdown)
+				//std::cout << "MasterA about to send data" << std::endl;
+	
+				if (valid){                     
+					//send data to the next available worker
+					std::vector<char> bytestream_vector = WorkQueue::serialize_data_ret_t(data);
+					char* bytestream = &bytestream_vector[0];
+					//std::vector<char> bytestream_vector;
+					//bytestream_vector.push_back('e');
+					//bytestream_vector.push_back('x');
+					//char* bytestream = &bytestream_vector[0];
+					//std::cout << "Size: " << bytestream_vector.size() << std::endl;
+					//std::cout << "Data: " << (int)bytestream[0] << std::endl;
+						MPI_Send(bytestream, bytestream_vector.size(), MPI_CHAR, next_worker, 0, MPI_COMM_WORLD);
+					//graph->batch_update(data.first, data.second);
+					int num_nodes = 1;
+					MPI_Comm_size(MPI_COMM_WORLD,&num_nodes);
+					(next_worker += 1) %= num_nodes;
+					if (next_worker == 0){
+					   next_worker++;
+					}
+				}else if(shutdown)
+					return;
+				else if(paused)
+					thr_paused = true; // pause this thread once no more updates
+			}
+		}
+	}
+	else{
+		while(true){
+			//std::cout << "MasterB" << std::endl;
+			if (shutdown)
 				return;
-			else if(paused)
-				thr_paused = true; // pause this thread once no more updates
+			//MPI_Status status;
+			//int ierr = MPI_Recv(data, data.size, MPI_INT, 0, 0, MPI_COMM_WORLD, &status);
+
 		}
 	}
 }

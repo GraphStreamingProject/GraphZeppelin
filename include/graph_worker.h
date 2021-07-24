@@ -83,7 +83,7 @@ private:
 	// configuration
 	static int num_groups;
 	static int group_size;
-
+	static int next_worker;
 	// list of all GraphWorkers
 	static GraphWorker **workers;
 };

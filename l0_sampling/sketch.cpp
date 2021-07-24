@@ -10,10 +10,12 @@ Sketch::Sketch(vec_t n, long seed, double num_bucket_factor):
 }
 
 Sketch::Sketch(const Sketch &old) : seed(old.seed), n(old.n),
-num_bucket_factor(old.num_bucket_factor) {
-  bucket_a = std::vector<vec_t>(old.bucket_a.size());
-  bucket_c = std::vector<vec_hash_t>(old.bucket_c.size());
+                                    num_bucket_factor(old.num_bucket_factor), already_quered(old.already_quered) {
+  bucket_a = old.bucket_a;
+  bucket_c = old.bucket_c;
 }
+
+Sketch::Sketch() : seed(0), n(0), num_bucket_factor(1.0), bucket_a(), bucket_c(){}
 
 void Sketch::update(const vec_t& update_idx) {
   const unsigned num_buckets = bucket_gen(n, num_bucket_factor);
@@ -30,11 +32,20 @@ void Sketch::update(const vec_t& update_idx) {
   }
 }
 
+void Sketch::clear()
+{
+  bucket_a = std::vector<vec_t>(bucket_a.size());
+  bucket_c = std::vector<vec_hash_t>(bucket_c.size());
+  already_quered = false;
+}
+
 void Sketch::batch_update(const std::vector<vec_t>& updates) {
   for (const auto& update_idx : updates) {
     update(update_idx);
   }
 }
+
+
 
 vec_t Sketch::query() {
   if (already_quered) {
@@ -62,6 +73,18 @@ vec_t Sketch::query() {
   }
 }
 
+Sketch &Sketch::operator=(const Sketch& other)
+{
+  const_cast<long&>(seed) = other.seed;
+  const_cast<vec_t&>(n) = other.n;
+  const_cast<double&>(num_bucket_factor) = other.num_bucket_factor;
+  bucket_a = other.bucket_a;
+  bucket_c = other.bucket_c;
+  already_quered = other.already_quered;
+  return *this;
+}
+
+
 Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2) {
   assert (sketch1.n == sketch2.n);
   assert (sketch1.seed == sketch2.seed);
@@ -88,10 +111,10 @@ std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
   for (unsigned i = 0; i < num_buckets; ++i) {
     for (unsigned j = 0; j < num_guesses; ++j) {
       unsigned bucket_id = i * num_guesses + j;
-      for (unsigned k = 0; k < sketch.n; k++) {
-        os << (Bucket_Boruvka::contains(Bucket_Boruvka::col_index_hash(i, k, sketch.seed), 1 << j) ? '1' : '0');
-      }
-      os << std::endl
+      //for (unsigned k = 0; k < sketch.n; k++) {
+      //  os << (Bucket_Boruvka::contains(Bucket_Boruvka::col_index_hash(i, k, sketch.seed), 1 << j) ? '1' : '0');
+      //}
+      os << "bucket id:" << bucket_id << std::endl
          << "a:" << sketch.bucket_a[bucket_id] << std::endl
          << "c:" << sketch.bucket_c[bucket_id] << std::endl
          << (Bucket_Boruvka::is_good(sketch.bucket_a[bucket_id], sketch.bucket_c[bucket_id], sketch.n, i, 1 << j, sketch.seed) ? "good" : "bad") << std::endl;

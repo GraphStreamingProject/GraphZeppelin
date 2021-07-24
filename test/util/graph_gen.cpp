@@ -104,8 +104,8 @@ void write_cum(std::string stream_f, std::string cum_f) {
   int a,b;
   for (ull i=1;i<=m;++i) {
     in >> type >> a >> b;
-    if ((type == INSERT && adj[a][b] == 1) || (type == DELETE && adj[a][b] == 0)) {
-      std::cerr << "Insertion/deletion error at line " << i
+    if ((static_cast<UpdateType>(type) == UpdateType::INSERT && adj[a][b] == 1) || (static_cast<UpdateType>(type) == UpdateType::DELETE && adj[a][b] == 0)) {
+  	std::cerr << "Insertion/deletion error at line " << i
                 << " in " << stream_f;
       return;
     }

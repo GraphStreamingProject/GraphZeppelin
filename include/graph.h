@@ -5,7 +5,6 @@
 #include <set>
 #include <fstream>
 #include "supernode.h"
-#include <atomic>  // REMOVE LATER
 
 #ifndef USE_FBT_F
 #include "work_queue.h"
@@ -20,12 +19,15 @@ using namespace std;
 class BufferTree;
 class GraphWorker;
 
-enum UpdateType {
+enum class UpdateType : int {
   INSERT = 0,
   DELETE = 1,
 };
 
-typedef pair<Edge, UpdateType> GraphUpdate;
+struct GraphUpdate {
+  Edge edge;
+  UpdateType type;
+};
 
 /**
  * Undirected graph object with n nodes labelled 0 to n-1, no self-edges,
@@ -51,7 +53,12 @@ class Graph{
 public:
   explicit Graph(uint64_t num_nodes);
   ~Graph();
+  void ingest_graph(std::string path);
   void update(GraphUpdate upd);
+  GraphUpdate get_graph_update() { return {}; };
+  const std::vector<Sketch> &get_supernode_sketches(uint64_t src) const;
+  void apply_supernode_deltas(uint64_t src, const std::vector<Sketch>& deltas);
+  static std::vector<vec_t> make_updates(uint64_t src, const std::vector<uint64_t>& edges);
 
   /**
    * Update all the sketches in supernode, given a batch of updates.
@@ -64,31 +71,27 @@ public:
    * Main algorithm utilizing Boruvka and L_0 sampling.
    * @return a vector of the connected components in the graph.
    */
-  vector<set<Node>> connected_components();
+  std::vector<std::set<Node>> connected_components();
 
-  /*
-   * Call this function to indicate to the graph that it should
-   * begin accepting updates again. It is important that the sketches
-   * be restored to their pre-connected_components state before
-   * calling this function
-   * Unpauses the graph workers and sets allow update flag
-   */
-  void post_cc_resume();
-  
+
+#ifdef USE_FBT_F
+  BufferTree &get_buffer_tree() { return *bf; };
+#else
+  WorkQueue &get_work_queue() { return *wq; };
+#endif
+
 #ifdef VERIFY_SAMPLES_F
-  std::string cum_in = "./cum_sample.txt";
+  std::string cum_in = "../test/res/multiples_graph_1024.txt";
 
   /**
    * Set the filepath to search for cumulative graph input.
    */
-  void set_cum_in(const std::string& input_file) {
+  void set_cum_in(const std::string input_file) {
     cum_in = input_file;
   }
 #endif
-
-  // temp to verify number of updates -- REMOVE later
-  std::atomic<uint64_t> num_updates;
 };
+
 
 class UpdateLockedException : public exception {
   virtual const char* what() const throw() {

@@ -32,10 +32,10 @@ TEST(Benchmark, BCHMKGraph) {
     }
     in >> u >> a >> b;
     //printf("a = %lu b = %lu\n", a, b);
-    if (u == INSERT)
-      g.update({{a, b}, INSERT});
+    if (static_cast<UpdateType>(u) == UpdateType::INSERT)  
+    	g.update({{a, b}, UpdateType::INSERT});
     else
-      g.update({{a,b}, DELETE});
+      g.update({{a,b}, UpdateType::DELETE});
   }
   printf("Progress:====================| Done\n");
   ASSERT_EQ(1, g.connected_components().size());

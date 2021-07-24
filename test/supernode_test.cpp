@@ -181,7 +181,7 @@ TEST_F(SupernodeTestSuite, TestBatchUpdate) {
   ASSERT_EQ(supernode.logn, supernode_batch.logn);
   ASSERT_EQ(supernode.idx, supernode_batch.idx);
   for (int i=0;i<supernode.logn;++i) {
-    ASSERT_EQ(*supernode.sketches[i], *supernode_batch.sketches[i]);
+	ASSERT_EQ(supernode.sketches[i], supernode_batch.sketches[i]);
   }
 }
 
@@ -226,6 +226,6 @@ TEST_F(SupernodeTestSuite, TestConcurrency) {
   }
 
   for (int i = 0; i < supernode.logn; ++i) {
-    ASSERT_EQ(*supernode.sketches[i], *piecemeal.sketches[i]);
+	ASSERT_EQ(supernode.sketches[i], piecemeal.sketches[i]);
   }
 }

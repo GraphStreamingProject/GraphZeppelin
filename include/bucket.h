@@ -58,11 +58,11 @@ inline col_hash_t Bucket_Boruvka::col_index_hash(const unsigned bucket_col, cons
     unsigned bucket_col;
     vec_t update_idx;
   } __attribute__((packed)) buf = {bucket_col, update_idx};
-  return col_hash(&buf, sizeof(buf), sketch_seed);
+  return XXH32(&buf, sizeof(buf), sketch_seed);
 }
 
 inline vec_hash_t Bucket_Boruvka::index_hash(const vec_t& index, long sketch_seed) {
-  return vec_hash(&index, sizeof(index), sketch_seed);
+  return XXH32(&index, sizeof(index), sketch_seed);
 
 }
 

@@ -8,6 +8,9 @@
 #include "types.h"
 #include "util.h"
 #include <gtest/gtest_prod.h>
+#include <boost/serialization/access.hpp>
+#include <boost/serialization/vector.hpp>
+
 
 #define bucket_gen(x, c) double_to_ull((c)*(log2(x)+1))
 #define guess_gen(x) double_to_ull(log2(x)+2)
@@ -18,12 +21,22 @@
  * raise an error.
  */
 class Sketch {
-  // Seed used for hashing operations in this sketch.
-  const long seed;
-  // Length of the vector this is sketching.
-  const vec_t n;
-  // Factor for how many buckets there are in this sketch.
-  const double num_bucket_factor;
+  friend class boost::serialization::access;
+
+  /**
+   * Serializes this class using the standard Boost serialization API.
+   */
+  template<class Archive>
+  void serialize(Archive & ar, const unsigned int version)
+  {
+    ar & const_cast<long&>(seed);
+    ar & const_cast<vec_t&>(n);
+    ar & const_cast<double&>(num_bucket_factor);
+    ar & bucket_a;
+    ar & bucket_c;
+    ar & already_quered;
+  }
+
 
   // Buckets of this sketch.
   // Length is bucket_gen(n, num_bucket_factor) * guess_gen(n).
@@ -38,6 +51,13 @@ class Sketch {
   FRIEND_TEST(EXPR_Parallelism, N10kU100k);
 
 public:
+  // Seed used for hashing operations in this sketch.
+  const long seed;
+  // Length of the vector this is sketching.
+  const vec_t n;
+  // Factor for how many buckets there are in this sketch.
+  const double num_bucket_factor;
+
   /**
    * Construct a sketch of a vector of size n
    * @param n Length of the vector to sketch.
@@ -46,6 +66,8 @@ public:
    */
   Sketch(vec_t n, long seed, double num_bucket_factor = .5);
   Sketch(const Sketch &old);
+  Sketch();
+  void clear();
 
   /**
    * Update a sketch based on information about one of its indices.
@@ -67,6 +89,7 @@ public:
    *                                index from.
    */
   vec_t query();
+  Sketch& operator=(const Sketch& other);
 
   /**
    * Operator to add a sketch to another one in-place. Guaranteed to be

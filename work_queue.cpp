@@ -16,6 +16,18 @@ buffers(nodes) {
     buffers[i][1] = i; // second spot identifies the node to which the buffer
     // belongs
   }
+  /* 
+  mq_attr attr;
+  attr.mq_maxmsg = 4;
+  attr.mq_msgsize = (buffer_size * sizeof(Node) + 100);
+  mqd = mq_open ("/BufferTree", O_CREAT | O_EXCL | O_WRONLY | O_NONBLOCK,  0600, &attr);
+
+  if (mqd == (mqd_t) -1)
+    {
+      std::cout << "Error: " << errno << std::endl;
+      exit(EXIT_FAILURE);
+    }
+   */
 }
 
 WorkQueue::~WorkQueue() {
@@ -26,6 +38,7 @@ WorkQueue::~WorkQueue() {
 
 void WorkQueue::flush(Node *buffer, uint32_t num_bytes) {
   cq.push(reinterpret_cast<char *>(buffer), num_bytes);
+  //push_data();
 }
 
 insert_ret_t WorkQueue::insert(update_t upd) {
@@ -37,6 +50,30 @@ insert_ret_t WorkQueue::insert(update_t upd) {
     idx = first_idx;
   }
 }
+/*
+void WorkQueue::push_data() {
+    data_ret_t data;
+    bool extracted_data = get_data(data);
+    if (!extracted_data)
+      {
+        return;
+      }
+
+    std::vector<char> serialized = serialize_data_ret_t(data);
+    data_ret_t new_dat = deserialize_data_ret_t(serialized.data());
+
+    int err = mq_send(mqd, serialized.data(), serialized.size(), 10);
+    while (err)
+      {
+        err = mq_send(mqd, serialized.data(), serialized.size(), 10);
+        if (errno != EAGAIN)
+          {
+            std::cout << errno << std::endl;
+            exit(EXIT_FAILURE);
+          }
+      }
+      
+}*/
 
 // basically a copy of BufferTree::get_data()
 bool WorkQueue::get_data(data_ret_t &data) {
@@ -89,3 +126,42 @@ void WorkQueue::set_non_block(bool block) {
     cq.no_block = false; // set circular queue to block if necessary
   }
 }
+
+data_ret_t WorkQueue::deserialize_data_ret_t(const char* buf)
+{
+  Node first = *reinterpret_cast<const Node*>(buf);
+  size_t length = *reinterpret_cast<const size_t*>(buf + sizeof(Node));
+  std::vector<Node> second;
+  for (size_t i = 0; i < length; ++i)
+    {
+      const auto offset = buf + sizeof(Node) + sizeof(size_t);
+      Node node = *reinterpret_cast<const Node*>(offset + i * sizeof(Node));
+      second.push_back(node);
+    }
+  return std::make_pair<Node, std::vector<Node>>(std::move(first), std::move(second));
+}
+
+
+std::vector<char> WorkQueue::serialize_data_ret_t(const data_ret_t &data)
+{
+  std::vector<char> serialized_data;
+  for (size_t i = 0; i < sizeof(data.first); ++i)
+    {
+      serialized_data.push_back(reinterpret_cast<const char*>(&data.first)[i]);
+    }
+  size_t size = data.second.size();
+  for (size_t i = 0; i < sizeof(size); ++i)
+    {
+      serialized_data.push_back(reinterpret_cast<const char*>(&size)[i]);
+    }
+  for (size_t i = 0; i < data.second.size(); ++i)
+    {
+      const Node *node = &data.second[i];
+      for (size_t j = 0; j < sizeof(Node); ++j)
+        {
+          serialized_data.push_back(reinterpret_cast<const char*>(node)[j]);
+        }
+    }
+  return serialized_data;
+}
+

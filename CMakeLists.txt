@@ -98,7 +98,7 @@ if(NOT GTest_FOUND)
 endif()
 
 #Find or download boost
-find_package(Boost 1.66.0)
+find_package(Boost 1.66.0 COMPONENTS serialization)
 if(NOT Boost_FOUND)
   if(NOT AUTODOWNLOAD)
     message(FATAL_ERROR "Boost not found.\n"
@@ -109,7 +109,7 @@ if(NOT Boost_FOUND)
     download_project(
       PROJ boost
       GIT_REPOSITORY "https://github.com/boostorg/boost.git"
-      GIT_TAG "boost-1.66.0"
+      GIT_TAG "boost-1.65.0"
     )
 
     #Run bootstrap according to OS version
@@ -137,13 +137,30 @@ if(NOT Boost_FOUND)
       message(FATAL_ERROR "Failed to run b2 headers")
     endif()
 
+
+    #Install libraries
+    execute_process(
+      COMMAND "sudo" "./b2" "install" "--with-serialization"
+      RESULT_VARIABLE result
+      WORKING_DIRECTORY "${boost_SOURCE_DIR}"
+    )
+    if(result)
+      message(FATAL_ERROR "Failed to run b2 headers")
+    endif()
+
     #Set BOOST_ROOT in cache to what we just downloaded, FindBoost again
     set(BOOST_ROOT "${boost_SOURCE_DIR}" CACHE STRING "" FORCE)
-    find_package(Boost 1.66.0)
+    find_package(Boost 1.65.0 COMPONENTS serialization)
   endif()
 endif()
 include_directories("${Boost_INCLUDE_DIR}")
 
+find_package(MPI REQUIRED)
+include_directories(${MPI_INCLUDE_PATH})
+add_definitions(-DOMPI_SKIP_MPICXX)
+if(MPI_CXX_FOUND)
+	message("Found MPI_CXX")
+endif()
 # Install BufferTree Project
 ExternalProject_Add(
   BufferTree
@@ -172,7 +189,7 @@ link_directories(${CMAKE_CURRENT_BINARY_DIR}/BufferTree/prefix/lib)
 # USE_NATIVE_F       ???
 # USE_FBT_F          Use a Fast Buffer Tree living on secondary storage
 #                    (github.com/Victor-C-Zhang/FastBufferTree) to buffer updates
-#                    instead of in-memory buffering.
+# instead of in-memory buffering.
 
 add_executable(tests
   test/test_runner.cpp
@@ -189,9 +206,12 @@ add_executable(tests
   graph_worker.cpp
   l0_sampling/sketch.cpp
   l0_sampling/update.cpp
-  util.cpp)
-target_link_libraries(tests PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F USE_FBT_F)
+  util.cpp
+  work_queue.cpp
+  )
+target_link_libraries(tests PRIVATE xxHash::xxhash ${Boost_LIBRARIES} GTest::gtest ${MPI_LIBRARIES})
+target_include_directories(tests PRIVATE ${MPI_C_INCLUDE_PATH}) 
+target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F)
 # dependencies
 add_dependencies(tests BufferTree)
 target_link_libraries(tests PRIVATE libFastBufferTree.a)
@@ -208,7 +228,16 @@ else ()
     target_compile_options(tests PRIVATE /O2)
   endif()
 endif ()
+if(MPI_COMPILE_FLAGS)
+  set_target_properties(tests PROPERTIES
+    COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+endif()
+if(MPI_LINK_FLAGS)
+  set_target_properties(tests PROPERTIES
+    LINK_FLAGS "${MPI_LINK_FLAGS}")
+endif()
 
+if(FALSE) 
 add_executable(mem_tests
     test/test_runner.cpp
     test/graph_test.cpp
@@ -226,11 +255,12 @@ add_executable(mem_tests
     l0_sampling/sketch.cpp
     l0_sampling/update.cpp
     util.cpp)
-target_link_libraries(mem_tests PRIVATE xxHash::xxhash GTest::gtest)
+target_link_libraries(mem_tests PRIVATE xxHash::xxhash ${Boost_LIBRARIES} GTest::gtest ${MPI_LIBRARIES})
+target_include_directories(tests PRIVATE ${MPI_C_INCLUDE_PATH})
 target_compile_definitions(mem_tests PRIVATE VERIFY_SAMPLES_F)
 # dependencies
 add_dependencies(mem_tests BufferTree)
-target_link_libraries(mem_tests PRIVATE libFastBufferTree.a)
+target_link_libraries(mem_tests PRIVATE libFastBufferTree.a rt) 
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")
@@ -244,13 +274,21 @@ else ()
     target_compile_options(mem_tests PRIVATE /O2)
   endif()
 endif ()
+if(MPI_COMPILE_FLAGS)
+  set_target_properties(mem_tests PROPERTIES
+    COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+endif()
+if(MPI_LINK_FLAGS)
+  set_target_properties(mem_tests PROPERTIES
+    LINK_FLAGS "${MPI_LINK_FLAGS}")
+endif()
 
 # executables for experiment/benchmarking
 add_executable(efficient_gen
   test/util/efficient_gen/edge_gen.cpp
   test/util/efficient_gen/cum_gen.cpp
   test/util/efficient_gen/efficient_gen.cpp)
-target_link_libraries(efficient_gen PRIVATE xxHash::xxhash)
+target_link_libraries(efficient_gen PRIVATE xxHash::xxhash rt)
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   target_compile_options(efficient_gen PRIVATE -O3)
 elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
@@ -264,15 +302,16 @@ add_executable(experiment
   test/util/graph_gen.cpp
   graph.cpp
   supernode.cpp
+  work_queue.cpp
   graph_worker.cpp
   l0_sampling/sketch.cpp
   l0_sampling/update.cpp
   util.cpp)
-target_link_libraries(experiment PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(experiment PRIVATE USE_FBT_F)
+target_link_libraries(experiment PRIVATE xxHash::xxhash GTest::gtest  ${MPI_LIBRARIES} rt) 
+target_compile_definitions(experiment PRIVATE)
 # dependencies
 add_dependencies(experiment BufferTree)
-target_link_libraries(experiment PRIVATE libFastBufferTree.a)
+target_link_libraries(experiment PRIVATE libFastBufferTree.a rt)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")
@@ -286,3 +325,12 @@ else ()
     target_compile_options(experiment PRIVATE /O2)
   endif()
 endif ()
+if(MPI_COMPILE_FLAGS)
+  set_target_properties(tests PROPERTIES
+    COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+endif()
+if(MPI_LINK_FLAGS)
+  set_target_properties(tests PROPERTIES
+    LINK_FLAGS "${MPI_LINK_FLAGS}")
+endif()
+endif()

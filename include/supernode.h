@@ -14,7 +14,6 @@ typedef std::pair<Node, Node> Edge;
 class Supernode {
   /* collection of logn sketches to query from, since we can't query from one
      sketch more than once */
-  vector<Sketch*> sketches;
   int idx;
   int logn;
   std::mutex node_mt;
@@ -27,7 +26,9 @@ public:
   /**
    * @param n     the total number of nodes in the graph.
    * @param seed  the (fixed) seed value passed to each supernode.
+   *
    */
+  vector<Sketch> sketches;
   Supernode(uint64_t n, long seed);
   ~Supernode();
 
@@ -59,6 +60,20 @@ public:
    * @param updates a vector of encoded edge updates to process.
    */
   void batch_update(const std::vector<vec_t>& updates);
+  
+  const std::vector<Sketch> &get_sketches() const { return sketches; };
+  
+  void apply_deltas(const std::vector<Sketch> &deltas)
+  {
+    if (deltas.size() != sketches.size()) throw std::exception();
+    std::lock_guard<std::mutex> lk(node_mt);
+    for (size_t i = 0; i < sketches.size(); ++i)
+    {
+      sketches[i] += deltas[i];
+    }
+  };
+
+
 };
 
 
