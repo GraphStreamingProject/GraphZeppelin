@@ -13,7 +13,7 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
   representatives = new set<Node>();
   supernodes = new Supernode*[num_nodes];
   parent = new Node[num_nodes];
-  time_t seed = time(nullptr);
+  seed = time(nullptr);
   for (Node i=0;i<num_nodes;++i) {
     representatives->insert(i);
     supernodes[i] = new Supernode(num_nodes,seed);
@@ -104,11 +104,12 @@ std::vector<vec_t> Graph::make_updates(uint64_t src, const std::vector<uint64_t>
 
 const std::vector<Sketch> &Graph::get_supernode_sketches(uint64_t src) const
 {
-  return supernodes[src]->get_sketches();
+      	return supernodes[src]->get_sketches();
 }
 
 void Graph::apply_supernode_deltas(uint64_t src, const std::vector<Sketch>& deltas)
 {
+  std::cout << "Applying deltas" << std::endl;
   supernodes[src]->apply_deltas(deltas);
 }
 

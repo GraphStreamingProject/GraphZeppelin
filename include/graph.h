@@ -34,11 +34,9 @@ struct GraphUpdate {
  * multiple edges, or weights.
  */
 class Graph{
-  const uint64_t num_nodes;
   bool update_locked = false;
   // a set containing one "representative" from each supernode
   set<Node>* representatives;
-  Supernode** supernodes;
   // DSU representation of supernode relationship
   Node* parent;
   Node get_parent(Node node);
@@ -51,6 +49,9 @@ class Graph{
   WorkQueue *wq;
 #endif
 public:
+  time_t seed = 0;
+  const uint64_t num_nodes;
+  Supernode** supernodes;
   explicit Graph(uint64_t num_nodes);
   ~Graph();
   void ingest_graph(std::string path);
