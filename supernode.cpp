@@ -9,10 +9,8 @@
 Supernode::Supernode(uint64_t n, long seed): sketches(log2(n)), idx(0), logn(log2
 (n)), seed(seed), n(n) {
   // generate logn sketches for each supernode (read: node)
-  srand(seed);
-  long r = rand();
   for (int i=0;i<logn;++i)
-    sketches[i] = new Sketch(n*n, r);
+    sketches[i] = new Sketch(n*n, seed);
 }
 
 Supernode::~Supernode() {

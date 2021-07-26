@@ -14,6 +14,8 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
   supernodes = new Supernode*[num_nodes];
   parent = new Node[num_nodes];
   time_t seed = time(nullptr);
+  srand(seed);
+  seed = rand();
   for (Node i=0;i<num_nodes;++i) {
     representatives->insert(i);
     supernodes[i] = new Supernode(num_nodes,seed);
