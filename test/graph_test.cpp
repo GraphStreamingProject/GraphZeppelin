@@ -36,10 +36,12 @@ TEST(GraphTestSuite, SmallGraphMPI) {
   Node a, b;
   std::cout << "Creating graph" << std::endl;
   Graph g{num_nodes};
+  std::cout << "Done greating graph" << std::endl;
   while (m--) {
     in >> a >> b;
     g.update({{a, b}, UpdateType::INSERT});
   }
+  std::cout << "Done reading in updates" << std::endl;
   g.set_cum_in(curr_dir + "/res/multiples_graph_1024.txt");
   ASSERT_EQ(78, g.connected_components().size());
 }

@@ -31,7 +31,7 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
   node_size /= sizeof(Node);
   wq = new WorkQueue(node_size, num_nodes, 2*GraphWorker::get_num_groups());
   GraphWorker::start_workers(this, wq);
-  std::cout << "starting workers" << std::endl;
+  std::cout << "done starting workers" << std::endl;
 #endif
 }
 

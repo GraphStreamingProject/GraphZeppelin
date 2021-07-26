@@ -77,6 +77,7 @@ private:
 	// thread status and status management
 	static bool shutdown;
 	static bool paused;
+	static bool all_workers_completed;
 	static std::condition_variable pause_condition;
 	static std::mutex pause_lock;
 
@@ -84,7 +85,6 @@ private:
 	static int num_groups;
 	static int group_size;
 	static int next_worker;
-	static int receive_worker;
 	// list of all GraphWorkers
 	static GraphWorker **workers;
 };
