@@ -122,7 +122,7 @@ int main (int argc, char * argv [])
 	// a random permutation
 
 	cout << "Conducting random external memory permutation of updates..." << endl;
-	system((string("sort -k 1,1 -S 75%% --parallel=46 -t\'	\' -s -T /mnt/nvme/tmp ") + stream_file_name + string(" -o ") + stream_file_name).c_str());
+	system((string("sort -k 1,1 -S 75% --parallel=46 -t\'	\' -s -T /mnt/nvme/tmp ") + stream_file_name + string(" -o ") + stream_file_name).c_str());
 
 	// Remove random prefixes used for permuting
 	// Insert prefix denoting insertion or deletion

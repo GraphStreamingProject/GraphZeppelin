@@ -23,6 +23,17 @@ The number of such edges to consider is given in (5)
 
 (8) Output stream file name
 
+For the external streamifier the arguments are the same except that the 
+number of nodes is not specified and (5) is instead a float which we
+multiply with the number of edges in the graph to achieve the number
+originally supplied in (5).
+
+So,
+(5) Float parameter for number of edges to appear.
+
+(6) If this parameter is N, then isolate the last N vertices of the graph.
+
+(7) Output stream file name
 
 The parameters that we have been using to generate graphs so far are:
 
