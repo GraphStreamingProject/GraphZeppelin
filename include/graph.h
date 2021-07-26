@@ -88,6 +88,9 @@ public:
 
   // temp to verify number of updates -- REMOVE later
   std::atomic<uint64_t> num_updates;
+
+  static Supernode* generate_delta_node(uint64_t node_n, long node_seed, uint64_t src,
+                                  const vector<uint64_t> &edges);
 };
 
 class UpdateLockedException : public exception {

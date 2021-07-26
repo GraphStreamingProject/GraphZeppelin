@@ -7,12 +7,10 @@
 #include "include/graph_worker.h"
 
 Supernode::Supernode(uint64_t n, long seed): sketches(log2(n)), idx(0), logn(log2
-(n)) {
+(n)), seed(seed), n(n) {
   // generate logn sketches for each supernode (read: node)
-  srand(seed);
-  long r = rand();
   for (int i=0;i<logn;++i)
-    sketches[i] = new Sketch(n*n, r);
+    sketches[i] = new Sketch(n*n, seed);
 }
 
 Supernode::~Supernode() {
@@ -45,7 +43,17 @@ void Supernode::update(vec_t upd) {
     s->update(upd);
 }
 
-void Supernode::batch_update(const std::vector<vec_t>& updates) {
+void Supernode::apply_delta_update(const Supernode* delta_node) {
+  std::unique_lock<std::mutex> lk(node_mt);
+  for (unsigned i = 0; i < sketches.size(); ++i) {
+    *sketches[i] += *delta_node->sketches[i];
+  }
+  lk.unlock();
+}
+
+Supernode* Supernode::delta_supernode(uint64_t n, long seed,
+                                     const vector<vec_t> &updates) {
+  auto* delta_node = new Supernode(n, seed);
   /*
    * Consider fiddling with environment vars
    * OMP_DYNAMIC: whether the OS is allowed to dynamically change the number
@@ -67,18 +75,10 @@ void Supernode::batch_update(const std::vector<vec_t>& updates) {
    * Considered using spin-threads and parallelism within sketch::update, but
    * this was slow (at least on small graph inputs).
    */
-  std::vector<Sketch*> deltas(logn);
-  #pragma omp parallel for num_threads(GraphWorker::get_group_size()) default(none) shared(deltas, updates)
-  for (unsigned i = 0; i < sketches.size(); ++i) {
-    deltas[i] = new Sketch(*sketches[i]);
-    deltas[i]->batch_update(updates);
+#pragma omp parallel for num_threads(GraphWorker::get_group_size()) default(shared)
+  for (auto & delta_sketch : delta_node->sketches) {
+    delta_sketch->batch_update(updates);
   }
-  std::unique_lock<std::mutex> lk(node_mt);
-  for (unsigned i = 0; i < sketches.size(); ++i) {
-    *sketches[i] += *deltas[i];
-  }
-  lk.unlock();
-  for (unsigned i = 0; i < sketches.size(); ++i) {
-    delete deltas[i];
-  }
+  return delta_node;
 }
+

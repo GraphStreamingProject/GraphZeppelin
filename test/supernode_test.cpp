@@ -175,7 +175,9 @@ TEST_F(SupernodeTestSuite, TestBatchUpdate) {
   }
   std::cout << "One by one updates took " << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
   start_time = std::chrono::steady_clock::now();
-  supernode_batch.batch_update(updates);
+  Supernode* delta_node = Supernode::delta_supernode(vec_size, seed, updates);
+  supernode_batch.apply_delta_update(delta_node);
+  delete(delta_node);
   std::cout << "Batched updates took " << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
 
   ASSERT_EQ(supernode.logn, supernode_batch.logn);
@@ -183,6 +185,12 @@ TEST_F(SupernodeTestSuite, TestBatchUpdate) {
   for (int i=0;i<supernode.logn;++i) {
     ASSERT_EQ(*supernode.sketches[i], *supernode_batch.sketches[i]);
   }
+}
+
+void apply_delta_to_node(Supernode* node, const std::vector<vec_t>& updates) {
+  auto* delta_node = Supernode::delta_supernode(node->n, node->seed, updates);
+  node->apply_delta_update(delta_node);
+  delete(delta_node);
 }
 
 TEST_F(SupernodeTestSuite, TestConcurrency) {
@@ -210,7 +218,7 @@ TEST_F(SupernodeTestSuite, TestConcurrency) {
   // concurrently run batch_updates
   std::thread thd[num_threads];
   for (unsigned i = 0; i < num_threads; ++i) {
-    thd[i] = std::thread(&Supernode::batch_update, &piecemeal, std::ref
+    thd[i] = std::thread(apply_delta_to_node, &piecemeal, std::ref
     (test_vec[i]));
   }
 
