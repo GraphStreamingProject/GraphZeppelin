@@ -27,11 +27,12 @@ int main (int argc, char * argv [])
 	sscanf(argv[5], "%lu", &general_insertion_cap);
 	float general_inserts_factor;
 	sscanf(argv[6], "%f", &general_inserts_factor);
-	unsigned int num_iso_nodes;
-	sscanf(argv[7], "%u", &num_iso_nodes);
+	unsigned long num_iso_nodes;
+	sscanf(argv[7], "%lu", &num_iso_nodes);
 	string stream_file_name = argv[8];
 	
 	ifstream static_graph_file{static_graph_file_name};
+	
 	unsigned long num_nodes, num_edges;
 	static_graph_file >> num_nodes >> num_edges;
 
@@ -64,8 +65,8 @@ int main (int argc, char * argv [])
 
 		static_graph_file >> u >> v;
 		
-		num_updates = 2 * num_reinserts + 1;
 		num_reinserts = min(static_reinsertion_cap, static_reinsertions(generator));
+
 		if (u > num_nodes - num_iso_nodes - 1 || v > num_nodes - num_iso_nodes - 1) {
 			// Isolate the last num_iso_nodes nodes so insert multiple of 2 times
 			num_updates = 2 * num_reinserts + 2;
@@ -99,7 +100,11 @@ int main (int argc, char * argv [])
 
 		unsigned long rand_u = random_node(generator);
 		unsigned long rand_v = random_node(generator);
-		
+	
+		// Avoid self-loops
+                if (rand_u == rand_v)
+                        continue;
+
 		num_inserts = min(general_insertion_cap, general_insertions(generator));
 		// These edges do not persist to the end of the stream
 		num_updates = 2 * num_inserts;
@@ -150,7 +155,10 @@ int main (int argc, char * argv [])
 			cout << i << " updates completed..." << endl;
 
 		stream_file_in >> prefix >> u >> v;
-		
+	
+		// NOTE: If (u, v) appears in addition to (v, u) in the
+		// stream, there could be correctness issues here.
+
 		index = u * num_nodes + v;
 		upd_type = edge_present[index] ? '1' : '0';
 		edge_present[index] = !edge_present[index];
