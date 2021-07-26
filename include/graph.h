@@ -70,7 +70,7 @@ public:
    * Parallel version of Boruvka.
    * @return a vector of the connected components in the graph.
    */
-  __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) vector<set<Node>> parallel_connected_components();
+  vector<set<Node>> parallel_connected_components();
   /*
    * Call this function to indicate to the graph that it should
    * begin accepting updates again. It is important that the sketches
