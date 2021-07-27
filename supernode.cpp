@@ -22,12 +22,10 @@ boost::optional<Edge> Supernode::sample() {
   if (idx == logn) throw OutOfQueriesException();
   vec_t query_idx;
   try {
-    query_idx = sketches[idx]->query();
+    query_idx = sketches[idx++]->query();
   } catch (AllBucketsZeroException &e) {
-    ++idx;
     return {};
   }
-  ++idx;
   return inv_nondir_non_self_edge_pairing_fn(query_idx);
 }
 
