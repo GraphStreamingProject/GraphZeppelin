@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 
 #Uncomment to enable debug
-set(ENV{DEBUG} ON)
+#set(ENV{DEBUG} ON)
 
 project(test)
 
@@ -302,12 +302,11 @@ add_executable(parallelPP
     graph.cpp
     supernode.cpp
     graph_worker.cpp
-    work_queue.cpp
     l0_sampling/sketch.cpp
     l0_sampling/update.cpp
     util.cpp)
 target_link_libraries(parallelPP PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(parallelPP PRIVATE PARALLEL_PP_F VERIFY_SAMPLES_F)
+target_compile_definitions(parallelPP PRIVATE USE_FBT_F PARALLEL_PP_F VERIFY_SAMPLES_F)
 # dependencies
 add_dependencies(parallelPP BufferTree)
 target_link_libraries(parallelPP PRIVATE libFastBufferTree.a)
@@ -322,5 +321,36 @@ else ()
     target_link_options(parallelPP PRIVATE -fopenmp)
   elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
     target_compile_options(parallelPP PRIVATE /O2)
+  endif()
+endif ()
+
+add_executable(memParallelPP
+        test/test_runner.cpp
+        test/util/graph_gen.cpp
+        test/util/graph_verifier.cpp
+        test/parallel_graph_test.cpp
+        graph.cpp
+        supernode.cpp
+        graph_worker.cpp
+        work_queue.cpp
+        l0_sampling/sketch.cpp
+        l0_sampling/update.cpp
+        util.cpp)
+target_link_libraries(memParallelPP PRIVATE xxHash::xxhash GTest::gtest)
+target_compile_definitions(memParallelPP PRIVATE PARALLEL_PP_F VERIFY_SAMPLES_F)
+# dependencies
+add_dependencies(memParallelPP BufferTree)
+target_link_libraries(memParallelPP PRIVATE libFastBufferTree.a)
+# optimize unless debug
+if (DEFINED ENV{DEBUG})
+  message("Disabling optimizations and enabling debug symbols")
+  target_compile_options(memParallelPP PRIVATE -g -fopenmp)
+  target_link_options(memParallelPP PRIVATE -fopenmp)
+else ()
+  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    target_compile_options(memParallelPP PRIVATE -O3 -fopenmp)
+    target_link_options(memParallelPP PRIVATE -fopenmp)
+  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    target_compile_options(memParallelPP PRIVATE /O2)
   endif()
 endif ()
