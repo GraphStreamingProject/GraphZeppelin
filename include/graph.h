@@ -66,6 +66,11 @@ public:
    */
   vector<set<Node>> connected_components();
 
+  /**
+   * Parallel version of Boruvka.
+   * @return a vector of the connected components in the graph.
+   */
+  vector<set<Node>> parallel_connected_components();
   /*
    * Call this function to indicate to the graph that it should
    * begin accepting updates again. It is important that the sketches

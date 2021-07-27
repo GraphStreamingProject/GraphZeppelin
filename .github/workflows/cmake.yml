@@ -98,3 +98,16 @@ jobs:
         run: |
           mkdir BUFFTREEDATA
           ./tests
+
+      - name: In-memory Parallel Post-Proc Testing
+        working-directory: ${{runner.workspace}}/build
+        shell: bash
+        run: ./parallelPP
+
+      - name: Buffer Tree Parallel Post-Proc Testing
+        working-directory: ${{runner.workspace}}/build
+        shell: bash
+        run: |
+          rm -r BUFFTREEDATA
+          mkdir BUFFTREEDATA
+          ./parallelPP
