@@ -10,7 +10,7 @@ Supernode::Supernode(uint64_t n, long seed): sketches(log2(n)), idx(0), logn(log
 (n)), seed(seed), n(n) {
   // generate logn sketches for each supernode (read: node)
   for (int i=0;i<logn;++i)
-    sketches[i] = new Sketch(n*n, seed);
+    sketches[i] = new Sketch(n*n, seed++);
 }
 
 Supernode::~Supernode() {
@@ -22,12 +22,10 @@ boost::optional<Edge> Supernode::sample() {
   if (idx == logn) throw OutOfQueriesException();
   vec_t query_idx;
   try {
-    query_idx = sketches[idx]->query();
+    query_idx = sketches[idx++]->query();
   } catch (AllBucketsZeroException &e) {
-    ++idx;
     return {};
   }
-  ++idx;
   return inv_nondir_non_self_edge_pairing_fn(query_idx);
 }
 
