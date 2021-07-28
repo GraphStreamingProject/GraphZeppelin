@@ -32,7 +32,7 @@ boost::optional<Edge> Supernode::sample() {
 }
 
 void Supernode::merge(Supernode &other) {
-  idx = max(idx, other.idx);
+  idx = std::max(idx, other.idx);
   for (int i=idx;i<logn;++i) {
   	sketches[i] += other.sketches[i];
   }
@@ -74,3 +74,16 @@ void Supernode::batch_update(const std::vector<vec_t>& updates) {
   }
   apply_deltas(deltas);
 }
+
+void Supernode::apply_deltas(const std::vector<Sketch> &deltas)
+{
+    if (deltas.size() != sketches.size()) throw std::exception();
+    std::lock_guard<std::mutex> lk(node_mt);
+    #pragma omp parallel for num_threads(GraphWorker::get_group_size()) default(none) shared(sketches,deltas)
+    for (size_t i = 0; i < sketches.size(); ++i)
+    {
+      sketches[i] += deltas[i];
+    }
+  };
+
+

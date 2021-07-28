@@ -9,7 +9,7 @@
  * @param input_file the file to read input from.
  * @return an array of connected components.
  */
-std::vector<std::set<Node>> kruskal(const string& input_file = "cum_sample.txt");
+std::vector<std::set<Node>> kruskal(const std::string& input_file = "cum_sample.txt");
 
 /**
  * A plugin for the Graph class that runs Boruvka alongside the graph algorithm
@@ -23,7 +23,7 @@ class GraphVerifier {
   Node* parent;
   Node* size;
 public:
-  GraphVerifier(const string& input_file = "./cum_sample.txt");
+  GraphVerifier(const std::string& input_file = "./cum_sample.txt");
   ~GraphVerifier();
   /**
    * Verifies an edge exists in the graph. Verifies that the edge is in the cut
@@ -46,17 +46,17 @@ public:
    * Verifies the connected components solution is correct. Compares
    * retval against kruskal_ref.
    */
-  void verify_soln(vector<set<Node>>& retval);
+  void verify_soln(std::vector<std::set<Node>>& retval);
 };
 
-class BadEdgeException : public exception {
+class BadEdgeException : public std::exception {
   virtual const char* what() const throw() {
     return "The edge is not in the cut of the sample! (standard)";
   }
 };
 
 
-class NotCCException : public exception {
+class NotCCException : public std::exception {
   virtual const char* what() const throw() {
     return "The supernode is not a connected component. It has edges in its "
            "cut!";

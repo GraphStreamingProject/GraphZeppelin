@@ -2,8 +2,6 @@
 #include <boost/optional.hpp>
 #include "sketch.h"
 
-using namespace std;
-
 typedef uint64_t Node;
 typedef std::pair<Node, Node> Edge;
 
@@ -28,7 +26,7 @@ public:
    * @param seed  the (fixed) seed value passed to each supernode.
    *
    */
-  vector<Sketch> sketches;
+  std::vector<Sketch> sketches;
   Supernode(uint64_t n, long seed);
   ~Supernode();
 
@@ -63,21 +61,12 @@ public:
   
   const std::vector<Sketch> &get_sketches() const { return sketches; };
   
-  void apply_deltas(const std::vector<Sketch> &deltas)
-  {
-    if (deltas.size() != sketches.size()) throw std::exception();
-    std::lock_guard<std::mutex> lk(node_mt);
-    for (size_t i = 0; i < sketches.size(); ++i)
-    {
-      sketches[i] += deltas[i];
-    }
-  };
-
+  void apply_deltas(const std::vector<Sketch> &deltas);
 
 };
 
 
-class OutOfQueriesException : public exception {
+class OutOfQueriesException : public std::exception {
   virtual const char* what() const throw() {
     return "This supernode cannot be sampled more times!";
   }

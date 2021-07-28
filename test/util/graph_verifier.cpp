@@ -17,9 +17,9 @@ void dsu_union(Node i, Node j, Node* parent, Node* size) {
   size[i] += size[j];
 }
 
-GraphVerifier::GraphVerifier(const string &input_file) {
+GraphVerifier::GraphVerifier(const std::string &input_file) {
   kruskal_ref = kruskal(input_file);
-  ifstream in(input_file);
+  std::ifstream in(input_file);
   Node n,m; in >> n >> m;
   Node a,b;
   parent = (Node*) malloc(n*sizeof(Node));
@@ -43,8 +43,8 @@ GraphVerifier::~GraphVerifier() {
   free(size);
 }
 
-std::vector<std::set<Node>> kruskal(const string& input_file) {
-  ifstream in(input_file);
+std::vector<std::set<Node>> kruskal(const std::string& input_file) {
+  std::ifstream in(input_file);
   Node n, m; in >> n >> m;
   Node* parent = (Node*) malloc(n*sizeof(Node));
   Node* size = (Node*) malloc(n*sizeof(Node));
@@ -103,10 +103,10 @@ void GraphVerifier::verify_cc(Node node) {
   throw NotCCException();
 }
 
-void GraphVerifier::verify_soln(vector<set<Node>> &retval) {
-  vector<set<Node>> temp {retval};
-  sort(temp.begin(),temp.end());
-  sort(kruskal_ref.begin(),kruskal_ref.end());
+void GraphVerifier::verify_soln(std::vector<std::set<Node>> &retval) {
+  std::vector<std::set<Node>> temp {retval};
+  std::sort(temp.begin(),temp.end());
+  std::sort(kruskal_ref.begin(),kruskal_ref.end());
   assert(kruskal_ref == temp);
-  cout << "Solution ok: " << retval.size() << " CCs found." << endl;
+  std::cout << "Solution ok: " << retval.size() << " CCs found." << std::endl;
 }

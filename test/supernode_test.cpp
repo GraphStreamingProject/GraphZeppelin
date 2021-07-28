@@ -4,6 +4,7 @@
 #include <thread>
 #include "../include/supernode.h"
 #include "../include/graph_worker.h"
+using namespace std;
 
 const long seed = 7000000001;
 const unsigned long long int num_nodes = 2000;
