@@ -41,6 +41,7 @@ TEST(GraphTestSuite, SmallGraphMPI) {
   }
   g.set_cum_in(curr_dir + "/res/multiples_graph_1024.txt");
   ASSERT_EQ(78, g.connected_components().size());
+  //std::cout << "SmallGraphMPI test complete" << std::endl;
 }
 
 TEST(GraphTestSuite, LargeGraphMPI){

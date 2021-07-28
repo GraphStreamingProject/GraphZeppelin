@@ -139,7 +139,7 @@ vector<set<Node>> Graph::connected_components() {
   end_time = std::chrono::steady_clock::now();
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
-
+  //std::cout << "Work queue completely dealt with" << std::endl;
   do {
     modified = false;
     vector<Node> removed;
@@ -172,6 +172,7 @@ vector<set<Node>> Graph::connected_components() {
   retval.reserve(temp.size());
   for (const auto& it : temp) retval.push_back(it.second);
   CC_end_time = std::chrono::steady_clock::now();
+  //std::cout << "CC completed" << std::endl;
   return retval;
 }
 

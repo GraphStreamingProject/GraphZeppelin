@@ -79,7 +79,7 @@ void Supernode::apply_deltas(const std::vector<Sketch> &deltas)
 {
     if (deltas.size() != sketches.size()) throw std::exception();
     std::lock_guard<std::mutex> lk(node_mt);
-    #pragma omp parallel for num_threads(GraphWorker::get_group_size()) default(none) shared(sketches,deltas)
+    //#pragma omp parallel for num_threads(GraphWorker::get_group_size()) default(none) shared(sketches,deltas)
     for (size_t i = 0; i < sketches.size(); ++i)
     {
       sketches[i] += deltas[i];

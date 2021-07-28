@@ -60,11 +60,9 @@ int main(int argc, char** argv) {
 	      MPI_Probe(0,MPI_ANY_TAG,MPI_COMM_WORLD,&status);
 	      if (status.MPI_TAG == 1){
                         char bytestream[1];
-                        //std::cout << "Worker with id " << procid << " receiving terminate signal from MasterA" << std::endl;
+                        //std::cout << "Worker with id " << procid << " receiving terminate signal from Master" << std::endl;
                         MPI_Recv(&bytestream[0],1,MPI_CHAR,0,1,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
                         //std::cout << "Worker with id " << procid << " received terminate signal from MasterA, sending terminate signal to MasterB" << std::endl;
-                        MPI_Send(&bytestream[0],1,MPI_CHAR,0,1,MPI_COMM_WORLD);
-                        //std::cout << "Worker with id " << procid << " successfuly sent terminate signal to MasterB. Now exiting" << std::endl;
                         break;
               }
 	      int number_amount = 0;
