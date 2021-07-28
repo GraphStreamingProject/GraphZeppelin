@@ -49,6 +49,8 @@ class Graph{
   WorkQueue *wq;
 #endif
 public:
+  std::chrono::steady_clock::time_point end_time;
+  std::chrono::steady_clock::time_point CC_end_time;
   time_t seed = 0;
   const uint64_t num_nodes;
   Supernode** supernodes;
@@ -82,16 +84,15 @@ public:
 #endif
 
 #ifdef VERIFY_SAMPLES_F
-  std::string cum_in = "../test/res/multiples_graph_1024.txt";
-
+  std::string cum_in = "./cum_sample.txt";
   /**
    * Set the filepath to search for cumulative graph input.
    */
   void set_cum_in(const std::string input_file) {
     cum_in = input_file;
   }
-#endif
 };
+#endif
 
 
 class UpdateLockedException : public exception {

@@ -26,12 +26,11 @@ int main(int argc, char** argv) {
   int num_sketches = 10;
   ierr = MPI_Comm_rank(MPI_COMM_WORLD,&procid);
   ierr = MPI_Comm_size(MPI_COMM_WORLD,&P);
-  printf("procid: %d\n",procid);
   testing::InitGoogleTest(&argc, argv);
   int result = 0;
   //master node runs tests
   if (procid == 0){
-	std::cout << "In master node" << std::endl;
+	//std::cout << "In master node" << std::endl;
 	result = RUN_ALL_TESTS();
   }
   //worker nodes wait for work and then compute
@@ -57,15 +56,15 @@ int main(int argc, char** argv) {
 	}
 	while(true){
 	      MPI_Status status;
-	      std::cout << "Worker probing " << procid << std::endl;
+	      //std::cout << "Worker probing " << procid << std::endl;
 	      MPI_Probe(0,MPI_ANY_TAG,MPI_COMM_WORLD,&status);
 	      if (status.MPI_TAG == 1){
                         char bytestream[1];
-                        std::cout << "Worker with id " << procid << " receiving terminate signal from MasterA" << std::endl;
+                        //std::cout << "Worker with id " << procid << " receiving terminate signal from MasterA" << std::endl;
                         MPI_Recv(&bytestream[0],1,MPI_CHAR,0,1,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-                        std::cout << "Worker with id " << procid << " received terminate signal from MasterA, sending terminate signal to MasterB" << std::endl;
-                        MPI_Ssend(&bytestream[0],1,MPI_CHAR,0,1,MPI_COMM_WORLD);
-                        std::cout << "Worker with id " << procid << " successfuly sent terminate signal to MasterB. Now exiting" << std::endl;
+                        //std::cout << "Worker with id " << procid << " received terminate signal from MasterA, sending terminate signal to MasterB" << std::endl;
+                        MPI_Send(&bytestream[0],1,MPI_CHAR,0,1,MPI_COMM_WORLD);
+                        //std::cout << "Worker with id " << procid << " successfuly sent terminate signal to MasterB. Now exiting" << std::endl;
                         break;
               }
 	      int number_amount = 0;
@@ -73,9 +72,9 @@ int main(int argc, char** argv) {
 	      //std::cout << "Number amount: " << number_amount << std::endl;
 	      char bytestream[number_amount];
 	      //first receive the work
-	      std::cout << "Worker receiving work" << std::endl;
+	      //std::cout << "Worker receiving work" << std::endl;
 	      int ierr = MPI_Recv(&bytestream[0], number_amount, MPI_CHAR, 0, 0, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-	      std::cout << "Worker received work: " << std::endl;
+	      //std::cout << "Worker received work: " << std::endl;
 	      data_ret_t batched_updates = WorkQueue::deserialize_data_ret_t(bytestream);
 	      std::vector<vec_t> updates = Graph::make_updates(batched_updates.first,batched_updates.second);
 	      uint64_t node = batched_updates.first;
@@ -102,12 +101,12 @@ int main(int argc, char** argv) {
 	      //}
 	      std::string temp_string = serial_str; 
 	      //send serialized result to master
-	      std::cout << "Worker about to Send back to master " << procid << std::endl;
-	      std::cout << "serial_str size: " << serial_str.size() << std::endl;
-	      MPI_Ssend(temp_string.c_str(),temp_string.length(), MPI_CHAR, 0, 0, MPI_COMM_WORLD);
-	      std::cout << "Worker sent back to master " << procid << std::endl;
+	      //std::cout << "Worker about to Send back to master " << procid << std::endl;
+	      //std::cout << "serial_str size: " << serial_str.size() << std::endl;
+	      MPI_Send(temp_string.c_str(),temp_string.length(), MPI_CHAR, 0, 0, MPI_COMM_WORLD);
+	      //std::cout << "Worker sent back to master " << procid << std::endl;
 	}
-  	std::cout << "Worker with id: " << procid << " gracefully terminating" << std::endl;
+  	//std::cout << "Worker with id: " << procid << " gracefully terminating" << std::endl;
   }
   ierr = MPI_Finalize();
   return result;

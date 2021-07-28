@@ -114,7 +114,7 @@ GraphWorker::~GraphWorker() {
 
 void GraphWorker::do_work() {
 	data_ret_t data;
-	std::cout << "doing work\n";
+	//std::cout << "doing work\n";
 	int num_machines = 1;
 	MPI_Comm_size(MPI_COMM_WORLD,&num_machines);
 	int count = 0;
@@ -145,7 +145,7 @@ void GraphWorker::do_work() {
 #else
 				bool valid = wq->get_data(data);
 #endif
-				std::cout << "MasterA about to send data" << std::endl;
+				//std::cout << "MasterA about to send data" << std::endl;
 	
 				if (valid){
 		   			//std::cout << "Valid" << std::endl;			
@@ -158,24 +158,24 @@ void GraphWorker::do_work() {
 					//char* bytestream = &bytestream_vector[0];
 					//std::cout << "Size: " << bytestream_vector.size() << std::endl;
 					//std::cout << "Data: " << (int)bytestream[0] << std::endl;
-					std::cout << "MasterA sending data " << std::endl;
-					std::cout << count++ << std::endl;
-					int ierr = MPI_Ssend(bytestream, bytestream_vector.size(), MPI_CHAR, next_worker, 0, MPI_COMM_WORLD);
-					std::cout << "MasterA receiving data " << std::endl;
+					//std::cout << "MasterA sending data " << std::endl;
+					//std::cout << count++ << std::endl;
+					int ierr = MPI_Send(bytestream, bytestream_vector.size(), MPI_CHAR, next_worker, 0, MPI_COMM_WORLD);
+					//std::cout << "MasterA receiving data " << std::endl;
 					//graph->batch_update(data.first, data.second);
 					(next_worker += 1) %= num_machines;
 					if (next_worker == 0){
 					   next_worker++;
 					}
 				}else if (paused){
-	     			   std::cout << "Out of data" << std::endl;
+	     			   //std::cout << "Out of data" << std::endl;
 				   char* bytestream = "2";
 				   for (int i = 1; i < num_machines; i++){
-					std::cout << "MasterA sending STOP condition to worker with rank: " << i << std::endl;
-					int ierr = MPI_Ssend(bytestream, 1, MPI_CHAR, i, 1, MPI_COMM_WORLD);
-					std::cout << "MasterA successfully sent STOP condition to worker with rank: " << i << std::endl;
+					//std::cout << "MasterA sending STOP condition to worker with rank: " << i << std::endl;
+					int ierr = MPI_Send(bytestream, 1, MPI_CHAR, i, 1, MPI_COMM_WORLD);
+					//std::cout << "MasterA successfully sent STOP condition to worker with rank: " << i << std::endl;
 				   }
-				   std::cout << "MasterA successfully sent STOP condition to all worker nodes." << std::endl;
+				   //std::cout << "MasterA successfully sent STOP condition to all worker nodes." << std::endl;
 				   return;
 				}
 			//}
@@ -192,36 +192,36 @@ void GraphWorker::do_work() {
 			//std::cout << "MasterB" << std::endl;
 			//receive the results from the worker
 			MPI_Status status;
-			std::cout << "MasterB probing worker with rank: " << j << std::endl;
+			//std::cout << "MasterB probing worker with rank: " << j << std::endl;
 			MPI_Probe(j,MPI_ANY_TAG,MPI_COMM_WORLD,&status);
-			std::cout << "MasterB done probing worker with rank: " << j << std::endl;
+			//std::cout << "MasterB done probing worker with rank: " << j << std::endl;
 			/*THE ABOVE 
 			 *
 			 */
 			if (status.MPI_TAG == 1){
-				std::cout << "MasterB received stop probe from worker with id: " << j << std::endl;
+				//std::cout << "MasterB received stop probe from worker with id: " << j << std::endl;
 				completed_workers++;
 				worker_complete[j] = true;
 				char bytestream[1];
-				std::cout << "MasterB trying to receive stop signal from worker with id: " << j << std::endl;
+				//std::cout << "MasterB trying to receive stop signal from worker with id: " << j << std::endl;
 				MPI_Recv(&bytestream[0],1,MPI_CHAR,j,1,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-				std::cout << "MasterB received stop signal from worker with id: " << j << std::endl;
+				//std::cout << "MasterB received stop signal from worker with id: " << j << std::endl;
 				if (completed_workers == num_machines - 1){
-					std::cout << "MasterB received stop signal from all workers!" << std::endl;
+					//std::cout << "MasterB received stop signal from all workers!" << std::endl;
 					std::lock_guard<std::mutex> lk(pause_lock);
 					all_workers_completed = true;
 					pause_condition.notify_all();		
-					std::cout << "MasterB gracefully terminating" << std::endl;
+					//std::cout << "MasterB gracefully terminating" << std::endl;
 					return;
 				}
 			}else{
 				int number_amount = 0;
 				MPI_Get_count(&status, MPI_CHAR, &number_amount);
-				std::cout << "Probe messaged size: " << number_amount << std::endl;
+				//std::cout << "Probe messaged size: " << number_amount << std::endl;
 				char bytestream[number_amount];
-				std::cout << "MasterB receiving" << std::endl;
+				//std::cout << "MasterB receiving" << std::endl;
 				int ierr = MPI_Recv(&bytestream[0], number_amount, MPI_CHAR, j, 0, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-				std::cout << "MasterB received" << std::endl;
+				//std::cout << "MasterB received" << std::endl;
 			
 				//deserialize the results into a vector of sketches
 				std::string serial_str(bytestream,number_amount);
@@ -239,7 +239,7 @@ void GraphWorker::do_work() {
 				//std::cout << "Sketch seed at master after serialization: " << supernode.sketches[7].seed << std::endl;
 				//apply the sketch deltas to the graph
 				graph->apply_supernode_deltas(node,supernode.sketches);
-                       	        std::cout << "Done applying deltas" << std::endl;
+                       	        //std::cout << "Done applying deltas" << std::endl;
 			}	
 			if (j == num_machines - 1){
 					j = 0;

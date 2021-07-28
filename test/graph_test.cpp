@@ -34,16 +34,58 @@ TEST(GraphTestSuite, SmallGraphMPI) {
   long m;
   in >> m;
   Node a, b;
-  std::cout << "Creating graph" << std::endl;
   Graph g{num_nodes};
-  std::cout << "Done greating graph" << std::endl;
   while (m--) {
     in >> a >> b;
     g.update({{a, b}, UpdateType::INSERT});
   }
-  std::cout << "Done reading in updates" << std::endl;
   g.set_cum_in(curr_dir + "/res/multiples_graph_1024.txt");
   ASSERT_EQ(78, g.connected_components().size());
+}
+
+TEST(GraphTestSuite, LargeGraphMPI){
+  ifstream in{"/mnt/kron_13_unique_half_stream.txt"};
+
+  Node num_nodes;
+  in >> num_nodes;
+  long m;
+  in >> m;
+  long total = m;
+  Node a, b;
+  uint8_t u;
+  Graph g{num_nodes};
+
+  auto start = std::chrono::steady_clock::now();
+  std::tuple<uint32_t, uint32_t, bool> edge;
+  while (m--) {
+    in >> std::skipws >> u >> a >> b;
+
+    if (u == static_cast<int>(UpdateType::INSERT))
+      g.update({{a, b}, UpdateType::INSERT});
+    else
+      g.update({{a, b}, UpdateType::DELETE});
+  }
+
+  std::cout << "Starting CC" << std::endl;
+
+  uint64_t num_CC = g.connected_components().size();
+  long double time_taken = static_cast<std::chrono::duration<long double>>(g.end_time - start).count();
+  long double CC_time = static_cast<std::chrono::duration<long double>>(g.CC_end_time - g.end_time).count();
+
+  ofstream out{"runtime_stats.txt"}; // open the outfile
+  std::cout << "Number of connected components is " << num_CC << std::endl;
+  std::cout << "Writing runtime stats to runtime_stats.txt\n";
+
+  std::chrono::duration<double> runtime  = g.end_time - start;
+
+  // calculate the insertion rate and write to file
+  // insertion rate measured in stream updates 
+  // (not in the two sketch updates we process per stream update)
+  float ins_per_sec = (((float)(total)) / runtime.count());
+  out << "Procesing " <<total << " updates took " << time_taken << " seconds, " << ins_per_sec << " per second\n";
+
+  out << "Connected Components algorithm took " << CC_time << " and found " << num_CC << " CC\n";
+  out.close();
 }
 
 

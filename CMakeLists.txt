@@ -296,7 +296,7 @@ elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
 endif()
 
 add_executable(experiment
-  test/test_runner.cpp
+  work_queue.cpp
   test/experiment/BCHMK_Graph.cpp
   test/util/graph_verifier.cpp
   test/util/graph_gen.cpp
@@ -307,7 +307,7 @@ add_executable(experiment
   l0_sampling/sketch.cpp
   l0_sampling/update.cpp
   util.cpp)
-target_link_libraries(experiment PRIVATE xxHash::xxhash GTest::gtest  ${MPI_LIBRARIES} rt) 
+target_link_libraries(experiment PRIVATE xxHash::xxhash GTest::gtest  ${MPI_LIBRARIES}) 
 target_compile_definitions(experiment PRIVATE)
 # dependencies
 add_dependencies(experiment BufferTree)

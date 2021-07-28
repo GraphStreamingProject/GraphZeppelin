@@ -14,16 +14,15 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
   supernodes = new Supernode*[num_nodes];
   parent = new Node[num_nodes];
   seed = time(nullptr);
+  //seed = 38382;
   for (Node i=0;i<num_nodes;++i) {
     representatives->insert(i);
     supernodes[i] = new Supernode(num_nodes,seed);
     parent[i] = i;
   }
   std::string buffer_loc_prefix = configure_system(); // read the configuration file to configure the system
-  std::cout << "Done configuring" << std::endl;
 #ifdef USE_FBT_F
   // Create buffer tree and start the graphWorkers
-  std::cout << "Using buffer tree" << std:;endl;
   bf = new BufferTree(buffer_loc_prefix, (1<<20), 16, num_nodes, GraphWorker::get_num_groups(), true);
   GraphWorker::start_workers(this, bf);
 #else
@@ -31,7 +30,6 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
   node_size /= sizeof(Node);
   wq = new WorkQueue(node_size, num_nodes, 2*GraphWorker::get_num_groups());
   GraphWorker::start_workers(this, wq);
-  std::cout << "done starting workers" << std::endl;
 #endif
 }
 
@@ -109,7 +107,6 @@ const std::vector<Sketch> &Graph::get_supernode_sketches(uint64_t src) const
 
 void Graph::apply_supernode_deltas(uint64_t src, const std::vector<Sketch>& deltas)
 {
-  std::cout << "Applying deltas" << std::endl;
   supernodes[src]->apply_deltas(deltas);
 }
 
@@ -139,12 +136,9 @@ vector<set<Node>> Graph::connected_components() {
 #endif
   GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
   // after this point all updates have been processed from the buffer tree
-
+  end_time = std::chrono::steady_clock::now();
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
-#ifdef VERIFY_SAMPLES_F
-  GraphVerifier verifier {cum_in};
-#endif
 
   do {
     modified = false;
@@ -152,14 +146,7 @@ vector<set<Node>> Graph::connected_components() {
     for (Node i: (*representatives)) {
       if (parent[i] != i) continue;
       boost::optional<Edge> edge = supernodes[i]->sample();
-#ifdef VERIFY_SAMPLES_F
-      if (edge.is_initialized())
-        verifier.verify_edge(edge.value());
-      else
-        verifier.verify_cc(i);
-#endif
       if (!edge.is_initialized()) continue;
-
       Node n;
       // DSU compression
       if (get_parent(edge->first) == i) {
@@ -184,10 +171,7 @@ vector<set<Node>> Graph::connected_components() {
   vector<set<Node>> retval;
   retval.reserve(temp.size());
   for (const auto& it : temp) retval.push_back(it.second);
-#ifdef VERIFY_SAMPLES_F
-  verifier.verify_soln(retval);
-#endif
-
+  CC_end_time = std::chrono::steady_clock::now();
   return retval;
 }
 
