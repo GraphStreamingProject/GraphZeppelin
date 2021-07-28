@@ -15,7 +15,7 @@
 class WorkQueue {
   const uint32_t buffer_size; // size of a buffer (including metadata)
   CircularQueue cq;
-  std::vector<Node*> buffers; // array dump of numbers for performance: DO NOT
+  std::vector<node_id_t*> buffers; // array dump of numbers for performance: DO NOT
   // try to access directly!
 
   /**

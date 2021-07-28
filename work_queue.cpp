@@ -49,7 +49,7 @@ bool WorkQueue::get_data(data_ret_t &data) {
 
   int i         = queue_data.first;
   queue_elm elm = queue_data.second;
-  Node *serial_data = reinterpret_cast<node_id_t *>(elm.data);
+  node_id_t *serial_data = reinterpret_cast<node_id_t *>(elm.data);
   uint32_t len      = elm.size;
   assert(len % sizeof(node_id_t) == 0);
 
