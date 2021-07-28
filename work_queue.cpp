@@ -24,12 +24,12 @@ WorkQueue::~WorkQueue() {
   }
 }
 
-void WorkQueue::flush(Node *buffer, uint32_t num_bytes) {
+void WorkQueue::flush(node_id_t *buffer, uint32_t num_bytes) {
   cq.push(reinterpret_cast<char *>(buffer), num_bytes);
 }
 
 insert_ret_t WorkQueue::insert(update_t upd) {
-  Node& idx = buffers[upd.first][0];
+  node_id_t& idx = buffers[upd.first][0];
   buffers[upd.first][idx] = upd.second;
   ++idx;
   if (idx == buffer_size) { // full, so request flush
