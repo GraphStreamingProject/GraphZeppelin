@@ -30,7 +30,7 @@ void WorkQueue::flush(node_id_t *buffer, uint32_t num_bytes) {
 
 insert_ret_t WorkQueue::insert(update_t upd) {
   node_id_t& idx = buffers[upd.first][0];
-  buffers[upd.first][idx] = upd.second;
+  buffers[upd.first][idx] = (node_id_t) upd.second;
   ++idx;
   if (idx == buffer_size) { // full, so request flush
     flush(buffers[upd.first], buffer_size*sizeof(node_id_t));
@@ -75,7 +75,7 @@ bool WorkQueue::get_data(data_ret_t &data) {
 flush_ret_t WorkQueue::force_flush() {
   for (auto & buffer : buffers) {
     if (buffer[0] != first_idx) { // have stuff to flush
-      flush(buffer, buffer[0]*sizeof(Node));
+      flush(buffer, buffer[0]*sizeof(node_id_t));
       buffer[0] = first_idx;
     }
   }
