@@ -8,10 +8,10 @@
 const unsigned first_idx = 2;
 
 WorkQueue::WorkQueue(uint32_t buffer_size, Node nodes, int queue_len) :
-buffer_size(buffer_size), cq(queue_len,buffer_size*sizeof(Node)),
+buffer_size(buffer_size), cq(queue_len,buffer_size*sizeof(node_id_t)),
 buffers(nodes) {
   for (Node i = 0; i < nodes; ++i) {
-    buffers[i] = static_cast<Node *>(malloc(buffer_size * sizeof(Node)));
+    buffers[i] = static_cast<node_id_t *>(malloc(buffer_size * sizeof(node_id_t)));
     buffers[i][0] = first_idx; // first spot will point to the next free space
     buffers[i][1] = i; // second spot identifies the node to which the buffer
     // belongs
@@ -33,7 +33,7 @@ insert_ret_t WorkQueue::insert(update_t upd) {
   buffers[upd.first][idx] = upd.second;
   ++idx;
   if (idx == buffer_size) { // full, so request flush
-    flush(buffers[upd.first], buffer_size*sizeof(Node));
+    flush(buffers[upd.first], buffer_size*sizeof(node_id_t));
     idx = first_idx;
   }
 }
@@ -49,9 +49,9 @@ bool WorkQueue::get_data(data_ret_t &data) {
 
   int i         = queue_data.first;
   queue_elm elm = queue_data.second;
-  Node *serial_data = reinterpret_cast<Node *>(elm.data);
+  Node *serial_data = reinterpret_cast<node_id_t *>(elm.data);
   uint32_t len      = elm.size;
-  assert(len % sizeof(Node) == 0);
+  assert(len % sizeof(node_id_t) == 0);
 
   if (len == 0)
     return false; // we got no data so return not valid
@@ -61,7 +61,7 @@ bool WorkQueue::get_data(data_ret_t &data) {
   data.first = key;
 
   data.second.clear(); // remove any old data from the vector
-  uint32_t vec_len  = len / sizeof(Node);
+  uint32_t vec_len  = len / sizeof(node_id_t);
   data.second.reserve(vec_len); // reserve space for our updates
 
   for (uint32_t j = first_idx; j < vec_len; ++j) {
