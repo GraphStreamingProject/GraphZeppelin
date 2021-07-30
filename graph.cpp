@@ -66,7 +66,7 @@ void Graph::ingest_graph(std::string path)
         std::cout << i << " of " << m << " processed, running at " << i / (elapsed_seconds.count() * 1e6) << " million edges per second" << std::endl;
       }
   }
-  std::cout << connected_components().size() << std::endl;
+  //std::cout << connected_components().size() << std::endl;
 }
 
 

@@ -191,6 +191,11 @@ link_directories(${CMAKE_CURRENT_BINARY_DIR}/BufferTree/prefix/lib)
 #                    (github.com/Victor-C-Zhang/FastBufferTree) to buffer updates
 # instead of in-memory buffering.
 
+message("Hello World!")
+message( ${CMAKE_CURRENT_SOURCE_DIR} )
+message(${CMAKE_CURRENT_BINARY_DIR})
+message(${CMAKE_COMMAND})
+
 add_executable(tests
   test/test_runner.cpp
   test/graph_test.cpp
