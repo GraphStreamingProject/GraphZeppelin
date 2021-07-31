@@ -168,11 +168,17 @@ link_directories(${CMAKE_CURRENT_BINARY_DIR}/BufferTree/prefix/lib)
 
 # AVAILABLE COMPILATION DEFINITIONS:
 # VERIFY_SAMPLES_F   Use a deterministic connected-components algorithm to
-#                    verify post-processing
+#                    verify post-processing.
+#
 # USE_NATIVE_F       ???
+#
 # USE_FBT_F          Use a Fast Buffer Tree living on secondary storage
 #                    (github.com/Victor-C-Zhang/FastBufferTree) to buffer updates
 #                    instead of in-memory buffering.
+#
+# PARALLEL_PP_F      Use parallel post-processing (connected components)
+#                    function.
+
 
 add_executable(tests
   test/test_runner.cpp
@@ -191,8 +197,7 @@ add_executable(tests
   l0_sampling/update.cpp
   util.cpp)
 target_link_libraries(tests PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F
-    USE_FBT_F)
+target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F USE_FBT_F)
 # dependencies
 add_dependencies(tests BufferTree)
 target_link_libraries(tests PRIVATE libFastBufferTree.a)
@@ -228,7 +233,7 @@ add_executable(mem_tests
     l0_sampling/update.cpp
     util.cpp)
 target_link_libraries(mem_tests PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(mem_tests PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F)
+target_compile_definitions(mem_tests PRIVATE VERIFY_SAMPLES_F)
 # dependencies
 add_dependencies(mem_tests BufferTree)
 target_link_libraries(mem_tests PRIVATE libFastBufferTree.a)
@@ -261,6 +266,7 @@ endif()
 add_executable(experiment
   test/test_runner.cpp
   test/experiment/BCHMK_Graph.cpp
+  test/experiment/BCHMK_post_proc.cpp
   test/util/graph_verifier.cpp
   test/util/graph_gen.cpp
   graph.cpp
@@ -316,5 +322,66 @@ else ()
     target_link_options(cont_test PRIVATE -fopenmp)
   elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
     target_compile_options(cont_test PRIVATE /O2)
+  endif()
+endif ()
+
+add_executable(parallelPP
+    test/test_runner.cpp
+    test/util/graph_gen.cpp
+    test/util/graph_verifier.cpp
+    test/parallel_graph_test.cpp
+    graph.cpp
+    supernode.cpp
+    graph_worker.cpp
+    l0_sampling/sketch.cpp
+    l0_sampling/update.cpp
+    util.cpp)
+target_link_libraries(parallelPP PRIVATE xxHash::xxhash GTest::gtest)
+target_compile_definitions(parallelPP PRIVATE USE_FBT_F PARALLEL_PP_F VERIFY_SAMPLES_F)
+# dependencies
+add_dependencies(parallelPP BufferTree)
+target_link_libraries(parallelPP PRIVATE libFastBufferTree.a)
+# optimize unless debug
+if (DEFINED ENV{DEBUG})
+  message("Disabling optimizations and enabling debug symbols")
+  target_compile_options(parallelPP PRIVATE -g -fopenmp)
+  target_link_options(parallelPP PRIVATE -fopenmp)
+else ()
+  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    target_compile_options(parallelPP PRIVATE -O3 -fopenmp)
+    target_link_options(parallelPP PRIVATE -fopenmp)
+  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    target_compile_options(parallelPP PRIVATE /O2)
+  endif()
+endif ()
+
+add_executable(memParallelPP
+        test/test_runner.cpp
+        test/util/graph_gen.cpp
+        test/util/graph_verifier.cpp
+        test/parallel_graph_test.cpp
+        graph.cpp
+        supernode.cpp
+        graph_worker.cpp
+        work_queue.cpp
+        l0_sampling/sketch.cpp
+        l0_sampling/update.cpp
+        util.cpp)
+target_link_libraries(memParallelPP PRIVATE xxHash::xxhash GTest::gtest)
+target_compile_definitions(memParallelPP PRIVATE PARALLEL_PP_F VERIFY_SAMPLES_F)
+# dependencies
+add_dependencies(memParallelPP BufferTree)
+target_link_libraries(memParallelPP PRIVATE libFastBufferTree.a)
+# optimize unless debug
+if (DEFINED ENV{DEBUG})
+  message("Disabling optimizations and enabling debug symbols")
+  target_compile_options(memParallelPP PRIVATE -g -fopenmp)
+  target_link_options(memParallelPP PRIVATE -fopenmp)
+else ()
+  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    target_compile_options(memParallelPP PRIVATE -O3 -fopenmp)
+    target_link_options(memParallelPP PRIVATE -fopenmp)
+  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    target_compile_options(memParallelPP PRIVATE /O2)
   endif()
 endif ()

@@ -24,6 +24,8 @@ class Supernode {
   FRIEND_TEST(EXPR_Parallelism, N10kU100k);
 
 public:
+  const uint64_t n; // for creating a copy
+  const long seed; // for creating a copy
   /**
    * @param n     the total number of nodes in the graph.
    * @param seed  the (fixed) seed value passed to each supernode.
@@ -57,9 +59,21 @@ public:
 
   /**
    * Update all the sketches in a supernode, given a batch of updates.
-   * @param updates a vector of encoded edge updates to process.
+   * @param delta_node  a delta supernode created through calling
+   *                    Supernode::delta_supernode.
    */
-  void batch_update(const std::vector<vec_t>& updates);
+  void apply_delta_update(const Supernode* delta_node);
+
+  /**
+   * Create new delta supernode with given initial parmameters and batch of
+   * updates to apply.
+   * @param n       see declared constructor.
+   * @param seed    see declared constructor.
+   * @param updates the batch of updates to apply.
+   * @return
+   */
+  static Supernode* delta_supernode(uint64_t n, long seed, const
+  std::vector<vec_t>& updates);
 };
 
 
