@@ -1,7 +1,8 @@
 #include <utility>
-
+#include <string>
 #ifndef TEST_GRAPH_GEN_H
 #define TEST_GRAPH_GEN_H
+void write_cum(std::string stream_f, std::string cum_f);
 
 typedef struct genSet {
   long n;            // number of nodes

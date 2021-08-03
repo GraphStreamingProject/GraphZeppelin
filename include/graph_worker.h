@@ -50,7 +50,7 @@ public:
 
 	// manage configuration
 	// configuration should be set before calling start_workers
-	static const int factor = 2;
+	static const int factor = 1;
 	static int get_num_groups() {return num_groups;} // return the number of GraphWorkers
 	static int get_group_size() {return group_size;} // return the number of threads in each worker
 	static void set_config(int g, int s) { num_groups = g; group_size = s; }
@@ -63,7 +63,7 @@ private:
 	static void *start_worker(void *obj, int id) {
 	  cpu_set_t cpuset;
 	  CPU_ZERO(&cpuset);
-	  CPU_SET(id % 3, &cpuset);	  
+	  CPU_SET(id % 31, &cpuset);	  
 	  int rc = pthread_setaffinity_np(((GraphWorker *) obj)->thr.native_handle(),
 					  sizeof(cpu_set_t), &cpuset);
 	  if (rc != 0) {

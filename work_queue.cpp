@@ -9,71 +9,33 @@ const unsigned first_idx = 2;
 
 WorkQueue::WorkQueue(uint32_t buffer_size, Node nodes, int queue_len) :
 buffer_size(buffer_size), cq(queue_len,buffer_size*sizeof(Node)),
-buffers(nodes) {
+buffers() {
   for (Node i = 0; i < nodes; ++i) {
-    buffers[i] = static_cast<Node *>(malloc(buffer_size * sizeof(Node)));
-    buffers[i][0] = first_idx; // first spot will point to the next free space
-    buffers[i][1] = i; // second spot identifies the node to which the buffer
-    // belongs
+    buffers.emplace_back();
+    buffers[i].push_back(first_idx);
+    buffers[i].push_back(i);
   }
-  /* 
-  mq_attr attr;
-  attr.mq_maxmsg = 4;
-  attr.mq_msgsize = (buffer_size * sizeof(Node) + 100);
-  mqd = mq_open ("/BufferTree", O_CREAT | O_EXCL | O_WRONLY | O_NONBLOCK,  0600, &attr);
-
-  if (mqd == (mqd_t) -1)
-    {
-      std::cout << "Error: " << errno << std::endl;
-      exit(EXIT_FAILURE);
-    }
-   */
 }
 
 WorkQueue::~WorkQueue() {
-  for (auto & buffer : buffers) {
-    free(buffer);
-  }
 }
 
 void WorkQueue::flush(Node *buffer, uint32_t num_bytes) {
   cq.push(reinterpret_cast<char *>(buffer), num_bytes);
-  //push_data();
 }
 
-insert_ret_t WorkQueue::insert(update_t upd) {
-  Node& idx = buffers[upd.first][0];
-  buffers[upd.first][idx] = upd.second;
-  ++idx;
-  if (idx == buffer_size) { // full, so request flush
-    flush(buffers[upd.first], buffer_size*sizeof(Node));
-    idx = first_idx;
+insert_ret_t WorkQueue::insert(const update_t &upd) {
+  std::vector<Node> &ptr = buffers[upd.first];
+  ptr.emplace_back(upd.second);
+  if (ptr.size() == buffer_size) { // full, so request flush
+    ptr[0] = buffer_size;
+    flush(ptr.data(), buffer_size*sizeof(Node));
+    Node i = ptr[1];
+    ptr.clear();
+    ptr.push_back(first_idx);
+    ptr.push_back(i);
   }
 }
-/*
-void WorkQueue::push_data() {
-    data_ret_t data;
-    bool extracted_data = get_data(data);
-    if (!extracted_data)
-      {
-        return;
-      }
-
-    std::vector<char> serialized = serialize_data_ret_t(data);
-    data_ret_t new_dat = deserialize_data_ret_t(serialized.data());
-
-    int err = mq_send(mqd, serialized.data(), serialized.size(), 10);
-    while (err)
-      {
-        err = mq_send(mqd, serialized.data(), serialized.size(), 10);
-        if (errno != EAGAIN)
-          {
-            std::cout << errno << std::endl;
-            exit(EXIT_FAILURE);
-          }
-      }
-      
-}*/
 
 // basically a copy of BufferTree::get_data()
 bool WorkQueue::get_data(data_ret_t &data) {
@@ -111,9 +73,13 @@ bool WorkQueue::get_data(data_ret_t &data) {
 
 flush_ret_t WorkQueue::force_flush() {
   for (auto & buffer : buffers) {
-    if (buffer[0] != first_idx) { // have stuff to flush
-      flush(buffer, buffer[0]*sizeof(Node));
-      buffer[0] = first_idx;
+    if (buffer.size() > first_idx) { // have stuff to flush
+      buffer[0] = buffer.size();
+      flush(buffer.data(), buffer[0]*sizeof(Node));
+      Node i = buffer[1];
+      buffer.clear();
+      buffer.push_back(0);
+      buffer.push_back(i);
     }
   }
 }

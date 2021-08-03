@@ -1,7 +1,7 @@
 #TODO: write FindxxHash for libxxhash-dev compatibility?
 #Cmake for xxHash is unofficial, so libxxhash-dev doesn't have xxHashConfig.cmake
 
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.13)
 include (ExternalProject)
 
 set(CMAKE_CXX_STANDARD 11)
@@ -98,7 +98,7 @@ if(NOT GTest_FOUND)
 endif()
 
 #Find or download boost
-find_package(Boost 1.66.0 COMPONENTS serialization)
+find_package(Boost 1.65.0 COMPONENTS serialization)
 if(NOT Boost_FOUND)
   if(NOT AUTODOWNLOAD)
     message(FATAL_ERROR "Boost not found.\n"

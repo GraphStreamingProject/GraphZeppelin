@@ -119,9 +119,9 @@ GraphWorker::~GraphWorker() {
 void GraphWorker::do_work() {
 	//std::cout << "Starting thread with id: " << id << std::endl;
 	std::chrono::milliseconds total_time;
-	auto thread_start = std::chrono::high_resolution_clock::now();
+	//auto thread_start = std::chrono::high_resolution_clock::now();
 	std::vector<data_ret_t> data_buffer;
-	const int BUFF_SIZE = 4;
+	const int BUFF_SIZE = 1024;
 	int count = 0;
 	data_ret_t data;
         {	
@@ -138,17 +138,17 @@ void GraphWorker::do_work() {
 #ifdef USE_FBT_F
 		bool valid = bf->get_data(data);
 #else
-		auto start = std::chrono::high_resolution_clock::now();
+		//auto start = std::chrono::high_resolution_clock::now();
 		bool valid = wq->get_data(data);
-		total_work_queue += std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start);
+		//total_work_queue += std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start);
 #endif
 		if (valid){
-		        data_buffer.push_back(data);
-			//std::cout << "Master thread: " << id << " buffer size: " << (data_buffer.size()) << std::endl;
+		  data_buffer.push_back(data);
+		  //std::cout << "Master thread: " << id << " buffer size: " << (data_buffer.size()) << std::endl;
 			if (data_buffer.size() >= BUFF_SIZE){
 				//serialize the work
 				//start = std::chrono::high_resolution_clock::now();
-				flush_data_buffer(data_buffer);
+			  flush_data_buffer(data_buffer);
 				data_buffer.clear();
 			}
 		}else if (paused){
@@ -157,21 +157,21 @@ void GraphWorker::do_work() {
 			data_buffer.clear();
 			//std::cout << "Master thread " << id << " done flushing" << std::endl;
 			char* bytestream = "2";
-		        start = std::chrono::high_resolution_clock::now();
+		        //start = std::chrono::high_resolution_clock::now();
 			int ierr = MPI_Send(bytestream, 1, MPI_CHAR, id+1, 1, MPI_COMM_WORLD);
-			total_mpi_send_terminate += std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start);
+			//total_mpi_send_terminate += std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start);
 			std::lock_guard<std::mutex> lk(pause_lock);
 			thr_paused = true;
 			pause_condition.notify_all();
 			//std::cout << "Master thread " << id << " exiting " << std::endl;
-			total_time += std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - thread_start);
-			std::cout << "Total time that thread  " << id+1 << " spent alive: " <<  total_time.count() << std::endl;
-			std::cout << "Total time that thread  " << id+1 << " spent on MPI sending work to cluster: " <<  total_mpi_send_work.count() << std::endl;
-			std::cout << "Total time that thread  " << id+1 << " spent on MPI receiving deltas from cluster: " <<  total_mpi_receive_results.count() << std::endl;
-			std::cout << "Total time that thread  " << id+1 << " spent on MPI sending terminate signal: " <<  total_mpi_send_terminate.count() << std::endl;
-			std::cout << "Total time that thread  " << id+1 << " spent on applying updates: " <<  total_applying_deltas.count() << std::endl;
-			std::cout << "Total time that thread  " << id+1 << " spent on serializing work: " <<  total_serialize_work.count() << std::endl;
-			std::cout << "Total time that thread  " << id+1 << " spent on popping work off of queue: " <<  total_work_queue.count() << std::endl;
+			//total_time += std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - thread_start);
+			//std::cout << "Total time that thread  " << id+1 << " spent alive: " <<  total_time.count() << std::endl;
+			//std::cout << "Total time that thread  " << id+1 << " spent on MPI sending work to cluster: " <<  total_mpi_send_work.count() << std::endl;
+			//std::cout << "Total time that thread  " << id+1 << " spent on MPI receiving deltas from cluster: " <<  total_mpi_receive_results.count() << std::endl;
+			//std::cout << "Total time that thread  " << id+1 << " spent on MPI sending terminate signal: " <<  total_mpi_send_terminate.count() << std::endl;
+			//std::cout << "Total time that thread  " << id+1 << " spent on applying updates: " <<  total_applying_deltas.count() << std::endl;
+			//std::cout << "Total time that thread  " << id+1 << " spent on serializing work: " <<  total_serialize_work.count() << std::endl;
+			//std::cout << "Total time that thread  " << id+1 << " spent on popping work off of queue: " <<  total_work_queue.count() << std::endl;
 			return;	
 		}
 	}			
@@ -190,15 +190,15 @@ void GraphWorker::flush_data_buffer(const std::vector<data_ret_t>& data_buffer){
 				const char* bytestream = big_vector.data();
 				//total_serialize_work += std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start);
 				//send the work
-				auto start = std::chrono::high_resolution_clock::now();
+				//auto start = std::chrono::high_resolution_clock::now();
 				int ierr = MPI_Send(bytestream, big_vector.size(), MPI_CHAR, id+1, 0, MPI_COMM_WORLD);
-				total_mpi_send_work += std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start);
+				//total_mpi_send_work += std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start);
 				int number_amount = 0;
 				MPI_Status status;
                        	        //std::cout << "Probing worker for results: " << id+1 << std::endl;
 			
 				//receive the results
-				start = std::chrono::high_resolution_clock::now();
+				//start = std::chrono::high_resolution_clock::now();
 				MPI_Message message;
                        		MPI_Mprobe(id+1,0,MPI_COMM_WORLD, &message, &status);
 				MPI_Get_count(&status, MPI_CHAR, &number_amount);
@@ -207,11 +207,11 @@ void GraphWorker::flush_data_buffer(const std::vector<data_ret_t>& data_buffer){
 				//std::cout << "MasterB receiving" << std::endl;
 				//start = std::chrono::high_resolution_clock::now();
 				ierr = MPI_Mrecv(bytestream2, number_amount, MPI_CHAR, &message, MPI_STATUS_IGNORE);
-				total_mpi_receive_results += std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start);
+				//total_mpi_receive_results += std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start);
 				//std::cout << "MasterB received" << std::endl;
 			
 				//deserialize the results into a vector of sketches
-				start = std::chrono::high_resolution_clock::now();
+				//start = std::chrono::high_resolution_clock::now();
 				std::string serial_str(bytestream2,number_amount);
 				boost::iostreams::basic_array_source<char> device(serial_str.data(), serial_str.size());
 				boost::iostreams::stream<boost::iostreams::basic_array_source<char> > s2(device);
@@ -231,5 +231,5 @@ void GraphWorker::flush_data_buffer(const std::vector<data_ret_t>& data_buffer){
 				//std::cout << "Sketch seed at master after serialization: " << supernode.sketches[7].seed << std::endl;
 				//apply the sketch deltas to the graph
 				//start = std::chrono::high_resolution_clock::now();
-				total_applying_deltas += std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start);
+				//total_applying_deltas += std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start);
 }

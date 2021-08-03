@@ -16,7 +16,7 @@
 class WorkQueue {
   const uint32_t buffer_size; // size of a buffer (including metadata)
   CircularQueue cq;
-  std::vector<Node*> buffers; // array dump of numbers for performance: DO NOT
+  std::vector<std::vector<Node>> buffers; // array dump of numbers for performance: DO NOT
   // try to access directly!
 
   /**
@@ -44,7 +44,7 @@ public:
    * @param upd the edge update.
    * @return nothing.
    */
-  insert_ret_t insert(update_t upd);
+  insert_ret_t insert(const update_t &upd);
 
   /**
    * Ask the buffer queue for data and sleep if necessary until it is available.
