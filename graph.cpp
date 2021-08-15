@@ -95,7 +95,7 @@ vector<set<Node>> Graph::connected_components() {
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
 #ifdef VERIFY_SAMPLES_F
-  GraphVerifier verifier {num_nodes, *cum_in};
+  GraphVerifier verifier {num_nodes, cum_in};
 #endif
 
   representatives = new set<Node>();
@@ -168,10 +168,10 @@ vector<set<Node>> Graph::parallel_connected_components() {
   // after this point all updates have been processed from the buffer tree
 
   printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
-  update_locked = true; // disallow updating the graph after we run the alg
+//  update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
 #ifdef VERIFY_SAMPLES_F
-  GraphVerifier verifier { cum_in };
+  GraphVerifier verifier { num_nodes, cum_in };
 #endif
   pair<Node,Node> query[num_nodes];
   Node size[num_nodes];

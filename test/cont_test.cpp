@@ -9,7 +9,6 @@ void test_continuous(unsigned nodes, unsigned long updates_per_sample, unsigned 
   Graph g(nodes);
   size_t total_edges = static_cast<size_t>(nodes - 1) * nodes / 2;
   std::vector<bool> adj(total_edges);
-  uint64_t num_edges = 0;
   unsigned long num_failure = 0;
   for (unsigned long i = 0; i < samples; i++) {
     std::cout << "Starting updates" << std::endl;
@@ -23,13 +22,7 @@ void test_continuous(unsigned nodes, unsigned long updates_per_sample, unsigned 
       }
       uint64_t edgeidx = nondirectional_non_self_edge_pairing_fn(edgei, edgej);
       g.update({{edgei, edgej}, INSERT});
-      if (adj[edgeidx]) {
-        num_edges--;
-        adj[edgeidx] = false;
-      } else {
-        num_edges++;
-        adj[edgeidx] = true;
-      }
+      adj[edgeidx] = !adj[edgeidx];
     }
     try {
       g.set_cum_in(adj);
@@ -38,15 +31,18 @@ void test_continuous(unsigned nodes, unsigned long updates_per_sample, unsigned 
       g.post_cc_resume();
     } catch (const NoGoodBucketException& e) {
       num_failure++;
+      std::cout << "CC #" << i << "failed with NoGoodBucket" << std::endl;
     } catch (const NotCCException& e) {
       num_failure++;
+      std::cout << "CC #" << i << "failed with NotCC" << std::endl;
     } catch (const BadEdgeException& e) {
       num_failure++;
+      std::cout << "CC #" << i << "failed with BadEdge" << std::endl;
     }
   }
   std::clog << nodes << ',' << num_failure << std::endl;
 }
 
 TEST(TestContinuous, TestContinuous) {
-  test_continuous(100000, 100000000, 10);
+  test_continuous(1e5, 1e7, 10);
 }

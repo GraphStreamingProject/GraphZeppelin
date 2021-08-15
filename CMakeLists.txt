@@ -304,10 +304,10 @@ add_executable(cont_test
   graph_worker.cpp
   l0_sampling/sketch.cpp
   l0_sampling/update.cpp
-  util.cpp)
+  util.cpp
+  work_queue.cpp)
 target_link_libraries(cont_test PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(cont_test PRIVATE VERIFY_SAMPLES_F USE_NATIVE_F
-    USE_FBT_F)
+target_compile_definitions(cont_test PRIVATE VERIFY_SAMPLES_F)
 # dependencies
 add_dependencies(cont_test BufferTree)
 target_link_libraries(cont_test PRIVATE libFastBufferTree.a)

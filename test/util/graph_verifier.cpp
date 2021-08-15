@@ -17,9 +17,9 @@ void dsu_union(Node i, Node j, Node* parent, Node* size) {
   size[i] += size[j];
 }
 
-GraphVerifier::GraphVerifier(Node n, const std::vector<bool>& input) {
-  kruskal_ref = kruskal(n, input);
-  det_graph = &input;
+GraphVerifier::GraphVerifier(Node n, std::vector<bool>&
+      compactified_input) : det_graph(compactified_input){
+  kruskal_ref = kruskal(n, compactified_input);
   Node a,b;
   parent = (Node*) malloc(n*sizeof(Node));
   size = (Node*) malloc(n*sizeof(Node));
@@ -35,9 +35,7 @@ GraphVerifier::~GraphVerifier() {
   free(size);
 }
 
-std::vector<std::set<Node>> kruskal(Node n, const std::vector<bool>& input) {
-  ifstream in(input_file);
-  Node n, m; in >> n >> m;
+std::vector<std::set<Node>> kruskal(Node n, const std::vector<bool>& compactified_input) {
   Node* parent = (Node*) malloc(n*sizeof(Node));
   Node* size = (Node*) malloc(n*sizeof(Node));
 
@@ -47,7 +45,7 @@ std::vector<std::set<Node>> kruskal(Node n, const std::vector<bool>& input) {
   }
   uint64_t num_edges = n * (n - 1) / 2;
   for (uint64_t i = 0; i < num_edges; i++) {
-    if (input[i]) {
+    if (compactified_input[i]) {
       Edge e = inv_nondir_non_self_edge_pairing_fn(i);
       dsu_union(e.first, e.second, parent, size);
     }
@@ -76,7 +74,7 @@ void GraphVerifier::verify_edge(Edge edge) {
     printf("Got an error of node %lu to node (1)%lu\n", edge.first, edge.second);
     throw BadEdgeException();
   }
-  if (det_graph[edge.first].find(edge.second) == det_graph[edge.first].end()) {
+  if (!det_graph[nondirectional_non_self_edge_pairing_fn(edge.first,edge.second)]) {
     printf("Got an error of node %lu to node (2)%lu\n", edge.first, edge.second);
     throw BadEdgeException();
   }

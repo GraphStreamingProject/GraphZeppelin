@@ -19,11 +19,11 @@ std::vector<std::set<Node>> kruskal(Node n, const std::vector<bool>& input);
 class GraphVerifier {
   std::vector<std::set<Node>> kruskal_ref;
   std::vector<std::set<Node>> boruvka_cc;
-  std::vector<bool> *det_graph;
+  std::vector<bool>& det_graph;
   Node* parent;
   Node* size;
 public:
-  GraphVerifier(Node n, const std::vector<bool>& input);
+  GraphVerifier(Node n, std::vector<bool>& input);
   ~GraphVerifier();
   /**
    * Verifies an edge exists in the graph. Verifies that the edge is in the cut

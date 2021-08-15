@@ -81,13 +81,13 @@ public:
   void post_cc_resume();
   
 #ifdef VERIFY_SAMPLES_F
-  std::vector<bool> *cum_in;
+  std::vector<bool> cum_in;
 
   /**
    * Set the filepath to search for cumulative graph input.
    */
-  void set_cum_in(const std::vector<bool>& input) {
-    cum_in = &input;
+  void set_cum_in(std::vector<bool>& input) {
+    cum_in = input;
   }
 #endif
 
