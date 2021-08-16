@@ -20,7 +20,6 @@ void dsu_union(Node i, Node j, Node* parent, Node* size) {
 GraphVerifier::GraphVerifier(Node n, std::vector<bool>&
       compactified_input) : det_graph(compactified_input){
   kruskal_ref = kruskal(n, compactified_input);
-  Node a,b;
   parent = (Node*) malloc(n*sizeof(Node));
   size = (Node*) malloc(n*sizeof(Node));
   for (unsigned i = 0; i < n; ++i) {

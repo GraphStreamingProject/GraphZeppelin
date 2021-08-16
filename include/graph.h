@@ -86,8 +86,16 @@ public:
   /**
    * Set the filepath to search for cumulative graph input.
    */
-  void set_cum_in(std::vector<bool>& input) {
-    cum_in = input;
+  void parse_cum_in(const std::string& input_path) {
+    cum_in = cum_file_to_adj_matrix(input_path);
+  }
+
+  /**
+   * Directly set the cumulative graph input.
+   * @param input_mat the (upper-triangular) adjacency matrix.
+   */
+  void pass_cum_adj_matrix(std::vector<bool>& input_mat) {
+    cum_in = input_mat;
   }
 #endif
 

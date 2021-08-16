@@ -38,3 +38,19 @@ uint64_t cantor_pairing_fn(uint64_t i, uint64_t j);
  * @return the prefix of the path in which the buffer tree should be stored
  */
 std::string configure_system();
+
+/**
+ * Utility function to convert a cumulative graph file to an adjacency matrix
+ * representation.
+ * Accepts graphs of the form
+ *      n m
+ *      a_1 b_1
+ *      a_2 b_2
+ *      ...
+ *      a_m b_m
+ * representing a graph with n (0-indexed) nodes and m edges, where the i-th
+ * edge is between nodes a_1 and b_1.
+ * @param file
+ * @return (upper-triangular) adjacency matrix.
+ */
+std::vector<bool> cum_file_to_adj_matrix(const std::string& file);

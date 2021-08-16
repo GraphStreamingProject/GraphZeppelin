@@ -19,7 +19,7 @@ TEST(GraphTestSuite, SmallGraphConnectivity) {
     in >> a >> b;
     g.update({{a, b}, INSERT});
   }
-  g.set_cum_in(curr_dir + "/res/multiples_graph_1024.txt");
+  g.parse_cum_in(curr_dir + "/res/multiples_graph_1024.txt");
   ASSERT_EQ(78, g.connected_components().size());
 }
 
@@ -38,7 +38,7 @@ TEST(GraphTestSuite, IFconnectedComponentsAlgRunTHENupdateLocked) {
     in >> a >> b;
     g.update({{a, b}, INSERT});
   }
-  g.set_cum_in(curr_dir + "/res/multiples_graph_1024.txt");
+  g.parse_cum_in(curr_dir + "/res/multiples_graph_1024.txt");
   g.connected_components();
   ASSERT_THROW(g.update({{1,2}, INSERT}), UpdateLockedException);
   ASSERT_THROW(g.update({{1,2}, DELETE}), UpdateLockedException);
@@ -46,7 +46,18 @@ TEST(GraphTestSuite, IFconnectedComponentsAlgRunTHENupdateLocked) {
 
 TEST(GraphTestSuite, TestRandomGraphGeneration) {
   generate_stream();
-  GraphVerifier graphVerifier {};
+  ifstream in { "./cum_sample.txt" };
+  Node n, m;
+  in >> n >> m;
+  std::vector<bool> cum_in;
+  cum_in.reserve(n*(n-1)/2);
+  Node a, b;
+  while (m--) {
+    in >> a >> b;
+    Node idx = nondirectional_non_self_edge_pairing_fn(a,b);
+    cum_in[idx] = !cum_in[idx];
+  }
+  GraphVerifier graphVerifier {n, cum_in};
 }
 
 TEST(GraphTestSuite, TestCorrectnessOnSmallRandomGraphs) {
@@ -64,7 +75,7 @@ TEST(GraphTestSuite, TestCorrectnessOnSmallRandomGraphs) {
         g.update({{a, b}, INSERT});
       } else g.update({{a, b}, DELETE});
     }
-    g.set_cum_in("./cum_sample.txt");
+    g.parse_cum_in("./cum_sample.txt");
     g.connected_components();
   }
 }
@@ -84,7 +95,7 @@ TEST(GraphTestSuite, TestCorrectnessOnSmallSparseGraphs) {
         g.update({{a, b}, INSERT});
       } else g.update({{a, b}, DELETE});
     }
-    g.set_cum_in("./cum_sample.txt");
+    g.parse_cum_in("./cum_sample.txt");
     g.connected_components();
   }
 }

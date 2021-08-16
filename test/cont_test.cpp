@@ -25,7 +25,7 @@ void test_continuous(unsigned nodes, unsigned long updates_per_sample, unsigned 
       adj[edgeidx] = !adj[edgeidx];
     }
     try {
-      g.set_cum_in(adj);
+      g.pass_cum_adj_matrix(adj);
       std::cout << "Running cc" << std::endl;
       g.connected_components();
       g.post_cc_resume();
@@ -43,6 +43,61 @@ void test_continuous(unsigned nodes, unsigned long updates_per_sample, unsigned 
   std::clog << nodes << ',' << num_failure << std::endl;
 }
 
-TEST(TestContinuous, TestContinuous) {
-  test_continuous(1e5, 1e7, 10);
+void test_continuous(std::ifstream& in, unsigned long samples) {
+  Node n, m;
+  in >> n >> m;
+  Graph g(n);
+  size_t total_edges = static_cast<size_t>(n - 1) * n / 2;
+  Node updates_per_sample = m / samples;
+  std::vector<bool> adj(total_edges);
+  unsigned long num_failure = 0;
+
+  Node t, a, b;
+  for (unsigned long i = 0; i < samples; i++) {
+    std::cout << "Starting updates" << std::endl;
+    for (unsigned long j = 0; j < updates_per_sample; j++) {
+      in >> t >> a >> b;
+      uint64_t edgeidx = nondirectional_non_self_edge_pairing_fn(a, b);
+      g.update({{a, b}, INSERT});
+      adj[edgeidx] = !adj[edgeidx];
+    }
+    try {
+      g.pass_cum_adj_matrix(adj);
+      std::cout << "Running cc" << std::endl;
+      g.connected_components();
+      g.post_cc_resume();
+    } catch (const NoGoodBucketException& e) {
+      num_failure++;
+      std::cout << "CC #" << i << "failed with NoGoodBucket" << std::endl;
+    } catch (const NotCCException& e) {
+      num_failure++;
+      std::cout << "CC #" << i << "failed with NotCC" << std::endl;
+    } catch (const BadEdgeException& e) {
+      num_failure++;
+      std::cout << "CC #" << i << "failed with BadEdge" << std::endl;
+    }
+  }
+  std::clog << n << ',' << num_failure << std::endl;
+}
+
+//TEST(TestContinuous, TestRandom) {
+//  test_continuous(1e5, 1e7, 10);
+//}
+
+TEST(TestContinuous, StandardKron17) {
+  std::ifstream in{ "./kron17" };
+  Node n, m;
+  in >> n >> m;
+  Graph g{n};
+  int type, a, b;
+  while (m--) {
+    in >> type >> a >> b;
+    g.update({{a, b}, INSERT});
+  }
+  g.connected_components();
+}
+
+TEST(TestContinuous, TestKron17) {
+  std::ifstream input { "./kron17" };
+  test_continuous(input, 10);
 }
