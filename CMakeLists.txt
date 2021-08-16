@@ -188,7 +188,7 @@ add_executable(main
   util.cpp
   main.cpp)
 target_link_libraries(main PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(main PRIVATE VERIFY_SAMPLES_F USE_FBT_F)
+target_compile_definitions(main PRIVATE USE_FBT_F)
 # dependencies
 add_dependencies(main BufferTree)
 target_link_libraries(main PRIVATE libFastBufferTree.a)
