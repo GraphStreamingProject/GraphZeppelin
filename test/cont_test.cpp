@@ -84,7 +84,7 @@ void test_continuous(std::ifstream& in, unsigned long samples) {
 //  test_continuous(1e5, 1e7, 10);
 //}
 
-TEST(TestContinuous, StandardKron17) {
+TEST(TestContinuous, DISABLED_StandardKron17) {
   std::ifstream in{ "./kron17" };
   Node n, m;
   in >> n >> m;

@@ -179,6 +179,32 @@ link_directories(${CMAKE_CURRENT_BINARY_DIR}/BufferTree/prefix/lib)
 # PARALLEL_PP_F      Use parallel post-processing (connected components)
 #                    function.
 
+add_executable(main
+  graph.cpp
+  supernode.cpp
+  graph_worker.cpp
+  l0_sampling/sketch.cpp
+  l0_sampling/update.cpp
+  util.cpp
+  main.cpp)
+target_link_libraries(main PRIVATE xxHash::xxhash GTest::gtest)
+target_compile_definitions(main PRIVATE VERIFY_SAMPLES_F USE_FBT_F)
+# dependencies
+add_dependencies(main BufferTree)
+target_link_libraries(main PRIVATE libFastBufferTree.a)
+# optimize unless debug
+if (DEFINED ENV{DEBUG})
+  message("Disabling optimizations and enabling debug symbols")
+  target_compile_options(main PRIVATE -g -fopenmp)
+  target_link_options(main PRIVATE -fopenmp)
+else ()
+  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    target_compile_options(main PRIVATE -O3 -fopenmp)
+    target_link_options(main PRIVATE -fopenmp)
+  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    target_compile_options(main PRIVATE /O2)
+  endif()
+endif ()
 
 add_executable(tests
   test/test_runner.cpp

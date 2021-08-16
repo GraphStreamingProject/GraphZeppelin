@@ -98,19 +98,19 @@ vector<set<Node>> Graph::connected_components() {
   GraphVerifier verifier {num_nodes, cum_in};
 #endif
 
-  representatives = new set<Node>();
+  std::set<Node> representatives;
   parent = new Node[num_nodes];
   Supernode** supernodes = new Supernode*[num_nodes];
   for (Node i=0;i<num_nodes;++i) {
     supernodes[i] = new Supernode(*this->supernodes[i]);
-    representatives->insert(i);
+    representatives.insert(i);
     parent[i] = i;
   }
 
   do {
     modified = false;
     vector<Node> removed;
-    for (Node i: (*representatives)) {
+    for (Node i: representatives) {
       if (parent[i] != i) continue;
       boost::optional<Edge> edge = supernodes[i]->sample();
 #ifdef VERIFY_SAMPLES_F
@@ -137,7 +137,7 @@ vector<set<Node>> Graph::connected_components() {
       supernodes[i]->merge(*supernodes[n]);
     }
     if (!removed.empty()) modified = true;
-    for (Node i : removed) representatives->erase(i);
+    for (Node i : removed) representatives.erase(i);
   } while (modified);
   map<Node, set<Node>> temp;
   for (Node i=0;i<num_nodes;++i)
@@ -153,7 +153,6 @@ vector<set<Node>> Graph::connected_components() {
     delete supernodes[i];
   delete[] supernodes;
   delete[] parent;
-  delete representatives;
 
   return retval;
 }
@@ -173,28 +172,30 @@ vector<set<Node>> Graph::parallel_connected_components() {
 #ifdef VERIFY_SAMPLES_F
   GraphVerifier verifier { num_nodes, cum_in };
 #endif
+  parent = static_cast<Node *>(malloc(sizeof(Node) * num_nodes));
   pair<Node,Node> query[num_nodes];
   Node size[num_nodes];
-  vector<Node> reps(num_nodes);
+  vector<Node> representatives(num_nodes);
   fill(size, size + num_nodes, 1);
   for (Node i = 0; i < num_nodes; ++i) {
-    reps[i] = i;
+    representatives[i] = i;
+    parent[i] = i;
   }
 
   do {
     modified = false;
-    #pragma omp parallel for default(none) shared(query, reps)
-    for (Node i = 0; i < reps.size(); ++i) {
-      auto edge = supernodes[reps[i]]->sample();
+    #pragma omp parallel for default(none) shared(query, representatives)
+    for (Node i = 0; i < representatives.size(); ++i) {
+      auto edge = supernodes[representatives[i]]->sample();
       if (!edge.is_initialized()) {
-        query[reps[i]] = {i,i};
+        query[representatives[i]] = {i, i};
         continue;
       }
-      query[reps[i]] = edge.get();
+      query[representatives[i]] = edge.get();
     }
 
     vector<Node> to_remove;
-    for (Node i : reps) {
+    for (Node i : representatives) {
       Node a = get_parent(query[i].first);
       Node b = get_parent(query[i].second);
       if (a == b) continue;
@@ -215,20 +216,20 @@ vector<set<Node>> Graph::parallel_connected_components() {
     vector<Node> temp_diff;
     Node ptr1 = 0;
     Node ptr2 = 0;
-    while (ptr1 < reps.size() && ptr2 < to_remove.size()) {
-      if (reps[ptr1] == to_remove[ptr2]) {
+    while (ptr1 < representatives.size() && ptr2 < to_remove.size()) {
+      if (representatives[ptr1] == to_remove[ptr2]) {
         ++ ptr1; ++ptr2;
       } else {
-        temp_diff.push_back(reps[ptr1]);
+        temp_diff.push_back(representatives[ptr1]);
         ++ptr1;
       }
     }
-    while (ptr1 < reps.size()) {
-      temp_diff.push_back(reps[ptr1]);
+    while (ptr1 < representatives.size()) {
+      temp_diff.push_back(representatives[ptr1]);
       ++ptr1;
     }
 
-    swap(reps, temp_diff);
+    swap(representatives, temp_diff);
   } while (modified);
 
   map<Node, set<Node>> temp;
@@ -238,6 +239,7 @@ vector<set<Node>> Graph::parallel_connected_components() {
   retval.reserve(temp.size());
   for (const auto& it : temp) retval.push_back(it.second);
 
+  free(parent);
   return retval;
 }
 
