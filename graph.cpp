@@ -13,7 +13,7 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
   representatives = new set<Node>();
   supernodes = new Supernode*[num_nodes];
   parent = new Node[num_nodes];
-  time_t seed = time(nullptr);
+  seed = time(nullptr);
   srand(seed);
   seed = rand();
   for (Node i=0;i<num_nodes;++i) {
@@ -22,6 +22,34 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
     parent[i] = i;
   }
   num_updates = 0; // REMOVE this later
+  std::string buffer_loc_prefix = configure_system(); // read the configuration file to configure the system
+#ifdef USE_FBT_F
+  // Create buffer tree and start the graphWorkers
+  bf = new BufferTree(buffer_loc_prefix, (1<<20), 16, num_nodes, GraphWorker::get_num_groups(), true);
+  GraphWorker::start_workers(this, bf);
+#else
+  unsigned long node_size = 24*pow((log2(num_nodes)), 3);
+  node_size /= sizeof(node_id_t);
+  wq = new WorkQueue(node_size, num_nodes, 2*GraphWorker::get_num_groups());
+  GraphWorker::start_workers(this, wq);
+#endif
+}
+
+
+Graph::Graph(ifstream &in) {
+  in >> seed >> num_nodes;
+#ifdef VERIFY_SAMPLES_F
+  cout << "Verifying samples..." << endl;
+#endif
+  representatives = new set<Node>();
+  supernodes = new Supernode*[num_nodes];
+  parent = new Node[num_nodes];
+  for (Node i = 0; i < num_nodes; ++i) {
+    representatives->insert(i);
+    supernodes[i] = new Supernode(num_nodes, seed, in);
+    parent[i] = i;
+  }
+  num_updates = 0;
   std::string buffer_loc_prefix = configure_system(); // read the configuration file to configure the system
 #ifdef USE_FBT_F
   // Create buffer tree and start the graphWorkers
@@ -240,4 +268,19 @@ void Graph::post_cc_resume() {
 Node Graph::get_parent(Node node) {
   if (parent[node] == node) return node;
   return parent[node] = get_parent(parent[node]);
+}
+
+void Graph::write_to_stream(ofstream &out) {
+#ifdef USE_FBT_F
+  bf->force_flush(); // flush everything in buffertree to make final updates
+#else
+  wq->force_flush();
+#endif
+  GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
+  // after this point all updates have been processed from the buffer tree
+
+  out << seed << " " << num_nodes << endl;
+  for (Node i = 0; i < num_nodes; ++i) {
+    supernodes[i]->write_to_stream(out);
+  }
 }

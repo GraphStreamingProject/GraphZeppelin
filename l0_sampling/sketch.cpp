@@ -1,5 +1,6 @@
 #include "../include/sketch.h"
 #include <cassert>
+#include <fstream>
 
 Sketch::Sketch(vec_t n, long seed, double num_bucket_factor):
     seed(seed), n(n), num_bucket_factor(num_bucket_factor) {
@@ -8,6 +9,22 @@ Sketch::Sketch(vec_t n, long seed, double num_bucket_factor):
   bucket_a = std::vector<vec_t>(num_buckets * num_guesses);
   bucket_c = std::vector<vec_hash_t>(num_buckets * num_guesses);
 }
+
+Sketch::Sketch(vec_t n, long seed, std::ifstream& in) : seed(seed), n(n) {
+  std::cout << "Creating sketch" << std::endl;
+  in >> num_bucket_factor;
+  const unsigned num_buckets = bucket_gen(n, num_bucket_factor);
+  const unsigned num_guesses = guess_gen(n);
+  bucket_a = std::vector<vec_t>(num_buckets * num_guesses);
+  bucket_c = std::vector<vec_hash_t>(num_buckets * num_guesses);
+  for (vec_t& i : bucket_a) {
+    in >> i;
+  }
+  for (vec_hash_t& i : bucket_c) {
+    in >> i;
+  }
+}
+
 
 Sketch::Sketch(const Sketch &old) : seed(old.seed), n(old.n),
 num_bucket_factor(old.num_bucket_factor) {
@@ -98,4 +115,17 @@ std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
     }
   }
   return os;
+}
+
+void Sketch::write_to_stream(std::ofstream &out) {
+  std::cout << "Writing sketch" << std::endl;
+  out << num_bucket_factor << '\n';
+  for (vec_t i = 0; i < n; ++i) {
+    out << bucket_a[i] << " ";
+  }
+  out << '\n';
+  for (vec_t i = 0; i < n; ++i) {
+    out << bucket_c[i] << " ";
+  }
+  out << '\n';
 }

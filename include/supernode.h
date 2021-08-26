@@ -31,6 +31,15 @@ public:
    * @param seed  the (fixed) seed value passed to each supernode.
    */
   Supernode(uint64_t n, long seed);
+
+  /**
+   * Constructor for reading from an input stream.
+   * @param n
+   * @param seed
+   * @param in          the stream to read from.
+   */
+  Supernode(uint64_t n, long seed, ifstream& in);
+
   ~Supernode();
 
   /**
@@ -73,6 +82,12 @@ public:
    */
   static Supernode* delta_supernode(uint64_t n, long seed, const
   std::vector<vec_t>& updates);
+
+  /**
+   * Serialize the supernode to an output stream.
+   * @param out
+   */
+  void write_to_stream(std::ofstream& out);
 };
 
 

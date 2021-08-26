@@ -13,6 +13,14 @@ Supernode::Supernode(uint64_t n, long seed): sketches(log2(n)), idx(0), logn(log
     sketches[i] = new Sketch(n*n, seed++);
 }
 
+
+Supernode::Supernode(uint64_t n, long seed, ifstream& in) :
+      sketches(log2(n)), idx(0), logn(log2(n)), n(n), seed(seed) {
+  for (int i = 0; i < logn; ++i) {
+    sketches[i] = new Sketch(n*n, seed++, in);
+  }
+}
+
 Supernode::~Supernode() {
   for (int i=0;i<logn;++i)
     delete sketches[i];
@@ -80,3 +88,8 @@ Supernode* Supernode::delta_supernode(uint64_t n, long seed,
   return delta_node;
 }
 
+void Supernode::write_to_stream(std::ofstream& out) {
+  for (int i = 0; i < logn; ++i) {
+    (*sketches[i]).write_to_stream(out);
+  }
+}

@@ -31,8 +31,9 @@ typedef pair<Edge, UpdateType> GraphUpdate;
  * Undirected graph object with n nodes labelled 0 to n-1, no self-edges,
  * multiple edges, or weights.
  */
-class Graph{
-  const uint64_t num_nodes;
+class Graph {
+  uint64_t num_nodes;
+  long seed;
   bool update_locked = false;
   // a set containing one "representative" from each supernode
   set<Node>* representatives;
@@ -50,6 +51,7 @@ class Graph{
 #endif
 public:
   explicit Graph(uint64_t num_nodes);
+  explicit Graph(std::ifstream& in);
   ~Graph();
   void update(GraphUpdate upd);
 
@@ -79,7 +81,13 @@ public:
    * Unpauses the graph workers and sets allow update flag
    */
   void post_cc_resume();
-  
+
+  /**
+   * Serialize the graph node sketches to an output stream.
+   * @param out
+   */
+  void write_to_stream(std::ofstream& out);
+
 #ifdef VERIFY_SAMPLES_F
   std::string cum_in = "./cum_sample.txt";
 
