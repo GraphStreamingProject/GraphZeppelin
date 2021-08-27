@@ -173,12 +173,14 @@ TEST_F(SupernodeTestSuite, TestBatchUpdate) {
   for (const auto& update : updates) {
     supernode.update(update);
   }
-  std::cout << "One by one updates took " << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
+  std::cout << "One by one updates took "
+  << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
   start_time = std::chrono::steady_clock::now();
   Supernode* delta_node = Supernode::delta_supernode(vec_size, seed, updates);
   supernode_batch.apply_delta_update(delta_node);
   delete(delta_node);
-  std::cout << "Batched updates took " << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
+  std::cout << "Batched updates took "
+  << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
 
   ASSERT_EQ(supernode.logn, supernode_batch.logn);
   ASSERT_EQ(supernode.idx, supernode_batch.idx);

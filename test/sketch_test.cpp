@@ -70,7 +70,7 @@ void test_sketch_sample(unsigned long num_sketches,
   unsigned long sample_incorrect_failures = 0;
   for (unsigned long i = 0; i < num_sketches; i++) {
     Testing_Vector test_vec = Testing_Vector(vec_size, num_updates);
-    Sketch sketch(vec_size, rand(), 1);
+    Sketch sketch(vec_size, rand());
     auto start_time = std::chrono::steady_clock::now();
     for (unsigned long j = 0; j < num_updates; j++){
       sketch.update(test_vec.get_update(j));
@@ -132,8 +132,8 @@ void test_sketch_addition(unsigned long num_sketches,
   unsigned long sample_incorrect_failures = 0;
   for (unsigned long i = 0; i < num_sketches; i++){
     const long seed = rand();
-    Sketch sketch1(vec_size, seed, 1);
-    Sketch sketch2(vec_size, seed, 1);
+    Sketch sketch1(vec_size, seed);
+    Sketch sketch2(vec_size, seed);
     Testing_Vector test_vec1 = Testing_Vector(vec_size, num_updates);
     Testing_Vector test_vec2 = Testing_Vector(vec_size, num_updates);
 
@@ -251,10 +251,12 @@ TEST(SketchTestSuite, TestBatchUpdate) {
   for (const vec_t& update : updates) {
     sketch.update(update);
   }
-  std::cout << "One by one updates took " << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
+  std::cout << "One by one updates took "
+  << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
   start_time = std::chrono::steady_clock::now();
   sketch_batch.batch_update(updates);
-  std::cout << "Batched updates took " << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
+  std::cout << "Batched updates took "
+  << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
 
   ASSERT_EQ(sketch, sketch_batch);
 }
