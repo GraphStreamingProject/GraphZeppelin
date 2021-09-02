@@ -96,8 +96,8 @@ vector<set<Node>> Graph::connected_components() {
 #endif
   GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
   // after this point all updates have been processed from the buffer tree
-
-  printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
+  end_time = std::chrono::steady_clock::now();
+  
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
 #ifdef VERIFY_SAMPLES_F
@@ -146,6 +146,7 @@ vector<set<Node>> Graph::connected_components() {
   verifier.verify_soln(retval);
 #endif
 
+  CC_end_time = std::chrono::steady_clock::now();
   return retval;
 }
 
@@ -229,6 +230,7 @@ vector<set<Node>> Graph::parallel_connected_components() {
   retval.reserve(temp.size());
   for (const auto& it : temp) retval.push_back(it.second);
 
+  CC_end_time = std::chrono::steady_clock::now();
   return retval;
 }
 

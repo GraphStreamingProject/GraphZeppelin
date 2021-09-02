@@ -264,11 +264,7 @@ elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
 endif()
 
 add_executable(experiment
-  test/test_runner.cpp
   test/experiment/BCHMK_Graph.cpp
-  test/experiment/BCHMK_post_proc.cpp
-  test/util/graph_verifier.cpp
-  test/util/graph_gen.cpp
   graph.cpp
   supernode.cpp
   graph_worker.cpp
@@ -291,6 +287,36 @@ else ()
     target_link_options(experiment PRIVATE -fopenmp)
   elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
     target_compile_options(experiment PRIVATE /O2)
+  endif()
+endif ()
+
+add_executable(experiment_post_proc
+  test/test_runner.cpp
+  test/experiment/BCHMK_post_proc.cpp
+  test/util/graph_verifier.cpp
+  test/util/graph_gen.cpp
+  graph.cpp
+  supernode.cpp
+  graph_worker.cpp
+  l0_sampling/sketch.cpp
+  l0_sampling/update.cpp
+  util.cpp)
+target_link_libraries(experiment_post_proc PRIVATE xxHash::xxhash GTest::gtest)
+target_compile_definitions(experiment_post_proc PRIVATE USE_FBT_F)
+# dependencies
+add_dependencies(experiment_post_proc BufferTree)
+target_link_libraries(experiment_post_proc PRIVATE libFastBufferTree.a)
+# optimize unless debug
+if (DEFINED ENV{DEBUG})
+  message("Disabling optimizations and enabling debug symbols")
+  target_compile_options(experiment_post_proc PRIVATE -g -fopenmp)
+  target_link_options(experiment_post_proc PRIVATE -fopenmp)
+else ()
+  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    target_compile_options(experiment_post_proc PRIVATE -O3 -fopenmp)
+    target_link_options(experiment_post_proc PRIVATE -fopenmp)
+  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    target_compile_options(experiment_post_proc PRIVATE /O2)
   endif()
 endif ()
 

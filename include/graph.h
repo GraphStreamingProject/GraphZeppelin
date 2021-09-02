@@ -4,8 +4,9 @@
 #include <exception>
 #include <set>
 #include <fstream>
+#include <atomic>
+#include <chrono>
 #include "supernode.h"
-#include <atomic>  // REMOVE LATER
 
 #ifndef USE_FBT_F
 #include "work_queue.h"
@@ -91,8 +92,10 @@ public:
   }
 #endif
 
-  // temp to verify number of updates -- REMOVE later
+  // track the number of updates and how long things took
   std::atomic<uint64_t> num_updates;
+  std::chrono::steady_clock::time_point end_time;
+  std::chrono::steady_clock::time_point CC_end_time;
 
   static Supernode* generate_delta_node(uint64_t node_n, long node_seed, uint64_t src,
                                   const vector<uint64_t> &edges);
