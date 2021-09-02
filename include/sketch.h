@@ -8,8 +8,6 @@
 #include "types.h"
 #include "util.h"
 #include <gtest/gtest_prod.h>
-#include <boost/archive/binary_iarchive.hpp>
-#include <boost/archive/binary_oarchive.hpp>
 
 #define bucket_gen(x, c) double_to_ull((c)*(log2(x)+1))
 #define guess_gen(x) double_to_ull(log2(x)+2)

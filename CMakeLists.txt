@@ -130,7 +130,7 @@ if(NOT Boost_FOUND)
 
     #Generate header files with b2
     execute_process(
-      COMMAND "./b2" "headers" "--with-serialization"
+      COMMAND "./b2" "headers"
       RESULT_VARIABLE result
       WORKING_DIRECTORY "${boost_SOURCE_DIR}"
     )
@@ -141,7 +141,7 @@ if(NOT Boost_FOUND)
     #Set BOOST_ROOT in cache to what we just downloaded, FindBoost again
     set(ENV{BOOST_LIBRARYDIR} ${boost_SOURCE_DIR}/../boost-install/lib)
     set(BOOST_ROOT "${boost_SOURCE_DIR}" CACHE STRING "" FORCE)
-    find_package(Boost 1.66.0 COMPONENTS serialization REQUIRED)
+    find_package(Boost 1.66.0 REQUIRED)
   endif()
 endif()
 include_directories("${Boost_INCLUDE_DIR}")
@@ -238,7 +238,7 @@ target_link_libraries(mem_tests PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(mem_tests PRIVATE VERIFY_SAMPLES_F)
 # dependencies
 add_dependencies(mem_tests BufferTree)
-target_link_libraries(mem_tests PRIVATE libFastBufferTree.a ${Boost_LIBRARIES})
+target_link_libraries(mem_tests PRIVATE libFastBufferTree.a)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")
