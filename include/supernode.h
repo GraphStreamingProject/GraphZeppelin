@@ -1,5 +1,6 @@
 #pragma once
 #include <boost/optional.hpp>
+#include <fstream>
 #include "sketch.h"
 
 using namespace std;
@@ -21,6 +22,7 @@ class Supernode {
 
   FRIEND_TEST(SupernodeTestSuite, TestBatchUpdate);
   FRIEND_TEST(SupernodeTestSuite, TestConcurrency);
+  FRIEND_TEST(SupernodeTestSuite, TestSerialization);
   FRIEND_TEST(EXPR_Parallelism, N10kU100k);
 
 public:
@@ -31,6 +33,15 @@ public:
    * @param seed  the (fixed) seed value passed to each supernode.
    */
   Supernode(uint64_t n, long seed);
+
+  /**
+   * Utility constructor to deserialize from a binary input stream.
+   * @param n
+   * @param seed
+   * @param in          the stream to read from.
+   */
+  Supernode(uint64_t n, long seed, std::fstream& binary_in);
+
   ~Supernode();
 
   /**
@@ -73,6 +84,12 @@ public:
    */
   static Supernode* delta_supernode(uint64_t n, long seed, const
   std::vector<vec_t>& updates);
+
+  /**
+   * Serialize the supernode to a binary output stream.
+   * @param out the stream to write to.
+   */
+  void write_binary(fstream &binary_out);
 };
 
 

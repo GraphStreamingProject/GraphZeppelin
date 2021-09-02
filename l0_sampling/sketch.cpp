@@ -1,5 +1,6 @@
 #include "../include/sketch.h"
 #include <cassert>
+#include <iostream>
 
 Sketch::Sketch(vec_t n, long seed, double num_bucket_factor):
     seed(seed), n(n), num_bucket_factor(num_bucket_factor) {
@@ -7,6 +8,17 @@ Sketch::Sketch(vec_t n, long seed, double num_bucket_factor):
   const unsigned num_guesses = guess_gen(n);
   bucket_a = std::vector<vec_t>(num_buckets * num_guesses);
   bucket_c = std::vector<vec_hash_t>(num_buckets * num_guesses);
+}
+
+Sketch::Sketch(vec_t n, long seed, std::fstream &binary_in) : seed(seed), n(n) {
+  binary_in.read((char*)&num_bucket_factor, sizeof(double));
+  const unsigned num_buckets = bucket_gen(n, num_bucket_factor);
+  const unsigned num_guesses = guess_gen(n);
+  const long len = num_buckets * num_guesses;
+  bucket_a = std::vector<vec_t>(len);
+  bucket_c = std::vector<vec_hash_t>(len);
+  binary_in.read((char*)(&bucket_a[0]), len * sizeof(vec_t));
+  binary_in.read((char*)(&bucket_c[0]), len * sizeof(vec_hash_t));
 }
 
 Sketch::Sketch(const Sketch &old) : seed(old.seed), n(old.n),
@@ -98,4 +110,10 @@ std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
     }
   }
   return os;
+}
+
+void Sketch::write_binary(std::fstream& binary_out) {
+  binary_out.write((char*)&num_bucket_factor, sizeof(double));
+  binary_out.write((char*)&bucket_a[0], bucket_a.size()*sizeof(vec_t));
+  binary_out.write((char*)&bucket_c[0], bucket_c.size()*sizeof(vec_hash_t));
 }

@@ -258,3 +258,22 @@ TEST(SketchTestSuite, TestBatchUpdate) {
 
   ASSERT_EQ(sketch, sketch_batch);
 }
+
+TEST(SketchTestSuite, TestSerialization) {
+  unsigned long vec_size = 1024*1024;
+  unsigned long num_updates = 10000;
+  Testing_Vector test_vec = Testing_Vector(vec_size, num_updates);
+  auto seed = rand();
+  Sketch sketch(vec_size, seed, 1);
+  for (unsigned long j = 0; j < num_updates; j++){
+    sketch.update(test_vec.get_update(j));
+  }
+  auto file = std::fstream("./out_sketch.txt", std::ios::out | std::ios::binary);
+  sketch.write_binary(file);
+  file.close();
+
+  auto in_file = std::fstream("./out_sketch.txt", std::ios::in | std::ios::binary);
+  Sketch reheated { vec_size, seed, in_file };
+
+  ASSERT_EQ(sketch, reheated);
+}

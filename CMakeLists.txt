@@ -105,6 +105,7 @@ if(NOT Boost_FOUND)
       "Set BOOST_ROOT to a directory where Boost is installed\n"
       "or use -DAUTODOWNLOAD:BOOL=ON to automatically download")
   else()
+    message("Downloading boost")
     #Download boost
     download_project(
       PROJ boost
@@ -138,8 +139,9 @@ if(NOT Boost_FOUND)
     endif()
 
     #Set BOOST_ROOT in cache to what we just downloaded, FindBoost again
+    set(ENV{BOOST_LIBRARYDIR} ${boost_SOURCE_DIR}/../boost-install/lib)
     set(BOOST_ROOT "${boost_SOURCE_DIR}" CACHE STRING "" FORCE)
-    find_package(Boost 1.66.0)
+    find_package(Boost 1.66.0 REQUIRED)
   endif()
 endif()
 include_directories("${Boost_INCLUDE_DIR}")

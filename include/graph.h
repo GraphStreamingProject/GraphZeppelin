@@ -31,8 +31,9 @@ typedef pair<Edge, UpdateType> GraphUpdate;
  * Undirected graph object with n nodes labelled 0 to n-1, no self-edges,
  * multiple edges, or weights.
  */
-class Graph{
-  const uint64_t num_nodes;
+class Graph {
+  uint64_t num_nodes;
+  long seed;
   bool update_locked = false;
   // a set containing one "representative" from each supernode
   set<Node>* representatives;
@@ -50,6 +51,8 @@ class Graph{
 #endif
 public:
   explicit Graph(uint64_t num_nodes);
+  explicit Graph(const string &input_file);
+
   ~Graph();
   void update(GraphUpdate upd);
 
@@ -79,7 +82,7 @@ public:
    * Unpauses the graph workers and sets allow update flag
    */
   void post_cc_resume();
-  
+
 #ifdef VERIFY_SAMPLES_F
   std::string cum_in = "./cum_sample.txt";
 
@@ -96,6 +99,12 @@ public:
 
   static Supernode* generate_delta_node(uint64_t node_n, long node_seed, uint64_t src,
                                   const vector<uint64_t> &edges);
+
+  /**
+   * Serialize the graph data to a binary file.
+   * @param filename the name of the file to (over)write data to.
+   */
+  void write_binary(const string &filename);
 };
 
 class UpdateLockedException : public exception {

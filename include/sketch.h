@@ -1,7 +1,7 @@
 #pragma once
 #include <cmath>
 #include <exception>
-#include <iostream>
+#include <fstream>
 #include <vector>
 #include <mutex>
 #include "bucket.h"
@@ -23,7 +23,7 @@ class Sketch {
   // Length of the vector this is sketching.
   const vec_t n;
   // Factor for how many buckets there are in this sketch.
-  const double num_bucket_factor;
+  double num_bucket_factor;
 
   // Buckets of this sketch.
   // Length is bucket_gen(n, num_bucket_factor) * guess_gen(n).
@@ -45,6 +45,15 @@ public:
    * @param num_bucket_factor Factor to scale the number of buckets in this sketch
    */
   Sketch(vec_t n, long seed, double num_bucket_factor = .5);
+
+  /**
+   * Utility constructor to deserialize from a binary input stream.
+   * @param n
+   * @param seed
+   * @param binary_in
+   */
+  Sketch(vec_t n, long seed, std::fstream& binary_in);
+
   Sketch(const Sketch &old);
 
   /**
@@ -79,6 +88,12 @@ public:
   friend Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2);
   friend bool operator== (const Sketch &sketch1, const Sketch &sketch2);
   friend std::ostream& operator<< (std::ostream &os, const Sketch &sketch);
+
+  /**
+   * Serialize the sketch to a binary output stream.
+   * @param out the stream to write to.
+   */
+  void write_binary(std::fstream& binary_out);
 };
 
 class AllBucketsZeroException : public std::exception {

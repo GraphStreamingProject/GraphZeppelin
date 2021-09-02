@@ -237,3 +237,32 @@ TEST_F(SupernodeTestSuite, TestConcurrency) {
     ASSERT_EQ(*supernode.sketches[i], *piecemeal.sketches[i]);
   }
 }
+
+TEST_F(SupernodeTestSuite, TestSerialization) {
+  vector<Supernode*> snodes;
+  snodes.reserve(num_nodes);
+  for (unsigned i = 0; i < num_nodes; ++i)
+    snodes[i] = new Supernode(num_nodes, seed);
+
+  // insert all edges
+  for (auto edge : *graph_edges) {
+    vec_t encoded = nondirectional_non_self_edge_pairing_fn(edge.first, edge
+          .second);
+    snodes[edge.first]->update(encoded);
+    snodes[edge.second]->update(encoded);
+  }
+
+  std::cout << "Finished inserting" << std::endl;
+  auto file = std::fstream("./out_supernode.txt", std::ios::out | std::ios::binary);
+  snodes[num_nodes/2]->write_binary(file);
+  file.close();
+  std::cout << "Finished writing" << std::endl;
+
+  auto in_file = std::fstream("./out_supernode.txt", std::ios::in | std::ios::binary);
+
+  Supernode reheated { num_nodes, seed, in_file };
+
+  for (int i = 0; i < snodes[num_nodes / 2]->logn; ++i) {
+    ASSERT_EQ(*snodes[num_nodes / 2]->sketches[i], *reheated.sketches[i]);
+  }
+}
