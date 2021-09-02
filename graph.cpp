@@ -1,6 +1,7 @@
 #include <map>
 #include <iostream>
 #include <buffer_tree.h>
+#include <sys/mman.h>
 
 #include "include/graph.h"
 #include "include/util.h"
@@ -104,6 +105,11 @@ vector<set<Node>> Graph::connected_components() {
   GraphVerifier verifier {cum_in};
 #endif
 
+  // force DSU structure into memory
+  // if this call fails, there is no problem since unlock won't throw any
+  // errors if we try to unlock un-locked memory
+  mlock(parent, num_nodes*sizeof(Node));
+
   do {
     modified = false;
     vector<Node> removed;
@@ -136,6 +142,10 @@ vector<set<Node>> Graph::connected_components() {
     if (!removed.empty()) modified = true;
     for (Node i : removed) representatives->erase(i);
   } while (modified);
+
+  // release DSU lock
+  munlock(parent, num_nodes*sizeof(Node));
+
   map<Node, set<Node>> temp;
   for (Node i=0;i<num_nodes;++i)
     temp[get_parent(i)].insert(i);
