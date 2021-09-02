@@ -1,7 +1,6 @@
 #include <stdexcept>
 #include <cmath>
 #include <boost/multiprecision/cpp_int.hpp>
-#include <omp.h>
 #include "include/supernode.h"
 #include "include/util.h"
 #include "include/graph_worker.h"
@@ -13,11 +12,10 @@ Supernode::Supernode(uint64_t n, long seed): sketches(log2(n)), idx(0), logn(log
     sketches[i] = new Sketch(n*n, seed++);
 }
 
-
-Supernode::Supernode(uint64_t n, long seed, ifstream& in) :
-      sketches(log2(n)), idx(0), logn(log2(n)), n(n), seed(seed) {
+Supernode::Supernode(uint64_t n, long seed, std::fstream& binary_in) :
+sketches(log2(n)), idx(0), logn(log2(n)), n(n), seed(seed) {
   for (int i = 0; i < logn; ++i) {
-    sketches[i] = new Sketch(n*n, seed++, in);
+    sketches[i] = new Sketch(n*n, seed++, binary_in);
   }
 }
 
@@ -88,8 +86,8 @@ Supernode* Supernode::delta_supernode(uint64_t n, long seed,
   return delta_node;
 }
 
-void Supernode::write_to_stream(std::ofstream& out) {
+void Supernode::write_binary(std::fstream& binary_out) {
   for (int i = 0; i < logn; ++i) {
-    (*sketches[i]).write_to_stream(out);
+    sketches[i]->write_binary(binary_out);
   }
 }

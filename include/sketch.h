@@ -1,13 +1,15 @@
 #pragma once
 #include <cmath>
 #include <exception>
-#include <iostream>
+#include <fstream>
 #include <vector>
 #include <mutex>
 #include "bucket.h"
 #include "types.h"
 #include "util.h"
 #include <gtest/gtest_prod.h>
+#include <boost/archive/binary_iarchive.hpp>
+#include <boost/archive/binary_oarchive.hpp>
 
 #define bucket_gen(x, c) double_to_ull((c)*(log2(x)+1))
 #define guess_gen(x) double_to_ull(log2(x)+2)
@@ -46,7 +48,14 @@ public:
    */
   Sketch(vec_t n, long seed, double num_bucket_factor = .5);
 
-  Sketch(vec_t n, long seed, std::ifstream& in);
+  /**
+   * Utility constructor to deserialize from a binary input stream.
+   * @param n
+   * @param seed
+   * @param binary_in
+   */
+  Sketch(vec_t n, long seed, std::fstream& binary_in);
+
   Sketch(const Sketch &old);
 
   /**
@@ -83,10 +92,10 @@ public:
   friend std::ostream& operator<< (std::ostream &os, const Sketch &sketch);
 
   /**
-   * Serialize the sketch to an output stream.
-   * @param out
+   * Serialize the sketch to a binary output stream.
+   * @param out the stream to write to.
    */
-  void write_to_stream(std::ofstream &out);
+  void write_binary(std::fstream& binary_out);
 };
 
 class AllBucketsZeroException : public std::exception {

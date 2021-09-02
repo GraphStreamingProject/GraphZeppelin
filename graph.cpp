@@ -1,5 +1,7 @@
 #include <map>
 #include <iostream>
+#include <boost/archive/binary_oarchive.hpp>
+#include <boost/archive/binary_iarchive.hpp>
 #include <buffer_tree.h>
 
 #include "include/graph.h"
@@ -35,9 +37,10 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
 #endif
 }
 
-
-Graph::Graph(ifstream &in) {
-  in >> seed >> num_nodes;
+Graph::Graph(const std::string& input_file) : num_updates(0) {
+  auto binary_in = std::fstream(input_file, std::ios::in | std::ios::binary);
+  binary_in.read((char*)&seed, sizeof(long));
+  binary_in.read((char*)&num_nodes, sizeof(uint64_t));
 #ifdef VERIFY_SAMPLES_F
   cout << "Verifying samples..." << endl;
 #endif
@@ -46,10 +49,10 @@ Graph::Graph(ifstream &in) {
   parent = new Node[num_nodes];
   for (Node i = 0; i < num_nodes; ++i) {
     representatives->insert(i);
-    supernodes[i] = new Supernode(num_nodes, seed, in);
+    supernodes[i] = new Supernode(num_nodes, seed, binary_in);
     parent[i] = i;
   }
-  num_updates = 0;
+  binary_in.close();
   std::string buffer_loc_prefix = configure_system(); // read the configuration file to configure the system
 #ifdef USE_FBT_F
   // Create buffer tree and start the graphWorkers
@@ -270,7 +273,7 @@ Node Graph::get_parent(Node node) {
   return parent[node] = get_parent(parent[node]);
 }
 
-void Graph::write_to_stream(ofstream &out) {
+void Graph::write_binary(const std::string& filename) {
 #ifdef USE_FBT_F
   bf->force_flush(); // flush everything in buffertree to make final updates
 #else
@@ -279,8 +282,11 @@ void Graph::write_to_stream(ofstream &out) {
   GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
   // after this point all updates have been processed from the buffer tree
 
-  out << seed << " " << num_nodes << endl;
+  auto binary_out = std::fstream(filename, std::ios::out | std::ios::binary);
+  binary_out.write((char*)&seed, sizeof(long));
+  binary_out.write((char*)&num_nodes, sizeof(uint64_t));
   for (Node i = 0; i < num_nodes; ++i) {
-    supernodes[i]->write_to_stream(out);
+    supernodes[i]->write_binary(binary_out);
   }
+  binary_out.close();
 }

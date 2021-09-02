@@ -51,7 +51,8 @@ class Graph {
 #endif
 public:
   explicit Graph(uint64_t num_nodes);
-  explicit Graph(std::ifstream& in);
+  explicit Graph(const string &input_file);
+
   ~Graph();
   void update(GraphUpdate upd);
 
@@ -82,12 +83,6 @@ public:
    */
   void post_cc_resume();
 
-  /**
-   * Serialize the graph node sketches to an output stream.
-   * @param out
-   */
-  void write_to_stream(std::ofstream& out);
-
 #ifdef VERIFY_SAMPLES_F
   std::string cum_in = "./cum_sample.txt";
 
@@ -104,6 +99,12 @@ public:
 
   static Supernode* generate_delta_node(uint64_t node_n, long node_seed, uint64_t src,
                                   const vector<uint64_t> &edges);
+
+  /**
+   * Serialize the graph data to a binary file.
+   * @param filename the name of the file to (over)write data to.
+   */
+  void write_binary(const string &filename);
 };
 
 class UpdateLockedException : public exception {

@@ -105,13 +105,10 @@ TEST(GraphTestSuite, TestCorrectnessOfReheating) {
       } else g.update({{a, b}, DELETE});
     }
     g.set_cum_in("./cum_sample.txt");
-    ofstream out {"./out_temp.txt"};
-    g.write_to_stream(out);
-    out.close();
+    g.write_binary("./out_temp.txt");
     auto g_res = g.connected_components();
 
-    ifstream reheated_input {"./out_temp.txt"};
-    Graph reheated {reheated_input};
+    Graph reheated {"./out_temp.txt"};
     auto reheated_res = reheated.connected_components();
     ASSERT_EQ(g_res.size(), reheated_res.size());
     for (unsigned i = 0; i < g_res.size(); ++i) {

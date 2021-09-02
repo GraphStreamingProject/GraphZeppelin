@@ -46,6 +46,9 @@ void GraphWorker::start_workers(Graph *_graph, WorkQueue *_wq) {
 #endif
 
 void GraphWorker::stop_workers() {
+  if (shutdown)
+    return;
+
 	shutdown = true;
 #ifdef USE_FBT_F
 	workers[0]->bf->set_non_block(true); // make the GraphWorkers bypass waiting in queue
