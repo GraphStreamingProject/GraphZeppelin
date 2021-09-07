@@ -35,11 +35,14 @@ private:
 
   FRIEND_TEST(SketchTestSuite, TestExceptions);
   FRIEND_TEST(EXPR_Parallelism, N10kU100k);
+
   
   // Buckets of this sketch.
   // Length is bucket_gen(n, num_bucket_factor) * guess_gen(n).
   // For buckets[i * guess_gen(n) + j], the bucket has a 1/2^j probability
-  // of containing an index.
+  // of containing an index. The first two are pointers into the buckets array.
+  vec_t*      bucket_a;
+  vec_hash_t* bucket_c;
   char buckets[1];
 
   /**
@@ -71,17 +74,17 @@ public:
   inline static size_t sketchSizeof(const Sketch &sketch)
   { return sketchSizeof(sketch.n, sketch.num_bucket_factor); }
   
-  inline vec_t* get_bucket_a()
-  { return reinterpret_cast<vec_t*>(buckets); }
+  // inline vec_t* get_bucket_a()
+  // { return reinterpret_cast<vec_t*>(buckets); }
 
-  inline vec_hash_t* get_bucket_c()
-  { return reinterpret_cast<vec_hash_t*>(buckets + get_num_elems() * sizeof(vec_t)); }
+  // inline vec_hash_t* get_bucket_c()
+  // { return reinterpret_cast<vec_hash_t*>(buckets + get_num_elems() * sizeof(vec_t)); }
 
-  inline const vec_t* get_bucket_a() const
-  { return reinterpret_cast<const vec_t*>(buckets); }
+  // inline const vec_t* get_bucket_a() const
+  // { return reinterpret_cast<const vec_t*>(buckets); }
 
-  inline const vec_hash_t* get_bucket_c() const
-  { return reinterpret_cast<const vec_hash_t*>(buckets + get_num_elems() * sizeof(vec_t)); }
+  // inline const vec_hash_t* get_bucket_c() const
+  // { return reinterpret_cast<const vec_hash_t*>(buckets + get_num_elems() * sizeof(vec_t)); }
   
   inline double get_bucket_factor()
   { return num_bucket_factor; }

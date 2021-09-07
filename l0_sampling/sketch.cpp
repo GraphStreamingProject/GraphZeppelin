@@ -34,16 +34,24 @@ Sketch* Sketch::makeSketch(void* loc, vec_t n, long seed, double num_bucket_fact
 
 Sketch::Sketch(vec_t n, long seed, double num_bucket_factor):
     seed(seed), n(n), num_bucket_factor(num_bucket_factor) {
+  // establish the bucket_a and bucket_c locations
+  bucket_a = reinterpret_cast<vec_t*>(buckets);
+  bucket_c = reinterpret_cast<vec_hash_t*>(buckets + get_num_elems() * sizeof(vec_t));
+
   for (size_t i = 0; i < get_num_elems(); ++i) {
-    get_bucket_a()[i] = 0;
-    get_bucket_c()[i] = 0;
+    bucket_a[i] = 0;
+    bucket_c[i] = 0;
   }
 }
 
 Sketch::Sketch(vec_t n, long seed, double num_bucket_factor, std::fstream &binary_in):
     seed(seed), n(n), num_bucket_factor(num_bucket_factor) {
-  binary_in.read((char*)get_bucket_a(), get_num_elems() * sizeof(vec_t));
-  binary_in.read((char*)get_bucket_c(), get_num_elems() * sizeof(vec_hash_t));
+  // establish the bucket_a and bucket_c locations
+  bucket_a = reinterpret_cast<vec_t*>(buckets);
+  bucket_c = reinterpret_cast<vec_hash_t*>(buckets + get_num_elems() * sizeof(vec_t));
+
+  binary_in.read((char*)bucket_a, get_num_elems() * sizeof(vec_t));
+  binary_in.read((char*)bucket_c, get_num_elems() * sizeof(vec_hash_t));
 }
 
 void Sketch::update(const vec_t& update_idx) {
@@ -55,7 +63,7 @@ void Sketch::update(const vec_t& update_idx) {
     for (unsigned j = 0; j < num_guesses; ++j) {
       unsigned bucket_id = i * num_guesses + j;
       if (Bucket_Boruvka::contains(col_index_hash, 1 << j)) {
-        Bucket_Boruvka::update(get_bucket_a()[bucket_id], get_bucket_c()[bucket_id], update_idx, update_hash);
+        Bucket_Boruvka::update(bucket_a[bucket_id], bucket_c[bucket_id], update_idx, update_hash);
       } else break;
     }
   }
@@ -78,11 +86,11 @@ vec_t Sketch::query() {
   for (unsigned i = 0; i < num_buckets; ++i) {
     for (unsigned j = 0; j < num_guesses; ++j) {
       unsigned bucket_id = i * num_guesses + j;
-      if (get_bucket_a()[bucket_id] != 0 || get_bucket_c()[bucket_id] != 0) {
+      if (bucket_a[bucket_id] != 0 || bucket_c[bucket_id] != 0) {
         all_buckets_zero = false;
       }
-      if (Bucket_Boruvka::is_good(get_bucket_a()[bucket_id], get_bucket_c()[bucket_id], n, i, 1 << j, seed)) {
-        return get_bucket_a()[bucket_id];
+      if (Bucket_Boruvka::is_good(bucket_a[bucket_id], bucket_c[bucket_id], n, i, 1 << j, seed)) {
+        return bucket_a[bucket_id];
       }
     }
   }
@@ -98,8 +106,8 @@ Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2) {
   assert (sketch1.seed == sketch2.seed);
   assert (sketch1.num_bucket_factor == sketch2.num_bucket_factor);
   for (unsigned i = 0; i < sketch1.get_num_elems(); i++){
-    sketch1.get_bucket_a()[i] ^= sketch2.get_bucket_a()[i];
-    sketch1.get_bucket_c()[i] ^= sketch2.get_bucket_c()[i];
+    sketch1.bucket_a[i] ^= sketch2.bucket_a[i];
+    sketch1.bucket_c[i] ^= sketch2.bucket_c[i];
   }
   sketch1.already_quered = sketch1.already_quered || sketch2.already_quered;
   return sketch1;
@@ -113,12 +121,12 @@ bool operator== (const Sketch &sketch1, const Sketch &sketch2) {
 
   for (size_t i = 0; i < sketch1.get_num_elems(); ++i)
   {
-    if (sketch1.get_bucket_a()[i] != sketch2.get_bucket_a()[i]) return false;
+    if (sketch1.bucket_a[i] != sketch2.bucket_a[i]) return false;
   }
 
   for (size_t i = 0; i < sketch1.get_num_elems(); ++i)
   {
-    if (sketch1.get_bucket_c()[i] != sketch2.get_bucket_c()[i]) return false;
+    if (sketch1.bucket_c[i] != sketch2.bucket_c[i]) return false;
   }
 
   return true;
@@ -134,9 +142,9 @@ std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
         os << (Bucket_Boruvka::contains(Bucket_Boruvka::col_index_hash(i, k, sketch.seed), 1 << j) ? '1' : '0');
       }
       os << std::endl
-         << "a:" << sketch.get_bucket_a()[bucket_id] << std::endl
-         << "c:" << sketch.get_bucket_c()[bucket_id] << std::endl
-         << (Bucket_Boruvka::is_good(sketch.get_bucket_a()[bucket_id], sketch.get_bucket_c()[bucket_id], sketch.n, i, 1 << j, sketch.seed) ? "good" : "bad") << std::endl;
+         << "a:" << sketch.bucket_a[bucket_id] << std::endl
+         << "c:" << sketch.bucket_c[bucket_id] << std::endl
+         << (Bucket_Boruvka::is_good(sketch.bucket_a[bucket_id], sketch.bucket_c[bucket_id], sketch.n, i, 1 << j, sketch.seed) ? "good" : "bad") << std::endl;
     }
   }
   return os;
@@ -144,6 +152,6 @@ std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
 
 void Sketch::write_binary(std::fstream& binary_out) {
   binary_out.write((char*)&num_bucket_factor, sizeof(double));
-  binary_out.write((char*)get_bucket_a(), get_num_elems()*sizeof(vec_t));
-  binary_out.write((char*)get_bucket_c(), get_num_elems()*sizeof(vec_hash_t));
+  binary_out.write((char*)bucket_a, get_num_elems()*sizeof(vec_t));
+  binary_out.write((char*)bucket_c, get_num_elems()*sizeof(vec_hash_t));
 }
