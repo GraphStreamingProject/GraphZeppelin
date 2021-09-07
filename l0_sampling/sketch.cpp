@@ -2,38 +2,32 @@
 #include <cassert>
 #include <iostream>
 
+double Sketch::num_bucket_factor = 0.5;
+vec_t Sketch::n ;
+
 Sketch::SketchUniquePtr Sketch::makeSketch(const Sketch &old) {
-  return makeSketch(old.n, old.seed, old.num_bucket_factor);
+  return makeSketch(old.seed);
 }
 
-Sketch::SketchUniquePtr Sketch::makeSketch(vec_t n, long seed, double num_bucket_factor) {
+Sketch::SketchUniquePtr Sketch::makeSketch(long seed) {
   void* loc = malloc(sketchSizeof(n, num_bucket_factor));
-  return SketchUniquePtr(makeSketch(loc, n, seed, num_bucket_factor), [](Sketch* s){ s->~Sketch(); free(s); });
+  return SketchUniquePtr(makeSketch(loc, seed), [](Sketch* s){ s->~Sketch(); free(s); });
 }
 
-Sketch::SketchUniquePtr Sketch::makeSketch(vec_t n, long seed, std::fstream &binary_in) {
-  double num_bucket_factor = 0.0;
-  binary_in.read((char*)&num_bucket_factor, sizeof(double));
+Sketch::SketchUniquePtr Sketch::makeSketch(long seed, std::fstream &binary_in) {
   void* loc = malloc(sketchSizeof(n, num_bucket_factor));
-  return SketchUniquePtr(makeSketch(loc, n, seed, num_bucket_factor, binary_in), [](Sketch* s){ free(s); });
+  return SketchUniquePtr(makeSketch(loc, seed, binary_in), [](Sketch* s){ free(s); });
 }
 
-Sketch* Sketch::makeSketch(void* loc, vec_t n, long seed, std::fstream &binary_in) {
-  double num_bucket_factor = 0.0;
-  binary_in.read((char*)&num_bucket_factor, sizeof(double));
-  return makeSketch(loc, n, seed, num_bucket_factor, binary_in);
+Sketch* Sketch::makeSketch(void* loc, long seed, std::fstream &binary_in) {
+  return new (loc) Sketch(seed, binary_in);
 }
 
-Sketch* Sketch::makeSketch(void* loc, vec_t n, long seed, double num_bucket_factor) {
-  return new (loc) Sketch(n, seed, num_bucket_factor);
+Sketch* Sketch::makeSketch(void* loc, long seed) {
+  return new (loc) Sketch(seed);
 }
 
-Sketch* Sketch::makeSketch(void* loc, vec_t n, long seed, double num_bucket_factor, std::fstream &binary_in) {
-  return new (loc) Sketch(n, seed, num_bucket_factor, binary_in);
-}
-
-Sketch::Sketch(vec_t n, long seed, double num_bucket_factor):
-    seed(seed), n(n), num_bucket_factor(num_bucket_factor) {
+Sketch::Sketch(long seed): seed(seed) {
   // establish the bucket_a and bucket_c locations
   bucket_a = reinterpret_cast<vec_t*>(buckets);
   bucket_c = reinterpret_cast<vec_hash_t*>(buckets + get_num_elems() * sizeof(vec_t));
@@ -44,8 +38,7 @@ Sketch::Sketch(vec_t n, long seed, double num_bucket_factor):
   }
 }
 
-Sketch::Sketch(vec_t n, long seed, double num_bucket_factor, std::fstream &binary_in):
-    seed(seed), n(n), num_bucket_factor(num_bucket_factor) {
+Sketch::Sketch(long seed, std::fstream &binary_in): seed(seed) {
   // establish the bucket_a and bucket_c locations
   bucket_a = reinterpret_cast<vec_t*>(buckets);
   bucket_c = reinterpret_cast<vec_hash_t*>(buckets + get_num_elems() * sizeof(vec_t));
@@ -102,9 +95,7 @@ vec_t Sketch::query() {
 }
 
 Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2) {
-  assert (sketch1.n == sketch2.n);
   assert (sketch1.seed == sketch2.seed);
-  assert (sketch1.num_bucket_factor == sketch2.num_bucket_factor);
   for (unsigned i = 0; i < sketch1.get_num_elems(); i++){
     sketch1.bucket_a[i] ^= sketch2.bucket_a[i];
     sketch1.bucket_c[i] ^= sketch2.bucket_c[i];
@@ -114,10 +105,8 @@ Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2) {
 }
 
 bool operator== (const Sketch &sketch1, const Sketch &sketch2) {
-  if (sketch1.n != sketch2.n ||
-      sketch1.seed != sketch2.seed ||
-      sketch1.num_bucket_factor != sketch2.num_bucket_factor ||
-      sketch1.already_quered != sketch2.already_quered) return false;
+  if (sketch1.seed != sketch2.seed || sketch1.already_quered != sketch2.already_quered) 
+    return false;
 
   for (size_t i = 0; i < sketch1.get_num_elems(); ++i)
   {
@@ -151,7 +140,6 @@ std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
 }
 
 void Sketch::write_binary(std::fstream& binary_out) {
-  binary_out.write((char*)&num_bucket_factor, sizeof(double));
   binary_out.write((char*)bucket_a, get_num_elems()*sizeof(vec_t));
   binary_out.write((char*)bucket_c, get_num_elems()*sizeof(vec_hash_t));
 }

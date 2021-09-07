@@ -6,45 +6,34 @@
 #include "include/graph_worker.h"
 
 Supernode::Supernode(uint64_t n, long seed): idx(0), logn(log2(n)),
-					     n(n), seed(seed), sketch_size(Sketch::sketchSizeof(n*n, default_bucket_factor)) {
+					     n(n), seed(seed), sketch_size(Sketch::sketchSizeof(n*n, Sketch::num_bucket_factor)) {
+
   // generate logn sketches for each supernode (read: node)
   for (int i = 0; i < logn; ++i) {
-    Sketch::makeSketch(get_sketch(i), n*n, seed++, default_bucket_factor);
+    Sketch::makeSketch(get_sketch(i), seed++);
   }
 }
 
-Supernode::Supernode(uint64_t n, long seed, size_t sketch_size) :
-  idx(0), logn(log2(n)), n(n), seed(seed), sketch_size(sketch_size) {
-  // Assume someone else is going to initialize our sketches.
+Supernode::Supernode(uint64_t n, long seed, std::fstream &binary_in) :
+  idx(0), logn(log2(n)), n(n), seed(seed), sketch_size(Sketch::sketchSizeof(n*n, Sketch::num_bucket_factor)) {
+
+  // read logn sketches from file for each supernode (read: node)
+  for (int i = 0; i < logn; ++i) {
+    Sketch::makeSketch(get_sketch(i), seed++, binary_in);
+  }
 }
 
 Supernode::SupernodeUniquePtr Supernode::makeSupernode(uint64_t n, long seed) {
+  Sketch::n = n * n;
   void *loc = malloc(supernode_size(n));
-  return SupernodeUniquePtr(makeSupernode(loc, n, seed), [](Supernode* s){ s->~Supernode(); free(s); });
+  SupernodeUniquePtr ret(new (loc) Supernode(n, seed), [](Supernode* s){ free(s); });
+  return ret;
 }
 
 Supernode::SupernodeUniquePtr Supernode::makeSupernode(uint64_t n, long seed, std::fstream &binary_in) {
-  // Since fstream is stateful, we have to do this awful thing.
-  
-  // We have to read the first Sketch to figure out how big it's going to be...
-  Sketch::SketchUniquePtr first_sketch = Sketch::makeSketch(n*n, seed++, binary_in);
-  double bucket_factor = first_sketch->get_bucket_factor();
-
-  // Then we assume they're all the same size...
-  size_t sketch_size = Sketch::sketchSizeof(n*n, bucket_factor);
-  void *loc = malloc(sizeof(Supernode) + log2(n) * sketch_size - sizeof(char));
-  SupernodeUniquePtr ret(new (loc) Supernode(n, seed, sketch_size), [](Supernode* s){ free(s); });
-
-  // Copy the sketch we already read out.
-  memcpy((void*)ret->get_sketch(0), (void*)first_sketch.get(), Sketch::sketchSizeof(*first_sketch));
-  for (int i = 1; i < ret->logn; ++i) {
-    Sketch::makeSketch(ret->get_sketch(i), n*n, seed++, binary_in);
-
-    // All of the bucket factors have to be the same. If they aren't, choke and die.
-    if (ret->get_sketch(i)->get_bucket_factor() != bucket_factor) {
-      throw new std::runtime_error("Please stop what you're doing");
-    }
-  }
+  Sketch::n = n * n;
+  void *loc = malloc(supernode_size(n));
+  SupernodeUniquePtr ret(new (loc) Supernode(n, seed, binary_in), [](Supernode* s){ free(s); });
   return ret;
 }
 

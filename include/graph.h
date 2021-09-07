@@ -49,6 +49,8 @@ class Graph {
   // In-memory buffering system
   WorkQueue *wq;
 #endif
+
+  FRIEND_TEST(GraphTestSuite, TestCorrectnessOfReheating);
 public:
   explicit Graph(uint64_t num_nodes);
   explicit Graph(const string &input_file);

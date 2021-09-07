@@ -90,7 +90,7 @@ TEST(GraphTestSuite, TestCorrectnessOnSmallSparseGraphs) {
 }
 
 TEST(GraphTestSuite, TestCorrectnessOfReheating) {
-  int num_trials = 10;
+  int num_trials = 1;
   while (num_trials--) {
     generate_stream({1024,0.002,0.5,0,"./sample.txt","./cum_sample.txt"});
     ifstream in{"./sample.txt"};
@@ -109,6 +109,18 @@ TEST(GraphTestSuite, TestCorrectnessOfReheating) {
     auto g_res = g.connected_components();
 
     Graph reheated {"./out_temp.txt"};
+
+    // for (int i = 0; i < log2(n); i++) {
+    //   ASSERT_EQ(g.supernodes[i]->logn, reheated.supernodes[i]->logn);
+    //   //ASSERT_EQ(g.supernodes[i]->idx, reheated.supernodes[i]->idx);
+    //   for (int j = g.supernodes[i]->idx;j < g.supernodes[i]->logn;++j) {
+    //     if(!(*g.supernodes[i]->get_sketch(j) == *reheated.supernodes[i]->get_sketch(j))) {
+    //       printf("sketches at index %i do not match of supernode %i\n", j, i);
+    //       ASSERT_EQ(1, 0);
+    //     }
+    //   }
+    // }
+
     auto reheated_res = reheated.connected_components();
     ASSERT_EQ(g_res.size(), reheated_res.size());
     for (unsigned i = 0; i < g_res.size(); ++i) {

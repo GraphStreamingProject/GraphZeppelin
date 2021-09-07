@@ -14,9 +14,10 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
   representatives = new set<Node>();
   supernodes = new Supernode*[num_nodes];
   parent = new Node[num_nodes];
-  seed = time(nullptr);
-  srand(seed);
-  seed = rand();
+  Sketch::n = num_nodes * num_nodes;
+  // seed = time(nullptr);
+  // srand(seed);
+  seed = 10;
   for (Node i=0;i<num_nodes;++i) {
     representatives->insert(i);
     supernodes[i] = Supernode::makeSupernode(num_nodes,seed).release();
@@ -40,6 +41,9 @@ Graph::Graph(const std::string& input_file) : num_updates(0) {
   auto binary_in = std::fstream(input_file, std::ios::in | std::ios::binary);
   binary_in.read((char*)&seed, sizeof(long));
   binary_in.read((char*)&num_nodes, sizeof(uint64_t));
+  binary_in.read((char*)&Sketch::num_bucket_factor, sizeof(double));
+  Sketch::n = num_nodes * num_nodes;
+
 #ifdef VERIFY_SAMPLES_F
   cout << "Verifying samples..." << endl;
 #endif
@@ -292,6 +296,7 @@ void Graph::write_binary(const std::string& filename) {
   auto binary_out = std::fstream(filename, std::ios::out | std::ios::binary);
   binary_out.write((char*)&seed, sizeof(long));
   binary_out.write((char*)&num_nodes, sizeof(uint64_t));
+  binary_out.write((char*)&Sketch::num_bucket_factor, sizeof(double));
   for (Node i = 0; i < num_nodes; ++i) {
     supernodes[i]->write_binary(binary_out);
   }

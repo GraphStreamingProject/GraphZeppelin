@@ -4,14 +4,18 @@
 #include "util/testing_vector.h"
 
 TEST(SketchTestSuite, TestExceptions) {
-  Sketch::SketchUniquePtr sketch1 = Sketch::makeSketch(10,rand(), 1);
+  Sketch::n = 10 * 10;
+  Sketch::num_bucket_factor = 1;
+  Sketch::SketchUniquePtr sketch1 = Sketch::makeSketch(rand());
   ASSERT_THROW(sketch1->query(), AllBucketsZeroException);
   ASSERT_THROW(sketch1->query(), MultipleQueryException);
 
   /**
    * Find a vector that makes no good buckets
    */
-  Sketch::SketchUniquePtr sketch2 = Sketch::makeSketch(100, 0);
+  Sketch::n = 100 * 100;
+  Sketch::num_bucket_factor = 0.5;
+  Sketch::SketchUniquePtr sketch2 = Sketch::makeSketch(0);
   std::vector<bool> vec_idx(sketch2->n, true);
   unsigned long long num_buckets = bucket_gen(sketch2->n, 1);
   unsigned long long num_guesses = guess_gen(sketch2->n);
@@ -47,8 +51,8 @@ TEST(SketchTestSuite, TestExceptions) {
 TEST(SketchTestSuite, GIVENonlyIndexZeroUpdatedTHENitWorks) {
   // GIVEN only the index 0 is updated
   srand(time(NULL));
-  int vec_size = 1000;
-  Sketch::SketchUniquePtr sketch = Sketch::makeSketch(vec_size, rand());
+  Sketch::n = 1000 * 1000;
+  Sketch::SketchUniquePtr sketch = Sketch::makeSketch(rand());
   sketch->update(0);
   sketch->update(0);
   sketch->update(0);
@@ -64,13 +68,16 @@ TEST(SketchTestSuite, GIVENonlyIndexZeroUpdatedTHENitWorks) {
 void test_sketch_sample(unsigned long num_sketches,
     unsigned long vec_size, unsigned long num_updates,
     double max_sample_fail_prob, double max_bucket_fail_prob) {
+  Sketch::n = vec_size * vec_size;
+  Sketch::num_bucket_factor = 1;
+
   srand(time(NULL));
   std::chrono::duration<long double> runtime(0);
   unsigned long all_bucket_failures = 0;
   unsigned long sample_incorrect_failures = 0;
   for (unsigned long i = 0; i < num_sketches; i++) {
     Testing_Vector test_vec = Testing_Vector(vec_size, num_updates);
-    Sketch::SketchUniquePtr sketch = Sketch::makeSketch(vec_size, rand(), 1);
+    Sketch::SketchUniquePtr sketch = Sketch::makeSketch(rand());
     auto start_time = std::chrono::steady_clock::now();
     for (unsigned long j = 0; j < num_updates; j++){
       sketch->update(test_vec.get_update(j));
@@ -127,13 +134,16 @@ TEST(SketchTestSuite, TestSketchSample) {
 void test_sketch_addition(unsigned long num_sketches,
     unsigned long vec_size, unsigned long num_updates,
     double max_sample_fail_prob, double max_bucket_fail_prob) {
+  Sketch::n = vec_size * vec_size;
+  Sketch::num_bucket_factor = 1;
+
   srand (time(NULL));
   unsigned long all_bucket_failures = 0;
   unsigned long sample_incorrect_failures = 0;
   for (unsigned long i = 0; i < num_sketches; i++){
     const long seed = rand();
-    Sketch::SketchUniquePtr sketch1 = Sketch::makeSketch(vec_size, seed, 1);
-    Sketch::SketchUniquePtr sketch2 = Sketch::makeSketch(vec_size, seed, 1);
+    Sketch::SketchUniquePtr sketch1 = Sketch::makeSketch(seed);
+    Sketch::SketchUniquePtr sketch2 = Sketch::makeSketch(seed);
     Testing_Vector test_vec1 = Testing_Vector(vec_size, num_updates);
     Testing_Vector test_vec2 = Testing_Vector(vec_size, num_updates);
 
@@ -185,8 +195,11 @@ TEST(SketchTestSuite, TestSketchAddition){
  * Large sketch test
  */
 void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
+  Sketch::n = vec_size * vec_size;
+  Sketch::num_bucket_factor = 0.5;
+
   srand(time(NULL));
-  Sketch::SketchUniquePtr sketch = Sketch::makeSketch(vec_size, rand());
+  Sketch::SketchUniquePtr sketch = Sketch::makeSketch(rand());
   //Keep seed for replaying update stream later
   unsigned long seed = rand();
   srand(seed);
@@ -239,14 +252,16 @@ TEST(SketchTestSuite, TestSketchLarge) {
 
 TEST(SketchTestSuite, TestBatchUpdate) {
   unsigned long vec_size = 1000000000, num_updates = 10000;
+  Sketch::n = vec_size * vec_size;
+  Sketch::num_bucket_factor = 0.5;
   srand(time(NULL));
   std::vector<vec_t> updates(num_updates);
   for (unsigned long i = 0; i < num_updates; i++) {
     updates[i] = static_cast<vec_t>(rand() % vec_size);
   }
   auto sketch_seed = rand();
-  Sketch::SketchUniquePtr sketch = Sketch::makeSketch(vec_size, sketch_seed);
-  Sketch::SketchUniquePtr sketch_batch = Sketch::makeSketch(vec_size, sketch_seed);
+  Sketch::SketchUniquePtr sketch = Sketch::makeSketch(sketch_seed);
+  Sketch::SketchUniquePtr sketch_batch = Sketch::makeSketch(sketch_seed);
   auto start_time = std::chrono::steady_clock::now();
   for (const vec_t& update : updates) {
     sketch->update(update);
@@ -260,11 +275,14 @@ TEST(SketchTestSuite, TestBatchUpdate) {
 }
 
 TEST(SketchTestSuite, TestSerialization) {
+  printf("starting test!\n");
   unsigned long vec_size = 1024*1024;
   unsigned long num_updates = 10000;
+  Sketch::n = vec_size * vec_size;
+  Sketch::num_bucket_factor = 1;
   Testing_Vector test_vec = Testing_Vector(vec_size, num_updates);
   auto seed = rand();
-  Sketch::SketchUniquePtr sketch = Sketch::makeSketch(vec_size, seed, 1);
+  Sketch::SketchUniquePtr sketch = Sketch::makeSketch(seed);
   for (unsigned long j = 0; j < num_updates; j++){
     sketch->update(test_vec.get_update(j));
   }
@@ -273,7 +291,7 @@ TEST(SketchTestSuite, TestSerialization) {
   file.close();
 
   auto in_file = std::fstream("./out_sketch.txt", std::ios::in | std::ios::binary);
-  Sketch::SketchUniquePtr reheated = Sketch::makeSketch(vec_size, seed, in_file);
+  Sketch::SketchUniquePtr reheated = Sketch::makeSketch(seed, in_file);
 
   ASSERT_EQ(*sketch, *reheated);
 }

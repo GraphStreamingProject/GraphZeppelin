@@ -21,15 +21,20 @@
  */
 class Sketch {
 public:
+  // Factor for how many buckets there are in this sketch.
+  static double num_bucket_factor;
+  // Length of the vector this is sketching.
+  static vec_t n;
+
   using SketchUniquePtr = std::unique_ptr<Sketch,std::function<void(Sketch*)>>;
 
 private:
   // Seed used for hashing operations in this sketch.
   const long seed;
-  // Length of the vector this is sketching.
-  const vec_t n;
-  // Factor for how many buckets there are in this sketch.
-  double num_bucket_factor;
+  // pointers to buckets
+  vec_t*      bucket_a;
+  vec_hash_t* bucket_c;
+
   // Flag to keep track if this sketch has already been queried.
   bool already_quered = false;
 
@@ -41,26 +46,24 @@ private:
   // Length is bucket_gen(n, num_bucket_factor) * guess_gen(n).
   // For buckets[i * guess_gen(n) + j], the bucket has a 1/2^j probability
   // of containing an index. The first two are pointers into the buckets array.
-  vec_t*      bucket_a;
-  vec_hash_t* bucket_c;
   char buckets[1];
 
   /**
    * Construct a sketch of a vector of size n
-   * @param n Length of the vector to sketch.
+   * @param n Length of the vector to sketch. (static variable)
    * @param seed Seed to use for hashing operations
-   * @param num_bucket_factor Factor to scale the number of buckets in this sketch
+   * @param num_bucket_factor Factor to scale the number of buckets in this sketch (static variable)
    */
-  Sketch(vec_t n, long seed, double num_bucket_factor = .5);
-  Sketch(vec_t n, long seed, double num_bucket_factor, std::fstream &binary_in);
+  Sketch(long seed);
+  Sketch(long seed, std::fstream &binary_in);
 
 public:
   static SketchUniquePtr makeSketch(const Sketch &old);
-  static SketchUniquePtr makeSketch(vec_t n, long seed, double num_bucket_factor = 0.5);
-  static SketchUniquePtr makeSketch(vec_t n, long seed, std::fstream &binary_in);
-  static Sketch* makeSketch(void* loc, vec_t n, long seed, double num_bucket_factor = 0.5);
-  static Sketch* makeSketch(void* loc, vec_t n, long seed, std::fstream &binary_in);
-  static Sketch* makeSketch(void* loc, vec_t n, long seed, double num_bucket_factor, std::fstream &binary_in);
+  static SketchUniquePtr makeSketch(long seed);
+  static SketchUniquePtr makeSketch(long seed, std::fstream &binary_in);
+  static Sketch* makeSketch(void* loc, long seed);
+  static Sketch* makeSketch(void* loc, long seed, std::fstream &binary_in);
+  static Sketch* makeSketch(void* loc, long seed, double num_bucket_factor, std::fstream &binary_in);
 
   inline static unsigned get_num_elems(vec_t n, double num_bucket_factor)
   { return bucket_gen(n, num_bucket_factor) * guess_gen(n); }
@@ -73,18 +76,6 @@ public:
   
   inline static size_t sketchSizeof(const Sketch &sketch)
   { return sketchSizeof(sketch.n, sketch.num_bucket_factor); }
-  
-  // inline vec_t* get_bucket_a()
-  // { return reinterpret_cast<vec_t*>(buckets); }
-
-  // inline vec_hash_t* get_bucket_c()
-  // { return reinterpret_cast<vec_hash_t*>(buckets + get_num_elems() * sizeof(vec_t)); }
-
-  // inline const vec_t* get_bucket_a() const
-  // { return reinterpret_cast<const vec_t*>(buckets); }
-
-  // inline const vec_hash_t* get_bucket_c() const
-  // { return reinterpret_cast<const vec_hash_t*>(buckets + get_num_elems() * sizeof(vec_t)); }
   
   inline double get_bucket_factor()
   { return num_bucket_factor; }

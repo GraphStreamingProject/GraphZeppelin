@@ -13,7 +13,6 @@ typedef std::pair<Node, Node> Edge;
  * box without needing to worry about implementing l_0.
  */
 class Supernode {
-  static constexpr double default_bucket_factor = 0.5;
   /* collection of logn sketches to query from, since we can't query from one
      sketch more than once */
   int idx;
@@ -23,6 +22,7 @@ class Supernode {
   FRIEND_TEST(SupernodeTestSuite, TestBatchUpdate);
   FRIEND_TEST(SupernodeTestSuite, TestConcurrency);
   FRIEND_TEST(SupernodeTestSuite, TestSerialization);
+  FRIEND_TEST(GraphTestSuite, TestCorrectnessOfReheating);
   FRIEND_TEST(EXPR_Parallelism, N10kU100k);
 
 public:
@@ -42,18 +42,20 @@ private:
   Supernode(uint64_t n, long seed);
 
   /**
-   * @param n
-   * @param seed
-   * @param sketch_size The size of the sketch objects within.
+   * @param n         the total number of nodes in the graph.
+   * @param seed      the (fixed) seed value passed to each supernode.
+   * @param binary_in A stream to read the file from
    */
-  Supernode(uint64_t n, long seed, size_t sketch_size);
+  Supernode(uint64_t n, long seed, std::fstream &binary_in);
+
+
 
 public:
   using SupernodeUniquePtr = std::unique_ptr<Supernode, std::function<void(Supernode*)>>;
   static SupernodeUniquePtr makeSupernode(uint64_t n, long seed);
   static SupernodeUniquePtr makeSupernode(uint64_t n, long seed, std::fstream &binary_in);
   static Supernode* makeSupernode(void* loc, uint64_t n, long seed);
-  
+
   ~Supernode();
 
   inline Sketch* get_sketch(size_t i)
@@ -63,7 +65,7 @@ public:
   { return reinterpret_cast<const Sketch*>(sketch_buffer + i * sketch_size); }
 
   static inline long supernode_size(uint64_t n) 
-  { return sizeof(Supernode) + log2(n) * Sketch::sketchSizeof(n*n, default_bucket_factor) - sizeof(char);}
+  { return sizeof(Supernode) + log2(n) * Sketch::sketchSizeof(n*n, Sketch::num_bucket_factor) - sizeof(char);}
 
   /**
    * Function to sample an edge from the cut of a supernode.
