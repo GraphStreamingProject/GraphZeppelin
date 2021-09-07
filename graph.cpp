@@ -19,7 +19,7 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
   seed = rand();
   for (Node i=0;i<num_nodes;++i) {
     representatives->insert(i);
-    supernodes[i] = new Supernode(num_nodes,seed);
+    supernodes[i] = Supernode::makeSupernode(num_nodes,seed).release();
     parent[i] = i;
   }
   num_updates = 0; // REMOVE this later
@@ -48,7 +48,7 @@ Graph::Graph(const std::string& input_file) : num_updates(0) {
   parent = new Node[num_nodes];
   for (Node i = 0; i < num_nodes; ++i) {
     representatives->insert(i);
-    supernodes[i] = new Supernode(num_nodes, seed, binary_in);
+    supernodes[i] = Supernode::makeSupernode(num_nodes, seed, binary_in).release();
     parent[i] = i;
   }
   binary_in.close();
@@ -94,8 +94,8 @@ void Graph::update(GraphUpdate upd) {
 #endif
 }
 
-Supernode* Graph::generate_delta_node(uint64_t node_n, long node_seed, uint64_t
-                                src, const std::vector<uint64_t>& edges) {
+Supernode::SupernodeUniquePtr Graph::generate_delta_node(uint64_t node_n, long node_seed, uint64_t
+							 src, const std::vector<uint64_t>& edges) {
   std::vector<vec_t> updates;
   updates.reserve(edges.size());
   for (const auto& edge : edges) {
@@ -112,10 +112,9 @@ Supernode* Graph::generate_delta_node(uint64_t node_n, long node_seed, uint64_t
 void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges) {
   if (update_locked) throw UpdateLockedException();
   num_updates += edges.size(); // REMOVE this later
-  auto* delta_node = generate_delta_node(supernodes[src]->n,
-                                         supernodes[src]->seed, src, edges);
-  supernodes[src]->apply_delta_update(delta_node);
-  delete(delta_node);
+  auto delta_node = generate_delta_node(supernodes[src]->n,
+					supernodes[src]->seed, src, edges);
+  supernodes[src]->apply_delta_update(delta_node.get());
 }
 
 vector<set<Node>> Graph::connected_components() {

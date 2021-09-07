@@ -13,12 +13,13 @@ typedef std::pair<Node, Node> Edge;
  * box without needing to worry about implementing l_0.
  */
 class Supernode {
+  static constexpr double default_bucket_factor = 0.5;
   /* collection of logn sketches to query from, since we can't query from one
      sketch more than once */
-  vector<Sketch*> sketches;
   int idx;
   int logn;
   std::mutex node_mt;
+  size_t sketch_size;
 
   FRIEND_TEST(SupernodeTestSuite, TestBatchUpdate);
   FRIEND_TEST(SupernodeTestSuite, TestConcurrency);
@@ -28,6 +29,11 @@ class Supernode {
 public:
   const uint64_t n; // for creating a copy
   const long seed; // for creating a copy
+  
+private:
+  // The sketches, off the end.
+  alignas(Sketch) char sketch_buffer[1];
+  
   /**
    * @param n     the total number of nodes in the graph.
    * @param seed  the (fixed) seed value passed to each supernode.
@@ -35,14 +41,22 @@ public:
   Supernode(uint64_t n, long seed);
 
   /**
-   * Utility constructor to deserialize from a binary input stream.
    * @param n
    * @param seed
-   * @param in          the stream to read from.
+   * @param sketch_size The size of the sketch objects within.
    */
-  Supernode(uint64_t n, long seed, std::fstream& binary_in);
+  Supernode(uint64_t n, long seed, size_t sketch_size);
 
+public:
+  using SupernodeUniquePtr = std::unique_ptr<Supernode, std::function<void(Supernode*)>>;
+  static SupernodeUniquePtr makeSupernode(uint64_t n, long seed);
+  static SupernodeUniquePtr makeSupernode(uint64_t n, long seed, std::fstream &binary_in);
+  static Supernode* makeSupernode(void* loc, uint64_t n, long seed);
+  
   ~Supernode();
+
+  Sketch* get_sketch(size_t i);
+  const Sketch* get_sketch(size_t i) const;
 
   /**
    * Function to sample an edge from the cut of a supernode.
@@ -82,7 +96,7 @@ public:
    * @param updates the batch of updates to apply.
    * @return
    */
-  static Supernode* delta_supernode(uint64_t n, long seed, const
+  static SupernodeUniquePtr delta_supernode(uint64_t n, long seed, const
   std::vector<vec_t>& updates);
 
   /**

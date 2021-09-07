@@ -2,7 +2,9 @@
 #include <cmath>
 #include <exception>
 #include <fstream>
+#include <functional>
 #include <vector>
+#include <memory>
 #include <mutex>
 #include "bucket.h"
 #include "types.h"
@@ -18,26 +20,28 @@
  * raise an error.
  */
 class Sketch {
+public:
+  using SketchUniquePtr = std::unique_ptr<Sketch,std::function<void(Sketch*)>>;
+
+private:
   // Seed used for hashing operations in this sketch.
   const long seed;
   // Length of the vector this is sketching.
   const vec_t n;
   // Factor for how many buckets there are in this sketch.
   double num_bucket_factor;
-
-  // Buckets of this sketch.
-  // Length is bucket_gen(n, num_bucket_factor) * guess_gen(n).
-  // For buckets[i * guess_gen(n) + j], the bucket has a 1/2^j probability
-  // of containing an index.
-  std::vector<vec_t> bucket_a;
-  std::vector<vec_hash_t> bucket_c;
   // Flag to keep track if this sketch has already been queried.
   bool already_quered = false;
 
   FRIEND_TEST(SketchTestSuite, TestExceptions);
   FRIEND_TEST(EXPR_Parallelism, N10kU100k);
+  
+  // Buckets of this sketch.
+  // Length is bucket_gen(n, num_bucket_factor) * guess_gen(n).
+  // For buckets[i * guess_gen(n) + j], the bucket has a 1/2^j probability
+  // of containing an index.
+  char buckets[1];
 
-public:
   /**
    * Construct a sketch of a vector of size n
    * @param n Length of the vector to sketch.
@@ -45,17 +49,39 @@ public:
    * @param num_bucket_factor Factor to scale the number of buckets in this sketch
    */
   Sketch(vec_t n, long seed, double num_bucket_factor = .5);
+  Sketch(vec_t n, long seed, double num_bucket_factor, std::fstream &binary_in);
 
-  /**
-   * Utility constructor to deserialize from a binary input stream.
-   * @param n
-   * @param seed
-   * @param binary_in
-   */
-  Sketch(vec_t n, long seed, std::fstream& binary_in);
+public:
+  static SketchUniquePtr makeSketch(const Sketch &old);
+  static SketchUniquePtr makeSketch(vec_t n, long seed, double num_bucket_factor = 0.5);
+  static SketchUniquePtr makeSketch(vec_t n, long seed, std::fstream &binary_in);
+  static Sketch* makeSketch(void* loc, vec_t n, long seed, double num_bucket_factor = 0.5);
+  static Sketch* makeSketch(void* loc, vec_t n, long seed, std::fstream &binary_in);
+  static Sketch* makeSketch(void* loc, vec_t n, long seed, double num_bucket_factor, std::fstream &binary_in);
 
-  Sketch(const Sketch &old);
+  static unsigned get_num_elems(vec_t n, double num_bucket_factor);
+  unsigned get_num_elems() const;
+  static size_t sketchSizeof(vec_t n, double num_bucket_factor)
+  {
+    return sizeof(Sketch) + get_num_elems(n, num_bucket_factor) * (sizeof(vec_t) + sizeof(vec_hash_t)) - sizeof(char);
+  }
 
+  static size_t sketchSizeof(const Sketch &sketch)
+  {
+    return sketchSizeof(sketch.n, sketch.num_bucket_factor);
+  }
+  
+  vec_t* get_bucket_a();
+  vec_hash_t* get_bucket_c();
+
+  const vec_t* get_bucket_a() const;
+  const vec_hash_t* get_bucket_c() const;
+  
+  double get_bucket_factor()
+  {
+    return num_bucket_factor;
+  }
+  
   /**
    * Update a sketch based on information about one of its indices.
    * @param update the point update.

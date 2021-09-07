@@ -5,30 +5,79 @@
 #include "include/util.h"
 #include "include/graph_worker.h"
 
-Supernode::Supernode(uint64_t n, long seed): sketches(log2(n)), idx(0), logn(log2
-(n)), seed(seed), n(n) {
-  // generate logn sketches for each supernode (read: node)
-  for (int i=0;i<logn;++i)
-    sketches[i] = new Sketch(n*n, seed++);
-}
+constexpr double Supernode::default_bucket_factor;
 
-Supernode::Supernode(uint64_t n, long seed, std::fstream& binary_in) :
-sketches(log2(n)), idx(0), logn(log2(n)), n(n), seed(seed) {
-  for (int i = 0; i < logn; ++i) {
-    sketches[i] = new Sketch(n*n, seed++, binary_in);
+Supernode::Supernode(uint64_t n, long seed): idx(0), logn(log2(n)),
+					     seed(seed), n(n), sketch_size(Sketch::sketchSizeof(n*n, default_bucket_factor)) {
+  // generate logn sketches for each supernode (read: node)
+  for (int i = 0; i < logn; ++i)
+  {
+    Sketch::makeSketch(get_sketch(i), n*n, seed++, default_bucket_factor);
   }
 }
 
+Supernode::Supernode(uint64_t n, long seed, size_t sketch_size) :
+  idx(0), logn(log2(n)), n(n), seed(seed), sketch_size(sketch_size)
+{
+  // Assume someone else is going to initialize our sketches.
+}
+
+Supernode::SupernodeUniquePtr Supernode::makeSupernode(uint64_t n, long seed)
+{
+  void *loc = malloc(sizeof(Supernode) + log2(n) * Sketch::sketchSizeof(n*n, default_bucket_factor) - sizeof(char));
+  return SupernodeUniquePtr(makeSupernode(loc, n, seed), [](Supernode* s){ s->~Supernode(); free(s); });
+}
+
+Supernode::SupernodeUniquePtr Supernode::makeSupernode(uint64_t n, long seed, std::fstream &binary_in)
+{
+  // Since fstream is stateful, we have to do this awful thing.
+  
+  // We have to read the first Sketch to figure out how big it's going to be...
+  Sketch::SketchUniquePtr first_sketch = Sketch::makeSketch(n*n, seed++, binary_in);
+  double bucket_factor = first_sketch->get_bucket_factor();
+
+  // Then we assume they're all the same size...
+  size_t sketch_size = Sketch::sketchSizeof(n*n, bucket_factor);
+  void *loc = malloc(sizeof(Supernode) + log2(n) * sketch_size - sizeof(char));
+  SupernodeUniquePtr ret(new (loc) Supernode(n, seed, sketch_size), [](Supernode* s){ free(s); });
+
+  // Copy the sketch we already read out.
+  memcpy((void*)ret->get_sketch(0), (void*)first_sketch.get(), Sketch::sketchSizeof(*first_sketch));
+  for (int i = 1; i < ret->logn; ++i) {
+    Sketch::makeSketch(ret->get_sketch(i), n*n, seed++, binary_in);
+
+    // All of the bucket factors have to be the same. If they aren't, choke and die.
+    if (ret->get_sketch(i)->get_bucket_factor() != bucket_factor)
+    {
+      throw new std::runtime_error("Please stop what you're doing");
+    }
+  }
+  return ret;
+}
+
+Supernode* Supernode::makeSupernode(void* loc, uint64_t n, long seed)
+{
+  return new (loc) Supernode(n, seed);
+}
+
 Supernode::~Supernode() {
-  for (int i=0;i<logn;++i)
-    delete sketches[i];
+}
+
+Sketch* Supernode::get_sketch(size_t i)
+{
+  return reinterpret_cast<Sketch*>(sketch_buffer + i * sketch_size);
+}
+
+const Sketch* Supernode::get_sketch(size_t i) const
+{
+  return reinterpret_cast<const Sketch*>(sketch_buffer + i * sketch_size);
 }
 
 boost::optional<Edge> Supernode::sample() {
   if (idx == logn) throw OutOfQueriesException();
   vec_t query_idx;
   try {
-    query_idx = sketches[idx++]->query();
+    query_idx = get_sketch(idx++)->query();
   } catch (AllBucketsZeroException &e) {
     return {};
   }
@@ -38,26 +87,26 @@ boost::optional<Edge> Supernode::sample() {
 void Supernode::merge(Supernode &other) {
   idx = max(idx, other.idx);
   for (int i=idx;i<logn;++i) {
-    (*sketches[i])+=(*other.sketches[i]);
+    (*get_sketch(i))+=(*other.get_sketch(i));
   }
 }
 
 void Supernode::update(vec_t upd) {
-  for (Sketch* s : sketches)
-    s->update(upd);
+  for (size_t i = 0; i < logn; ++i)
+    get_sketch(i)->update(upd);
 }
 
 void Supernode::apply_delta_update(const Supernode* delta_node) {
   std::unique_lock<std::mutex> lk(node_mt);
-  for (unsigned i = 0; i < sketches.size(); ++i) {
-    *sketches[i] += *delta_node->sketches[i];
+  for (unsigned i = 0; i < logn; ++i) {
+    *get_sketch(i) += *delta_node->get_sketch(i);
   }
   lk.unlock();
 }
 
-Supernode* Supernode::delta_supernode(uint64_t n, long seed,
-                                     const vector<vec_t> &updates) {
-  auto* delta_node = new Supernode(n, seed);
+Supernode::SupernodeUniquePtr Supernode::delta_supernode(uint64_t n, long seed,
+							 const vector<vec_t> &updates) {
+  auto delta_node = makeSupernode(n, seed);
   /*
    * Consider fiddling with environment vars
    * OMP_DYNAMIC: whether the OS is allowed to dynamically change the number
@@ -80,14 +129,15 @@ Supernode* Supernode::delta_supernode(uint64_t n, long seed,
    * this was slow (at least on small graph inputs).
    */
 #pragma omp parallel for num_threads(GraphWorker::get_group_size()) default(shared)
-  for (auto & delta_sketch : delta_node->sketches) {
-    delta_sketch->batch_update(updates);
+  for (size_t i = 0; i < delta_node->logn; ++i)
+  {
+    delta_node->get_sketch(i)->batch_update(updates);
   }
   return delta_node;
 }
 
 void Supernode::write_binary(std::fstream& binary_out) {
   for (int i = 0; i < logn; ++i) {
-    sketches[i]->write_binary(binary_out);
+    get_sketch(i)->write_binary(binary_out);
   }
 }
