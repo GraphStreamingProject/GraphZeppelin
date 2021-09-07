@@ -31,7 +31,7 @@ public:
   
 private:
   size_t sketch_size;
-  
+
   // The sketches, off the end.
   alignas(Sketch) char sketch_buffer[1];
   
@@ -61,6 +61,9 @@ public:
 
   inline const Sketch* get_sketch(size_t i) const
   { return reinterpret_cast<const Sketch*>(sketch_buffer + i * sketch_size); }
+
+  static inline long supernode_size(uint64_t n) 
+  { return sizeof(Supernode) + log2(n) * Sketch::sketchSizeof(n*n, default_bucket_factor) - sizeof(char);}
 
   /**
    * Function to sample an edge from the cut of a supernode.
@@ -100,8 +103,15 @@ public:
    * @param updates the batch of updates to apply.
    * @return
    */
-  static SupernodeUniquePtr delta_supernode(uint64_t n, long seed, const
+  static Supernode::SupernodeUniquePtr delta_supernode(uint64_t n, long seed, const
   std::vector<vec_t>& updates);
+
+  /** 
+   * Variant with predefined location so we can save some malloc calls
+   * @param loc     the location to place the delta in
+   */
+  static Supernode* delta_supernode(uint64_t n, long seed, const
+  std::vector<vec_t>& updates, void *loc);
 
   /**
    * Serialize the supernode to a binary output stream.

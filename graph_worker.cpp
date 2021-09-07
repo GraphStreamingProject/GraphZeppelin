@@ -1,5 +1,6 @@
 #include "include/graph_worker.h"
 #include "include/graph.h"
+#include "include/supernode.h"
 
 #ifdef USE_FBT_F
 #include <buffer_tree.h>
@@ -12,6 +13,7 @@ bool GraphWorker::shutdown = false;
 bool GraphWorker::paused   = false; // controls whether threads should pause or resume work
 int GraphWorker::num_groups = 1;
 int GraphWorker::group_size = 1;
+long GraphWorker::supernode_size;
 GraphWorker **GraphWorker::workers;
 std::condition_variable GraphWorker::pause_condition;
 std::mutex GraphWorker::pause_lock;
@@ -24,9 +26,10 @@ std::mutex GraphWorker::pause_lock;
  */
 
 #ifdef USE_FBT_F
-void GraphWorker::start_workers(Graph *_graph, BufferTree *_bf) {
+void GraphWorker::start_workers(Graph *_graph, BufferTree *_bf, long _supernode_size) {
 	shutdown = false;
 	paused   = false;
+	supernode_size = _supernode_size;
 
 	workers = (GraphWorker **) calloc(num_groups, sizeof(GraphWorker *));
 	for (int i = 0; i < num_groups; i++) {
@@ -34,9 +37,10 @@ void GraphWorker::start_workers(Graph *_graph, BufferTree *_bf) {
 	}
 }
 #else
-void GraphWorker::start_workers(Graph *_graph, WorkQueue *_wq) {
+void GraphWorker::start_workers(Graph *_graph, WorkQueue *_wq, long _supernode_size) {
   shutdown = false;
   paused   = false;
+  supernode_size = _supernode_size;
 
   workers = (GraphWorker **) calloc(num_groups, sizeof(GraphWorker *));
   for (int i = 0; i < num_groups; i++) {
@@ -59,7 +63,7 @@ void GraphWorker::stop_workers() {
 	for (int i = 0; i < num_groups; i++) {
 		delete workers[i];
 	}
-	delete workers;
+	free(workers);
 }
 
 void GraphWorker::pause_workers() {
@@ -95,18 +99,21 @@ void GraphWorker::unpause_workers() {
  ***********************************************/
 #ifdef USE_FBT_F
 GraphWorker::GraphWorker(int _id, Graph *_graph, BufferTree *_bf) :
-  id(_id), graph(_graph), bf(_bf), thr(start_worker, this), thr_paused(false) {
+ id(_id), graph(_graph), bf(_bf), thr(start_worker, this), thr_paused(false) {
+  delta_node = (Supernode *) malloc(supernode_size);
 }
 #else
 GraphWorker::GraphWorker(int _id, Graph *_graph, WorkQueue *_wq) :
-      id(_id), graph(_graph), wq(_wq), thr(start_worker, this),
-      thr_paused(false) {
+ id(_id), graph(_graph), wq(_wq), thr(start_worker, this),
+ thr_paused(false) {
+  delta_node = (Supernode *) malloc(supernode_size);
 }
 #endif
 
 GraphWorker::~GraphWorker() {
 	// join the GraphWorker thread to reclaim resources
 	thr.join();
+	free(delta_node);
 }
 
 void GraphWorker::do_work() {
@@ -132,7 +139,7 @@ void GraphWorker::do_work() {
 #endif
 
 			if (valid)
-				graph->batch_update(data.first, data.second);
+				graph->batch_update(data.first, data.second, delta_node);
 			else if(shutdown)
 				return;
 			else if(paused)

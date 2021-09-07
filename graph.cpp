@@ -27,12 +27,12 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
 #ifdef USE_FBT_F
   // Create buffer tree and start the graphWorkers
   bf = new BufferTree(buffer_loc_prefix, (1<<20), 16, num_nodes, GraphWorker::get_num_groups(), true);
-  GraphWorker::start_workers(this, bf);
+  GraphWorker::start_workers(this, bf, Supernode::supernode_size(num_nodes));
 #else
   unsigned long node_size = 24*pow((log2(num_nodes)), 3);
   node_size /= sizeof(node_id_t);
   wq = new WorkQueue(node_size, num_nodes, 2*GraphWorker::get_num_groups());
-  GraphWorker::start_workers(this, wq);
+  GraphWorker::start_workers(this, wq, Supernode::supernode_size(num_nodes));
 #endif
 }
 
@@ -56,18 +56,18 @@ Graph::Graph(const std::string& input_file) : num_updates(0) {
 #ifdef USE_FBT_F
   // Create buffer tree and start the graphWorkers
   bf = new BufferTree(buffer_loc_prefix, (1<<20), 16, num_nodes, GraphWorker::get_num_groups(), true);
-  GraphWorker::start_workers(this, bf);
+  GraphWorker::start_workers(this, bf, Supernode::supernode_size(num_nodes));
 #else
   unsigned long node_size = 24*pow((log2(num_nodes)), 3);
   node_size /= sizeof(node_id_t);
   wq = new WorkQueue(node_size, num_nodes, 2*GraphWorker::get_num_groups());
-  GraphWorker::start_workers(this, wq);
+  GraphWorker::start_workers(this, wq, Supernode::supernode_size(num_nodes));
 #endif
 }
 
 Graph::~Graph() {
   for (unsigned i=0;i<num_nodes;++i)
-    delete supernodes[i];
+    free(supernodes[i]); // free because memory is malloc'd in make_supernode
   delete[] supernodes;
   delete[] parent;
   delete representatives;
@@ -94,8 +94,8 @@ void Graph::update(GraphUpdate upd) {
 #endif
 }
 
-Supernode::SupernodeUniquePtr Graph::generate_delta_node(uint64_t node_n, long node_seed, uint64_t
-							 src, const std::vector<uint64_t>& edges) {
+Supernode* Graph::generate_delta_node(uint64_t node_n, long node_seed, uint64_t
+							 src, const std::vector<uint64_t>& edges, Supernode *delta_loc) {
   std::vector<vec_t> updates;
   updates.reserve(edges.size());
   for (const auto& edge : edges) {
@@ -107,14 +107,14 @@ Supernode::SupernodeUniquePtr Graph::generate_delta_node(uint64_t node_n, long n
                             nondirectional_non_self_edge_pairing_fn(edge, src)));
     }
   }
-  return Supernode::delta_supernode(node_n, node_seed, updates);
+  return Supernode::delta_supernode(node_n, node_seed, updates, delta_loc);
 }
-void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges) {
+void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges, Supernode *delta_loc) {
   if (update_locked) throw UpdateLockedException();
   num_updates += edges.size(); // REMOVE this later
-  auto delta_node = generate_delta_node(supernodes[src]->n,
-					supernodes[src]->seed, src, edges);
-  supernodes[src]->apply_delta_update(delta_node.get());
+  Supernode* delta_node = generate_delta_node(supernodes[src]->n,
+					supernodes[src]->seed, src, edges, delta_loc);
+  supernodes[src]->apply_delta_update(delta_node);
 }
 
 vector<set<Node>> Graph::connected_components() {

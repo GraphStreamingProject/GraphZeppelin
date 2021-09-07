@@ -15,6 +15,7 @@
 class BufferTree;
 #endif
 class Graph;
+class Supernode;
 
 class GraphWorker {
 public:
@@ -39,9 +40,9 @@ public:
 
 	// manage threads
 #ifdef USE_FBT_F
-  static void start_workers(Graph *_graph, BufferTree *_db); // start the graph workers
+  static void start_workers(Graph *_graph, BufferTree *_db, long _supernode_size); // start the graph workers
 #else
-  static void start_workers(Graph *_graph, WorkQueue *_wq); // start the graph workers
+  static void start_workers(Graph *_graph, WorkQueue *_wq, long _supernode_size); // start the graph workers
 #endif
 	static void stop_workers();    // shutdown and delete GraphWorkers
 	static void pause_workers();   // pause the GraphWorkers before CC
@@ -63,7 +64,7 @@ private:
 		return NULL;
 	}
 
-	void do_work();               // function which runs the GraphWorker process
+	void do_work(); // function which runs the GraphWorker process
 	int id;
 	Graph *graph;
 #ifdef USE_FBT_F
@@ -83,9 +84,13 @@ private:
 	// configuration
 	static int num_groups;
 	static int group_size;
+	static long supernode_size;
 
 	// list of all GraphWorkers
 	static GraphWorker **workers;
+
+	// the supernode object this GraphWorker will use for generating deltas
+	Supernode *delta_node;
 };
 
 #endif

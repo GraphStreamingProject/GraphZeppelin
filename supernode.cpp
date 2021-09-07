@@ -5,8 +5,6 @@
 #include "include/util.h"
 #include "include/graph_worker.h"
 
-constexpr double Supernode::default_bucket_factor;
-
 Supernode::Supernode(uint64_t n, long seed): idx(0), logn(log2(n)),
 					     n(n), seed(seed), sketch_size(Sketch::sketchSizeof(n*n, default_bucket_factor)) {
   // generate logn sketches for each supernode (read: node)
@@ -21,7 +19,7 @@ Supernode::Supernode(uint64_t n, long seed, size_t sketch_size) :
 }
 
 Supernode::SupernodeUniquePtr Supernode::makeSupernode(uint64_t n, long seed) {
-  void *loc = malloc(sizeof(Supernode) + log2(n) * Sketch::sketchSizeof(n*n, default_bucket_factor) - sizeof(char));
+  void *loc = malloc(supernode_size(n));
   return SupernodeUniquePtr(makeSupernode(loc, n, seed), [](Supernode* s){ s->~Supernode(); free(s); });
 }
 
@@ -89,7 +87,7 @@ void Supernode::apply_delta_update(const Supernode* delta_node) {
 }
 
 Supernode::SupernodeUniquePtr Supernode::delta_supernode(uint64_t n, long seed,
-							 const vector<vec_t> &updates) {
+               const vector<vec_t> &updates) {
   auto delta_node = makeSupernode(n, seed);
   /*
    * Consider fiddling with environment vars
@@ -112,6 +110,16 @@ Supernode::SupernodeUniquePtr Supernode::delta_supernode(uint64_t n, long seed,
    * Considered using spin-threads and parallelism within sketch::update, but
    * this was slow (at least on small graph inputs).
    */
+#pragma omp parallel for num_threads(GraphWorker::get_group_size()) default(shared)
+  for (int i = 0; i < delta_node->logn; ++i) {
+    delta_node->get_sketch(i)->batch_update(updates);
+  }
+  return delta_node;
+}
+
+Supernode* Supernode::delta_supernode(uint64_t n, long seed,
+							 const vector<vec_t> &updates, void *loc) {
+  auto delta_node = makeSupernode(loc, n, seed);
 #pragma omp parallel for num_threads(GraphWorker::get_group_size()) default(shared)
   for (int i = 0; i < delta_node->logn; ++i) {
     delta_node->get_sketch(i)->batch_update(updates);
