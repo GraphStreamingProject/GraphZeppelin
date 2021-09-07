@@ -59,28 +59,32 @@ public:
   static Sketch* makeSketch(void* loc, vec_t n, long seed, std::fstream &binary_in);
   static Sketch* makeSketch(void* loc, vec_t n, long seed, double num_bucket_factor, std::fstream &binary_in);
 
-  static unsigned get_num_elems(vec_t n, double num_bucket_factor);
-  unsigned get_num_elems() const;
-  static size_t sketchSizeof(vec_t n, double num_bucket_factor)
-  {
-    return sizeof(Sketch) + get_num_elems(n, num_bucket_factor) * (sizeof(vec_t) + sizeof(vec_hash_t)) - sizeof(char);
-  }
+  inline static unsigned get_num_elems(vec_t n, double num_bucket_factor)
+  { return bucket_gen(n, num_bucket_factor) * guess_gen(n); }
 
-  static size_t sketchSizeof(const Sketch &sketch)
-  {
-    return sketchSizeof(sketch.n, sketch.num_bucket_factor);
-  }
+  inline unsigned get_num_elems() const
+  { return get_num_elems(n, num_bucket_factor); }
   
-  vec_t* get_bucket_a();
-  vec_hash_t* get_bucket_c();
+  inline static size_t sketchSizeof(vec_t n, double num_bucket_factor)
+  { return sizeof(Sketch) + get_num_elems(n, num_bucket_factor) * (sizeof(vec_t) + sizeof(vec_hash_t)) - sizeof(char); }
+  
+  inline static size_t sketchSizeof(const Sketch &sketch)
+  { return sketchSizeof(sketch.n, sketch.num_bucket_factor); }
+  
+  inline vec_t* get_bucket_a()
+  { return reinterpret_cast<vec_t*>(buckets); }
 
-  const vec_t* get_bucket_a() const;
-  const vec_hash_t* get_bucket_c() const;
+  inline vec_hash_t* get_bucket_c()
+  { return reinterpret_cast<vec_hash_t*>(buckets + get_num_elems() * sizeof(vec_t)); }
+
+  inline const vec_t* get_bucket_a() const
+  { return reinterpret_cast<const vec_t*>(buckets); }
+
+  inline const vec_hash_t* get_bucket_c() const
+  { return reinterpret_cast<const vec_hash_t*>(buckets + get_num_elems() * sizeof(vec_t)); }
   
-  double get_bucket_factor()
-  {
-    return num_bucket_factor;
-  }
+  inline double get_bucket_factor()
+  { return num_bucket_factor; }
   
   /**
    * Update a sketch based on information about one of its indices.

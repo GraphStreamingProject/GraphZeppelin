@@ -8,28 +8,24 @@
 constexpr double Supernode::default_bucket_factor;
 
 Supernode::Supernode(uint64_t n, long seed): idx(0), logn(log2(n)),
-					     seed(seed), n(n), sketch_size(Sketch::sketchSizeof(n*n, default_bucket_factor)) {
+					     n(n), seed(seed), sketch_size(Sketch::sketchSizeof(n*n, default_bucket_factor)) {
   // generate logn sketches for each supernode (read: node)
-  for (int i = 0; i < logn; ++i)
-  {
+  for (int i = 0; i < logn; ++i) {
     Sketch::makeSketch(get_sketch(i), n*n, seed++, default_bucket_factor);
   }
 }
 
 Supernode::Supernode(uint64_t n, long seed, size_t sketch_size) :
-  idx(0), logn(log2(n)), n(n), seed(seed), sketch_size(sketch_size)
-{
+  idx(0), logn(log2(n)), n(n), seed(seed), sketch_size(sketch_size) {
   // Assume someone else is going to initialize our sketches.
 }
 
-Supernode::SupernodeUniquePtr Supernode::makeSupernode(uint64_t n, long seed)
-{
+Supernode::SupernodeUniquePtr Supernode::makeSupernode(uint64_t n, long seed) {
   void *loc = malloc(sizeof(Supernode) + log2(n) * Sketch::sketchSizeof(n*n, default_bucket_factor) - sizeof(char));
   return SupernodeUniquePtr(makeSupernode(loc, n, seed), [](Supernode* s){ s->~Supernode(); free(s); });
 }
 
-Supernode::SupernodeUniquePtr Supernode::makeSupernode(uint64_t n, long seed, std::fstream &binary_in)
-{
+Supernode::SupernodeUniquePtr Supernode::makeSupernode(uint64_t n, long seed, std::fstream &binary_in) {
   // Since fstream is stateful, we have to do this awful thing.
   
   // We have to read the first Sketch to figure out how big it's going to be...
@@ -47,30 +43,18 @@ Supernode::SupernodeUniquePtr Supernode::makeSupernode(uint64_t n, long seed, st
     Sketch::makeSketch(ret->get_sketch(i), n*n, seed++, binary_in);
 
     // All of the bucket factors have to be the same. If they aren't, choke and die.
-    if (ret->get_sketch(i)->get_bucket_factor() != bucket_factor)
-    {
+    if (ret->get_sketch(i)->get_bucket_factor() != bucket_factor) {
       throw new std::runtime_error("Please stop what you're doing");
     }
   }
   return ret;
 }
 
-Supernode* Supernode::makeSupernode(void* loc, uint64_t n, long seed)
-{
+Supernode* Supernode::makeSupernode(void* loc, uint64_t n, long seed) {
   return new (loc) Supernode(n, seed);
 }
 
 Supernode::~Supernode() {
-}
-
-Sketch* Supernode::get_sketch(size_t i)
-{
-  return reinterpret_cast<Sketch*>(sketch_buffer + i * sketch_size);
-}
-
-const Sketch* Supernode::get_sketch(size_t i) const
-{
-  return reinterpret_cast<const Sketch*>(sketch_buffer + i * sketch_size);
 }
 
 boost::optional<Edge> Supernode::sample() {
@@ -92,13 +76,13 @@ void Supernode::merge(Supernode &other) {
 }
 
 void Supernode::update(vec_t upd) {
-  for (size_t i = 0; i < logn; ++i)
+  for (int i = 0; i < logn; ++i)
     get_sketch(i)->update(upd);
 }
 
 void Supernode::apply_delta_update(const Supernode* delta_node) {
   std::unique_lock<std::mutex> lk(node_mt);
-  for (unsigned i = 0; i < logn; ++i) {
+  for (int i = 0; i < logn; ++i) {
     *get_sketch(i) += *delta_node->get_sketch(i);
   }
   lk.unlock();
@@ -129,8 +113,7 @@ Supernode::SupernodeUniquePtr Supernode::delta_supernode(uint64_t n, long seed,
    * this was slow (at least on small graph inputs).
    */
 #pragma omp parallel for num_threads(GraphWorker::get_group_size()) default(shared)
-  for (size_t i = 0; i < delta_node->logn; ++i)
-  {
+  for (int i = 0; i < delta_node->logn; ++i) {
     delta_node->get_sketch(i)->batch_update(updates);
   }
   return delta_node;

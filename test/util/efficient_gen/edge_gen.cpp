@@ -2,7 +2,11 @@
 #include <algorithm>
 #include <boost/multiprecision/cpp_int.hpp>
 #include "efficient_gen.h"
-#include "../../../include/graph.h"
+
+enum UpdateType {
+  INSERT = 0,
+  DELETE = 1,
+};
 
 #define endl '\n'
 

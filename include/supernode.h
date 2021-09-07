@@ -19,7 +19,6 @@ class Supernode {
   int idx;
   int logn;
   std::mutex node_mt;
-  size_t sketch_size;
 
   FRIEND_TEST(SupernodeTestSuite, TestBatchUpdate);
   FRIEND_TEST(SupernodeTestSuite, TestConcurrency);
@@ -31,6 +30,8 @@ public:
   const long seed; // for creating a copy
   
 private:
+  size_t sketch_size;
+  
   // The sketches, off the end.
   alignas(Sketch) char sketch_buffer[1];
   
@@ -55,8 +56,11 @@ public:
   
   ~Supernode();
 
-  Sketch* get_sketch(size_t i);
-  const Sketch* get_sketch(size_t i) const;
+  inline Sketch* get_sketch(size_t i)
+  { return reinterpret_cast<Sketch*>(sketch_buffer + i * sketch_size); }
+
+  inline const Sketch* get_sketch(size_t i) const
+  { return reinterpret_cast<const Sketch*>(sketch_buffer + i * sketch_size); }
 
   /**
    * Function to sample an edge from the cut of a supernode.
