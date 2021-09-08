@@ -65,7 +65,7 @@ public:
   { return reinterpret_cast<const Sketch*>(sketch_buffer + i * sketch_size); }
 
   static inline long supernode_size(uint64_t n) 
-  { return sizeof(Supernode) + log2(n) * Sketch::sketchSizeof(n*n, Sketch::num_bucket_factor) - sizeof(char);}
+  { return sizeof(Supernode) + log2(n) * Sketch::sketchSizeof() - sizeof(char);}
 
   /**
    * Function to sample an edge from the cut of a supernode.

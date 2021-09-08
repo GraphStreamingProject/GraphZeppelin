@@ -6,7 +6,7 @@
 #include "include/graph_worker.h"
 
 Supernode::Supernode(uint64_t n, long seed): idx(0), logn(log2(n)),
-					     n(n), seed(seed), sketch_size(Sketch::sketchSizeof(n*n, Sketch::num_bucket_factor)) {
+					     n(n), seed(seed), sketch_size(Sketch::sketchSizeof()) {
 
   // generate logn sketches for each supernode (read: node)
   for (int i = 0; i < logn; ++i) {
@@ -15,7 +15,7 @@ Supernode::Supernode(uint64_t n, long seed): idx(0), logn(log2(n)),
 }
 
 Supernode::Supernode(uint64_t n, long seed, std::fstream &binary_in) :
-  idx(0), logn(log2(n)), n(n), seed(seed), sketch_size(Sketch::sketchSizeof(n*n, Sketch::num_bucket_factor)) {
+  idx(0), logn(log2(n)), n(n), seed(seed), sketch_size(Sketch::sketchSizeof()) {
 
   // read logn sketches from file for each supernode (read: node)
   for (int i = 0; i < logn; ++i) {
