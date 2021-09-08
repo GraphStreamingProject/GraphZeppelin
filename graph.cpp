@@ -28,12 +28,12 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
 #ifdef USE_FBT_F
   // Create buffer tree and start the graphWorkers
   bf = new BufferTree(buffer_loc_prefix, (1<<20), 16, num_nodes, GraphWorker::get_num_groups(), true);
-  GraphWorker::start_workers(this, bf, Supernode::supernode_size(num_nodes));
+  GraphWorker::start_workers(this, bf, Supernode::get_size());
 #else
   unsigned long node_size = 24*pow((log2(num_nodes)), 3);
   node_size /= sizeof(node_id_t);
   wq = new WorkQueue(node_size, num_nodes, 2*GraphWorker::get_num_groups());
-  GraphWorker::start_workers(this, wq, Supernode::supernode_size(num_nodes));
+  GraphWorker::start_workers(this, wq, Supernode::get_size());
 #endif
 }
 
@@ -60,12 +60,12 @@ Graph::Graph(const std::string& input_file) : num_updates(0) {
 #ifdef USE_FBT_F
   // Create buffer tree and start the graphWorkers
   bf = new BufferTree(buffer_loc_prefix, (1<<20), 16, num_nodes, GraphWorker::get_num_groups(), true);
-  GraphWorker::start_workers(this, bf, Supernode::supernode_size(num_nodes));
+  GraphWorker::start_workers(this, bf, Supernode::get_size());
 #else
   unsigned long node_size = 24*pow((log2(num_nodes)), 3);
   node_size /= sizeof(node_id_t);
   wq = new WorkQueue(node_size, num_nodes, 2*GraphWorker::get_num_groups());
-  GraphWorker::start_workers(this, wq, Supernode::supernode_size(num_nodes));
+  GraphWorker::start_workers(this, wq, Supernode::get_size());
 #endif
 }
 
@@ -115,10 +115,18 @@ Supernode* Graph::generate_delta_node(uint64_t node_n, long node_seed, uint64_t
 }
 void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges, Supernode *delta_loc) {
   if (update_locked) throw UpdateLockedException();
+  // page in the supernodes
+  Supernode::page_in(delta_loc);
+  Supernode::page_in(supernodes[src]);
+
   num_updates += edges.size(); // REMOVE this later
   Supernode* delta_node = generate_delta_node(supernodes[src]->n,
 					supernodes[src]->seed, src, edges, delta_loc);
   supernodes[src]->apply_delta_update(delta_node);
+
+  // page out the supernodes
+  Supernode::page_out(delta_loc);
+  Supernode::page_out(supernodes[src]);
 }
 
 vector<set<Node>> Graph::connected_components() {
@@ -218,7 +226,9 @@ vector<set<Node>> Graph::parallel_connected_components() {
     modified = false;
     #pragma omp parallel for default(none) shared(query, reps)
     for (Node i = 0; i < reps.size(); ++i) {
+      Supernode::page_in(supernodes[reps[i]]);
       auto edge = supernodes[reps[i]]->sample();
+      Supernode::page_out(supernodes[reps[i]]);
       if (!edge.is_initialized()) {
         query[reps[i]] = {i,i};
         continue;
@@ -239,7 +249,13 @@ vector<set<Node>> Graph::parallel_connected_components() {
       to_remove.push_back(b);
       parent[b] = a;
       size[a] += size[b];
+      Supernode::page_in(supernodes[a]);
+      Supernode::page_in(supernodes[b]);
+
       supernodes[a]->merge(*supernodes[b]);
+      
+      Supernode::page_out(supernodes[a]);
+      Supernode::page_out(supernodes[b]);
     }
     if (!to_remove.empty()) modified = true;
     sort(to_remove.begin(), to_remove.end());

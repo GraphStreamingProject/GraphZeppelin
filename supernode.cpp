@@ -5,6 +5,8 @@
 #include "include/util.h"
 #include "include/graph_worker.h"
 
+uint32_t Supernode::bytes_size;
+
 Supernode::Supernode(uint64_t n, long seed): idx(0), logn(log2(n)),
 					     n(n), seed(seed), sketch_size(Sketch::sketchSizeof()) {
 
@@ -25,14 +27,18 @@ Supernode::Supernode(uint64_t n, long seed, std::fstream &binary_in) :
 
 Supernode::SupernodeUniquePtr Supernode::makeSupernode(uint64_t n, long seed) {
   Sketch::n = n * n;
-  void *loc = malloc(supernode_size(n));
+  set_size(n);
+
+  void *loc = malloc(bytes_size);
   SupernodeUniquePtr ret(new (loc) Supernode(n, seed), [](Supernode* s){ free(s); });
   return ret;
 }
 
 Supernode::SupernodeUniquePtr Supernode::makeSupernode(uint64_t n, long seed, std::fstream &binary_in) {
   Sketch::n = n * n;
-  void *loc = malloc(supernode_size(n));
+  set_size(n);
+
+  void *loc = malloc(bytes_size);
   SupernodeUniquePtr ret(new (loc) Supernode(n, seed, binary_in), [](Supernode* s){ free(s); });
   return ret;
 }

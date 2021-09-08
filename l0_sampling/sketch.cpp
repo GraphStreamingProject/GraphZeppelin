@@ -5,11 +5,18 @@
 double Sketch::num_bucket_factor = 0.5;
 vec_t Sketch::n;
 size_t Sketch::num_elems;
+size_t Sketch::num_buckets;
+size_t Sketch::num_guesses;
 
 Sketch::SketchUniquePtr Sketch::makeSketch(const Sketch &old) {
   return makeSketch(old.seed);
 }
 
+
+/*
+ * Static functions for creating sketches without a provided memory location
+ * these are useful for unit tests
+ */
 Sketch::SketchUniquePtr Sketch::makeSketch(long seed) {
   void* loc = malloc(sketchSizeof());
   return SketchUniquePtr(makeSketch(loc, seed), [](Sketch* s){ s->~Sketch(); free(s); });
@@ -20,21 +27,25 @@ Sketch::SketchUniquePtr Sketch::makeSketch(long seed, std::fstream &binary_in) {
   return SketchUniquePtr(makeSketch(loc, seed, binary_in), [](Sketch* s){ free(s); });
 }
 
-Sketch* Sketch::makeSketch(void* loc, long seed, std::fstream &binary_in) {
-  return new (loc) Sketch(seed, binary_in);
-}
-
+/*
+ * Static functions for creating sketches with a provided memory location.
+ * We use these in the production system to keep supernodes virtually contiguous.
+ */
 Sketch* Sketch::makeSketch(void* loc, long seed) {
   return new (loc) Sketch(seed);
 }
 
+Sketch* Sketch::makeSketch(void* loc, long seed, std::fstream &binary_in) {
+  return new (loc) Sketch(seed, binary_in);
+}
+
 Sketch::Sketch(long seed): seed(seed) {
   // establish the bucket_a and bucket_c locations and number of elements
-  num_elems = get_num_elems();
+  get_num_elems();
   bucket_a = reinterpret_cast<vec_t*>(buckets);
   bucket_c = reinterpret_cast<vec_hash_t*>(buckets + num_elems * sizeof(vec_t));
 
-
+  // initialize bucket values
   for (size_t i = 0; i < num_elems; ++i) {
     bucket_a[i] = 0;
     bucket_c[i] = 0;
@@ -43,7 +54,7 @@ Sketch::Sketch(long seed): seed(seed) {
 
 Sketch::Sketch(long seed, std::fstream &binary_in): seed(seed) {
   // establish the bucket_a and bucket_c locations and number of elements
-  num_elems = get_num_elems();
+  get_num_elems();
   bucket_a = reinterpret_cast<vec_t*>(buckets);
   bucket_c = reinterpret_cast<vec_hash_t*>(buckets + num_elems * sizeof(vec_t));
 
@@ -52,8 +63,6 @@ Sketch::Sketch(long seed, std::fstream &binary_in): seed(seed) {
 }
 
 void Sketch::update(const vec_t& update_idx) {
-  const unsigned num_buckets = bucket_gen(n, num_bucket_factor);
-  const unsigned num_guesses = guess_gen(n);
   XXH64_hash_t update_hash = Bucket_Boruvka::index_hash(update_idx, seed);
   for (unsigned i = 0; i < num_buckets; ++i) {
     col_hash_t col_index_hash = Bucket_Boruvka::col_index_hash(i, update_idx, seed);
@@ -78,8 +87,6 @@ vec_t Sketch::query() {
   }
   already_quered = true;
   bool all_buckets_zero = true;
-  const unsigned num_buckets = bucket_gen(n, num_bucket_factor);
-  const unsigned num_guesses = guess_gen(n);
   for (unsigned i = 0; i < num_buckets; ++i) {
     for (unsigned j = 0; j < num_guesses; ++j) {
       unsigned bucket_id = i * num_guesses + j;
@@ -126,11 +133,9 @@ bool operator== (const Sketch &sketch1, const Sketch &sketch2) {
 }
 
 std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
-  const unsigned long long int num_buckets = bucket_gen(sketch.n, sketch.num_bucket_factor);
-  const unsigned long long int num_guesses = guess_gen(sketch.n);
-  for (unsigned i = 0; i < num_buckets; ++i) {
-    for (unsigned j = 0; j < num_guesses; ++j) {
-      unsigned bucket_id = i * num_guesses + j;
+  for (unsigned i = 0; i < Sketch::num_buckets; ++i) {
+    for (unsigned j = 0; j < Sketch::num_guesses; ++j) {
+      unsigned bucket_id = i * Sketch::num_guesses + j;
       for (unsigned k = 0; k < sketch.n; k++) {
         os << (Bucket_Boruvka::contains(Bucket_Boruvka::col_index_hash(i, k, sketch.seed), 1 << j) ? '1' : '0');
       }

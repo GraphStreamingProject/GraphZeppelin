@@ -21,12 +21,11 @@
  */
 class Sketch {
 public:
-  // Factor for how many buckets there are in this sketch.
-  static double num_bucket_factor;
-  // Length of the vector this is sketching.
-  static vec_t n;
-  // length of our actual arrays in number of elements
-  static size_t num_elems;
+  static double num_bucket_factor; // Factor for how many buckets there are in this sketch.
+  static vec_t n;                  // Length of the vector this is sketching.
+  static size_t num_elems;         // length of our actual arrays in number of elements
+  static size_t num_buckets;       // Portion of array length, number of buckets
+  static size_t num_guesses;       // Portion of array length, number of guesses
 
   using SketchUniquePtr = std::unique_ptr<Sketch,std::function<void(Sketch*)>>;
 
@@ -67,8 +66,12 @@ public:
   static Sketch* makeSketch(void* loc, long seed, std::fstream &binary_in);
   static Sketch* makeSketch(void* loc, long seed, double num_bucket_factor, std::fstream &binary_in);
 
-  inline static unsigned get_num_elems()
-  { return bucket_gen(n, num_bucket_factor) * guess_gen(n); }
+  inline static unsigned get_num_elems() { 
+    num_buckets = bucket_gen(n, num_bucket_factor);
+    num_guesses = guess_gen(n);
+    num_elems = num_buckets * num_guesses;
+    return num_elems;
+  }
   
   inline static size_t sketchSizeof()
   { return sizeof(Sketch) + get_num_elems() * (sizeof(vec_t) + sizeof(vec_hash_t)) - sizeof(char); }
