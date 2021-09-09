@@ -32,6 +32,16 @@ namespace Bucket_Boruvka {
   inline static bool contains(const col_hash_t& col_index_hash, const vec_t& guess_nonzero);
 
   /**
+   * Checks whether a Bucket is good, assuming the Bucket contains all elements.
+   * @param a The bucket's a value.
+   * @param c The bucket's c value.
+   * @param n Size of the vector being sketched.
+   * @param sketch_seed The seed of the Sketch this Bucket belongs to.
+   * @return true if this Bucket is good, else false.
+   */
+  inline static bool is_good(const vec_t& a, const vec_hash_t& c, const vec_t& n, const long& sketch_seed);
+
+  /**
    * Checks whether a Bucket is good.
    * @param a The bucket's a value.
    * @param c The bucket's c value.
@@ -68,6 +78,10 @@ inline vec_hash_t Bucket_Boruvka::index_hash(const vec_t& index, long sketch_see
 
 inline bool Bucket_Boruvka::contains(const col_hash_t& col_index_hash, const vec_t& guess_nonzero) {
   return col_index_hash % guess_nonzero == 0;
+}
+
+inline bool Bucket_Boruvka::is_good(const vec_t& a, const vec_hash_t& c, const vec_t& n, const long& sketch_seed) {
+  return a < n && c == index_hash(a, sketch_seed);
 }
 
 inline bool Bucket_Boruvka::is_good(const vec_t& a, const vec_hash_t& c, const vec_t& n, const unsigned bucket_col, const vec_t& guess_nonzero, const long& sketch_seed) {

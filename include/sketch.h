@@ -10,7 +10,7 @@
 #include <gtest/gtest_prod.h>
 
 #define bucket_gen(x, c) double_to_ull((c)*(log2(x)+1))
-#define guess_gen(x) double_to_ull(log2(x)+2)
+#define guess_gen(x) double_to_ull(log2(x)+1)
 
 /**
  * An implementation of a "sketch" as defined in the L0 algorithm.
