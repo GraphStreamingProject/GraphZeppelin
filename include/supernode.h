@@ -58,6 +58,7 @@ public:
   static SupernodeUniquePtr makeSupernode(uint64_t n, long seed);
   static SupernodeUniquePtr makeSupernode(uint64_t n, long seed, std::fstream &binary_in);
   static Supernode* makeSupernode(void* loc, uint64_t n, long seed);
+  static Supernode* makeSupernode(void* loc, uint64_t n, long seed, std::fstream &binary_in);
 
   ~Supernode();
 

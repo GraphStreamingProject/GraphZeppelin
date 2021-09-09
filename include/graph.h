@@ -50,6 +50,9 @@ class Graph {
   WorkQueue *wq;
 #endif
 
+  char *mapped_store;   // the memory mapped region of memory
+  uint64_t memory_size; // size of the memory mapped region
+
   FRIEND_TEST(GraphTestSuite, TestCorrectnessOfReheating);
 public:
   explicit Graph(uint64_t num_nodes);

@@ -44,7 +44,17 @@ Supernode::SupernodeUniquePtr Supernode::makeSupernode(uint64_t n, long seed, st
 }
 
 Supernode* Supernode::makeSupernode(void* loc, uint64_t n, long seed) {
+  Sketch::n = n * n;
+  set_size(n);
+
   return new (loc) Supernode(n, seed);
+}
+
+Supernode* Supernode::makeSupernode(void* loc, uint64_t n, long seed, std::fstream &binary_in) {
+  Sketch::n = n * n;
+  set_size(n);
+  
+  return new (loc) Supernode(n, seed, binary_in);
 }
 
 Supernode::~Supernode() {

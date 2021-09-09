@@ -2,6 +2,7 @@
 #include <iostream>
 #include <buffer_tree.h>
 #include <sys/mman.h>
+#include <fcntl.h>
 
 #include "include/graph.h"
 #include "include/util.h"
@@ -15,19 +16,34 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
   supernodes = new Supernode*[num_nodes];
   parent = new Node[num_nodes];
   Sketch::n = num_nodes * num_nodes;
+  Supernode::set_size(num_nodes);
+  memory_size = Supernode::get_size() * num_nodes;
+  printf("The total memory used by supernodes is %lu\n", memory_size);
+
+  // Create a file backed memory mapping which we will use as our swap space
+  std::string data_loc_prefix = configure_system(); // read the configuration file to configure the system
+  int fd = open((data_loc_prefix + "supernodes.bin").c_str(), O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+  ftruncate(fd, memory_size);
+  mapped_store = (char *) mmap(NULL, memory_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
+  if (mapped_store == (void *) -1) {
+    perror("Failed to create mmap to backing_store!");
+    exit(1);  
+  }
+  close(fd);
+
   // seed = time(nullptr);
   // srand(seed);
   seed = 10;
   for (Node i=0;i<num_nodes;++i) {
     representatives->insert(i);
-    supernodes[i] = Supernode::makeSupernode(num_nodes,seed).release();
+    supernodes[i] = Supernode::makeSupernode(mapped_store + i * Supernode::get_size(), num_nodes, seed);
     parent[i] = i;
   }
   num_updates = 0; // REMOVE this later
-  std::string buffer_loc_prefix = configure_system(); // read the configuration file to configure the system
+
 #ifdef USE_FBT_F
   // Create buffer tree and start the graphWorkers
-  bf = new BufferTree(buffer_loc_prefix, (1<<20), 16, num_nodes, GraphWorker::get_num_groups(), true);
+  bf = new BufferTree(data_loc_prefix, (1<<20), 16, num_nodes, GraphWorker::get_num_groups(), true);
   GraphWorker::start_workers(this, bf, Supernode::get_size());
 #else
   unsigned long node_size = 24*pow((log2(num_nodes)), 3);
@@ -42,17 +58,27 @@ Graph::Graph(const std::string& input_file) : num_updates(0) {
   binary_in.read((char*)&seed, sizeof(long));
   binary_in.read((char*)&num_nodes, sizeof(uint64_t));
   binary_in.read((char*)&Sketch::num_bucket_factor, sizeof(double));
+  representatives = new set<Node>();
+  supernodes = new Supernode*[num_nodes];
+  parent = new Node[num_nodes];
   Sketch::n = num_nodes * num_nodes;
+  Supernode::set_size(num_nodes);
+  memory_size = Supernode::get_size() * num_nodes;
+  printf("The total memory used by supernodes is %lu\n", memory_size);
+
+  // Create a file backed memory mapping which we will use as our swap space
+  std::string data_loc_prefix = configure_system(); // read the configuration file to configure the system
+  int fd = open((data_loc_prefix + "supernodes.bin").c_str(), O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+  ftruncate(fd, memory_size);
+  mapped_store = (char *) mmap(NULL, memory_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
+  close(fd);
 
 #ifdef VERIFY_SAMPLES_F
   cout << "Verifying samples..." << endl;
 #endif
-  representatives = new set<Node>();
-  supernodes = new Supernode*[num_nodes];
-  parent = new Node[num_nodes];
   for (Node i = 0; i < num_nodes; ++i) {
     representatives->insert(i);
-    supernodes[i] = Supernode::makeSupernode(num_nodes, seed, binary_in).release();
+    supernodes[i] = Supernode::makeSupernode(mapped_store + i * Supernode::get_size(), num_nodes, seed, binary_in);
     parent[i] = i;
   }
   binary_in.close();
@@ -70,8 +96,6 @@ Graph::Graph(const std::string& input_file) : num_updates(0) {
 }
 
 Graph::~Graph() {
-  for (unsigned i=0;i<num_nodes;++i)
-    free(supernodes[i]); // free because memory is malloc'd in make_supernode
   delete[] supernodes;
   delete[] parent;
   delete representatives;
@@ -81,6 +105,8 @@ Graph::~Graph() {
 #else
   delete wq;
 #endif
+
+  munmap(mapped_store, memory_size);
 }
 
 void Graph::update(GraphUpdate upd) {
@@ -253,7 +279,7 @@ vector<set<Node>> Graph::parallel_connected_components() {
       Supernode::page_in(supernodes[b]);
 
       supernodes[a]->merge(*supernodes[b]);
-      
+
       Supernode::page_out(supernodes[a]);
       Supernode::page_out(supernodes[b]);
     }
