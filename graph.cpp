@@ -1,6 +1,7 @@
 #include <map>
 #include <iostream>
 #include <buffer_tree.h>
+#include <chrono>
 #include <sys/mman.h>
 
 #include "include/graph.h"
@@ -15,9 +16,8 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
   supernodes = new Supernode*[num_nodes];
   parent = new Node[num_nodes];
   Sketch::n = num_nodes * num_nodes;
-  // seed = time(nullptr);
-  // srand(seed);
-  seed = 10;
+  seed = time(nullptr);
+  srand(seed);
   for (Node i=0;i<num_nodes;++i) {
     representatives->insert(i);
     supernodes[i] = Supernode::makeSupernode(num_nodes,seed).release();
@@ -209,6 +209,7 @@ vector<set<Node>> Graph::parallel_connected_components() {
   // after this point all updates have been processed from the buffer tree
 
   printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
+  
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
 #ifdef VERIFY_SAMPLES_F
@@ -226,16 +227,15 @@ vector<set<Node>> Graph::parallel_connected_components() {
     modified = false;
     #pragma omp parallel for default(none) shared(query, reps)
     for (Node i = 0; i < reps.size(); ++i) {
-      Supernode::page_in(supernodes[reps[i]]);
       auto edge = supernodes[reps[i]]->sample();
-      Supernode::page_out(supernodes[reps[i]]);
+      
       if (!edge.is_initialized()) {
         query[reps[i]] = {i,i};
         continue;
       }
       query[reps[i]] = edge.get();
     }
-
+  
     vector<Node> to_remove;
     for (Node i : reps) {
       Node a = get_parent(query[i].first);
@@ -244,18 +244,14 @@ vector<set<Node>> Graph::parallel_connected_components() {
 #ifdef VERIFY_SAMPLES_F
       verifier.verify_edge({query[i].first,query[i].second});
 #endif
+
       // make sure a is the one to be merged into
       if (size[a] < size[b]) std::swap(a,b);
+      
       to_remove.push_back(b);
       parent[b] = a;
       size[a] += size[b];
-      Supernode::page_in(supernodes[a]);
-      Supernode::page_in(supernodes[b]);
-
       supernodes[a]->merge(*supernodes[b]);
-      
-      Supernode::page_out(supernodes[a]);
-      Supernode::page_out(supernodes[b]);
     }
     if (!to_remove.empty()) modified = true;
     sort(to_remove.begin(), to_remove.end());
@@ -286,7 +282,6 @@ vector<set<Node>> Graph::parallel_connected_components() {
   vector<set<Node>> retval;
   retval.reserve(temp.size());
   for (const auto& it : temp) retval.push_back(it.second);
-
   return retval;
 }
 
@@ -318,3 +313,4 @@ void Graph::write_binary(const std::string& filename) {
   }
   binary_out.close();
 }
+
