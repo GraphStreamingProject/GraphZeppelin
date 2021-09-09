@@ -98,7 +98,7 @@ void Graph::update(GraphUpdate upd) {
 #endif
 }
 
-Supernode* Graph::generate_delta_node(uint64_t node_n, long node_seed, uint64_t
+void Graph::generate_delta_node(uint64_t node_n, long node_seed, uint64_t
 							 src, const std::vector<uint64_t>& edges, Supernode *delta_loc) {
   std::vector<vec_t> updates;
   updates.reserve(edges.size());
@@ -111,7 +111,7 @@ Supernode* Graph::generate_delta_node(uint64_t node_n, long node_seed, uint64_t
                             nondirectional_non_self_edge_pairing_fn(edge, src)));
     }
   }
-  return Supernode::delta_supernode(node_n, node_seed, updates, delta_loc);
+  Supernode::delta_supernode(node_n, node_seed, updates, delta_loc);
 }
 void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges, Supernode *delta_loc) {
   if (update_locked) throw UpdateLockedException();
@@ -119,10 +119,9 @@ void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges, Super
   Supernode::page_in(delta_loc);
   Supernode::page_in(supernodes[src]);
 
-  num_updates += edges.size(); // REMOVE this later
-  Supernode* delta_node = generate_delta_node(supernodes[src]->n,
-					supernodes[src]->seed, src, edges, delta_loc);
-  supernodes[src]->apply_delta_update(delta_node);
+  num_updates += edges.size();
+  generate_delta_node(supernodes[src]->n, supernodes[src]->seed, src, edges, delta_loc);
+  supernodes[src]->apply_delta_update(delta_loc);
 
   // page out the supernodes
   Supernode::page_out(delta_loc);
@@ -144,11 +143,6 @@ vector<set<Node>> Graph::connected_components() {
 #ifdef VERIFY_SAMPLES_F
   GraphVerifier verifier {cum_in};
 #endif
-
-  // force DSU structure into memory
-  // if this call fails, there is no problem since unlock won't throw any
-  // errors if we try to unlock un-locked memory
-  mlock(parent, num_nodes*sizeof(Node));
 
   do {
     modified = false;
@@ -183,9 +177,6 @@ vector<set<Node>> Graph::connected_components() {
     for (Node i : removed) representatives->erase(i);
   } while (modified);
 
-  // release DSU lock
-  munlock(parent, num_nodes*sizeof(Node));
-
   map<Node, set<Node>> temp;
   for (Node i=0;i<num_nodes;++i)
     temp[get_parent(i)].insert(i);
@@ -209,7 +200,6 @@ vector<set<Node>> Graph::parallel_connected_components() {
   // after this point all updates have been processed from the buffer tree
 
   printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
-  
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
 #ifdef VERIFY_SAMPLES_F
@@ -228,14 +218,12 @@ vector<set<Node>> Graph::parallel_connected_components() {
     #pragma omp parallel for default(none) shared(query, reps)
     for (Node i = 0; i < reps.size(); ++i) {
       auto edge = supernodes[reps[i]]->sample();
-      
       if (!edge.is_initialized()) {
         query[reps[i]] = {i,i};
         continue;
       }
       query[reps[i]] = edge.get();
     }
-  
     vector<Node> to_remove;
     for (Node i : reps) {
       Node a = get_parent(query[i].first);
@@ -247,7 +235,6 @@ vector<set<Node>> Graph::parallel_connected_components() {
 
       // make sure a is the one to be merged into
       if (size[a] < size[b]) std::swap(a,b);
-      
       to_remove.push_back(b);
       parent[b] = a;
       size[a] += size[b];
@@ -282,6 +269,7 @@ vector<set<Node>> Graph::parallel_connected_components() {
   vector<set<Node>> retval;
   retval.reserve(temp.size());
   for (const auto& it : temp) retval.push_back(it.second);
+
   return retval;
 }
 

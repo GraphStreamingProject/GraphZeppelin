@@ -111,17 +111,6 @@ TEST(GraphTestSuite, TestCorrectnessOfReheating) {
 
     Graph reheated {"./out_temp.txt"};
 
-    // for (int i = 0; i < log2(n); i++) {
-    //   ASSERT_EQ(g.supernodes[i]->logn, reheated.supernodes[i]->logn);
-    //   //ASSERT_EQ(g.supernodes[i]->idx, reheated.supernodes[i]->idx);
-    //   for (int j = g.supernodes[i]->idx;j < g.supernodes[i]->logn;++j) {
-    //     if(!(*g.supernodes[i]->get_sketch(j) == *reheated.supernodes[i]->get_sketch(j))) {
-    //       printf("sketches at index %i do not match of supernode %i\n", j, i);
-    //       ASSERT_EQ(1, 0);
-    //     }
-    //   }
-    // }
-
     auto reheated_res = reheated.connected_components();
     printf("number of reheated CC = %u\n", reheated_res.size());
     ASSERT_EQ(g_res.size(), reheated_res.size());

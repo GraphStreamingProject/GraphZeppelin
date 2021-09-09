@@ -107,7 +107,7 @@ vec_t Sketch::query() {
 
 Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2) {
   assert (sketch1.seed == sketch2.seed);
-  for (unsigned i = 0; i < Sketch::num_elems; i++){
+  for (unsigned i = 0; i < Sketch::num_elems; i++) {
     sketch1.bucket_a[i] ^= sketch2.bucket_a[i];
     sketch1.bucket_c[i] ^= sketch2.bucket_c[i];
   }
@@ -119,13 +119,11 @@ bool operator== (const Sketch &sketch1, const Sketch &sketch2) {
   if (sketch1.seed != sketch2.seed || sketch1.already_quered != sketch2.already_quered) 
     return false;
 
-  for (size_t i = 0; i < Sketch::num_elems; ++i)
-  {
+  for (size_t i = 0; i < Sketch::num_elems; ++i) {
     if (sketch1.bucket_a[i] != sketch2.bucket_a[i]) return false;
   }
 
-  for (size_t i = 0; i < Sketch::num_elems; ++i)
-  {
+  for (size_t i = 0; i < Sketch::num_elems; ++i) {
     if (sketch1.bucket_c[i] != sketch2.bucket_c[i]) return false;
   }
 

@@ -17,7 +17,8 @@ typedef std::pair<Node, Node> Edge;
  * box without needing to worry about implementing l_0.
  */
 class Supernode {
-  static uint32_t bytes_size;
+  // the size of a super-node in bytes including the all sketches off the end
+  static uint32_t bytes_size; 
   int idx;
   int logn;
   std::mutex node_mt;

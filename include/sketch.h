@@ -58,6 +58,14 @@ private:
   Sketch(long seed);
   Sketch(long seed, std::fstream &binary_in);
 
+  // function for setting the number of elements to the correct value and returning that value
+  inline static unsigned get_num_elems() { 
+    num_buckets = bucket_gen(n, num_bucket_factor);
+    num_guesses = guess_gen(n);
+    num_elems = num_buckets * num_guesses;
+    return num_elems;
+  }
+
 public:
   static SketchUniquePtr makeSketch(const Sketch &old);
   static SketchUniquePtr makeSketch(long seed);
@@ -65,19 +73,9 @@ public:
   static Sketch* makeSketch(void* loc, long seed);
   static Sketch* makeSketch(void* loc, long seed, std::fstream &binary_in);
   static Sketch* makeSketch(void* loc, long seed, double num_bucket_factor, std::fstream &binary_in);
-
-  inline static unsigned get_num_elems() { 
-    num_buckets = bucket_gen(n, num_bucket_factor);
-    num_guesses = guess_gen(n);
-    num_elems = num_buckets * num_guesses;
-    return num_elems;
-  }
   
   inline static size_t sketchSizeof()
   { return sizeof(Sketch) + get_num_elems() * (sizeof(vec_t) + sizeof(vec_hash_t)) - sizeof(char); }
-  
-  inline double get_bucket_factor()
-  { return num_bucket_factor; }
   
   /**
    * Update a sketch based on information about one of its indices.

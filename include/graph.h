@@ -100,7 +100,17 @@ public:
   // temp to verify number of updates -- REMOVE later
   std::atomic<uint64_t> num_updates;
 
-  static Supernode* generate_delta_node(uint64_t node_n, long node_seed, uint64_t src,
+  /*
+   * Generate a delta node for the purposes of updating a node sketch (supernode)
+   * @param node_n     the total number of nodes in the graph
+   * @param node_seed  the seed of the supernode in question
+   * @param src        the src id
+   * @param edges      a list of node ids which src is connected to
+   * @param delta_loc  the preallocated memory where the delta_node should be placed. 
+                       this allows memory to be reused by the same calling thread.
+   * @returns nothing (supernode delta is in delta_loc)
+   */
+  static void generate_delta_node(uint64_t node_n, long node_seed, uint64_t src,
 							   const vector<uint64_t> &edges, Supernode *delta_loc);
 
   /**
