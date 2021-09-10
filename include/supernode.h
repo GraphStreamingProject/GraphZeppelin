@@ -10,8 +10,6 @@ using namespace std;
 typedef uint64_t Node;
 typedef std::pair<Node, Node> Edge;
 
-// #define USE_MLOCK
-
 /**
  * This interface implements the "supernode" so Boruvka can use it as a black
  * box without needing to worry about implementing l_0.

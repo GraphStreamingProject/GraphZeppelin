@@ -118,6 +118,8 @@ public:
    * @param filename the name of the file to (over)write data to.
    */
   void write_binary(const string &filename);
+
+  std::chrono::steady_clock::time_point end_time;
 };
 
 class UpdateLockedException : public exception {
