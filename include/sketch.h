@@ -67,9 +67,6 @@ private:
   }
 
 public:
-  static SketchUniquePtr makeSketch(const Sketch &old);
-  static SketchUniquePtr makeSketch(long seed);
-  static SketchUniquePtr makeSketch(long seed, std::fstream &binary_in);
   static Sketch* makeSketch(void* loc, long seed);
   static Sketch* makeSketch(void* loc, long seed, std::fstream &binary_in);
   static Sketch* makeSketch(void* loc, long seed, double num_bucket_factor, std::fstream &binary_in);

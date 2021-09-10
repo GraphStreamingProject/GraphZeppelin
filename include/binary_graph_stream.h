@@ -10,14 +10,14 @@ public:
 
         // set the buffer size to be a multiple of an edge size and malloc memory
         buf_size = _b - (_b % edge_size);
-	buf = (char *) malloc(buf_size * sizeof(char));
-	start_buf = buf;
+        buf = (char *) malloc(buf_size * sizeof(char));
+        start_buf = buf;
 
-	// read header from the input file
-	bin_file.read(reinterpret_cast<char *>(&num_nodes), 4);
-	bin_file.read(reinterpret_cast<char *>(&num_edges), 8);
+        // read header from the input file
+        bin_file.read(reinterpret_cast<char *>(&num_nodes), 4);
+        bin_file.read(reinterpret_cast<char *>(&num_edges), 8);
         
-	read_data(); // read in the first block of data
+        read_data(); // read in the first block of data
     }
     ~BinaryGraphStream() {
         free(start_buf);
@@ -27,26 +27,23 @@ public:
 
     inline GraphUpdate get_edge() {
         UpdateType u = (UpdateType) *buf;
-	buf++;
+        uint32_t a;
+        uint32_t b;
 
-	uint32_t a;
-	std::memcpy(&a, buf, sizeof(uint32_t));
-	buf += 4;
-	uint32_t b;
-	std::memcpy(&b, buf, sizeof(uint32_t));
-        buf += 4;
-
-	if (buf - start_buf == buf_size)
-            read_data();
-	
+        std::memcpy(&a, buf + 1, sizeof(uint32_t));
+        std::memcpy(&b, buf + 5, sizeof(uint32_t));
+        
+        buf += edge_size;
+        if (buf - start_buf == buf_size) read_data();
+    
         return {{a,b}, u};
     }
 
 private:
     inline void read_data() {
-	// set buf back to the beginning of the buffer read in data
+        // set buf back to the beginning of the buffer read in data
         buf = start_buf;
-	bin_file.read(buf, buf_size);
+        bin_file.read(buf, buf_size);
     }
     const uint32_t edge_size = sizeof(uint8_t) + 2 * sizeof(uint32_t); // size of a binary encoded edge
     std::ifstream bin_file; // file to read from

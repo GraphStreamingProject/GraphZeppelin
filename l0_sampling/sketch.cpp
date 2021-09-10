@@ -8,25 +8,6 @@ size_t Sketch::num_elems;
 size_t Sketch::num_buckets;
 size_t Sketch::num_guesses;
 
-Sketch::SketchUniquePtr Sketch::makeSketch(const Sketch &old) {
-  return makeSketch(old.seed);
-}
-
-
-/*
- * Static functions for creating sketches without a provided memory location
- * these are useful for unit tests
- */
-Sketch::SketchUniquePtr Sketch::makeSketch(long seed) {
-  void* loc = malloc(sketchSizeof());
-  return SketchUniquePtr(makeSketch(loc, seed), [](Sketch* s){ s->~Sketch(); free(s); });
-}
-
-Sketch::SketchUniquePtr Sketch::makeSketch(long seed, std::fstream &binary_in) {
-  void* loc = malloc(sketchSizeof());
-  return SketchUniquePtr(makeSketch(loc, seed, binary_in), [](Sketch* s){ free(s); });
-}
-
 /*
  * Static functions for creating sketches with a provided memory location.
  * We use these in the production system to keep supernodes virtually contiguous.
