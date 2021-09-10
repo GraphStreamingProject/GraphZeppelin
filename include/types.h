@@ -18,3 +18,8 @@ typedef uint32_t col_hash_t;
 static const auto& vec_hash = XXH32;
 static const auto& col_hash = XXH32;
 #endif //USE_NATIVE_F
+
+enum UpdateType {
+  INSERT = 0,
+  DELETE = 1,
+};

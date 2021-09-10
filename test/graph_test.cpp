@@ -107,12 +107,12 @@ TEST(GraphTestSuite, TestCorrectnessOfReheating) {
     g.set_cum_in("./cum_sample.txt");
     g.write_binary("./out_temp.txt");
     auto g_res = g.connected_components();
-    printf("number of CC = %u\n", g_res.size());
+    printf("number of CC = %lu\n", g_res.size());
 
     Graph reheated {"./out_temp.txt"};
 
     auto reheated_res = reheated.connected_components();
-    printf("number of reheated CC = %u\n", reheated_res.size());
+    printf("number of reheated CC = %lu\n", reheated_res.size());
     ASSERT_EQ(g_res.size(), reheated_res.size());
     for (unsigned i = 0; i < g_res.size(); ++i) {
       std::vector<Node> symdif;

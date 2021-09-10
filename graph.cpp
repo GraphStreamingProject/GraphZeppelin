@@ -20,7 +20,7 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
   srand(seed);
   for (Node i=0;i<num_nodes;++i) {
     representatives->insert(i);
-    supernodes[i] = Supernode::makeSupernode(num_nodes,seed).release();
+    supernodes[i] = Supernode::makeSupernode(num_nodes,seed);
     parent[i] = i;
   }
   num_updates = 0; // REMOVE this later
@@ -52,7 +52,7 @@ Graph::Graph(const std::string& input_file) : num_updates(0) {
   parent = new Node[num_nodes];
   for (Node i = 0; i < num_nodes; ++i) {
     representatives->insert(i);
-    supernodes[i] = Supernode::makeSupernode(num_nodes, seed, binary_in).release();
+    supernodes[i] = Supernode::makeSupernode(num_nodes, seed, binary_in);
     parent[i] = i;
   }
   binary_in.close();

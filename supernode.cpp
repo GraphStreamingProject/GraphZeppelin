@@ -25,22 +25,20 @@ Supernode::Supernode(uint64_t n, long seed, std::fstream &binary_in) :
   }
 }
 
-Supernode::SupernodeUniquePtr Supernode::makeSupernode(uint64_t n, long seed) {
+Supernode* Supernode::makeSupernode(uint64_t n, long seed) {
   Sketch::n = n * n;
   set_size(n);
 
   void *loc = malloc(bytes_size);
-  SupernodeUniquePtr ret(new (loc) Supernode(n, seed), [](Supernode* s){ free(s); });
-  return ret;
+  return new (loc) Supernode(n, seed);
 }
 
-Supernode::SupernodeUniquePtr Supernode::makeSupernode(uint64_t n, long seed, std::fstream &binary_in) {
+Supernode* Supernode::makeSupernode(uint64_t n, long seed, std::fstream &binary_in) {
   Sketch::n = n * n;
   set_size(n);
 
   void *loc = malloc(bytes_size);
-  SupernodeUniquePtr ret(new (loc) Supernode(n, seed, binary_in), [](Supernode* s){ free(s); });
-  return ret;
+  return new (loc) Supernode(n, seed, binary_in);
 }
 
 Supernode* Supernode::makeSupernode(void* loc, uint64_t n, long seed) {
@@ -81,45 +79,34 @@ void Supernode::apply_delta_update(const Supernode* delta_node) {
   lk.unlock();
 }
 
-Supernode::SupernodeUniquePtr Supernode::delta_supernode(uint64_t n, long seed,
-               const vector<vec_t> &updates) {
-  auto delta_node = makeSupernode(n, seed);
-  /*
-   * Consider fiddling with environment vars
-   * OMP_DYNAMIC: whether the OS is allowed to dynamically change the number
-   * of threads employed for each parallel section
-   * OMP_NUM_THREADS (or set_omp_num_threads): how many threads to spin up for
-   * each parallel section. the default is (probably) one per CPU core
-   * available, but we may want to set it lower if logn is a nice multiple of
-   * a lower number.
-   *
-   * We may want to use omp option schedule(dynamic) or schedule(guided) if
-   * there are very many more iterations of loop than threads. Dynamic
-   * scheduling is good if loop iterations are expected to take very much
-   * different amounts of time. Refer to
-   * http://www.inf.ufsc.br/~bosco.sobral/ensino/ine5645/OpenMP_Dynamic_Scheduling.pdf
-   * for a detailed explanation.
-   */
-  /*
-   * Current impl uses default threads and parallelism within batched_update.
-   * Considered using spin-threads and parallelism within sketch::update, but
-   * this was slow (at least on small graph inputs).
-   */
-#pragma omp parallel for num_threads(GraphWorker::get_group_size()) default(shared)
-  for (int i = 0; i < delta_node->logn; ++i) {
-    delta_node->get_sketch(i)->batch_update(updates);
-  }
-  return delta_node;
-}
-
-Supernode* Supernode::delta_supernode(uint64_t n, long seed,
+/*
+ * Consider fiddling with environment vars
+ * OMP_DYNAMIC: whether the OS is allowed to dynamically change the number
+ * of threads employed for each parallel section
+ * OMP_NUM_THREADS (or set_omp_num_threads): how many threads to spin up for
+ * each parallel section. the default is (probably) one per CPU core
+ * available, but we may want to set it lower if logn is a nice multiple of
+ * a lower number.
+ *
+ * We may want to use omp option schedule(dynamic) or schedule(guided) if
+ * there are very many more iterations of loop than threads. Dynamic
+ * scheduling is good if loop iterations are expected to take very much
+ * different amounts of time. Refer to
+ * http://www.inf.ufsc.br/~bosco.sobral/ensino/ine5645/OpenMP_Dynamic_Scheduling.pdf
+ * for a detailed explanation.
+ */
+/*
+ * Current impl uses default threads and parallelism within batched_update.
+ * Considered using spin-threads and parallelism within sketch::update, but
+ * this was slow (at least on small graph inputs).
+ */
+void Supernode::delta_supernode(uint64_t n, long seed,
 							 const vector<vec_t> &updates, void *loc) {
   auto delta_node = makeSupernode(loc, n, seed);
 #pragma omp parallel for num_threads(GraphWorker::get_group_size()) default(shared)
   for (int i = 0; i < delta_node->logn; ++i) {
     delta_node->get_sketch(i)->batch_update(updates);
   }
-  return delta_node;
 }
 
 void Supernode::write_binary(std::fstream& binary_out) {

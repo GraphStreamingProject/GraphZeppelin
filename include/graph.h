@@ -20,11 +20,6 @@ using namespace std;
 class BufferTree;
 class GraphWorker;
 
-enum UpdateType {
-  INSERT = 0,
-  DELETE = 1,
-};
-
 typedef pair<Edge, UpdateType> GraphUpdate;
 
 /**

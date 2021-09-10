@@ -53,9 +53,8 @@ private:
   Supernode(uint64_t n, long seed, std::fstream &binary_in);
 
 public:
-  using SupernodeUniquePtr = std::unique_ptr<Supernode, std::function<void(Supernode*)>>;
-  static SupernodeUniquePtr makeSupernode(uint64_t n, long seed);
-  static SupernodeUniquePtr makeSupernode(uint64_t n, long seed, std::fstream &binary_in);
+  static Supernode* makeSupernode(uint64_t n, long seed);
+  static Supernode* makeSupernode(uint64_t n, long seed, std::fstream &binary_in);
   static Supernode* makeSupernode(void* loc, uint64_t n, long seed);
 
   ~Supernode();
@@ -108,16 +107,9 @@ public:
    * @param n       see declared constructor.
    * @param seed    see declared constructor.
    * @param updates the batch of updates to apply.
-   * @return
-   */
-  static Supernode::SupernodeUniquePtr delta_supernode(uint64_t n, long seed, const
-  std::vector<vec_t>& updates);
-
-  /** 
-   * Variant with predefined location so we can save some malloc calls
    * @param loc     the location to place the delta in
    */
-  static Supernode* delta_supernode(uint64_t n, long seed, const
+  static void delta_supernode(uint64_t n, long seed, const
   std::vector<vec_t>& updates, void *loc);
 
   /**
