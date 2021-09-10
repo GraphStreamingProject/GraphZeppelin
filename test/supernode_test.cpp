@@ -39,7 +39,7 @@ protected:
     free(prime);
   }
 
-  void SetUp() override {}
+  void SetUp() override {Supernode::configure(num_nodes);}
   void TearDown() override {}
 };
 
@@ -48,27 +48,26 @@ vector<Edge>* SupernodeTestSuite::odd_graph_edges;
 bool* SupernodeTestSuite::prime;
 
 TEST_F(SupernodeTestSuite, GIVENnoEdgeUpdatesIFsampledTHENnoEdgeIsReturned) {
-  Supernode s{num_nodes, seed};
+  Supernode* s = Supernode::makeSupernode(num_nodes, seed);
   boost::optional<Edge> res;
   for (int i=0;i<(int)log2(num_nodes);++i) {
-    res = s.sample();
     EXPECT_FALSE(res.is_initialized()) << i << " was inited";
   }
 }
 
 TEST_F(SupernodeTestSuite, IFsampledTooManyTimesTHENthrowOutOfQueries) {
-  Supernode s{num_nodes, seed};
+  Supernode* s = Supernode::makeSupernode(num_nodes, seed);
   for (int i=0;i<(int)log2(num_nodes);++i) {
-    s.sample();
+    s->sample();
   }
-  ASSERT_THROW(s.sample(), OutOfQueriesException);
+  ASSERT_THROW(s->sample(), OutOfQueriesException);
 }
 
 TEST_F(SupernodeTestSuite, TestSampleInsertGrinder) {
   vector<Supernode*> snodes;
   snodes.reserve(num_nodes);
   for (unsigned i = 0; i < num_nodes; ++i)
-    snodes[i] = new Supernode(num_nodes, seed);
+    snodes[i] = Supernode::makeSupernode(num_nodes, seed);
 
   // insert all edges
   for (auto edge : *graph_edges) {
@@ -111,7 +110,7 @@ TEST_F(SupernodeTestSuite, TestSampleDeleteGrinder) {
   vector<Supernode*> snodes;
   snodes.reserve(num_nodes);
   for (unsigned i = 0; i < num_nodes; ++i)
-    snodes[i] = new Supernode(num_nodes, seed);
+    snodes[i] = Supernode::makeSupernode(num_nodes, seed);
 
   // insert all edges
   for (auto edge : *graph_edges) {
@@ -159,6 +158,13 @@ TEST_F(SupernodeTestSuite, TestSampleDeleteGrinder) {
     delete snodes[i];
 }
 
+void inline apply_delta_to_node(Supernode* node, const std::vector<vec_t>& updates) {
+  Supernode* loc = (Supernode*) malloc(Supernode::get_size());
+  Supernode::delta_supernode(node->n, node->seed, updates, loc);
+  node->apply_delta_update(loc);
+  free(loc);
+}
+
 TEST_F(SupernodeTestSuite, TestBatchUpdate) {
   unsigned long vec_size = 1000000000, num_updates = 100000;
   srand(time(NULL));
@@ -167,41 +173,35 @@ TEST_F(SupernodeTestSuite, TestBatchUpdate) {
     updates[i] = static_cast<vec_t>(rand() % vec_size);
   }
   auto seed = rand();
-  Supernode supernode(vec_size, seed);
-  Supernode supernode_batch(vec_size, seed);
+  Supernode::configure(vec_size);
+  Supernode* supernode = Supernode::makeSupernode(vec_size, seed);
+  Supernode* supernode_batch = Supernode::makeSupernode(vec_size, seed);
   auto start_time = std::chrono::steady_clock::now();
   for (const auto& update : updates) {
-    supernode.update(update);
+    supernode->update(update);
   }
   std::cout << "One by one updates took " << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
   start_time = std::chrono::steady_clock::now();
-  Supernode* delta_node = Supernode::delta_supernode(vec_size, seed, updates);
-  supernode_batch.apply_delta_update(delta_node);
-  delete(delta_node);
+  apply_delta_to_node(supernode_batch, updates);
   std::cout << "Batched updates took " << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
 
-  ASSERT_EQ(supernode.logn, supernode_batch.logn);
-  ASSERT_EQ(supernode.idx, supernode_batch.idx);
-  for (int i=0;i<supernode.logn;++i) {
-    ASSERT_EQ(*supernode.sketches[i], *supernode_batch.sketches[i]);
+  ASSERT_EQ(supernode->logn, supernode_batch->logn);
+  ASSERT_EQ(supernode->idx, supernode_batch->idx);
+  for (int i=0;i<supernode->logn;++i) {
+    ASSERT_EQ(*supernode->get_sketch(i), *supernode_batch->get_sketch(i));
   }
-}
-
-void apply_delta_to_node(Supernode* node, const std::vector<vec_t>& updates) {
-  auto* delta_node = Supernode::delta_supernode(node->n, node->seed, updates);
-  node->apply_delta_update(delta_node);
-  delete(delta_node);
 }
 
 TEST_F(SupernodeTestSuite, TestConcurrency) {
   int num_threads_per_group = 2;
   unsigned num_threads =
-        std::thread::hardware_concurrency() / num_threads_per_group - 1; // hyperthreading?
+       std::thread::hardware_concurrency() / num_threads_per_group - 1; // hyperthreading?
   unsigned vec_len = 1000000;
   unsigned num_updates = 100000;
+  Supernode::configure(vec_len);
 
   std::vector<std::vector<vec_t>> test_vec(num_threads,
-                                           std::vector<vec_t>(num_updates));
+                                          std::vector<vec_t>(num_updates));
   for (unsigned i = 0; i < num_threads; ++i) {
     for (unsigned long j = 0; j < num_updates; ++j) {
       test_vec[i][j] = static_cast<vec_t>(rand() % vec_len);
@@ -209,23 +209,21 @@ TEST_F(SupernodeTestSuite, TestConcurrency) {
   }
   int seed = rand();
 
-  Supernode supernode(vec_len, seed);
-  Supernode piecemeal(vec_len, seed);
+  Supernode *supernode = Supernode::makeSupernode(vec_len, seed);
+  Supernode *piecemeal = Supernode::makeSupernode(vec_len, seed);
 
-  GraphWorker::set_config(0,num_threads_per_group); // set number of threads per omp
-  // parallel
+  GraphWorker::set_config(0,num_threads_per_group); // set number of threads per omp parallel
 
   // concurrently run batch_updates
   std::thread thd[num_threads];
   for (unsigned i = 0; i < num_threads; ++i) {
-    thd[i] = std::thread(apply_delta_to_node, &piecemeal, std::ref
-    (test_vec[i]));
+    thd[i] = std::thread(apply_delta_to_node, piecemeal, std::ref(test_vec[i]));
   }
 
   // do single-update sketch in the meantime
   for (unsigned i = 0; i < num_threads; ++i) {
     for (unsigned long j = 0; j < num_updates; j++) {
-      supernode.update(test_vec[i][j]);
+      supernode->update(test_vec[i][j]);
     }
   }
 
@@ -233,7 +231,36 @@ TEST_F(SupernodeTestSuite, TestConcurrency) {
     thd[i].join();
   }
 
-  for (int i = 0; i < supernode.logn; ++i) {
-    ASSERT_EQ(*supernode.sketches[i], *piecemeal.sketches[i]);
+  for (int i = 0; i < supernode->logn; ++i) {
+    ASSERT_EQ(*supernode->get_sketch(i), *piecemeal->get_sketch(i));
+  }
+}
+
+TEST_F(SupernodeTestSuite, TestSerialization) {
+  vector<Supernode*> snodes;
+  snodes.reserve(num_nodes);
+  for (unsigned i = 0; i < num_nodes; ++i)
+    snodes[i] = Supernode::makeSupernode(num_nodes, seed);
+
+  // insert all edges
+  for (auto edge : *graph_edges) {
+    vec_t encoded = nondirectional_non_self_edge_pairing_fn(edge.first, edge
+          .second);
+    snodes[edge.first]->update(encoded);
+    snodes[edge.second]->update(encoded);
+  }
+
+  std::cout << "Finished inserting" << std::endl;
+  auto file = std::fstream("./out_supernode.txt", std::ios::out | std::ios::binary);
+  snodes[num_nodes/2]->write_binary(file);
+  file.close();
+  std::cout << "Finished writing" << std::endl;
+
+  auto in_file = std::fstream("./out_supernode.txt", std::ios::in | std::ios::binary);
+
+  Supernode* reheated = Supernode::makeSupernode(num_nodes, seed, in_file);
+
+  for (int i = 0; i < snodes[num_nodes / 2]->logn; ++i) {
+    ASSERT_EQ(*snodes[num_nodes / 2]->get_sketch(i), *reheated->get_sketch(i));
   }
 }

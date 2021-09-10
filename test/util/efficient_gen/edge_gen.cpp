@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <boost/multiprecision/cpp_int.hpp>
 #include "efficient_gen.h"
-#include "../../../include/graph.h"
+#include "../../../include/types.h"
 
 #define endl '\n'
 

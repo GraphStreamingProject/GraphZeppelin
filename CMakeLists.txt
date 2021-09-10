@@ -105,6 +105,7 @@ if(NOT Boost_FOUND)
       "Set BOOST_ROOT to a directory where Boost is installed\n"
       "or use -DAUTODOWNLOAD:BOOL=ON to automatically download")
   else()
+    message("Downloading boost")
     #Download boost
     download_project(
       PROJ boost
@@ -138,8 +139,9 @@ if(NOT Boost_FOUND)
     endif()
 
     #Set BOOST_ROOT in cache to what we just downloaded, FindBoost again
+    set(ENV{BOOST_LIBRARYDIR} ${boost_SOURCE_DIR}/../boost-install/lib)
     set(BOOST_ROOT "${boost_SOURCE_DIR}" CACHE STRING "" FORCE)
-    find_package(Boost 1.66.0)
+    find_package(Boost 1.66.0 REQUIRED)
   endif()
 endif()
 include_directories("${Boost_INCLUDE_DIR}")
@@ -271,12 +273,13 @@ add_executable(experiment
   test/util/graph_gen.cpp
   graph.cpp
   supernode.cpp
+  work_queue.cpp
   graph_worker.cpp
   l0_sampling/sketch.cpp
   l0_sampling/update.cpp
   util.cpp)
 target_link_libraries(experiment PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(experiment PRIVATE USE_FBT_F)
+# target_compile_definitions(experiment PRIVATE USE_FBT_F)
 # dependencies
 add_dependencies(experiment BufferTree)
 target_link_libraries(experiment PRIVATE libFastBufferTree.a)
@@ -354,3 +357,4 @@ else ()
     target_compile_options(memParallelPP PRIVATE /O2)
   endif()
 endif ()
+

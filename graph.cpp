@@ -1,6 +1,8 @@
 #include <map>
 #include <iostream>
 #include <buffer_tree.h>
+#include <chrono>
+#include <sys/mman.h>
 
 #include "include/graph.h"
 #include "include/util.h"
@@ -10,15 +12,15 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
 #ifdef VERIFY_SAMPLES_F
   cout << "Verifying samples..." << endl;
 #endif
+  Supernode::configure(num_nodes);
   representatives = new set<Node>();
   supernodes = new Supernode*[num_nodes];
   parent = new Node[num_nodes];
-  time_t seed = time(nullptr);
+  seed = time(nullptr);
   srand(seed);
-  seed = rand();
   for (Node i=0;i<num_nodes;++i) {
     representatives->insert(i);
-    supernodes[i] = new Supernode(num_nodes,seed);
+    supernodes[i] = Supernode::makeSupernode(num_nodes,seed);
     parent[i] = i;
   }
   num_updates = 0; // REMOVE this later
@@ -26,18 +28,51 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
 #ifdef USE_FBT_F
   // Create buffer tree and start the graphWorkers
   bf = new BufferTree(buffer_loc_prefix, (1<<20), 16, num_nodes, GraphWorker::get_num_groups(), true);
-  GraphWorker::start_workers(this, bf);
+  GraphWorker::start_workers(this, bf, Supernode::get_size());
 #else
   unsigned long node_size = 24*pow((log2(num_nodes)), 3);
   node_size /= sizeof(node_id_t);
   wq = new WorkQueue(node_size, num_nodes, 2*GraphWorker::get_num_groups());
-  GraphWorker::start_workers(this, wq);
+  GraphWorker::start_workers(this, wq, Supernode::get_size());
+#endif
+}
+
+Graph::Graph(const std::string& input_file) : num_updates(0) {
+  double num_bucket_factor;
+  auto binary_in = std::fstream(input_file, std::ios::in | std::ios::binary);
+  binary_in.read((char*)&seed, sizeof(long));
+  binary_in.read((char*)&num_nodes, sizeof(uint64_t));
+  binary_in.read((char*)&num_bucket_factor, sizeof(double));
+  Supernode::configure(num_nodes, num_bucket_factor);
+
+#ifdef VERIFY_SAMPLES_F
+  cout << "Verifying samples..." << endl;
+#endif
+  representatives = new set<Node>();
+  supernodes = new Supernode*[num_nodes];
+  parent = new Node[num_nodes];
+  for (Node i = 0; i < num_nodes; ++i) {
+    representatives->insert(i);
+    supernodes[i] = Supernode::makeSupernode(num_nodes, seed, binary_in);
+    parent[i] = i;
+  }
+  binary_in.close();
+  std::string buffer_loc_prefix = configure_system(); // read the configuration file to configure the system
+#ifdef USE_FBT_F
+  // Create buffer tree and start the graphWorkers
+  bf = new BufferTree(buffer_loc_prefix, (1<<20), 16, num_nodes, GraphWorker::get_num_groups(), true);
+  GraphWorker::start_workers(this, bf, Supernode::get_size());
+#else
+  unsigned long node_size = 24*pow((log2(num_nodes)), 3);
+  node_size /= sizeof(node_id_t);
+  wq = new WorkQueue(node_size, num_nodes, 2*GraphWorker::get_num_groups());
+  GraphWorker::start_workers(this, wq, Supernode::get_size());
 #endif
 }
 
 Graph::~Graph() {
   for (unsigned i=0;i<num_nodes;++i)
-    delete supernodes[i];
+    free(supernodes[i]); // free because memory is malloc'd in make_supernode
   delete[] supernodes;
   delete[] parent;
   delete representatives;
@@ -64,8 +99,8 @@ void Graph::update(GraphUpdate upd) {
 #endif
 }
 
-Supernode* Graph::generate_delta_node(uint64_t node_n, long node_seed, uint64_t
-                                src, const std::vector<uint64_t>& edges) {
+void Graph::generate_delta_node(uint64_t node_n, long node_seed, uint64_t
+							 src, const std::vector<uint64_t>& edges, Supernode *delta_loc) {
   std::vector<vec_t> updates;
   updates.reserve(edges.size());
   for (const auto& edge : edges) {
@@ -77,15 +112,14 @@ Supernode* Graph::generate_delta_node(uint64_t node_n, long node_seed, uint64_t
                             nondirectional_non_self_edge_pairing_fn(edge, src)));
     }
   }
-  return Supernode::delta_supernode(node_n, node_seed, updates);
+  Supernode::delta_supernode(node_n, node_seed, updates, delta_loc);
 }
-void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges) {
+void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges, Supernode *delta_loc) {
   if (update_locked) throw UpdateLockedException();
-  num_updates += edges.size(); // REMOVE this later
-  auto* delta_node = generate_delta_node(supernodes[src]->n,
-                                         supernodes[src]->seed, src, edges);
-  supernodes[src]->apply_delta_update(delta_node);
-  delete(delta_node);
+
+  num_updates += edges.size();
+  generate_delta_node(supernodes[src]->n, supernodes[src]->seed, src, edges, delta_loc);
+  supernodes[src]->apply_delta_update(delta_loc);
 }
 
 vector<set<Node>> Graph::connected_components() {
@@ -96,6 +130,7 @@ vector<set<Node>> Graph::connected_components() {
 #endif
   GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
   // after this point all updates have been processed from the buffer tree
+  end_time = std::chrono::steady_clock::now();
 
   printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
   update_locked = true; // disallow updating the graph after we run the alg
@@ -136,6 +171,7 @@ vector<set<Node>> Graph::connected_components() {
     if (!removed.empty()) modified = true;
     for (Node i : removed) representatives->erase(i);
   } while (modified);
+
   map<Node, set<Node>> temp;
   for (Node i=0;i<num_nodes;++i)
     temp[get_parent(i)].insert(i);
@@ -157,7 +193,7 @@ vector<set<Node>> Graph::parallel_connected_components() {
 #endif
   GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
   // after this point all updates have been processed from the buffer tree
-
+  end_time = std::chrono::steady_clock::now();
   printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
@@ -183,7 +219,6 @@ vector<set<Node>> Graph::parallel_connected_components() {
       }
       query[reps[i]] = edge.get();
     }
-
     vector<Node> to_remove;
     for (Node i : reps) {
       Node a = get_parent(query[i].first);
@@ -192,6 +227,7 @@ vector<set<Node>> Graph::parallel_connected_components() {
 #ifdef VERIFY_SAMPLES_F
       verifier.verify_edge({query[i].first,query[i].second});
 #endif
+
       // make sure a is the one to be merged into
       if (size[a] < size[b]) std::swap(a,b);
       to_remove.push_back(b);
@@ -241,3 +277,24 @@ Node Graph::get_parent(Node node) {
   if (parent[node] == node) return node;
   return parent[node] = get_parent(parent[node]);
 }
+
+void Graph::write_binary(const std::string& filename) {
+#ifdef USE_FBT_F
+  bf->force_flush(); // flush everything in buffertree to make final updates
+#else
+  wq->force_flush();
+#endif
+  GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
+  // after this point all updates have been processed from the buffer tree
+
+  auto binary_out = std::fstream(filename, std::ios::out | std::ios::binary);
+  double sketch_factor = Sketch::get_bucket_factor();
+  binary_out.write((char*)&seed, sizeof(long));
+  binary_out.write((char*)&num_nodes, sizeof(uint64_t));
+  binary_out.write((char*)&sketch_factor, sizeof(double));
+  for (Node i = 0; i < num_nodes; ++i) {
+    supernodes[i]->write_binary(binary_out);
+  }
+  binary_out.close();
+}
+

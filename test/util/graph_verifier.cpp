@@ -1,5 +1,6 @@
 #include <fstream>
 #include <map>
+#include <iostream>
 #include "graph_verifier.h"
 
 //Node* parent;
@@ -108,5 +109,5 @@ void GraphVerifier::verify_soln(vector<set<Node>> &retval) {
   sort(temp.begin(),temp.end());
   sort(kruskal_ref.begin(),kruskal_ref.end());
   assert(kruskal_ref == temp);
-  cout << "Solution ok: " << retval.size() << " CCs found." << endl;
+  std::cout << "Solution ok: " << retval.size() << " CCs found." << endl;
 }
