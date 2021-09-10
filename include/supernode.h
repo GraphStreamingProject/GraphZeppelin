@@ -65,8 +65,11 @@ public:
   inline const Sketch* get_sketch(size_t i) const
   { return reinterpret_cast<const Sketch*>(sketch_buffer + i * sketch_size); }
 
-  static inline void set_size(uint64_t n) 
-  { bytes_size = sizeof(Supernode) + log2(n) * Sketch::sketchSizeof() - sizeof(char);}
+  static inline void configure(uint64_t n, double num_bucket_factor=0.5) 
+  { 
+    Sketch::configure(n*n, num_bucket_factor);
+    bytes_size = sizeof(Supernode) + log2(n) * Sketch::sketchSizeof() - sizeof(char);
+  }
 
   static inline uint32_t get_size() 
   { return bytes_size; }

@@ -20,16 +20,13 @@
  * raise an error.
  */
 class Sketch {
-public:
+private:
   static double num_bucket_factor; // Factor for how many buckets there are in this sketch.
   static vec_t n;                  // Length of the vector this is sketching.
   static size_t num_elems;         // length of our actual arrays in number of elements
   static size_t num_buckets;       // Portion of array length, number of buckets
   static size_t num_guesses;       // Portion of array length, number of guesses
 
-  using SketchUniquePtr = std::unique_ptr<Sketch,std::function<void(Sketch*)>>;
-
-private:
   // Seed used for hashing operations in this sketch.
   const long seed;
   // pointers to buckets
@@ -58,22 +55,25 @@ private:
   Sketch(long seed);
   Sketch(long seed, std::fstream &binary_in);
 
-  // function for setting the number of elements to the correct value and returning that value
-  inline static unsigned get_num_elems() { 
-    num_buckets = bucket_gen(n, num_bucket_factor);
-    num_guesses = guess_gen(n);
-    num_elems = num_buckets * num_guesses + 1;
-    return num_elems;
-  }
-
 public:
   static Sketch* makeSketch(void* loc, long seed);
   static Sketch* makeSketch(void* loc, long seed, std::fstream &binary_in);
   static Sketch* makeSketch(void* loc, long seed, double num_bucket_factor, std::fstream &binary_in);
   
+  // configure the static variables of sketches
+  inline static void configure(size_t _n, double _factor) {
+    n = _n;
+    num_bucket_factor = _factor;
+    num_buckets = bucket_gen(n, num_bucket_factor);
+    num_guesses = guess_gen(n);
+    num_elems = num_buckets * num_guesses + 1;
+  }
+
   inline static size_t sketchSizeof()
-  { return sizeof(Sketch) + get_num_elems() * (sizeof(vec_t) + sizeof(vec_hash_t)) - sizeof(char); }
+  { return sizeof(Sketch) + num_elems * (sizeof(vec_t) + sizeof(vec_hash_t)) - sizeof(char); }
   
+  inline static double get_bucket_factor() 
+  { return num_bucket_factor; }
   /**
    * Update a sketch based on information about one of its indices.
    * @param update the point update.

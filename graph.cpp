@@ -12,10 +12,10 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
 #ifdef VERIFY_SAMPLES_F
   cout << "Verifying samples..." << endl;
 #endif
+  Supernode::configure(num_nodes);
   representatives = new set<Node>();
   supernodes = new Supernode*[num_nodes];
   parent = new Node[num_nodes];
-  Sketch::n = num_nodes * num_nodes;
   seed = time(nullptr);
   srand(seed);
   for (Node i=0;i<num_nodes;++i) {
@@ -38,11 +38,12 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
 }
 
 Graph::Graph(const std::string& input_file) : num_updates(0) {
+  double num_bucket_factor;
   auto binary_in = std::fstream(input_file, std::ios::in | std::ios::binary);
   binary_in.read((char*)&seed, sizeof(long));
   binary_in.read((char*)&num_nodes, sizeof(uint64_t));
-  binary_in.read((char*)&Sketch::num_bucket_factor, sizeof(double));
-  Sketch::n = num_nodes * num_nodes;
+  binary_in.read((char*)&num_bucket_factor, sizeof(double));
+  Supernode::configure(num_nodes, num_bucket_factor);
 
 #ifdef VERIFY_SAMPLES_F
   cout << "Verifying samples..." << endl;
@@ -287,9 +288,10 @@ void Graph::write_binary(const std::string& filename) {
   // after this point all updates have been processed from the buffer tree
 
   auto binary_out = std::fstream(filename, std::ios::out | std::ios::binary);
+  double sketch_factor = Sketch::get_bucket_factor();
   binary_out.write((char*)&seed, sizeof(long));
   binary_out.write((char*)&num_nodes, sizeof(uint64_t));
-  binary_out.write((char*)&Sketch::num_bucket_factor, sizeof(double));
+  binary_out.write((char*)&sketch_factor, sizeof(double));
   for (Node i = 0; i < num_nodes; ++i) {
     supernodes[i]->write_binary(binary_out);
   }

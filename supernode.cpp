@@ -26,17 +26,11 @@ Supernode::Supernode(uint64_t n, long seed, std::fstream &binary_in) :
 }
 
 Supernode* Supernode::makeSupernode(uint64_t n, long seed) {
-  Sketch::n = n * n;
-  set_size(n);
-
   void *loc = malloc(bytes_size);
   return new (loc) Supernode(n, seed);
 }
 
 Supernode* Supernode::makeSupernode(uint64_t n, long seed, std::fstream &binary_in) {
-  Sketch::n = n * n;
-  set_size(n);
-
   void *loc = malloc(bytes_size);
   return new (loc) Supernode(n, seed, binary_in);
 }

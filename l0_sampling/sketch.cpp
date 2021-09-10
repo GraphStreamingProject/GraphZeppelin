@@ -21,8 +21,7 @@ Sketch* Sketch::makeSketch(void* loc, long seed, std::fstream &binary_in) {
 }
 
 Sketch::Sketch(long seed): seed(seed) {
-  // establish the bucket_a and bucket_c locations and number of elements
-  get_num_elems();
+  // establish the bucket_a and bucket_c locations
   bucket_a = reinterpret_cast<vec_t*>(buckets);
   bucket_c = reinterpret_cast<vec_hash_t*>(buckets + num_elems * sizeof(vec_t));
 
@@ -34,8 +33,7 @@ Sketch::Sketch(long seed): seed(seed) {
 }
 
 Sketch::Sketch(long seed, std::fstream &binary_in): seed(seed) {
-  // establish the bucket_a and bucket_c locations and number of elements
-  get_num_elems();
+  // establish the bucket_a and bucket_c locations
   bucket_a = reinterpret_cast<vec_t*>(buckets);
   bucket_c = reinterpret_cast<vec_hash_t*>(buckets + num_elems * sizeof(vec_t));
 

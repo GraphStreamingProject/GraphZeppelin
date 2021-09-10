@@ -39,7 +39,7 @@ protected:
     free(prime);
   }
 
-  void SetUp() override {}
+  void SetUp() override {Supernode::configure(num_nodes);}
   void TearDown() override {}
 };
 
@@ -173,6 +173,7 @@ TEST_F(SupernodeTestSuite, TestBatchUpdate) {
     updates[i] = static_cast<vec_t>(rand() % vec_size);
   }
   auto seed = rand();
+  Supernode::configure(vec_size);
   Supernode* supernode = Supernode::makeSupernode(vec_size, seed);
   Supernode* supernode_batch = Supernode::makeSupernode(vec_size, seed);
   auto start_time = std::chrono::steady_clock::now();
@@ -197,6 +198,7 @@ TEST_F(SupernodeTestSuite, TestConcurrency) {
        std::thread::hardware_concurrency() / num_threads_per_group - 1; // hyperthreading?
   unsigned vec_len = 1000000;
   unsigned num_updates = 100000;
+  Supernode::configure(vec_len);
 
   std::vector<std::vector<vec_t>> test_vec(num_threads,
                                           std::vector<vec_t>(num_updates));
