@@ -62,7 +62,7 @@ private:
   inline static unsigned get_num_elems() { 
     num_buckets = bucket_gen(n, num_bucket_factor);
     num_guesses = guess_gen(n);
-    num_elems = num_buckets * num_guesses;
+    num_elems = num_buckets * num_guesses + 1;
     return num_elems;
   }
 

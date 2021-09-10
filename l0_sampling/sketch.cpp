@@ -143,9 +143,9 @@ std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
     os << '1';
   }
   os << std::endl
-     << "a:" << sketch.bucket_a[num_buckets * num_guesses] << std::endl
-     << "c:" << sketch.bucket_c[num_buckets * num_guesses] << std::endl
-     << (Bucket_Boruvka::is_good(sketch.bucket_a[num_buckets * num_guesses], sketch.bucket_c[num_buckets * num_guesses], sketch.n, sketch.seed) ? "good" : "bad") << std::endl;
+     << "a:" << sketch.bucket_a[Sketch::num_buckets * Sketch::num_guesses] << std::endl
+     << "c:" << sketch.bucket_c[Sketch::num_buckets * Sketch::num_guesses] << std::endl
+     << (Bucket_Boruvka::is_good(sketch.bucket_a[Sketch::num_buckets * Sketch::num_guesses], sketch.bucket_c[Sketch::num_buckets * Sketch::num_guesses], sketch.n, sketch.seed) ? "good" : "bad") << std::endl;
 
   for (unsigned i = 0; i < Sketch::num_buckets; ++i) {
     for (unsigned j = 0; j < Sketch::num_guesses; ++j) {
