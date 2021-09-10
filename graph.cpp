@@ -115,17 +115,10 @@ void Graph::generate_delta_node(uint64_t node_n, long node_seed, uint64_t
 }
 void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges, Supernode *delta_loc) {
   if (update_locked) throw UpdateLockedException();
-  // page in the supernodes
-  Supernode::page_in(delta_loc);
-  Supernode::page_in(supernodes[src]);
 
   num_updates += edges.size();
   generate_delta_node(supernodes[src]->n, supernodes[src]->seed, src, edges, delta_loc);
   supernodes[src]->apply_delta_update(delta_loc);
-
-  // page out the supernodes
-  Supernode::page_out(delta_loc);
-  Supernode::page_out(supernodes[src]);
 }
 
 vector<set<Node>> Graph::connected_components() {

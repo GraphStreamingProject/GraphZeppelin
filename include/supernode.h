@@ -74,20 +74,6 @@ public:
   static inline uint32_t get_size() 
   { return bytes_size; }
 
-  static inline void page_in(Supernode* sn) { 
-#ifdef USE_MLOCK
-    madvise(sn, bytes_size, MADV_WILLNEED); 
-#else
-    mlock(sn, bytes_size);
-#endif
-  }
-
-#ifdef USE_MLOCK 
-  static inline void page_out(Supernode* sn) 
-  { munlock(sn, bytes_size); }
-#else 
-  static inline void page_out(Supernode *) {}
-#endif
   /**
    * Function to sample an edge from the cut of a supernode.
    * @return                        an edge in the cut, represented as an Edge

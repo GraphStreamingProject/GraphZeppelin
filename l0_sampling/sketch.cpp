@@ -64,7 +64,7 @@ Sketch::Sketch(long seed, std::fstream &binary_in): seed(seed) {
 
 void Sketch::update(const vec_t& update_idx) {
   XXH64_hash_t update_hash = Bucket_Boruvka::index_hash(update_idx, seed);
-  Bucket_Boruvka::update(bucket_a[num_buckets * num_guesses], bucket_c[num_buckets * num_guesses], update_idx, update_hash);
+  Bucket_Boruvka::update(bucket_a[num_elems - 1], bucket_c[num_elems - 1], update_idx, update_hash);
   for (unsigned i = 0; i < num_buckets; ++i) {
     col_hash_t col_index_hash = Bucket_Boruvka::col_index_hash(i, update_idx, seed);
     for (unsigned j = 0; j < num_guesses; ++j) {
@@ -89,11 +89,11 @@ vec_t Sketch::query() {
   already_quered = true;
   bool all_buckets_zero = true;
 
-  if (bucket_a[num_buckets * num_guesses] != 0 || bucket_c[num_buckets * num_guesses] != 0) {
+  if (bucket_a[num_elems - 1] != 0 || bucket_c[num_elems - 1] != 0) {
     all_buckets_zero = false;
   }
-  if (Bucket_Boruvka::is_good(bucket_a[num_buckets * num_guesses], bucket_c[num_buckets * num_guesses], n, seed)) {
-    return bucket_a[num_buckets * num_guesses];
+  if (Bucket_Boruvka::is_good(bucket_a[num_elems - 1], bucket_c[num_elems - 1], n, seed)) {
+    return bucket_a[num_elems - 1];
   }
   for (unsigned i = 0; i < num_buckets; ++i) {
     for (unsigned j = 0; j < num_guesses; ++j) {
