@@ -14,6 +14,6 @@ int main() {
   auto start = time(nullptr);
   write_edges(n, p, "./TEMP_F");
   insert_delete(r,"./TEMP_F", s);
-  if (cumul) write_cum(s,t);
+  if (cumul) write_cumul(s,t);
   std::cout << "Completed in " << time(nullptr)-start << " seconds" << std::endl;
 }
