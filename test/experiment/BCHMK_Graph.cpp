@@ -1,7 +1,5 @@
 #include <gtest/gtest.h>
-#include <fstream>
 #include <string>
-#include <ctime>
 #include "../../include/graph.h"
 #include "../../include/binary_graph_stream.h"
 #include "../util/graph_verifier.h"

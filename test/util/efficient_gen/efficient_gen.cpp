@@ -11,9 +11,9 @@ int main() {
   std::cout << "Out file: "; std::cin >> s;
   if (cum) { std::cout << "Cum out: "; std::cin >> t; }
 
-  auto start = time(NULL);
+  auto start = time(nullptr);
   write_edges(n, p, "./TEMP_F");
   insert_delete(r,"./TEMP_F", s);
   if (cum) write_cum(s,t);
-  std::cout << "Completed in " << time(NULL)-start << " seconds" << std::endl;
+  std::cout << "Completed in " << time(nullptr)-start << " seconds" << std::endl;
 }

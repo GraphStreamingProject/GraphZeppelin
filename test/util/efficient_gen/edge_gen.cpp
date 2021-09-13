@@ -102,7 +102,7 @@ void insert_delete(double p, std::string in_file, std::string out_file) {
   free(memoized);
 }
 
-void write_cum(std::string stream_f, std::string cum_f) {
+void write_cum(const std::string& stream_f, const std::string& cum_f) {
   std::ifstream in(stream_f);
   std::ofstream out(cum_f);
   int n; ull m; in >> n >> m;

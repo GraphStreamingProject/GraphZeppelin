@@ -256,7 +256,6 @@ endif ()
 # executables for experiment/benchmarking
 add_executable(efficient_gen
   test/util/efficient_gen/edge_gen.cpp
-  test/util/efficient_gen/cum_gen.cpp
   test/util/efficient_gen/efficient_gen.cpp)
 target_link_libraries(efficient_gen PRIVATE xxHash::xxhash)
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")

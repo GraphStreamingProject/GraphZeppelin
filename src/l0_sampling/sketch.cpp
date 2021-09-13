@@ -118,7 +118,7 @@ bool operator== (const Sketch &sketch1, const Sketch &sketch2) {
 }
 
 std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
-  for (unsigned k = 0; k < sketch.n; k++) {
+  for (unsigned k = 0; k < Sketch::n; k++) {
     os << '1';
   }
   os << std::endl
@@ -129,13 +129,13 @@ std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
   for (unsigned i = 0; i < Sketch::num_buckets; ++i) {
     for (unsigned j = 0; j < Sketch::num_guesses; ++j) {
       unsigned bucket_id = i * Sketch::num_guesses + j;
-      for (unsigned k = 0; k < sketch.n; k++) {
+      for (unsigned k = 0; k < Sketch::n; k++) {
         os << (Bucket_Boruvka::contains(Bucket_Boruvka::col_index_hash(i, k, sketch.seed), 2 << j) ? '1' : '0');
       }
       os << std::endl
          << "a:" << sketch.bucket_a[bucket_id] << std::endl
          << "c:" << sketch.bucket_c[bucket_id] << std::endl
-         << (Bucket_Boruvka::is_good(sketch.bucket_a[bucket_id], sketch.bucket_c[bucket_id], sketch.n, i, 2 << j, sketch.seed) ? "good" : "bad") << std::endl;
+         << (Bucket_Boruvka::is_good(sketch.bucket_a[bucket_id], sketch.bucket_c[bucket_id], Sketch::n, i, 2 << j, sketch.seed) ? "good" : "bad") << std::endl;
     }
   }
   return os;

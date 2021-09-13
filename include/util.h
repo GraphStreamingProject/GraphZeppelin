@@ -30,11 +30,11 @@ std::pair<uint64_t , uint64_t> inv_nondir_non_self_edge_pairing_fn(uint64_t idx)
  */
 uint64_t cantor_pairing_fn(uint64_t i, uint64_t j);
 
-/*
+/**
  * Configures the system using the configuration file streaming.conf
  * Gets the path prefix where the buffer tree data will be stored and sets
- * with the number of threads used for a variety of tasks
- * Should be called before creating the buffer tree or starting graph workers
- * @return the prefix of the path in which the buffer tree should be stored
+ * with the number of threads used for a variety of tasks.
+ * Should be called before creating the buffer tree or starting graph workers.
+ * @return the prefix of the path in which the buffer tree should be stored.
  */
 std::string configure_system();

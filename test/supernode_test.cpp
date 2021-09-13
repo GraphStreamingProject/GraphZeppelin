@@ -159,7 +159,7 @@ TEST_F(SupernodeTestSuite, TestSampleDeleteGrinder) {
 }
 
 void inline apply_delta_to_node(Supernode* node, const std::vector<vec_t>& updates) {
-  Supernode* loc = (Supernode*) malloc(Supernode::get_size());
+  auto* loc = (Supernode*) malloc(Supernode::get_size());
   Supernode::delta_supernode(node->n, node->seed, updates, loc);
   node->apply_delta_update(loc);
   free(loc);
@@ -167,7 +167,7 @@ void inline apply_delta_to_node(Supernode* node, const std::vector<vec_t>& updat
 
 TEST_F(SupernodeTestSuite, TestBatchUpdate) {
   unsigned long vec_size = 1000000000, num_updates = 100000;
-  srand(time(NULL));
+  srand(time(nullptr));
   std::vector<vec_t> updates(num_updates);
   for (unsigned long i = 0; i < num_updates; i++) {
     updates[i] = static_cast<vec_t>(rand() % vec_size);

@@ -2,10 +2,8 @@
 #include <iostream>
 #include <buffer_tree.h>
 #include <chrono>
-#include <sys/mman.h>
 
 #include "../include/graph.h"
-#include "../include/util.h"
 #include "../include/graph_worker.h"
 
 Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
@@ -297,4 +295,3 @@ void Graph::write_binary(const std::string& filename) {
   }
   binary_out.close();
 }
-

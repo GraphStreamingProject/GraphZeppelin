@@ -1,7 +1,5 @@
+#pragma once
 #include <utility>
-
-#ifndef TEST_GRAPH_GEN_H
-#define TEST_GRAPH_GEN_H
 
 typedef struct genSet {
   long n;            // number of nodes
@@ -22,7 +20,5 @@ typedef struct genSet {
  * Writes stream output to sample.txt
  * Writes cumulative output to cum_sample.txt
  */
-void generate_stream(GraphGenSettings settings =
+void generate_stream(const GraphGenSettings& settings =
       {1024,0.03,0.5,0,"./sample.txt", "./cum_sample.txt"});
-
-#endif //TEST_GRAPH_GEN_H

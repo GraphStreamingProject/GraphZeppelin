@@ -1,5 +1,4 @@
-#ifndef MAIN_GRAPH_H
-#define MAIN_GRAPH_H
+#pragma once
 #include <cstdlib>
 #include <exception>
 #include <set>
@@ -17,6 +16,7 @@
 
 using namespace std;
 
+// forward declarations
 class BufferTree;
 class GraphWorker;
 
@@ -55,9 +55,10 @@ public:
 
   /**
    * Update all the sketches in supernode, given a batch of updates.
-   * @param src        The supernode where the edges originate
-   * @param edges      A vector of <destination, delta> pairs
-   * @param delta_loc  Memory location where we should initialize the delta supernode
+   * @param src        The supernode where the edges originate.
+   * @param edges      A vector of <destination, delta> pairs.
+   * @param delta_loc  Memory location where we should initialize the delta
+   *                   supernode.
    */
   void batch_update(uint64_t src, const std::vector<uint64_t>& edges, Supernode *delta_loc);
 
@@ -72,12 +73,12 @@ public:
    * @return a vector of the connected components in the graph.
    */
   vector<set<Node>> parallel_connected_components();
-  /*
-   * Call this function to indicate to the graph that it should
-   * begin accepting updates again. It is important that the sketches
-   * be restored to their pre-connected_components state before
-   * calling this function
-   * Unpauses the graph workers and sets allow update flag
+
+  /**
+   * Call this function to indicate to the graph that it should begin accepting
+   * updates again. It is important that the sketches be restored to their
+   * pre-connected_components state before calling this function.
+   * Unpauses the graph workers and sets allow update flag.
    */
   void post_cc_resume();
 
@@ -95,15 +96,17 @@ public:
   // temp to verify number of updates -- REMOVE later
   std::atomic<uint64_t> num_updates;
 
-  /*
-   * Generate a delta node for the purposes of updating a node sketch (supernode)
-   * @param node_n     the total number of nodes in the graph
-   * @param node_seed  the seed of the supernode in question
-   * @param src        the src id
-   * @param edges      a list of node ids which src is connected to
-   * @param delta_loc  the preallocated memory where the delta_node should be placed. 
-                       this allows memory to be reused by the same calling thread.
-   * @returns nothing (supernode delta is in delta_loc)
+  /**
+   * Generate a delta node for the purposes of updating a node sketch
+   * (supernode).
+   * @param node_n     the total number of nodes in the graph.
+   * @param node_seed  the seed of the supernode in question.
+   * @param src        the src id.
+   * @param edges      a list of node ids to which src is connected.
+   * @param delta_loc  the preallocated memory where the delta_node should be
+   *                   placed. this allows memory to be reused by the same
+   *                   calling thread.
+   * @returns nothing (supernode delta is in delta_loc).
    */
   static void generate_delta_node(uint64_t node_n, long node_seed, uint64_t src,
 							   const vector<uint64_t> &edges, Supernode *delta_loc);
@@ -123,5 +126,3 @@ class UpdateLockedException : public exception {
            "already started";
   }
 };
-
-#endif //MAIN_GRAPH_H

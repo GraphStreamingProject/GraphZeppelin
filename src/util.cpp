@@ -58,7 +58,7 @@ ull cantor_pairing_fn(ull i, ull j) {
 }
 
 std::string configure_system() {
-  std::string pre = "";
+  std::string pre;
   int num_groups = 0;
   int group_size = 0;
   std::string line;
@@ -87,7 +87,7 @@ std::string configure_system() {
     pre = "./BUFFTREEDATA/";
   }
 #else
-  if (pre != "") {
+  if (!pre.empty()) {
     printf("WARNING: Running with in-memory buffering. Buffer-tree path prefix "
            "will be ignored/\n");
   }

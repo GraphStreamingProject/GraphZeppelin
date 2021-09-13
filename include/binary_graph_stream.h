@@ -1,3 +1,4 @@
+#pragma once
 #include <fstream>
 #include <cstring>
 #include "graph.h"

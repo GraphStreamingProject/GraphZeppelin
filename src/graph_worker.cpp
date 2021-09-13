@@ -1,12 +1,10 @@
 #include "../include/graph_worker.h"
 #include "../include/graph.h"
-#include "../include/supernode.h"
 
 #ifdef USE_FBT_F
 #include <buffer_tree.h>
 #endif
 
-#include <fstream>
 #include <string>
 
 bool GraphWorker::shutdown = false;
