@@ -1,6 +1,6 @@
 #pragma once
 #include <iostream>
-#include "types.h"
+#include "../types.h"
 
 /**
  * Representation of a generic vector point update.

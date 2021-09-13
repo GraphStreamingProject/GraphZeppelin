@@ -3,7 +3,7 @@
 #include <fstream>
 #include <sys/mman.h>
 
-#include "sketch.h"
+#include "l0_sampling/sketch.h"
 
 using namespace std;
 
