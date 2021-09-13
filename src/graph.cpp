@@ -134,7 +134,7 @@ vector<set<node_t>> Graph::connected_components() {
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
 #ifdef VERIFY_SAMPLES_F
-  GraphVerifier verifier {cum_in};
+  GraphVerifier verifier {cumul_in};
 #endif
 
   do {
@@ -196,7 +196,7 @@ vector<set<node_t>> Graph::parallel_connected_components() {
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
 #ifdef VERIFY_SAMPLES_F
-  GraphVerifier verifier { cum_in };
+  GraphVerifier verifier {cumul_in };
 #endif
   pair<node_t,node_t> query[num_nodes];
   node_t size[num_nodes];

@@ -19,7 +19,7 @@ TEST(GraphTestSuite, SmallGraphConnectivity) {
     in >> a >> b;
     g.update({{a, b}, INSERT});
   }
-  g.set_cum_in(curr_dir + "/res/multiples_graph_1024.txt");
+  g.set_cumul_in(curr_dir + "/res/multiples_graph_1024.txt");
   ASSERT_EQ(78, g.connected_components().size());
 }
 
@@ -38,7 +38,7 @@ TEST(GraphTestSuite, IFconnectedComponentsAlgRunTHENupdateLocked) {
     in >> a >> b;
     g.update({{a, b}, INSERT});
   }
-  g.set_cum_in(curr_dir + "/res/multiples_graph_1024.txt");
+  g.set_cumul_in(curr_dir + "/res/multiples_graph_1024.txt");
   g.connected_components();
   ASSERT_THROW(g.update({{1,2}, INSERT}), UpdateLockedException);
   ASSERT_THROW(g.update({{1,2}, DELETE}), UpdateLockedException);
@@ -64,7 +64,7 @@ TEST(GraphTestSuite, TestCorrectnessOnSmallRandomGraphs) {
         g.update({{a, b}, INSERT});
       } else g.update({{a, b}, DELETE});
     }
-    g.set_cum_in("./cum_sample.txt");
+    g.set_cumul_in("./cum_sample.txt");
     g.connected_components();
   }
 }
@@ -84,7 +84,7 @@ TEST(GraphTestSuite, TestCorrectnessOnSmallSparseGraphs) {
         g.update({{a, b}, INSERT});
       } else g.update({{a, b}, DELETE});
     }
-    g.set_cum_in("./cum_sample.txt");
+    g.set_cumul_in("./cum_sample.txt");
     g.connected_components();
   }
 }
@@ -104,7 +104,7 @@ TEST(GraphTestSuite, TestCorrectnessOfReheating) {
         g.update({{a, b}, INSERT});
       } else g.update({{a, b}, DELETE});
     }
-    g.set_cum_in("./cum_sample.txt");
+    g.set_cumul_in("./cum_sample.txt");
     g.write_binary("./out_temp.txt");
     auto g_res = g.connected_components();
     printf("number of CC = %lu\n", g_res.size());

@@ -83,13 +83,13 @@ public:
   void post_cc_resume();
 
 #ifdef VERIFY_SAMPLES_F
-  std::string cum_in = "./cum_sample.txt";
+  std::string cumul_in = "./cumul_sample.txt";
 
   /**
    * Set the filepath to search for cumulative graph input.
    */
-  void set_cum_in(const std::string& input_file) {
-    cum_in = input_file;
+  void set_cumul_in(const std::string& input_file) {
+    cumul_in = input_file;
   }
 #endif
 

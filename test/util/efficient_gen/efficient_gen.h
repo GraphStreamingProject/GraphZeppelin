@@ -6,4 +6,4 @@ void write_edges(int n, double p, std::string out_f);
 // until 1 element is left
 void insert_delete(double p, std::string in_file, std::string out_file);
 
-void write_cum(const std::string& stream_f, const std::string& cum_f);
+void write_cumul(const std::string& stream_f, const std::string& cumul_f);

@@ -96,9 +96,9 @@ void insert_delete(double p, int max_appearances, const std::string& in_file,
   free(memoized);
 }
 
-void write_cum(const std::string& stream_f, const std::string& cum_f) {
+void write_cumul(const std::string& stream_f, const std::string& cumul_f) {
   std::ifstream in(stream_f);
-  std::ofstream out(cum_f);
+  std::ofstream out(cumul_f);
   int n; ull m; in >> n >> m;
   std::vector<std::vector<bool>> adj(n,std::vector<bool>(n,false));
   bool type;
@@ -115,14 +115,14 @@ void write_cum(const std::string& stream_f, const std::string& cum_f) {
 
   in.close();
 
-  // write cum output
-  ull m_cum = 0;
+  // write cumul output
+  ull m_cumul = 0;
   for (int i = 0; i < n; ++i) {
     for (int j = 0; j < n; ++j) {
-      if (adj[i][j]) ++m_cum;
+      if (adj[i][j]) ++m_cumul;
     }
   }
-  out << n << " " << m_cum << endl;
+  out << n << " " << m_cumul << endl;
   for (int i = 0; i < n; ++i) {
     for (int j = 0; j < n; ++j) {
       if (adj[i][j]) out << i << " " << j << endl;
@@ -136,5 +136,5 @@ void generate_stream(const GraphGenSettings& settings) {
   write_edges(settings.n, settings.p, "./TEMP_F");
   insert_delete(settings.r, settings.max_appearances, "./TEMP_F", settings
   .out_file);
-  write_cum(settings.out_file,settings.cum_out_file);
+  write_cumul(settings.out_file,settings.cumul_out_file);
 }

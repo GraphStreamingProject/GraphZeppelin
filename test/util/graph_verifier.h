@@ -7,7 +7,7 @@
  * @param input_file the file to read input from.
  * @return an array of connected components.
  */
-std::vector<std::set<node_t>> kruskal(const string& input_file = "cum_sample.txt");
+std::vector<std::set<node_t>> kruskal(const string& input_file = "cumul_sample.txt");
 
 /**
  * A plugin for the Graph class that runs Boruvka alongside the graph algorithm
@@ -21,7 +21,7 @@ class GraphVerifier {
   node_t* parent;
   node_t* size;
 public:
-  explicit GraphVerifier(const string& input_file = "./cum_sample.txt");
+  explicit GraphVerifier(const string& input_file = "./cumul_sample.txt");
   ~GraphVerifier();
   /**
    * Verifies an edge exists in the graph. Verifies that the edge is in the cut
