@@ -1,3 +1,4 @@
+#include <cassert>
 #include "../include/work_queue.h"
 #include "../include/graph_worker.h"
 
