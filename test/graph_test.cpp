@@ -64,7 +64,7 @@ TEST(GraphTestSuite, TestCorrectnessOnSmallRandomGraphs) {
         g.update({{a, b}, INSERT});
       } else g.update({{a, b}, DELETE});
     }
-    g.set_cumul_in("./cum_sample.txt");
+    g.set_cumul_in("./cumul_sample.txt");
     g.connected_components();
   }
 }
@@ -72,7 +72,7 @@ TEST(GraphTestSuite, TestCorrectnessOnSmallRandomGraphs) {
 TEST(GraphTestSuite, TestCorrectnessOnSmallSparseGraphs) {
   int num_trials = 10;
   while (num_trials--) {
-    generate_stream({1024,0.002,0.5,0,"./sample.txt","./cum_sample.txt"});
+    generate_stream({1024,0.002,0.5,0,"./sample.txt","./cumul_sample.txt"});
     ifstream in{"./sample.txt"};
     node_t n, m;
     in >> n >> m;
@@ -84,7 +84,7 @@ TEST(GraphTestSuite, TestCorrectnessOnSmallSparseGraphs) {
         g.update({{a, b}, INSERT});
       } else g.update({{a, b}, DELETE});
     }
-    g.set_cumul_in("./cum_sample.txt");
+    g.set_cumul_in("./cumul_sample.txt");
     g.connected_components();
   }
 }
@@ -92,7 +92,7 @@ TEST(GraphTestSuite, TestCorrectnessOnSmallSparseGraphs) {
 TEST(GraphTestSuite, TestCorrectnessOfReheating) {
   int num_trials = 1;
   while (num_trials--) {
-    generate_stream({1024,0.002,0.5,0,"./sample.txt","./cum_sample.txt"});
+    generate_stream({1024,0.002,0.5,0,"./sample.txt","./cumul_sample.txt"});
     ifstream in{"./sample.txt"};
     node_t n, m;
     in >> n >> m;
@@ -104,7 +104,7 @@ TEST(GraphTestSuite, TestCorrectnessOfReheating) {
         g.update({{a, b}, INSERT});
       } else g.update({{a, b}, DELETE});
     }
-    g.set_cumul_in("./cum_sample.txt");
+    g.set_cumul_in("./cumul_sample.txt");
     g.write_binary("./out_temp.txt");
     auto g_res = g.connected_components();
     printf("number of CC = %lu\n", g_res.size());
