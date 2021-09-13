@@ -134,4 +134,3 @@ public:
     return "Found no good bucket!";
   }
 };
-

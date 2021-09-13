@@ -1,6 +1,6 @@
-#include "include/graph_worker.h"
-#include "include/graph.h"
-#include "include/supernode.h"
+#include "../include/graph_worker.h"
+#include "../include/graph.h"
+#include "../include/supernode.h"
 
 #ifdef USE_FBT_F
 #include <buffer_tree.h>

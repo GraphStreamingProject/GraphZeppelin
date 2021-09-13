@@ -2,8 +2,8 @@
 // Created by victor on 6/2/21.
 //
 
-#include "include/work_queue.h"
-#include "include/graph_worker.h"
+#include "../include/work_queue.h"
+#include "../include/graph_worker.h"
 
 const unsigned first_idx = 2;
 

@@ -192,12 +192,12 @@ add_executable(tests
   test/util/graph_gen.cpp
   test/util/graph_gen_test.cpp
   test/util/graph_verifier_test.cpp
-  graph.cpp
-  supernode.cpp
-  graph_worker.cpp
-  l0_sampling/sketch.cpp
-  l0_sampling/update.cpp
-  util.cpp)
+  src/graph.cpp
+  src/supernode.cpp
+  src/graph_worker.cpp
+  src/l0_sampling/sketch.cpp
+  src/l0_sampling/update.cpp
+  src/util.cpp)
 target_link_libraries(tests PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F USE_FBT_F)
 # dependencies
@@ -218,22 +218,22 @@ else ()
 endif ()
 
 add_executable(mem_tests
-    test/test_runner.cpp
-    test/graph_test.cpp
-    test/sketch_test.cpp
-    test/supernode_test.cpp
-    test/util_test.cpp
-    test/util/graph_verifier.cpp
-    test/util/graph_gen.cpp
-    test/util/graph_gen_test.cpp
-    test/util/graph_verifier_test.cpp
-    graph.cpp
-    supernode.cpp
-    graph_worker.cpp
-    work_queue.cpp
-    l0_sampling/sketch.cpp
-    l0_sampling/update.cpp
-    util.cpp)
+  test/test_runner.cpp
+  test/graph_test.cpp
+  test/sketch_test.cpp
+  test/supernode_test.cpp
+  test/util_test.cpp
+  test/util/graph_verifier.cpp
+  test/util/graph_gen.cpp
+  test/util/graph_gen_test.cpp
+  test/util/graph_verifier_test.cpp
+  src/graph.cpp
+  src/supernode.cpp
+  src/graph_worker.cpp
+  src/work_queue.cpp
+  src/l0_sampling/sketch.cpp
+  src/l0_sampling/update.cpp
+  src/util.cpp)
 target_link_libraries(mem_tests PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(mem_tests PRIVATE VERIFY_SAMPLES_F)
 # dependencies
@@ -271,13 +271,13 @@ add_executable(experiment
   test/experiment/BCHMK_post_proc.cpp
   test/util/graph_verifier.cpp
   test/util/graph_gen.cpp
-  graph.cpp
-  supernode.cpp
-  work_queue.cpp
-  graph_worker.cpp
-  l0_sampling/sketch.cpp
-  l0_sampling/update.cpp
-  util.cpp)
+  src/graph.cpp
+  src/supernode.cpp
+  src/work_queue.cpp
+  src/graph_worker.cpp
+  src/l0_sampling/sketch.cpp
+  src/l0_sampling/update.cpp
+  src/util.cpp)
 target_link_libraries(experiment PRIVATE xxHash::xxhash GTest::gtest)
 # target_compile_definitions(experiment PRIVATE USE_FBT_F)
 # dependencies
@@ -298,16 +298,16 @@ else ()
 endif ()
 
 add_executable(parallelPP
-    test/test_runner.cpp
-    test/util/graph_gen.cpp
-    test/util/graph_verifier.cpp
-    test/parallel_graph_test.cpp
-    graph.cpp
-    supernode.cpp
-    graph_worker.cpp
-    l0_sampling/sketch.cpp
-    l0_sampling/update.cpp
-    util.cpp)
+  test/test_runner.cpp
+  test/util/graph_gen.cpp
+  test/util/graph_verifier.cpp
+  test/parallel_graph_test.cpp
+  src/graph.cpp
+  src/supernode.cpp
+  src/graph_worker.cpp
+  src/l0_sampling/sketch.cpp
+  src/l0_sampling/update.cpp
+  src/util.cpp)
 target_link_libraries(parallelPP PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(parallelPP PRIVATE USE_FBT_F PARALLEL_PP_F VERIFY_SAMPLES_F)
 # dependencies
@@ -328,17 +328,17 @@ else ()
 endif ()
 
 add_executable(memParallelPP
-        test/test_runner.cpp
-        test/util/graph_gen.cpp
-        test/util/graph_verifier.cpp
-        test/parallel_graph_test.cpp
-        graph.cpp
-        supernode.cpp
-        graph_worker.cpp
-        work_queue.cpp
-        l0_sampling/sketch.cpp
-        l0_sampling/update.cpp
-        util.cpp)
+  test/test_runner.cpp
+  test/util/graph_gen.cpp
+  test/util/graph_verifier.cpp
+  test/parallel_graph_test.cpp
+  src/graph.cpp
+  src/supernode.cpp
+  src/graph_worker.cpp
+  src/work_queue.cpp
+  src/l0_sampling/sketch.cpp
+  src/l0_sampling/update.cpp
+  src/util.cpp)
 target_link_libraries(memParallelPP PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(memParallelPP PRIVATE PARALLEL_PP_F VERIFY_SAMPLES_F)
 # dependencies
@@ -357,4 +357,3 @@ else ()
     target_compile_options(memParallelPP PRIVATE /O2)
   endif()
 endif ()
-

@@ -1,9 +1,9 @@
 #include <stdexcept>
 #include <cmath>
 #include <boost/multiprecision/cpp_int.hpp>
-#include "include/supernode.h"
-#include "include/util.h"
-#include "include/graph_worker.h"
+#include "../include/supernode.h"
+#include "../include/util.h"
+#include "../include/graph_worker.h"
 
 uint32_t Supernode::bytes_size;
 

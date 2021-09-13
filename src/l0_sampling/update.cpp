@@ -1,4 +1,4 @@
-#include "../include/l0_sampling/update.h"
+#include "../../include/l0_sampling/update.h"
 
 std::ostream& operator<< (std::ostream &out, const Update &update){
     out << "Index: " << update.index << " Value: " << update.delta;
