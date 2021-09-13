@@ -98,7 +98,7 @@ void Graph::update(GraphUpdate upd) {
 }
 
 void Graph::generate_delta_node(uint64_t node_n, long node_seed, uint64_t
-							 src, const std::vector<uint64_t>& edges, Supernode *delta_loc) {
+               src, const std::vector<uint64_t>& edges, Supernode *delta_loc) {
   std::vector<vec_t> updates;
   updates.reserve(edges.size());
   for (const auto& edge : edges) {

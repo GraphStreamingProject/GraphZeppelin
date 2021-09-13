@@ -7,7 +7,7 @@
 uint32_t Supernode::bytes_size;
 
 Supernode::Supernode(uint64_t n, long seed): idx(0), logn(log2(n)),
-					     n(n), seed(seed), sketch_size(Sketch::sketchSizeof()) {
+               n(n), seed(seed), sketch_size(Sketch::sketchSizeof()) {
 
   // generate logn sketches for each supernode (read: node)
   for (int i = 0; i < logn; ++i) {
@@ -94,7 +94,7 @@ void Supernode::apply_delta_update(const Supernode* delta_node) {
  * this was slow (at least on small graph inputs).
  */
 void Supernode::delta_supernode(uint64_t n, long seed,
-							 const vector<vec_t> &updates, void *loc) {
+               const vector<vec_t> &updates, void *loc) {
   auto delta_node = makeSupernode(loc, n, seed);
 #pragma omp parallel for num_threads(GraphWorker::get_group_size()) default(shared)
   for (int i = 0; i < delta_node->logn; ++i) {

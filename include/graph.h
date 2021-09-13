@@ -109,7 +109,7 @@ public:
    * @returns nothing (supernode delta is in delta_loc).
    */
   static void generate_delta_node(uint64_t node_n, long node_seed, uint64_t src,
-							   const vector<uint64_t> &edges, Supernode *delta_loc);
+                 const vector<uint64_t> &edges, Supernode *delta_loc);
 
   /**
    * Serialize the graph data to a binary file.
