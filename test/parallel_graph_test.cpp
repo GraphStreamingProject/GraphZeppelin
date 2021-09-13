@@ -37,7 +37,7 @@ TEST(ParallelGraphTestSuite, SingleTestCorrectnessOnSmallRandomGraphs) {
         g.update({{a, b}, INSERT});
       } else g.update({{a, b}, DELETE});
     }
-    g.set_cumul_in("./cum_sample.txt");
+    g.set_cumul_in("./cumul_sample.txt");
     g.connected_components();
   }
 }
@@ -45,7 +45,7 @@ TEST(ParallelGraphTestSuite, SingleTestCorrectnessOnSmallRandomGraphs) {
 TEST(ParallelGraphTestSuite, SingleTestCorrectnessOnSmallSparseGraphs) {
   int num_trials = 10;
   while (num_trials--) {
-    generate_stream({1024,0.002,0.5,0,"./sample.txt","./cum_sample.txt"});
+    generate_stream({1024,0.002,0.5,0,"./sample.txt","./cumul_sample.txt"});
     ifstream in{"./sample.txt"};
     node_t n, m;
     in >> n >> m;
@@ -57,7 +57,7 @@ TEST(ParallelGraphTestSuite, SingleTestCorrectnessOnSmallSparseGraphs) {
         g.update({{a, b}, INSERT});
       } else g.update({{a, b}, DELETE});
     }
-    g.set_cumul_in("./cum_sample.txt");
+    g.set_cumul_in("./cumul_sample.txt");
     g.connected_components();
   }
 }
@@ -96,7 +96,7 @@ TEST(ParallelGraphTestSuite, ParallelTestCorrectnessOnSmallRandomGraphs) {
         g.update({{a, b}, INSERT});
       } else g.update({{a, b}, DELETE});
     }
-    g.set_cumul_in("./cum_sample.txt");
+    g.set_cumul_in("./cumul_sample.txt");
     g.parallel_connected_components();
   }
 }
@@ -104,7 +104,7 @@ TEST(ParallelGraphTestSuite, ParallelTestCorrectnessOnSmallRandomGraphs) {
 TEST(ParallelGraphTestSuite, ParallelTestCorrectnessOnSmallSparseGraphs) {
   int num_trials = 10;
   while (num_trials--) {
-    generate_stream({1024,0.002,0.5,0,"./sample.txt","./cum_sample.txt"});
+    generate_stream({1024,0.002,0.5,0,"./sample.txt","./cumul_sample.txt"});
     ifstream in{"./sample.txt"};
     node_t n, m;
     in >> n >> m;
@@ -116,7 +116,7 @@ TEST(ParallelGraphTestSuite, ParallelTestCorrectnessOnSmallSparseGraphs) {
         g.update({{a, b}, INSERT});
       } else g.update({{a, b}, DELETE});
     }
-    g.set_cumul_in("./cum_sample.txt");
+    g.set_cumul_in("./cumul_sample.txt");
     g.parallel_connected_components();
   }
 }
