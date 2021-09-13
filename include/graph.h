@@ -31,11 +31,11 @@ class Graph {
   long seed;
   bool update_locked = false;
   // a set containing one "representative" from each supernode
-  set<Node>* representatives;
+  set<node_t>* representatives;
   Supernode** supernodes;
   // DSU representation of supernode relationship
-  Node* parent;
-  Node get_parent(Node node);
+  node_t* parent;
+  node_t get_parent(node_t node);
 
 #ifdef USE_FBT_F
   // BufferTree for buffering inputs
@@ -66,13 +66,13 @@ public:
    * Main algorithm utilizing Boruvka and L_0 sampling.
    * @return a vector of the connected components in the graph.
    */
-  vector<set<Node>> connected_components();
+  vector<set<node_t>> connected_components();
 
   /**
    * Parallel version of Boruvka.
    * @return a vector of the connected components in the graph.
    */
-  vector<set<Node>> parallel_connected_components();
+  vector<set<node_t>> parallel_connected_components();
 
   /**
    * Call this function to indicate to the graph that it should begin accepting

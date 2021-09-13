@@ -11,12 +11,12 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
   cout << "Verifying samples..." << endl;
 #endif
   Supernode::configure(num_nodes);
-  representatives = new set<Node>();
+  representatives = new set<node_t>();
   supernodes = new Supernode*[num_nodes];
-  parent = new Node[num_nodes];
+  parent = new node_t[num_nodes];
   seed = time(nullptr);
   srand(seed);
-  for (Node i=0;i<num_nodes;++i) {
+  for (node_t i=0;i<num_nodes;++i) {
     representatives->insert(i);
     supernodes[i] = Supernode::makeSupernode(num_nodes,seed);
     parent[i] = i;
@@ -46,10 +46,10 @@ Graph::Graph(const std::string& input_file) : num_updates(0) {
 #ifdef VERIFY_SAMPLES_F
   cout << "Verifying samples..." << endl;
 #endif
-  representatives = new set<Node>();
+  representatives = new set<node_t>();
   supernodes = new Supernode*[num_nodes];
-  parent = new Node[num_nodes];
-  for (Node i = 0; i < num_nodes; ++i) {
+  parent = new node_t[num_nodes];
+  for (node_t i = 0; i < num_nodes; ++i) {
     representatives->insert(i);
     supernodes[i] = Supernode::makeSupernode(num_nodes, seed, binary_in);
     parent[i] = i;
@@ -120,7 +120,7 @@ void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges, Super
   supernodes[src]->apply_delta_update(delta_loc);
 }
 
-vector<set<Node>> Graph::connected_components() {
+vector<set<node_t>> Graph::connected_components() {
 #ifdef USE_FBT_F
   bf->force_flush(); // flush everything in buffertree to make final updates
 #else
@@ -139,8 +139,8 @@ vector<set<Node>> Graph::connected_components() {
 
   do {
     modified = false;
-    vector<Node> removed;
-    for (Node i: (*representatives)) {
+    vector<node_t> removed;
+    for (node_t i: (*representatives)) {
       if (parent[i] != i) continue;
       boost::optional<Edge> edge = supernodes[i]->sample();
 #ifdef VERIFY_SAMPLES_F
@@ -151,7 +151,7 @@ vector<set<Node>> Graph::connected_components() {
 #endif
       if (!edge.is_initialized()) continue;
 
-      Node n;
+      node_t n;
       // DSU compression
       if (get_parent(edge->first) == i) {
         n = get_parent(edge->second);
@@ -167,13 +167,13 @@ vector<set<Node>> Graph::connected_components() {
       supernodes[i]->merge(*supernodes[n]);
     }
     if (!removed.empty()) modified = true;
-    for (Node i : removed) representatives->erase(i);
+    for (node_t i : removed) representatives->erase(i);
   } while (modified);
 
-  map<Node, set<Node>> temp;
-  for (Node i=0;i<num_nodes;++i)
+  map<node_t, set<node_t>> temp;
+  for (node_t i=0;i<num_nodes;++i)
     temp[get_parent(i)].insert(i);
-  vector<set<Node>> retval;
+  vector<set<node_t>> retval;
   retval.reserve(temp.size());
   for (const auto& it : temp) retval.push_back(it.second);
 #ifdef VERIFY_SAMPLES_F
@@ -183,7 +183,7 @@ vector<set<Node>> Graph::connected_components() {
   return retval;
 }
 
-vector<set<Node>> Graph::parallel_connected_components() {
+vector<set<node_t>> Graph::parallel_connected_components() {
 #ifdef USE_FBT_F
   bf->force_flush(); // flush everything in buffertree to make final updates
 #else
@@ -198,18 +198,18 @@ vector<set<Node>> Graph::parallel_connected_components() {
 #ifdef VERIFY_SAMPLES_F
   GraphVerifier verifier { cum_in };
 #endif
-  pair<Node,Node> query[num_nodes];
-  Node size[num_nodes];
-  vector<Node> reps(num_nodes);
+  pair<node_t,node_t> query[num_nodes];
+  node_t size[num_nodes];
+  vector<node_t> reps(num_nodes);
   fill(size, size + num_nodes, 1);
-  for (Node i = 0; i < num_nodes; ++i) {
+  for (node_t i = 0; i < num_nodes; ++i) {
     reps[i] = i;
   }
 
   do {
     modified = false;
     #pragma omp parallel for default(none) shared(query, reps)
-    for (Node i = 0; i < reps.size(); ++i) {
+    for (node_t i = 0; i < reps.size(); ++i) {
       auto edge = supernodes[reps[i]]->sample();
       if (!edge.is_initialized()) {
         query[reps[i]] = {i,i};
@@ -217,10 +217,10 @@ vector<set<Node>> Graph::parallel_connected_components() {
       }
       query[reps[i]] = edge.get();
     }
-    vector<Node> to_remove;
-    for (Node i : reps) {
-      Node a = get_parent(query[i].first);
-      Node b = get_parent(query[i].second);
+    vector<node_t> to_remove;
+    for (node_t i : reps) {
+      node_t a = get_parent(query[i].first);
+      node_t b = get_parent(query[i].second);
       if (a == b) continue;
 #ifdef VERIFY_SAMPLES_F
       verifier.verify_edge({query[i].first,query[i].second});
@@ -237,9 +237,9 @@ vector<set<Node>> Graph::parallel_connected_components() {
     sort(to_remove.begin(), to_remove.end());
 
     // 2-pointer to find set difference
-    vector<Node> temp_diff;
-    Node ptr1 = 0;
-    Node ptr2 = 0;
+    vector<node_t> temp_diff;
+    node_t ptr1 = 0;
+    node_t ptr2 = 0;
     while (ptr1 < reps.size() && ptr2 < to_remove.size()) {
       if (reps[ptr1] == to_remove[ptr2]) {
         ++ ptr1; ++ptr2;
@@ -256,10 +256,10 @@ vector<set<Node>> Graph::parallel_connected_components() {
     swap(reps, temp_diff);
   } while (modified);
 
-  map<Node, set<Node>> temp;
-  for (Node i=0;i<num_nodes;++i)
+  map<node_t, set<node_t>> temp;
+  for (node_t i=0;i<num_nodes;++i)
     temp[get_parent(i)].insert(i);
-  vector<set<Node>> retval;
+  vector<set<node_t>> retval;
   retval.reserve(temp.size());
   for (const auto& it : temp) retval.push_back(it.second);
 
@@ -271,7 +271,7 @@ void Graph::post_cc_resume() {
   update_locked = false;
 }
 
-Node Graph::get_parent(Node node) {
+node_t Graph::get_parent(node_t node) {
   if (parent[node] == node) return node;
   return parent[node] = get_parent(parent[node]);
 }
@@ -290,7 +290,7 @@ void Graph::write_binary(const std::string& filename) {
   binary_out.write((char*)&seed, sizeof(long));
   binary_out.write((char*)&num_nodes, sizeof(uint64_t));
   binary_out.write((char*)&sketch_factor, sizeof(double));
-  for (Node i = 0; i < num_nodes; ++i) {
+  for (node_t i = 0; i < num_nodes; ++i) {
     supernodes[i]->write_binary(binary_out);
   }
   binary_out.close();
