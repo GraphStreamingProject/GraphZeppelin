@@ -234,13 +234,7 @@ void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
 }
 
 TEST(SketchTestSuite, TestSketchLarge) {
-  constexpr uint64_t upper_bound =
-#ifdef USE_NATIVE_F
-      1e9
-#else
-      1e18
-#endif
-  ;
+  constexpr uint64_t upper_bound = 1e18;
   for (uint64_t i = 1000; i <= upper_bound; i *= 10) {
     test_sketch_large(i, 1000000);
   }

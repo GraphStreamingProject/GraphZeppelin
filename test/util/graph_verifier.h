@@ -7,7 +7,8 @@
  * @param input_file the file to read input from.
  * @return an array of connected components.
  */
-std::vector<std::set<Node>> kruskal(const string& input_file = "cum_sample.txt");
+std::vector<std::set<node_t>> kruskal(const string& input_file = "cum_sample"
+                                                               ".txt");
 
 /**
  * A plugin for the Graph class that runs Boruvka alongside the graph algorithm
@@ -15,11 +16,11 @@ std::vector<std::set<Node>> kruskal(const string& input_file = "cum_sample.txt")
  * generates.
  */
 class GraphVerifier {
-  std::vector<std::set<Node>> kruskal_ref;
-  std::vector<std::set<Node>> boruvka_cc;
-  std::vector<std::set<Node>> det_graph;
-  Node* parent;
-  Node* size;
+  std::vector<std::set<node_t>> kruskal_ref;
+  std::vector<std::set<node_t>> boruvka_cc;
+  std::vector<std::set<node_t>> det_graph;
+  node_t* parent;
+  node_t* size;
 public:
   explicit GraphVerifier(const string& input_file = "./cum_sample.txt");
   ~GraphVerifier();
@@ -38,13 +39,13 @@ public:
    * @param node the node to be tested.
    * @throws NotCCException   if the supernode is not a connected component.
    */
-  void verify_cc(Node node);
+  void verify_cc(node_t node);
 
   /**
    * Verifies the connected components solution is correct. Compares
    * retval against kruskal_ref.
    */
-  void verify_soln(vector<set<Node>>& retval);
+  void verify_soln(vector<set<node_t>>& retval);
 };
 
 class BadEdgeException : public exception {

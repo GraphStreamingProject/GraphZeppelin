@@ -172,8 +172,6 @@ link_directories(${CMAKE_CURRENT_BINARY_DIR}/BufferTree/prefix/lib)
 # VERIFY_SAMPLES_F   Use a deterministic connected-components algorithm to
 #                    verify post-processing.
 #
-# USE_NATIVE_F       ???
-#
 # USE_FBT_F          Use a Fast Buffer Tree living on secondary storage
 #                    (github.com/Victor-C-Zhang/FastBufferTree) to buffer updates
 #                    instead of in-memory buffering.

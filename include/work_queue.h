@@ -1,7 +1,6 @@
 #pragma once
 #include <buffer_tree.h>
-#include "supernode.h"
-// TODO: switch references from Node to node_t in types, change CMake flags
+// TODO: switch references from Node to node_t in types
 
 /**
  * In-memory wrapper to offer the same interface as a buffer tree.
