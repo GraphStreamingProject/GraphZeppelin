@@ -8,11 +8,11 @@ TEST(ParallelGraphTestSuite, SingleSmallGraphConnectivity) {
   size_t pos = fname.find_last_of("\\/");
   const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
   ifstream in{curr_dir + "/res/multiples_graph_1024.txt"};
-  Node num_nodes;
+  node_t num_nodes;
   in >> num_nodes;
   long m;
   in >> m;
-  Node a, b;
+  node_t a, b;
   Graph g{num_nodes};
   while (m--) {
     in >> a >> b;
@@ -27,7 +27,7 @@ TEST(ParallelGraphTestSuite, SingleTestCorrectnessOnSmallRandomGraphs) {
   while (num_trials--) {
     generate_stream();
     ifstream in{"./sample.txt"};
-    Node n, m;
+    node_t n, m;
     in >> n >> m;
     Graph g{n};
     int type, a, b;
@@ -47,7 +47,7 @@ TEST(ParallelGraphTestSuite, SingleTestCorrectnessOnSmallSparseGraphs) {
   while (num_trials--) {
     generate_stream({1024,0.002,0.5,0,"./sample.txt","./cum_sample.txt"});
     ifstream in{"./sample.txt"};
-    Node n, m;
+    node_t n, m;
     in >> n >> m;
     Graph g{n};
     int type, a, b;
@@ -67,11 +67,11 @@ TEST(ParallelGraphTestSuite, ParallelSmallGraphConnectivity) {
   size_t pos = fname.find_last_of("\\/");
   const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
   ifstream in{curr_dir + "/res/multiples_graph_1024.txt"};
-  Node num_nodes;
+  node_t num_nodes;
   in >> num_nodes;
   long m;
   in >> m;
-  Node a, b;
+  node_t a, b;
   Graph g{num_nodes};
   while (m--) {
     in >> a >> b;
@@ -86,7 +86,7 @@ TEST(ParallelGraphTestSuite, ParallelTestCorrectnessOnSmallRandomGraphs) {
   while (num_trials--) {
     generate_stream();
     ifstream in{"./sample.txt"};
-    Node n, m;
+    node_t n, m;
     in >> n >> m;
     Graph g{n};
     int type, a, b;
@@ -106,7 +106,7 @@ TEST(ParallelGraphTestSuite, ParallelTestCorrectnessOnSmallSparseGraphs) {
   while (num_trials--) {
     generate_stream({1024,0.002,0.5,0,"./sample.txt","./cum_sample.txt"});
     ifstream in{"./sample.txt"};
-    Node n, m;
+    node_t n, m;
     in >> n >> m;
     Graph g{n};
     int type, a, b;
