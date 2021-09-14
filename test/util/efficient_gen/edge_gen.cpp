@@ -102,9 +102,9 @@ void insert_delete(double p, std::string in_file, std::string out_file) {
   free(memoized);
 }
 
-void write_cum(std::string stream_f, std::string cum_f) {
+void write_cumul(const std::string& stream_f, const std::string& cumul_f) {
   std::ifstream in(stream_f);
-  std::ofstream out(cum_f);
+  std::ofstream out(cumul_f);
   int n; ull m; in >> n >> m;
   std::vector<std::vector<bool>> adj(n,std::vector<bool>(n,false));
   bool type;
@@ -118,14 +118,14 @@ void write_cum(std::string stream_f, std::string cum_f) {
     }
     adj[a][b] = !adj[a][b];
   }
-  // write cum output
-  ull m_cum = 0;
+  // write cumul output
+  ull m_cumul = 0;
   for (int i = 0; i < n; ++i) {
     for (int j = 0; j < n; ++j) {
-      if (adj[i][j]) ++m_cum;
+      if (adj[i][j]) ++m_cumul;
     }
   }
-  out << n << " " << m_cum << endl;
+  out << n << " " << m_cumul << endl;
   for (int i = 0; i < n; ++i) {
     for (int j = 0; j < n; ++j) {
       if (adj[i][j]) out << i << " " << j << endl;

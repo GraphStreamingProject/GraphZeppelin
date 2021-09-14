@@ -3,12 +3,11 @@
 #include <fstream>
 #include <sys/mman.h>
 
-#include "sketch.h"
+#include "l0_sampling/sketch.h"
 
 using namespace std;
 
-typedef uint64_t Node;
-typedef std::pair<Node, Node> Edge;
+typedef std::pair<node_t, node_t> Edge;
 
 /**
  * This interface implements the "supernode" so Boruvka can use it as a black
@@ -48,31 +47,43 @@ private:
   /**
    * @param n         the total number of nodes in the graph.
    * @param seed      the (fixed) seed value passed to each supernode.
-   * @param binary_in A stream to read the file from
+   * @param binary_in A stream to read the file from.
    */
   Supernode(uint64_t n, long seed, std::fstream &binary_in);
 
 public:
   static Supernode* makeSupernode(uint64_t n, long seed);
   static Supernode* makeSupernode(uint64_t n, long seed, std::fstream &binary_in);
+
+  /**
+   * Makes a supernode at the provided location (and does no error checking).
+   * @param loc     the memory location to put the supernode.
+   * @param n       the total number of nodes in the graph.
+   * @param seed    the (fixed) seed value passed to each supernode.
+   * @return        a pointer to loc, the location of the supernode.
+   */
   static Supernode* makeSupernode(void* loc, uint64_t n, long seed);
 
   ~Supernode();
 
-  inline Sketch* get_sketch(size_t i)
-  { return reinterpret_cast<Sketch*>(sketch_buffer + i * sketch_size); }
+  // get the ith sketch in the sketch array
+  inline Sketch* get_sketch(size_t i) {
+    return reinterpret_cast<Sketch*>(sketch_buffer + i * sketch_size);
+  }
 
-  inline const Sketch* get_sketch(size_t i) const
-  { return reinterpret_cast<const Sketch*>(sketch_buffer + i * sketch_size); }
+  // get the ith sketch in the sketch array
+  inline const Sketch* get_sketch(size_t i) const {
+    return reinterpret_cast<const Sketch*>(sketch_buffer + i * sketch_size);
+  }
 
-  static inline void configure(uint64_t n, double num_bucket_factor=0.5) 
-  { 
+  static inline void configure(uint64_t n, double num_bucket_factor=0.5) {
     Sketch::configure(n*n, num_bucket_factor);
     bytes_size = sizeof(Supernode) + log2(n) * Sketch::sketchSizeof() - sizeof(char);
   }
 
-  static inline uint32_t get_size() 
-  { return bytes_size; }
+  static inline uint32_t get_size() {
+    return bytes_size;
+  }
 
   /**
    * Function to sample an edge from the cut of a supernode.

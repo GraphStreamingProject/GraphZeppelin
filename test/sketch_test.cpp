@@ -1,4 +1,4 @@
-#include "../include/sketch.h"
+#include "../include/l0_sampling/sketch.h"
 #include <chrono>
 #include <gtest/gtest.h>
 #include "util/testing_vector.h"
@@ -49,7 +49,7 @@ TEST(SketchTestSuite, TestExceptions) {
 
 TEST(SketchTestSuite, GIVENonlyIndexZeroUpdatedTHENitWorks) {
   // GIVEN only the index 0 is updated
-  srand(time(NULL));
+  srand(time(nullptr));
   Sketch::configure(1000 * 1000, 0.5);
   SketchUniquePtr sketch = makeSketch(rand());
   sketch->update(0);
@@ -69,7 +69,7 @@ void test_sketch_sample(unsigned long num_sketches,
     double max_sample_fail_prob, double max_bucket_fail_prob) {
   Sketch::configure(vec_size * vec_size, 1);
 
-  srand(time(NULL));
+  srand(time(nullptr));
   std::chrono::duration<long double> runtime(0);
   unsigned long all_bucket_failures = 0;
   unsigned long sample_incorrect_failures = 0;
@@ -120,7 +120,7 @@ void test_sketch_sample(unsigned long num_sketches,
 }
 
 TEST(SketchTestSuite, TestSketchSample) {
-  srand (time(NULL));
+  srand (time(nullptr));
   test_sketch_sample(10000, 100, 100, 0.005, 0.005);
   test_sketch_sample(1000, 1000, 1000, 0.001, 0.001);
   test_sketch_sample(1000, 10000, 10000, 0.001, 0.001);
@@ -194,7 +194,7 @@ TEST(SketchTestSuite, TestSketchAddition){
 void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
   Sketch::configure(vec_size * vec_size, 0.5);
 
-  srand(time(NULL));
+  srand(time(nullptr));
   SketchUniquePtr sketch = makeSketch(rand());
   //Keep seed for replaying update stream later
   unsigned long seed = rand();
@@ -234,13 +234,7 @@ void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
 }
 
 TEST(SketchTestSuite, TestSketchLarge) {
-  constexpr uint64_t upper_bound =
-#ifdef USE_NATIVE_F
-      1e9
-#else
-      1e18
-#endif
-  ;
+  constexpr uint64_t upper_bound = 1e18;
   for (uint64_t i = 1000; i <= upper_bound; i *= 10) {
     test_sketch_large(i, 1000000);
   }
@@ -249,7 +243,7 @@ TEST(SketchTestSuite, TestSketchLarge) {
 TEST(SketchTestSuite, TestBatchUpdate) {
   unsigned long vec_size = 1000000000, num_updates = 10000;
   Sketch::configure(vec_size * vec_size, 0.5);
-  srand(time(NULL));
+  srand(time(nullptr));
   std::vector<vec_t> updates(num_updates);
   for (unsigned long i = 0; i < num_updates; i++) {
     updates[i] = static_cast<vec_t>(rand() % vec_size);

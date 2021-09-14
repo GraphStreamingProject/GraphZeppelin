@@ -61,7 +61,7 @@ namespace Bucket_Boruvka {
    * @param update_hash The hash of the update index, generated with Bucket::index_hash.
    */
   inline static void update(vec_t& a, vec_hash_t& c, const vec_t& update_idx, const vec_hash_t& update_hash);
-}
+} // namespace Bucket_Boruvka
 
 inline col_hash_t Bucket_Boruvka::col_index_hash(const unsigned bucket_col, const vec_t& update_idx, const long sketch_seed) {
   struct {

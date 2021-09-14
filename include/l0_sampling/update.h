@@ -1,6 +1,6 @@
 #pragma once
 #include <iostream>
-#include "types.h"
+#include "../types.h"
 
 /**
  * Representation of a generic vector point update.
@@ -14,4 +14,3 @@ struct Update {
   friend std::ostream& operator<< (std::ostream &out, const Update &update);
   friend bool operator== (const Update &upd1, const Update &upd2);
 };
-

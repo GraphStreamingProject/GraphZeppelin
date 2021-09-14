@@ -1,12 +1,10 @@
-#include "include/graph_worker.h"
-#include "include/graph.h"
-#include "include/supernode.h"
+#include "../include/graph_worker.h"
+#include "../include/graph.h"
 
 #ifdef USE_FBT_F
 #include <buffer_tree.h>
 #endif
 
-#include <fstream>
 #include <string>
 
 bool GraphWorker::shutdown = false;
@@ -27,14 +25,14 @@ std::mutex GraphWorker::pause_lock;
 
 #ifdef USE_FBT_F
 void GraphWorker::start_workers(Graph *_graph, BufferTree *_bf, long _supernode_size) {
-	shutdown = false;
-	paused   = false;
-	supernode_size = _supernode_size;
+  shutdown = false;
+  paused   = false;
+  supernode_size = _supernode_size;
 
-	workers = (GraphWorker **) calloc(num_groups, sizeof(GraphWorker *));
-	for (int i = 0; i < num_groups; i++) {
-		workers[i] = new GraphWorker(i, _graph, _bf);
-	}
+  workers = (GraphWorker **) calloc(num_groups, sizeof(GraphWorker *));
+  for (int i = 0; i < num_groups; i++) {
+    workers[i] = new GraphWorker(i, _graph, _bf);
+  }
 }
 #else
 void GraphWorker::start_workers(Graph *_graph, WorkQueue *_wq, long _supernode_size) {
@@ -53,45 +51,45 @@ void GraphWorker::stop_workers() {
   if (shutdown)
     return;
 
-	shutdown = true;
+  shutdown = true;
 #ifdef USE_FBT_F
-	workers[0]->bf->set_non_block(true); // make the GraphWorkers bypass waiting in queue
+  workers[0]->bf->set_non_block(true); // make the GraphWorkers bypass waiting in queue
 #else
-	workers[0]->wq->set_non_block(true); // make the GraphWorkers bypass waiting in queue
+  workers[0]->wq->set_non_block(true); // make the GraphWorkers bypass waiting in queue
 #endif
-	pause_condition.notify_all();      // tell any paused threads to continue and exit
-	for (int i = 0; i < num_groups; i++) {
-		delete workers[i];
-	}
-	free(workers);
+  pause_condition.notify_all();      // tell any paused threads to continue and exit
+  for (int i = 0; i < num_groups; i++) {
+    delete workers[i];
+  }
+  free(workers);
 }
 
 void GraphWorker::pause_workers() {
-	paused = true;
+  paused = true;
 #ifdef USE_FBT_F
-	workers[0]->bf->set_non_block(true); // make the GraphWorkers bypass waiting in queue
+  workers[0]->bf->set_non_block(true); // make the GraphWorkers bypass waiting in queue
 #else
   workers[0]->wq->set_non_block(true); // make the GraphWorkers bypass waiting in queue
 #endif
 
-	// wait until all GraphWorkers are paused
-	std::unique_lock<std::mutex> lk(pause_lock);
-	pause_condition.wait(lk, []{
-		for (int i = 0; i < num_groups; i++)
-			if (!workers[i]->get_thr_paused()) return false;
-		return true;
-	});
-	lk.unlock();
+  // wait until all GraphWorkers are paused
+  std::unique_lock<std::mutex> lk(pause_lock);
+  pause_condition.wait(lk, []{
+    for (int i = 0; i < num_groups; i++)
+      if (!workers[i]->get_thr_paused()) return false;
+    return true;
+  });
+  lk.unlock();
 }
 
 void GraphWorker::unpause_workers() {
 #ifdef USE_FBT_F
-	workers[0]->bf->set_non_block(false); // buffer-tree operations should block when necessary
+  workers[0]->bf->set_non_block(false); // buffer-tree operations should block when necessary
 #else
   workers[0]->wq->set_non_block(false); // buffer-tree operations should block when necessary
 #endif
-	paused = false;
-	pause_condition.notify_all();       // tell all paused workers to get back to work
+  paused = false;
+  pause_condition.notify_all();       // tell all paused workers to get back to work
 }
 
 /***********************************************
@@ -111,39 +109,39 @@ GraphWorker::GraphWorker(int _id, Graph *_graph, WorkQueue *_wq) :
 #endif
 
 GraphWorker::~GraphWorker() {
-	// join the GraphWorker thread to reclaim resources
-	thr.join();
-	free(delta_node);
+  // join the GraphWorker thread to reclaim resources
+  thr.join();
+  free(delta_node);
 }
 
 void GraphWorker::do_work() {
-	data_ret_t data;
-	while(true) {
-		if(shutdown)
-			return;
-		thr_paused = true; // this thread is currently paused
-		pause_condition.notify_all(); // notify pause_workers()
+  data_ret_t data;
+  while(true) {
+    if(shutdown)
+      return;
+    thr_paused = true; // this thread is currently paused
+    pause_condition.notify_all(); // notify pause_workers()
 
-		// wait until we are unpaused
-		std::unique_lock<std::mutex> lk(pause_lock);
-		pause_condition.wait(lk, []{return !paused || shutdown;});
-		thr_paused = false; // no longer paused
-		lk.unlock();
-		while(!thr_paused) {
-			// call get_data which will handle waiting on the queue
-			// and will enforce locking.
+    // wait until we are unpaused
+    std::unique_lock<std::mutex> lk(pause_lock);
+    pause_condition.wait(lk, []{return !paused || shutdown;});
+    thr_paused = false; // no longer paused
+    lk.unlock();
+    while(!thr_paused) {
+      // call get_data which will handle waiting on the queue
+      // and will enforce locking.
 #ifdef USE_FBT_F
-			bool valid = bf->get_data(data);
+      bool valid = bf->get_data(data);
 #else
-			bool valid = wq->get_data(data);
+      bool valid = wq->get_data(data);
 #endif
 
-			if (valid)
-				graph->batch_update(data.first, data.second, delta_node);
-			else if(shutdown)
-				return;
-			else if(paused)
-				thr_paused = true; // pause this thread once no more updates
-		}
-	}
+      if (valid)
+        graph->batch_update(data.first, data.second, delta_node);
+      else if(shutdown)
+        return;
+      else if(paused)
+        thr_paused = true; // pause this thread once no more updates
+    }
+  }
 }

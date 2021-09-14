@@ -9,11 +9,11 @@ TEST(Benchmark, BCHMKpostProcSingleOnPaperclipGraph) {
   const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
   std::ifstream in{curr_dir + "/../res/paperclip.stream"};
 //  std::ifstream in{"/home/experiment_inputs/streams/kron_13_unique_half_stream.txt"};
-  Node num_nodes;
+  node_t num_nodes;
   in >> num_nodes;
   long m;
   in >> m;
-  Node a, b;
+  node_t a, b;
   Graph g{num_nodes};
   while (m--) {
     in >> a >> b;
@@ -28,11 +28,11 @@ TEST(Benchmark, BCHMKpostProcMultiOnPaperclipGraph) {
   const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
   std::ifstream in{curr_dir + "/../res/paperclip.stream"};
 //  std::ifstream in{"/home/experiment_inputs/streams/kron_13_unique_half_stream.txt"};
-  Node num_nodes;
+  node_t num_nodes;
   in >> num_nodes;
   long m;
   in >> m;
-  Node a, b;
+  node_t a, b;
   Graph g{num_nodes};
   while (m--) {
     in >> a >> b;
@@ -47,11 +47,11 @@ TEST(Benchmark, BCHMKpostProcGenOnKron) {
   const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
   std::ifstream in{curr_dir + "/../res/paperclip.stream"};
 //  std::ifstream in{"/home/experiment_inputs/streams/kron_13_unique_half_stream.txt"};
-  Node num_nodes;
+  node_t num_nodes;
   in >> num_nodes;
   long m;
   in >> m;
-  Node a, b;
+  node_t a, b;
   Graph g{num_nodes};
   while (m--) {
     in >> a >> b;

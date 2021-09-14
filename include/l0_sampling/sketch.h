@@ -6,9 +6,9 @@
 #include <vector>
 #include <memory>
 #include <mutex>
-#include "bucket.h"
-#include "types.h"
-#include "util.h"
+#include "../bucket.h"
+#include "../types.h"
+#include "../util.h"
 #include <gtest/gtest_prod.h>
 
 #define bucket_gen(x, c) double_to_ull((c)*(log2(x)+1))
@@ -134,4 +134,3 @@ public:
     return "Found no good bucket!";
   }
 };
-

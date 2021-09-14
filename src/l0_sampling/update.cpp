@@ -1,8 +1,8 @@
-#include "../include/update.h"
+#include "../../include/l0_sampling/update.h"
 
 std::ostream& operator<< (std::ostream &out, const Update &update){
-    out << "Index: " << update.index << " Value: " << update.delta;
-    return out;
+  out << "Index: " << update.index << " Value: " << update.delta;
+  return out;
 }
 
 bool operator== (const Update &upd1, const Update &upd2) {

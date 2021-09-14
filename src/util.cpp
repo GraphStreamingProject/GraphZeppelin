@@ -1,8 +1,8 @@
 #include <stdexcept>
 #include <boost/multiprecision/cpp_int.hpp>
-#include "include/util.h"
-#include "include/graph_worker.h"
-#include "include/graph.h"
+#include "../include/util.h"
+#include "../include/graph_worker.h"
+#include "../include/graph.h"
 
 const char *config_file = "streaming.conf";
 using uint128_t = boost::multiprecision::uint128_t;
@@ -58,7 +58,7 @@ ull cantor_pairing_fn(ull i, ull j) {
 }
 
 std::string configure_system() {
-  std::string pre = "";
+  std::string pre;
   int num_groups = 0;
   int group_size = 0;
   std::string line;
@@ -87,7 +87,7 @@ std::string configure_system() {
     pre = "./BUFFTREEDATA/";
   }
 #else
-  if (pre != "") {
+  if (!pre.empty()) {
     printf("WARNING: Running with in-memory buffering. Buffer-tree path prefix "
            "will be ignored/\n");
   }

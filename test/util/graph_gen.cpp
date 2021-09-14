@@ -1,6 +1,7 @@
 #include <fstream>
 #include <algorithm>
 #include <boost/multiprecision/cpp_int.hpp>
+#include <random>
 #include "graph_gen.h"
 #include "../../include/graph.h"
 
@@ -19,13 +20,13 @@ std::ofstream& operator<< (std::ofstream &os, const std::pair<ull,ull> p) {
   return os;
 }
 
-void write_edges(long n, double p, std::string out_f) {
+void write_edges(long n, double p, const std::string& out_f) {
   ul num_edges = (n*(n-1))/2;
   ul* arr = (ul*) malloc(num_edges*sizeof(ul));
   for (unsigned i=0;i<num_edges;++i) {
     arr[i] = i;
   }
-  std::random_shuffle(arr,arr+num_edges);
+  std::shuffle(arr,arr+num_edges, std::mt19937(std::random_device()()));
   std::ofstream out(out_f);
   ul m = (ul) (num_edges*p);
   out << n << " " << m << endl;
@@ -38,8 +39,8 @@ void write_edges(long n, double p, std::string out_f) {
   free(arr);
 }
 
-void insert_delete(double p, int max_appearances, std::string in_file,
-                   std::string out_file) {
+void insert_delete(double p, int max_appearances, const std::string& in_file,
+                   const std::string& out_file) {
   std::ifstream in(in_file);
   std::ofstream out(out_file);
   int n; ul m; in >> n >> m;
@@ -95,9 +96,9 @@ void insert_delete(double p, int max_appearances, std::string in_file,
   free(memoized);
 }
 
-void write_cum(std::string stream_f, std::string cum_f) {
+void write_cumul(const std::string& stream_f, const std::string& cumul_f) {
   std::ifstream in(stream_f);
-  std::ofstream out(cum_f);
+  std::ofstream out(cumul_f);
   int n; ull m; in >> n >> m;
   std::vector<std::vector<bool>> adj(n,std::vector<bool>(n,false));
   bool type;
@@ -114,14 +115,14 @@ void write_cum(std::string stream_f, std::string cum_f) {
 
   in.close();
 
-  // write cum output
-  ull m_cum = 0;
+  // write cumul output
+  ull m_cumul = 0;
   for (int i = 0; i < n; ++i) {
     for (int j = 0; j < n; ++j) {
-      if (adj[i][j]) ++m_cum;
+      if (adj[i][j]) ++m_cumul;
     }
   }
-  out << n << " " << m_cum << endl;
+  out << n << " " << m_cumul << endl;
   for (int i = 0; i < n; ++i) {
     for (int j = 0; j < n; ++j) {
       if (adj[i][j]) out << i << " " << j << endl;
@@ -131,9 +132,9 @@ void write_cum(std::string stream_f, std::string cum_f) {
   out.close();
 }
 
-void generate_stream(GraphGenSettings settings) {
+void generate_stream(const GraphGenSettings& settings) {
   write_edges(settings.n, settings.p, "./TEMP_F");
   insert_delete(settings.r, settings.max_appearances, "./TEMP_F", settings
   .out_file);
-  write_cum(settings.out_file,settings.cum_out_file);
+  write_cumul(settings.out_file,settings.cumul_out_file);
 }

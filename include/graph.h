@@ -1,5 +1,4 @@
-#ifndef MAIN_GRAPH_H
-#define MAIN_GRAPH_H
+#pragma once
 #include <cstdlib>
 #include <exception>
 #include <set>
@@ -17,6 +16,7 @@
 
 using namespace std;
 
+// forward declarations
 class BufferTree;
 class GraphWorker;
 
@@ -31,11 +31,11 @@ class Graph {
   long seed;
   bool update_locked = false;
   // a set containing one "representative" from each supernode
-  set<Node>* representatives;
+  set<node_t>* representatives;
   Supernode** supernodes;
   // DSU representation of supernode relationship
-  Node* parent;
-  Node get_parent(Node node);
+  node_t* parent;
+  node_t get_parent(node_t node);
 
 #ifdef USE_FBT_F
   // BufferTree for buffering inputs
@@ -55,9 +55,10 @@ public:
 
   /**
    * Update all the sketches in supernode, given a batch of updates.
-   * @param src        The supernode where the edges originate
-   * @param edges      A vector of <destination, delta> pairs
-   * @param delta_loc  Memory location where we should initialize the delta supernode
+   * @param src        The supernode where the edges originate.
+   * @param edges      A vector of <destination, delta> pairs.
+   * @param delta_loc  Memory location where we should initialize the delta
+   *                   supernode.
    */
   void batch_update(uint64_t src, const std::vector<uint64_t>& edges, Supernode *delta_loc);
 
@@ -65,48 +66,50 @@ public:
    * Main algorithm utilizing Boruvka and L_0 sampling.
    * @return a vector of the connected components in the graph.
    */
-  vector<set<Node>> connected_components();
+  vector<set<node_t>> connected_components();
 
   /**
    * Parallel version of Boruvka.
    * @return a vector of the connected components in the graph.
    */
-  vector<set<Node>> parallel_connected_components();
-  /*
-   * Call this function to indicate to the graph that it should
-   * begin accepting updates again. It is important that the sketches
-   * be restored to their pre-connected_components state before
-   * calling this function
-   * Unpauses the graph workers and sets allow update flag
+  vector<set<node_t>> parallel_connected_components();
+
+  /**
+   * Call this function to indicate to the graph that it should begin accepting
+   * updates again. It is important that the sketches be restored to their
+   * pre-connected_components state before calling this function.
+   * Unpauses the graph workers and sets allow update flag.
    */
   void post_cc_resume();
 
 #ifdef VERIFY_SAMPLES_F
-  std::string cum_in = "./cum_sample.txt";
+  std::string cumul_in = "./cumul_sample.txt";
 
   /**
    * Set the filepath to search for cumulative graph input.
    */
-  void set_cum_in(const std::string& input_file) {
-    cum_in = input_file;
+  void set_cumul_in(const std::string& input_file) {
+    cumul_in = input_file;
   }
 #endif
 
   // temp to verify number of updates -- REMOVE later
   std::atomic<uint64_t> num_updates;
 
-  /*
-   * Generate a delta node for the purposes of updating a node sketch (supernode)
-   * @param node_n     the total number of nodes in the graph
-   * @param node_seed  the seed of the supernode in question
-   * @param src        the src id
-   * @param edges      a list of node ids which src is connected to
-   * @param delta_loc  the preallocated memory where the delta_node should be placed. 
-                       this allows memory to be reused by the same calling thread.
-   * @returns nothing (supernode delta is in delta_loc)
+  /**
+   * Generate a delta node for the purposes of updating a node sketch
+   * (supernode).
+   * @param node_n     the total number of nodes in the graph.
+   * @param node_seed  the seed of the supernode in question.
+   * @param src        the src id.
+   * @param edges      a list of node ids to which src is connected.
+   * @param delta_loc  the preallocated memory where the delta_node should be
+   *                   placed. this allows memory to be reused by the same
+   *                   calling thread.
+   * @returns nothing (supernode delta is in delta_loc).
    */
   static void generate_delta_node(uint64_t node_n, long node_seed, uint64_t src,
-							   const vector<uint64_t> &edges, Supernode *delta_loc);
+                 const vector<uint64_t> &edges, Supernode *delta_loc);
 
   /**
    * Serialize the graph data to a binary file.
@@ -123,5 +126,3 @@ class UpdateLockedException : public exception {
            "already started";
   }
 };
-
-#endif //MAIN_GRAPH_H
