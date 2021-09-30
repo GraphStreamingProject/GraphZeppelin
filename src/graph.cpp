@@ -2,6 +2,7 @@
 #include <iostream>
 #include <buffer_tree.h>
 #include <chrono>
+#include <random>
 
 #include "../include/graph.h"
 #include "../include/graph_worker.h"
@@ -14,8 +15,10 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
   representatives = new set<node_t>();
   supernodes = new Supernode*[num_nodes];
   parent = new node_t[num_nodes];
-  seed = time(nullptr);
-  srand(seed);
+  seed = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+  std::mt19937_64 r(seed);
+  seed = r();
+
   for (node_t i=0;i<num_nodes;++i) {
     representatives->insert(i);
     supernodes[i] = Supernode::makeSupernode(num_nodes,seed);
