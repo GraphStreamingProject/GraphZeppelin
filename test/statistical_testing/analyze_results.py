@@ -31,6 +31,7 @@ def check_error(test_name, test_result_file, expected_result_file, confidence):
     assert total_test_runs == total_expect_runs, "The number of runs must be the same"
     pr = total_expect_failures / total_expect_runs
     z_test_deviation = np.ceil(1.96 * np.sqrt(pr * (1-pr)/ total_expect_runs) * total_expect_runs)
+    print("Number of test failures:", total_test_failures)
     print("Total number of failures is allowed to deviate by at most", z_test_deviation)
     print("Deviation is", total_test_failures - total_expect_failures)
     if total_test_failures - z_test_deviation > total_expect_failures:
