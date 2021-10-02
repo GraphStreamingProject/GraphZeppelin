@@ -3,7 +3,7 @@ import numpy as np
 import argparse
 from scipy.stats import ttest_ind
 
-def check_greater_error(test_name, test_result_file, expected_result_file, confidence):
+def check_error(test_name, test_result_file, expected_result_file, confidence):
     print('::::: ', test_name, ' :::::', sep='')
     test_file = open(test_result_file)
     test_result = np.loadtxt(test_file)
@@ -11,59 +11,61 @@ def check_greater_error(test_name, test_result_file, expected_result_file, confi
     test_file = open(expected_result_file)
     test_expect = np.loadtxt(test_file)
 
-    r_t = test_result.transpose()
-    e_t = test_expect.transpose()
+    result_t = test_result.transpose()
+    test_failures = result_t[0,:]
+    test_runs     = result_t[1,:]
 
-    # get the failure values
-    test_failure   = r_t[0,:]
-    expect_failure = e_t[0,:]
-    # get the number of tests run
-    test_runs   = r_t[1,:]
-    expect_runs = e_t[1,:]
+    total_expect_failures = test_expect[0]
+    total_expect_runs     = test_expect[1]  
 
-    assert test_result.shape == test_expect.shape, "Must run the same number of trials"
-    assert (test_runs == expect_runs).any(), "Samples must have the same number of runs per trial"
+    assert (test_runs == 10).all(), "Each bin must be of size 10"
 
-    # Null Hypothesis:        There is no difference between the failure rates of these two test runs
-    # Alternative Hypothesis: The failure rate of the current test is GREATER than that of what we expect
-    # Our confidence level:   If the p-value is less than than this value, we have found good evidence that test_failure > expect_failure
-    t_val, p_val = ttest_ind(test_failure, expect_failure, equal_var=True, alternative='greater')
-    
-    if p_val <= confidence:
-        print('Deviation Found')
-        print('Result', test_failure)
-        print('Expect', expect_failure)
-        print('t-value:', t_val, 'p-value:', p_val)
-        return True
-    print('No Deviation Found')
-    return False
+    # First step:  Verify that there is not a dependency between tests and upon the graph
+    if (test_failures > 4).any():
+        return False, "Dependency between tests or upon input graph found"
+
+    # Second step: Verify that the number of test failures does not deviate from the expectation
+    total_test_failures = np.sum(test_failures)
+    total_test_runs     = np.sum(test_runs)
+
+    assert total_test_runs == total_expect_runs, "The number of runs must be the same"
+    pr = total_expect_failures / total_expect_runs
+    z_test_deviation = np.ceil(1.96 * np.sqrt(pr * (1-pr)/ total_expect_runs) * total_expect_runs)
+    print("Total number of failures is allowed to deviate by at most", z_test_deviation)
+    print("Deviation is", total_test_failures - total_expect_failures)
+    if total_test_failures - z_test_deviation > total_expect_failures:
+        return True, "Test error is statistically greater than expectation"
+
+    if total_test_failures + z_test_deviation < total_expect_failures:
+        return True, "Test error is statistically less than expectation"
+
+    return False, "No statistical deviation detected"
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Statistical testing on graph tests.')
-    parser.add_argument('tiny', metavar="tiny_graph_output", type=str,
-            help='the file which contains the results from the tiny graph test')
-    parser.add_argument('small', metavar="small_graph_output", type=str,
+    parser.add_argument('small', metavar="small output", type=str,
             help='the file which contains the results from the small graph test')
-    parser.add_argument('medium', metavar="medium_graph_output", type=str,
+    parser.add_argument('medium', metavar="medium output", type=str,
             help='the file which contains the results from the medium graph test')
-    parser.add_argument('large', metavar="large_graph_output", type=str,
-            help='the file which contains the results from the large graph test')
-    
-    parser.add_argument('tiny_exp', metavar="tiny_graph_expected", type=str,
-            help="the file which contains the results from a correct branch for tiny graph")
-    parser.add_argument('small_exp', metavar="small_graph_expected", type=str,
+    parser.add_argument('iso', metavar="medium iso output", type=str,
+            help='the file which contains the results from the medium+iso graph test')
+
+    parser.add_argument('small_exp', metavar="small expect", type=str,
             help="the file which contains the results from a correct branch for small graph")
-    parser.add_argument('medium_exp', metavar="medium_graph_expected", type=str,
+    parser.add_argument('medium_exp', metavar="medium expect", type=str,
             help="the file which contains the results from a correct branch for medium graph")
-    parser.add_argument('large_exp', metavar="large_graph_expected", type=str,
-            help="the file which contains the results from a correct branch for large graph")
+    parser.add_argument('iso_exp', metavar="medium iso expect", type=str,
+            help="the file which contains the results from a correct branch for medium+iso graph")
     args = parser.parse_args()
 
-    if check_greater_error("tiny_test", args.tiny, args.tiny_exp, 0.1):
-        print("Found Error")
-    if check_greater_error("small_test", args.small, args.small_exp, 0.1):
-        print("Found Error")
-    if check_greater_error("medium_test", args.medium, args.medium_exp, 0.1):
-        print("Found Error")
-    if check_greater_error("large_test", args.large, args.large_exp, 0.1):
-        print("Found Error")
+    stat_result = check_error("small_test", args.small, args.small_exp, 0.1)
+    print(stat_result[0])
+    print(stat_result[1])
+    
+    stat_result = check_error("medium_test", args.medium, args.medium_exp, 0.1)
+    print(stat_result[0])
+    print(stat_result[1])
+    
+    stat_result = check_error("medium_iso_test", args.iso, args.iso_exp, 0.1)
+    print(stat_result[0])
+    print(stat_result[1])
