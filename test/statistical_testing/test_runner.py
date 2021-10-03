@@ -90,7 +90,7 @@ if __name__ == "__main__":
 	assert usr != '' and pwd != '', "must specifiy user and password in configuration file"
 
 	# Run the tests
-	#run_test(build_path)
+	run_test(build_path)
 
 	# Collect statistical results
 	# test_name, test_result_file, expected_result_file
