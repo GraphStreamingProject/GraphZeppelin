@@ -3,7 +3,7 @@ import numpy as np
 import argparse
 from scipy.stats import ttest_ind
 
-def check_error(test_name, test_result_file, expected_result_file, confidence):
+def check_error(test_name, test_result_file, expected_result_file):
     print('::::: ', test_name, ' :::::', sep='')
     test_file = open(test_result_file)
     test_result = np.loadtxt(test_file)
@@ -35,12 +35,12 @@ def check_error(test_name, test_result_file, expected_result_file, confidence):
     print("Total number of failures is allowed to deviate by at most", z_test_deviation)
     print("Deviation is", total_test_failures - total_expect_failures)
     if total_test_failures - z_test_deviation > total_expect_failures:
-        return True, "Test error is statistically greater than expectation"
+        return True, "Test error is statistically greater than expectation {0}/{1}".format(int(total_test_failures), int(total_test_runs))
 
     if total_test_failures + z_test_deviation < total_expect_failures:
-        return True, "Test error is statistically less than expectation"
+        return True, "Test error is statistically less than expectation {0}/{1}".format(int(total_test_failures), int(total_test_runs))
 
-    return False, "No statistical deviation detected"
+    return False, "No statistical deviation detected {0}/{1}".format(int(total_test_failures), int(total_test_runs))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Statistical testing on graph tests.')
