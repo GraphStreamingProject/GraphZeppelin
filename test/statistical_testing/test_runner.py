@@ -82,6 +82,7 @@ if __name__ == "__main__":
 		repo = git.Repo("./")
 	except:
 		print("Must run code at root directory of StreamingRepo")
+		exit(1)
 	head = repo.heads[0]
 	commit_name = head.commit.hexsha
 	commit_msg  = head.commit.message
