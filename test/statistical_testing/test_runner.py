@@ -41,7 +41,7 @@ def configure():
 Run the statistical_testing executable
 '''
 def run_test(build_path):
-	subprocess.run(build_path + '/statistical_test')
+	subprocess.run(build_path + '/statistical_test', stdout=subprocess.DEVNULL, check=True)
 
 '''
 Format the results of the test and raise an error if necessary
@@ -95,9 +95,9 @@ if __name__ == "__main__":
 
 	# Collect statistical results
 	# test_name, test_result_file, expected_result_file
-	small_err, small_dsc   = check_error('small test', build_path + '/small_graph_test', stat_path + '/small_test_expected.txt')
-	medium_err, medium_dsc = check_error('medium test', build_path + '/medium_graph_test', stat_path + '/medium_test_expected.txt')
-	iso_err, iso_dsc       = check_error('iso test', build_path + '/medium_iso_test', stat_path + '/medium_test_iso_expected.txt')
+	small_err, small_dsc   = check_error('small test', 'small_graph_test', stat_path + '/small_test_expected.txt')
+	medium_err, medium_dsc = check_error('medium test', 'medium_graph_test', stat_path + '/medium_test_expected.txt')
+	iso_err, iso_dsc       = check_error('iso test', 'medium_with_iso_test', stat_path + '/medium_test_iso_expected.txt')
 
 	# Create a log, and send email
 	log = "Commit: " + commit_msg + commit_name + "\n\n"
