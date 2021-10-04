@@ -57,8 +57,8 @@ int medium_with_iso_test(int runs) {
 }
 
 int main() {
-    int runs = 10;
-    int num_trails = 5000;
+    int runs = 100;
+    int num_trails = 500;
     std::vector<int> trial_list;
     std::ofstream out;
     
@@ -66,7 +66,7 @@ int main() {
     fprintf(stderr, "small graph test\n");
     out.open("./small_graph_test");
     for(int i = 0; i < num_trails; i++) {
-        if (i % 100 == 0) fprintf(stderr, "trial %i\n", i);
+        if (i % 50 == 0) fprintf(stderr, "trial %i\n", i);
         int trial_result = small_graph_test(runs);
         trial_list.push_back(trial_result);
     }
@@ -81,7 +81,7 @@ int main() {
     fprintf(stderr, "medium graph test\n");
     out.open("./medium_graph_test");
     for(int i = 0; i < num_trails; i++) {
-        if (i % 100 == 0) fprintf(stderr, "trial %i\n", i);
+        if (i % 50 == 0) fprintf(stderr, "trial %i\n", i);
         int trial_result = medium_graph_test(runs);
         trial_list.push_back(trial_result);
     }
@@ -96,7 +96,7 @@ int main() {
     fprintf(stderr, "medium_iso graph test\n");
     out.open("./medium_with_iso_test");
     for(int i = 0; i < num_trails; i++) {
-        if (i % 100 == 0) fprintf(stderr, "trial %i\n", i);
+        if (i % 50 == 0) fprintf(stderr, "trial %i\n", i);
         int trial_result = medium_with_iso_test(runs);
         trial_list.push_back(trial_result);
     }
