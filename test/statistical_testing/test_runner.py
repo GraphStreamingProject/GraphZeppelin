@@ -95,9 +95,22 @@ if __name__ == "__main__":
 
 	# Collect statistical results
 	# test_name, test_result_file, expected_result_file
-	small_err, small_dsc   = check_error('small test', 'small_graph_test', stat_path + '/small_test_expected.txt')
-	medium_err, medium_dsc = check_error('medium test', 'medium_graph_test', stat_path + '/medium_test_expected.txt')
-	iso_err, iso_dsc       = check_error('iso test', 'medium_with_iso_test', stat_path + '/medium_test_iso_expected.txt')
+	try:
+		small_err, small_dsc   = check_error('small test', 'small_graph_test', stat_path + '/small_test_expected.txt')
+	except Exception as err:
+		small_err = True
+		small_dsc = "test threw expection: {0}".format(err)
+	try:
+		medium_err, medium_dsc = check_error('medium test', 'medium_graph_test', stat_path + '/medium_test_expected.txt')
+	except Exception as err:
+		medium_err = True
+		medium_dsc = "test threw expection: {0}".format(err)
+
+	try:
+		iso_err, iso_dsc       = check_error('iso test', 'medium_with_iso_test', stat_path + '/medium_test_iso_expected.txt')
+	except Exception as err:
+		iso_err = True
+		iso_dsc = "test threw expection: {0}".format(err)
 
 	# Create a log, and send email
 	log = "Commit: " + commit_msg + commit_name + "\n\n"

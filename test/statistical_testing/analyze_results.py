@@ -3,7 +3,7 @@ import numpy as np
 import argparse
 from scipy.stats import ttest_ind
 
-def check_error(test_name, test_result_file, expected_result_file):
+def check_error(test_name, test_result_file, expected_result_file, confidence=0.95):
     print('::::: ', test_name, ' :::::', sep='')
     test_file = open(test_result_file)
     test_result = np.loadtxt(test_file)
@@ -22,7 +22,7 @@ def check_error(test_name, test_result_file, expected_result_file):
 
     # First step:  Verify that there is not a dependency between tests and upon the graph
     if (test_failures >= 6).any():
-        return False, "Dependency between tests or upon input graph found"
+        return True, "Dependency between tests or upon input graph found"
 
     # Second step: Verify that the number of test failures does not deviate from the expectation
     total_test_failures = np.sum(test_failures)
