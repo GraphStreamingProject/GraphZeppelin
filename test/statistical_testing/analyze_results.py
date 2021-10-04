@@ -18,7 +18,7 @@ def check_error(test_name, test_result_file, expected_result_file):
     total_expect_failures = test_expect[0]
     total_expect_runs     = test_expect[1]  
 
-    assert (test_runs == 100).all(), "Each bin must be of size 10"
+    assert (test_runs == 100).all(), "Each bin must be of size 100"
 
     # First step:  Verify that there is not a dependency between tests and upon the graph
     if (test_failures >= 6).any():
