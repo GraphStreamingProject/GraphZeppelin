@@ -27,8 +27,8 @@ static inline int do_run() {
 
 int small_graph_test(int runs) {
     int failures = 0;
-    generate_stream({1024,0.002,0.5,0,"./sample.txt","./cumul_sample.txt"});
     for (int i = 0; i < runs; i++) {
+        generate_stream({1024,0.002,0.5,0,"./sample.txt","./cumul_sample.txt"});
         failures += do_run();
     }
     return failures;
@@ -36,8 +36,8 @@ int small_graph_test(int runs) {
 
 int medium_graph_test(int runs) {
     int failures = 0;
-    generate_stream({2048,0.002,0.5,0,"./sample.txt","./cumul_sample.txt"});
     for (int i = 0; i < runs; i++) {
+        generate_stream({2048,0.002,0.5,0,"./sample.txt","./cumul_sample.txt"});
         failures += do_run();
     }
     return failures;
@@ -45,12 +45,12 @@ int medium_graph_test(int runs) {
 
 int medium_with_iso_test(int runs) {
     int failures = 0;
-    generate_stream({2048,0.002,0.5,0,"./sample.txt","./cumul_sample.txt"});
-    std::fstream graph_file{"./sample.txt"};
-    std::fstream cumul_file{"./cumul_sample.txt"};
-    graph_file.write("2070", 4); // increase the node size to create iso nodes
-    cumul_file.write("2070", 4); // do the same for the cumulative file
     for (int i = 0; i < runs; i++) {
+        generate_stream({2048,0.002,0.5,0,"./sample.txt","./cumul_sample.txt"});
+        std::fstream graph_file{"./sample.txt"};
+        std::fstream cumul_file{"./cumul_sample.txt"};
+        graph_file.write("2070", 4); // increase the node size to create iso nodes
+        cumul_file.write("2070", 4); // do the same for the cumulative file
         failures += do_run();
     }
     return failures;
@@ -62,7 +62,7 @@ int main() {
     std::vector<int> trial_list;
     std::ofstream out;
     
-    /************* small graph test **************/
+    /************* small graph test *************/
     fprintf(stderr, "small graph test\n");
     out.open("./small_graph_test");
     for(int i = 0; i < num_trails; i++) {
@@ -92,8 +92,8 @@ int main() {
     trial_list.clear();
     out.close();
 
-    /************** large iso test **************/
-    fprintf(stderr, "medium_iso graph test\n");
+    /************** medium iso test *************/
+    fprintf(stderr, "medium iso graph test\n");
     out.open("./medium_with_iso_test");
     for(int i = 0; i < num_trails; i++) {
         if (i % 50 == 0) fprintf(stderr, "trial %i\n", i);
