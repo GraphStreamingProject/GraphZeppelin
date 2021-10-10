@@ -84,7 +84,7 @@ if __name__ == "__main__":
 		print("Must run code at root directory of StreamingRepo")
 		exit(1)
 	head = repo.heads[0]
-	commit_name = head.commit.hexsha
+	commit_hash = head.commit.hexsha
 	commit_msg  = head.commit.message
 
 	build_path, stat_path, confidence, usr, pwd = configure()
@@ -113,7 +113,7 @@ if __name__ == "__main__":
 		iso_dsc = "test threw expection: {0}".format(err)
 
 	# Create a log, and send email
-	log = "Commit: " + commit_msg + commit_name + "\n\n"
+	log = "Commit: " + commit_hash + "\n" + commit_msg + "\n"
 	log += log_result('small test', small_err, small_dsc) + "\n"
 	log += log_result('medium test', medium_err, medium_dsc) + "\n"
 	log += log_result('iso test', iso_err, iso_dsc) + "\n"
