@@ -107,7 +107,7 @@ if __name__ == "__main__":
 		else:
 			log += "Standalone:\n"
 		# Run the tests
-		# run_test(build_path, buffering)
+		run_test(build_path, buffering)
 
 		# Collect statistical results
 		# test_name, test_result_file, expected_result_file
@@ -127,4 +127,4 @@ if __name__ == "__main__":
 		log += log_result('small test', small_err, small_dsc) + "\n"
 		log += log_result('medium test', medium_err, medium_dsc) + "\n"
 
-	send_email(small_err or medium_err or iso_err, log, usr, pwd)
+	send_email(small_err or medium_err, log, usr, pwd)
