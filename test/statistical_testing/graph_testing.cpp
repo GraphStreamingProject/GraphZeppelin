@@ -93,17 +93,18 @@ int main() {
     out.close();
 
     /************** medium iso test *************/
-    fprintf(stderr, "medium iso graph test\n");
-    out.open("./medium_with_iso_test");
-    for(int i = 0; i < num_trails; i++) {
-        if (i % 50 == 0) fprintf(stderr, "trial %i\n", i);
-        int trial_result = medium_with_iso_test(runs);
-        trial_list.push_back(trial_result);
-    }
-    // output the results of these trials
-    for (unsigned i = 0; i < trial_list.size(); i++) {
-        out << trial_list[i] << " " << runs << "\n";
-    }
-    trial_list.clear();
-    out.close();
+    // Turned off for now because I'm not convinced it provides useful information - e
+    // fprintf(stderr, "medium iso graph test\n");
+    // out.open("./medium_with_iso_test");
+    // for(int i = 0; i < num_trails; i++) {
+    //     if (i % 50 == 0) fprintf(stderr, "trial %i\n", i);
+    //     int trial_result = medium_with_iso_test(runs);
+    //     trial_list.push_back(trial_result);
+    // }
+    // // output the results of these trials
+    // for (unsigned i = 0; i < trial_list.size(); i++) {
+    //     out << trial_list[i] << " " << runs << "\n";
+    // }
+    // trial_list.clear();
+    // out.close();
 }

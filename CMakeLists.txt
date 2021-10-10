@@ -263,7 +263,7 @@ add_executable(statistical_test
   src/l0_sampling/update.cpp
   src/util.cpp)
 target_link_libraries(statistical_test PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(statistical_test PRIVATE VERIFY_SAMPLES_F)
+target_compile_definitions(statistical_test PRIVATE VERIFY_SAMPLES_F USE_FBT_F)
 # dependencies
 add_dependencies(statistical_test BufferTree)
 target_link_libraries(statistical_test PRIVATE libFastBufferTree.a)
@@ -278,6 +278,36 @@ else ()
     target_link_options(statistical_test PRIVATE -fopenmp)
   elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
     target_compile_options(statistical_test PRIVATE /O2)
+  endif()
+endif ()
+
+add_executable(mem_statistical_test
+  test/statistical_testing/graph_testing.cpp
+  test/util/graph_verifier.cpp
+  test/util/graph_gen.cpp
+  src/graph.cpp
+  src/supernode.cpp
+  src/graph_worker.cpp
+  src/work_queue.cpp
+  src/l0_sampling/sketch.cpp
+  src/l0_sampling/update.cpp
+  src/util.cpp)
+target_link_libraries(mem_statistical_test PRIVATE xxHash::xxhash GTest::gtest)
+target_compile_definitions(mem_statistical_test PRIVATE VERIFY_SAMPLES_F)
+# dependencies
+add_dependencies(mem_statistical_test BufferTree)
+target_link_libraries(mem_statistical_test PRIVATE libFastBufferTree.a)
+# optimize unless debug
+if (DEFINED ENV{DEBUG})
+  message("Disabling optimizations and enabling debug symbols")
+  target_compile_options(mem_statistical_test PRIVATE -g -fopenmp)
+  target_link_options(mem_statistical_test PRIVATE -fopenmp)
+else ()
+  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    target_compile_options(mem_statistical_test PRIVATE -O3 -fopenmp)
+    target_link_options(mem_statistical_test PRIVATE -fopenmp)
+  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    target_compile_options(mem_statistical_test PRIVATE /O2)
   endif()
 endif ()
 

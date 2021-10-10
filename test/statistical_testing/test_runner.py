@@ -38,10 +38,13 @@ def configure():
 	return build_path, stat_path, confidence, usr, pwd
 
 '''
-Run the statistical_testing executable
+Run the statistical_testing executables
 '''
-def run_test(build_path):
-	subprocess.run(build_path + '/statistical_test', stdout=subprocess.DEVNULL, check=True)
+def run_test(build_path, buffertree):
+	if buffertree:
+		subprocess.run(build_path + '/statistical_test', stdout=subprocess.DEVNULL, check=True)
+	else:
+		subprocess.run(build_path + '/mem_statistical_test', stdout=subprocess.DEVNULL, check=True)
 
 '''
 Format the results of the test and raise an error if necessary
@@ -78,44 +81,50 @@ def send_email(err_found, log, usr, pwd):
 
 if __name__ == "__main__":
 	# Setup
-	try:
-		repo = git.Repo("./")
-	except:
-		print("Must run code at root directory of StreamingRepo")
-		exit(1)
-	head = repo.heads[0]
-	commit_hash = head.commit.hexsha
-	commit_msg  = head.commit.message
-
 	build_path, stat_path, confidence, usr, pwd = configure()
 	assert usr != '' and pwd != '', "must specifiy user and password in configuration file"
 
-	# Run the tests
-	run_test(build_path)
-
-	# Collect statistical results
-	# test_name, test_result_file, expected_result_file
 	try:
-		small_err, small_dsc   = check_error('small test', 'small_graph_test', stat_path + '/small_test_expected.txt')
-	except Exception as err:
-		small_err = True
-		small_dsc = "test threw expection: {0}".format(err)
-	try:
-		medium_err, medium_dsc = check_error('medium test', 'medium_graph_test', stat_path + '/medium_test_expected.txt')
-	except Exception as err:
-		medium_err = True
-		medium_dsc = "test threw expection: {0}".format(err)
+		repo     = git.Repo("./")
+		buf_repo = git.Repo(build_path + "/BufferTree/src/BufferTree")
+	except:
+		print("Must run code at root directory of StreamingRepo and must have BufferTree code present in build dir")
+		exit(1)
+	head = repo.heads[0]
+	stream_commit_hash = head.commit.hexsha
+	stream_commit_msg  = head.commit.message
 
-	try:
-		iso_err, iso_dsc       = check_error('iso test', 'medium_with_iso_test', stat_path + '/medium_test_iso_expected.txt')
-	except Exception as err:
-		iso_err = True
-		iso_dsc = "test threw expection: {0}".format(err)
+	head = buf_repo.heads[0]
+	buffer_commit_hash = head.commit.hexsha
+	buffer_commit_msg  = head.commit.message
 
-	# Create a log, and send email
-	log = "Commit: " + commit_hash + "\n" + commit_msg + "\n"
-	log += log_result('small test', small_err, small_dsc) + "\n"
-	log += log_result('medium test', medium_err, medium_dsc) + "\n"
-	log += log_result('iso test', iso_err, iso_dsc) + "\n"
+	log =  "StreamRepo Commit: " + stream_commit_hash + "\n" + stream_commit_msg + "\n"
+	log += "BufferTree Commit: " + buffer_commit_hash + "\n" + buffer_commit_msg + "\n"
+
+	for buffering in (True, False):
+		if buffering:
+			log += "BufferTree:\n"
+		else:
+			log += "Standalone:\n"
+		# Run the tests
+		# run_test(build_path, buffering)
+
+		# Collect statistical results
+		# test_name, test_result_file, expected_result_file
+		try:
+			small_err, small_dsc   = check_error('small test', 'small_graph_test', stat_path + '/small_test_expected.txt')
+		except Exception as err:
+			small_err = True
+			small_dsc = "test threw expection: {0}".format(err)
+		try:
+			medium_err, medium_dsc = check_error('medium test', 'medium_graph_test', stat_path + '/medium_test_expected.txt')
+		except Exception as err:
+			medium_err = True
+			medium_dsc = "test threw expection: {0}".format(err)
+
+		# Create a log, and send email
+	
+		log += log_result('small test', small_err, small_dsc) + "\n"
+		log += log_result('medium test', medium_err, medium_dsc) + "\n"
 
 	send_email(small_err or medium_err or iso_err, log, usr, pwd)
