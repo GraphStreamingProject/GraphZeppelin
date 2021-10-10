@@ -1,7 +1,7 @@
 
 import numpy as np
 import argparse
-from scipy.stats import ttest_ind
+from scipy.stats import ttest_ind, norm
 
 def check_error(test_name, test_result_file, expected_result_file, confidence=0.95):
     print('::::: ', test_name, ' :::::', sep='')
@@ -30,7 +30,8 @@ def check_error(test_name, test_result_file, expected_result_file, confidence=0.
 
     assert total_test_runs == total_expect_runs, "The number of runs must be the same"
     pr = total_expect_failures / total_expect_runs
-    z_test_deviation = np.ceil(1.96 * np.sqrt(pr * (1-pr)/ total_expect_runs) * total_expect_runs)
+    critical_z_val = norm.ppf(1 - (1 - confidence) / 2)
+    z_test_deviation = np.ceil(critical_z_val * np.sqrt(pr * (1-pr) / total_expect_runs) * total_expect_runs)
     print("Number of test failures:", total_test_failures, "{0}%".format(total_test_failures/total_test_runs))
     print("Total number of failures is allowed to deviate by at most", z_test_deviation)
     print("Deviation is", total_test_failures - total_expect_failures)
