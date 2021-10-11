@@ -183,6 +183,7 @@ link_directories(${CMAKE_CURRENT_BINARY_DIR}/BufferTree/prefix/lib)
 add_executable(tests
   test/test_runner.cpp
   test/graph_test.cpp
+  test/wq_test.cpp
   test/sketch_test.cpp
   test/supernode_test.cpp
   test/util_test.cpp
@@ -191,6 +192,7 @@ add_executable(tests
   test/util/graph_gen_test.cpp
   test/util/graph_verifier_test.cpp
   src/graph.cpp
+  src/work_queue.cpp
   src/supernode.cpp
   src/graph_worker.cpp
   src/l0_sampling/sketch.cpp

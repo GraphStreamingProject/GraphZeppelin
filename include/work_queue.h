@@ -8,7 +8,7 @@
 class WorkQueue {
   const uint32_t buffer_size; // size of a buffer (including metadata)
   CircularQueue cq;
-  std::vector<node_id_t*> buffers; // array dump of numbers for performance: DO NOT
+  std::vector<std::vector<node_id_t>> buffers; // array dump of numbers for performance: DO NOT
   // try to access directly!
 
   /**
@@ -16,7 +16,7 @@ class WorkQueue {
    * @param buffer      a pointer to the head of the buffer to flush.
    * @param num_bytes   the number of bytes to flush.
    */
-  void flush(node_id_t* buffer, uint32_t num_bytes);
+  void flush(std::vector<node_id_t> &buffer, uint32_t num_bytes);
 public:
   /**
    * Constructs a new queue.
