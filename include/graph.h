@@ -7,7 +7,7 @@
 #include <atomic>  // REMOVE LATER
 
 #ifndef USE_FBT_F
-#include "work_queue.h"
+#include "cache_buffer_tree.h"
 #endif
 
 #ifdef VERIFY_SAMPLES_F
@@ -42,7 +42,7 @@ class Graph {
   BufferTree *bf;
 #else
   // In-memory buffering system
-  WorkQueue *wq;
+  CacheAwareWorkQueue *wq;
 #endif
 
   FRIEND_TEST(GraphTestSuite, TestCorrectnessOfReheating);

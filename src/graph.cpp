@@ -6,6 +6,7 @@
 
 #include "../include/graph.h"
 #include "../include/graph_worker.h"
+#include "../include/cache_buffer_tree.h"
 
 Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
 #ifdef VERIFY_SAMPLES_F
@@ -33,7 +34,7 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
 #else
   unsigned long node_size = 24*pow((log2(num_nodes)), 3);
   node_size /= sizeof(node_id_t);
-  wq = new WorkQueue(node_size, num_nodes, 2*GraphWorker::get_num_groups());
+  wq = new CacheAwareBufferTree<32768, 64>(node_size, num_nodes, 2*GraphWorker::get_num_groups());
   GraphWorker::start_workers(this, wq, Supernode::get_size());
 #endif
 }
@@ -66,7 +67,7 @@ Graph::Graph(const std::string& input_file) : num_updates(0) {
 #else
   unsigned long node_size = 24*pow((log2(num_nodes)), 3);
   node_size /= sizeof(node_id_t);
-  wq = new WorkQueue(node_size, num_nodes, 2*GraphWorker::get_num_groups());
+  wq = new CacheAwareBufferTree<32768, 64>(node_size, num_nodes, 2*GraphWorker::get_num_groups());
   GraphWorker::start_workers(this, wq, Supernode::get_size());
 #endif
 }

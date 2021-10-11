@@ -5,7 +5,7 @@
 #include <thread>
 
 #ifndef USE_FBT_T
-#include "work_queue.h"
+#include "cache_buffer_tree.h"
 #endif
 
 // forward declarations
@@ -28,7 +28,7 @@ public:
 #ifdef USE_FBT_F
   static void start_workers(Graph *_graph, BufferTree *_db, long _supernode_size);
 #else
-  static void start_workers(Graph *_graph, WorkQueue *_wq, long _supernode_size);
+  static void start_workers(Graph *_graph, CacheAwareWorkQueue *_wq, long _supernode_size);
 #endif
   static void stop_workers();    // shutdown and delete GraphWorkers
   static void pause_workers();   // pause the GraphWorkers before CC
@@ -55,7 +55,7 @@ private:
    */
   GraphWorker(int _id, Graph *_graph, BufferTree *_db);
 #else
-  GraphWorker(int _id, Graph *_graph, WorkQueue *_wq);
+  GraphWorker(int _id, Graph *_graph, CacheAwareWorkQueue *_wq);
 #endif
   ~GraphWorker();
 
@@ -75,7 +75,7 @@ private:
 #ifdef USE_FBT_F
   BufferTree *bf;
 #else
-  WorkQueue *wq;
+  CacheAwareWorkQueue *wq;
 #endif
   std::thread thr;
   std::atomic<bool> thr_paused; // indicates if this individual thread is paused

@@ -35,7 +35,7 @@ void GraphWorker::start_workers(Graph *_graph, BufferTree *_bf, long _supernode_
   }
 }
 #else
-void GraphWorker::start_workers(Graph *_graph, WorkQueue *_wq, long _supernode_size) {
+void GraphWorker::start_workers(Graph *_graph, CacheAwareWorkQueue *_wq, long _supernode_size) {
   shutdown = false;
   paused   = false;
   supernode_size = _supernode_size;
@@ -101,7 +101,7 @@ GraphWorker::GraphWorker(int _id, Graph *_graph, BufferTree *_bf) :
   delta_node = (Supernode *) malloc(supernode_size);
 }
 #else
-GraphWorker::GraphWorker(int _id, Graph *_graph, WorkQueue *_wq) :
+GraphWorker::GraphWorker(int _id, Graph *_graph, CacheAwareWorkQueue *_wq) :
  id(_id), graph(_graph), wq(_wq), thr(start_worker, this),
  thr_paused(false) {
   delta_node = (Supernode *) malloc(supernode_size);
