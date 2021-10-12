@@ -7,7 +7,7 @@
 
 TEST(Benchmark, BCHMKGraph) {
   BinaryGraphStream stream("/mnt/ssd2/binary_streams/kron_15_stream_binary", 32 * 1024);
-  Node num_nodes = stream.nodes();
+  node_t num_nodes = stream.nodes();
   long m         = stream.edges();
   
   Graph g{num_nodes};
