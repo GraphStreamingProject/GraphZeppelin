@@ -24,7 +24,7 @@ public:
    * @param nodes       number of nodes in the graph.
    * @param queue_len   the length of the work queue.
    */
-  WorkQueue(uint32_t size, Node nodes, int queue_len);
+  WorkQueue(uint32_t size, node_t nodes, int queue_len);
 
   ~WorkQueue();
 

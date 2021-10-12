@@ -146,13 +146,33 @@ if(NOT Boost_FOUND)
 endif()
 include_directories("${Boost_INCLUDE_DIR}")
 
+# Include common components
+ExternalProject_Add(
+    GraphZeppelinCommon
+
+    PREFIX          GraphZeppelinCommon
+    GIT_REPOSITORY  "https://github.com/Victor-C-Zhang/GraphZeppelinCommon.git"
+    GIT_TAG         "main"
+
+    BUILD_ALWAYS    OFF
+    INSTALL_DIR     ${CMAKE_CURRENT_BINARY_DIR}/GraphZeppelinCommon/prefix
+
+    CMAKE_CACHE_ARGS
+    -DAUTODOWNLOAD:BOOL=ON
+    -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
+
+    BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target install
+)
+
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/GraphZeppelinCommon/prefix/include)
+
 # Install BufferTree Project
 ExternalProject_Add(
   BufferTree
 
   PREFIX          BufferTree
   GIT_REPOSITORY  "https://github.com/Victor-C-Zhang/FastBufferTree.git"
-  GIT_TAG         "main"
+  GIT_TAG         "commonComp"
 
   BUILD_ALWAYS    OFF
   INSTALL_DIR     ${CMAKE_CURRENT_BINARY_DIR}/BufferTree/prefix
@@ -199,7 +219,7 @@ add_executable(tests
 target_link_libraries(tests PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F USE_FBT_F)
 # dependencies
-add_dependencies(tests BufferTree)
+add_dependencies(tests BufferTree GraphZeppelinCommon)
 target_link_libraries(tests PRIVATE libFastBufferTree.a)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
@@ -235,7 +255,7 @@ add_executable(mem_tests
 target_link_libraries(mem_tests PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(mem_tests PRIVATE VERIFY_SAMPLES_F)
 # dependencies
-add_dependencies(mem_tests BufferTree)
+add_dependencies(mem_tests BufferTree GraphZeppelinCommon)
 target_link_libraries(mem_tests PRIVATE libFastBufferTree.a)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
@@ -265,7 +285,7 @@ add_executable(statistical_test
 target_link_libraries(statistical_test PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(statistical_test PRIVATE VERIFY_SAMPLES_F USE_FBT_F)
 # dependencies
-add_dependencies(statistical_test BufferTree)
+add_dependencies(statistical_test BufferTree GraphZeppelinCommon)
 target_link_libraries(statistical_test PRIVATE libFastBufferTree.a)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
@@ -295,7 +315,7 @@ add_executable(mem_statistical_test
 target_link_libraries(mem_statistical_test PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(mem_statistical_test PRIVATE VERIFY_SAMPLES_F)
 # dependencies
-add_dependencies(mem_statistical_test BufferTree)
+add_dependencies(mem_statistical_test BufferTree GraphZeppelinCommon)
 target_link_libraries(mem_statistical_test PRIVATE libFastBufferTree.a)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
@@ -338,7 +358,7 @@ add_executable(experiment
 target_link_libraries(experiment PRIVATE xxHash::xxhash GTest::gtest)
 # target_compile_definitions(experiment PRIVATE USE_FBT_F)
 # dependencies
-add_dependencies(experiment BufferTree)
+add_dependencies(experiment BufferTree GraphZeppelinCommon)
 target_link_libraries(experiment PRIVATE libFastBufferTree.a)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
@@ -368,7 +388,7 @@ add_executable(parallelPP
 target_link_libraries(parallelPP PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(parallelPP PRIVATE USE_FBT_F PARALLEL_PP_F VERIFY_SAMPLES_F)
 # dependencies
-add_dependencies(parallelPP BufferTree)
+add_dependencies(parallelPP BufferTree GraphZeppelinCommon)
 target_link_libraries(parallelPP PRIVATE libFastBufferTree.a)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
@@ -399,7 +419,7 @@ add_executable(memParallelPP
 target_link_libraries(memParallelPP PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(memParallelPP PRIVATE PARALLEL_PP_F VERIFY_SAMPLES_F)
 # dependencies
-add_dependencies(memParallelPP BufferTree)
+add_dependencies(memParallelPP BufferTree GraphZeppelinCommon)
 target_link_libraries(memParallelPP PRIVATE libFastBufferTree.a)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
