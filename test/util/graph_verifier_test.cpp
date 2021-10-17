@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "graph_verifier.h"
+#include "mat_graph_verifier.h"
 
 const std::string fname = __FILE__;
 size_t pos = fname.find_last_of("\\/");
@@ -7,14 +7,14 @@ const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0,po
 
 TEST(DeterministicToolsTestSuite, TestKruskal) {
   auto adj = cum_file_to_adj_matrix(curr_dir+"/../res/multiples_graph_1024.txt");
-  Node n = 1024;
-  ASSERT_EQ(78,kruskal(n, adj).size());
+  node_t n = 1024;
+  ASSERT_EQ(78,MatGraphVerifier::kruskal(n, adj).size());
 }
 
 TEST(DeterministicToolsTestSuite, TestEdgeVerifier) {
   auto adj = cum_file_to_adj_matrix(curr_dir+"/../res/multiples_graph_1024.txt");
-  Node n = 1024;
-  GraphVerifier verifier {n, adj};
+  node_t n = 1024;
+  MatGraphVerifier verifier {n, adj};
   // add edges of the form {i,2i}
   for (int i = 2; i < 512; ++i) {
     verifier.verify_edge({i,i*2});
@@ -32,8 +32,8 @@ TEST(DeterministicToolsTestSuite, TestEdgeVerifier) {
 
 TEST(DeterministicToolsTestSuite, TestCCVerifier) {
   auto adj = cum_file_to_adj_matrix(curr_dir+"/../res/multiples_graph_1024.txt");
-  Node n = 1024;
-  GraphVerifier verifier {n, adj};
+  node_t n = 1024;
+  MatGraphVerifier verifier {n, adj};
   // {0}, {1}, and primes \in [521,1021] are CCs
   verifier.verify_cc(0);
   verifier.verify_cc(1);

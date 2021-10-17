@@ -3,6 +3,7 @@
 #include <unordered_map>
 #include "../include/graph.h"
 #include "util/graph_gen.h"
+#include "util/mat_graph_verifier.h"
 
 void test_continuous(unsigned nodes, unsigned long updates_per_sample, unsigned long samples) {
   srand(time(NULL));
@@ -25,7 +26,7 @@ void test_continuous(unsigned nodes, unsigned long updates_per_sample, unsigned 
       adj[edgeidx] = !adj[edgeidx];
     }
     try {
-      g.pass_cum_adj_matrix(adj);
+      g.set_verifier(std::make_unique<MatGraphVerifier>(nodes, adj));
       std::cout << "Running cc" << std::endl;
       g.connected_components();
       g.post_cc_resume();
@@ -44,15 +45,15 @@ void test_continuous(unsigned nodes, unsigned long updates_per_sample, unsigned 
 }
 
 void test_continuous(std::ifstream& in, unsigned long samples) {
-  Node n, m;
+  node_t n, m;
   in >> n >> m;
   Graph g(n);
   size_t total_edges = static_cast<size_t>(n - 1) * n / 2;
-  Node updates_per_sample = m / samples;
+  node_t updates_per_sample = m / samples;
   std::vector<bool> adj(total_edges);
   unsigned long num_failure = 0;
 
-  Node t, a, b;
+  node_t t, a, b;
   for (unsigned long i = 0; i < samples; i++) {
     std::cout << "Starting updates" << std::endl;
     for (unsigned long j = 0; j < updates_per_sample; j++) {
@@ -62,7 +63,7 @@ void test_continuous(std::ifstream& in, unsigned long samples) {
       adj[edgeidx] = !adj[edgeidx];
     }
     try {
-      g.pass_cum_adj_matrix(adj);
+      g.set_verifier(std::make_unique<MatGraphVerifier>(n, adj));
       std::cout << "Running cc" << std::endl;
       g.connected_components();
       g.post_cc_resume();
@@ -86,7 +87,7 @@ void test_continuous(std::ifstream& in, unsigned long samples) {
 
 TEST(TestContinuous, DISABLED_StandardKron17) {
   std::ifstream in{ "./kron17" };
-  Node n, m;
+  node_t n, m;
   in >> n >> m;
   Graph g{n};
   int type, a, b;

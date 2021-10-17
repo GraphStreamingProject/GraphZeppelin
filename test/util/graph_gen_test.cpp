@@ -8,5 +8,5 @@ TEST(GraphGenTestSuite, TestGeneration) {
   generate_stream();
   struct stat buffer;
   ASSERT_FALSE(stat("./sample.txt", &buffer));
-  ASSERT_FALSE(stat("./cum_sample.txt", &buffer));
+  ASSERT_FALSE(stat("./cumul_sample.txt", &buffer));
 }

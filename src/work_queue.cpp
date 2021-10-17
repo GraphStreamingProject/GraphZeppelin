@@ -1,16 +1,14 @@
-//
-// Created by victor on 6/2/21.
-//
-
-#include "include/work_queue.h"
-#include "include/graph_worker.h"
+#include <cassert>
+#include "../include/work_queue.h"
+#include "../include/graph_worker.h"
+#include "../include/types.h"
 
 const unsigned first_idx = 2;
 
-WorkQueue::WorkQueue(uint32_t buffer_size, Node nodes, int queue_len) :
+WorkQueue::WorkQueue(uint32_t buffer_size, node_t nodes, int queue_len) :
 buffer_size(buffer_size), cq(queue_len,buffer_size*sizeof(node_id_t)),
 buffers(nodes) {
-  for (Node i = 0; i < nodes; ++i) {
+  for (node_t i = 0; i < nodes; ++i) {
     buffers[i] = static_cast<node_id_t *>(malloc(buffer_size * sizeof(node_id_t)));
     buffers[i][0] = first_idx; // first spot will point to the next free space
     buffers[i][1] = i; // second spot identifies the node to which the buffer
@@ -49,7 +47,7 @@ bool WorkQueue::get_data(data_ret_t &data) {
 
   int i         = queue_data.first;
   queue_elm elm = queue_data.second;
-  node_id_t *serial_data = reinterpret_cast<node_id_t *>(elm.data);
+  auto *serial_data = reinterpret_cast<node_id_t *>(elm.data);
   uint32_t len      = elm.size;
   assert(len % sizeof(node_id_t) == 0);
 
@@ -57,7 +55,7 @@ bool WorkQueue::get_data(data_ret_t &data) {
     return false; // we got no data so return not valid
 
   // assume the first key is correct so extract it
-  Node key = serial_data[1];
+  node_t key = serial_data[1];
   data.first = key;
 
   data.second.clear(); // remove any old data from the vector

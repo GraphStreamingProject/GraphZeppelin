@@ -1,42 +1,36 @@
 #include <gtest/gtest.h>
-#include <fstream>
 #include <string>
-#include <ctime>
 #include "../../include/graph.h"
+#include "../../include/binary_graph_stream.h"
 #include "../util/graph_verifier.h"
 #include "../util/graph_gen.h"
 
 TEST(Benchmark, BCHMKGraph) {
-  const std::string fname = __FILE__;
-  size_t pos = fname.find_last_of("\\/");
-  const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
-  ifstream in{curr_dir + "/../res/1000_0.95_0.5.stream"};
-  Node num_nodes;
-  in >> num_nodes;
-  long m;
-  in >> m;
-  long total = m;
-  Node a, b;
-  uint8_t u;
+  BinaryGraphStream stream("/mnt/ssd2/binary_streams/kron_15_stream_binary", 32 * 1024);
+  Node num_nodes = stream.nodes();
+  long m         = stream.edges();
+  
   Graph g{num_nodes};
   printf("Insertions\n");
   printf("Progress:                    | 0%%\r"); fflush(stdout);
-  clock_t start = clock();
+  auto start = std::chrono::steady_clock::now();
   while (m--) {
-    if ((total - m) % (int)(total * .05) == 0) {
-      clock_t diff = clock() - start;
-      float num_seconds = diff / CLOCKS_PER_SEC;
-      int percent = (total - m) / (total * .05);
+    if ((stream.edges() - m) % (int)(stream.edges() * .05) == 0) {
+      std::chrono::duration<double> diff = std::chrono::steady_clock::now() - start;
+      double num_seconds = diff.count();
+      int percent = (stream.edges() - m) / (stream.edges() * .05);
       printf("Progress:%s%s", std::string(percent, '=').c_str(), std::string(20 - percent, ' ').c_str());
-      printf("| %i%% -- %.2f per second\r", percent * 5, (total-m)/num_seconds); fflush(stdout);
+      printf("| %i%% -- %.2f per second\r", percent * 5, (stream.edges()-m)/num_seconds); fflush(stdout);
     }
-    in >> u >> a >> b;
-    //printf("a = %lu b = %lu\n", a, b);
-    if (u == INSERT)
-      g.update({{a, b}, INSERT});
-    else
-      g.update({{a,b}, DELETE});
+    g.update(stream.get_edge());
   }
   printf("Progress:====================| Done\n");
-  ASSERT_EQ(1, g.connected_components().size());
+
+  int cc_num = g.connected_components().size();
+  std::chrono::duration<double> diff = std::chrono::steady_clock::now() - start;
+  double num_seconds = diff.count();
+  printf("Total insertion time was: %lf\n", num_seconds);
+  printf("Insertion rate was:       %lf\n", stream.edges() / num_seconds);
+  ASSERT_EQ(51, cc_num);
+
 }

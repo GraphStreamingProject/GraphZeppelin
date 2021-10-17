@@ -4,7 +4,7 @@
 cmake_minimum_required(VERSION 3.15)
 include (ExternalProject)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 
@@ -105,6 +105,7 @@ if(NOT Boost_FOUND)
       "Set BOOST_ROOT to a directory where Boost is installed\n"
       "or use -DAUTODOWNLOAD:BOOL=ON to automatically download")
   else()
+    message("Downloading boost")
     #Download boost
     download_project(
       PROJ boost
@@ -138,8 +139,9 @@ if(NOT Boost_FOUND)
     endif()
 
     #Set BOOST_ROOT in cache to what we just downloaded, FindBoost again
+    set(ENV{BOOST_LIBRARYDIR} ${boost_SOURCE_DIR}/../boost-install/lib)
     set(BOOST_ROOT "${boost_SOURCE_DIR}" CACHE STRING "" FORCE)
-    find_package(Boost 1.66.0)
+    find_package(Boost 1.66.0 REQUIRED)
   endif()
 endif()
 include_directories("${Boost_INCLUDE_DIR}")
@@ -170,8 +172,6 @@ link_directories(${CMAKE_CURRENT_BINARY_DIR}/BufferTree/prefix/lib)
 # VERIFY_SAMPLES_F   Use a deterministic connected-components algorithm to
 #                    verify post-processing.
 #
-# USE_NATIVE_F       ???
-#
 # USE_FBT_F          Use a Fast Buffer Tree living on secondary storage
 #                    (github.com/Victor-C-Zhang/FastBufferTree) to buffer updates
 #                    instead of in-memory buffering.
@@ -179,49 +179,23 @@ link_directories(${CMAKE_CURRENT_BINARY_DIR}/BufferTree/prefix/lib)
 # PARALLEL_PP_F      Use parallel post-processing (connected components)
 #                    function.
 
-add_executable(main
-  graph.cpp
-  supernode.cpp
-  graph_worker.cpp
-  l0_sampling/sketch.cpp
-  l0_sampling/update.cpp
-  util.cpp
-  main.cpp)
-target_link_libraries(main PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(main PRIVATE USE_FBT_F)
-# dependencies
-add_dependencies(main BufferTree)
-target_link_libraries(main PRIVATE libFastBufferTree.a)
-# optimize unless debug
-if (DEFINED ENV{DEBUG})
-  message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(main PRIVATE -g -fopenmp)
-  target_link_options(main PRIVATE -fopenmp)
-else ()
-  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(main PRIVATE -O3 -fopenmp)
-    target_link_options(main PRIVATE -fopenmp)
-  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    target_compile_options(main PRIVATE /O2)
-  endif()
-endif ()
-
 add_executable(tests
   test/test_runner.cpp
   test/graph_test.cpp
   test/sketch_test.cpp
   test/supernode_test.cpp
   test/util_test.cpp
-  test/util/graph_verifier.cpp
+  test/util/file_graph_verifier.cpp
+  test/util/mat_graph_verifier.cpp
   test/util/graph_gen.cpp
   test/util/graph_gen_test.cpp
   test/util/graph_verifier_test.cpp
-  graph.cpp
-  supernode.cpp
-  graph_worker.cpp
-  l0_sampling/sketch.cpp
-  l0_sampling/update.cpp
-  util.cpp)
+  src/graph.cpp
+  src/supernode.cpp
+  src/graph_worker.cpp
+  src/l0_sampling/sketch.cpp
+  src/l0_sampling/update.cpp
+  src/util.cpp)
 target_link_libraries(tests PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F USE_FBT_F)
 # dependencies
@@ -242,22 +216,23 @@ else ()
 endif ()
 
 add_executable(mem_tests
-    test/test_runner.cpp
-    test/graph_test.cpp
-    test/sketch_test.cpp
-    test/supernode_test.cpp
-    test/util_test.cpp
-    test/util/graph_verifier.cpp
-    test/util/graph_gen.cpp
-    test/util/graph_gen_test.cpp
-    test/util/graph_verifier_test.cpp
-    graph.cpp
-    supernode.cpp
-    graph_worker.cpp
-    work_queue.cpp
-    l0_sampling/sketch.cpp
-    l0_sampling/update.cpp
-    util.cpp)
+  test/test_runner.cpp
+  test/graph_test.cpp
+  test/sketch_test.cpp
+  test/supernode_test.cpp
+  test/util_test.cpp
+  test/util/file_graph_verifier.cpp
+  test/util/mat_graph_verifier.cpp
+  test/util/graph_gen.cpp
+  test/util/graph_gen_test.cpp
+  test/util/graph_verifier_test.cpp
+  src/graph.cpp
+  src/supernode.cpp
+  src/graph_worker.cpp
+  src/work_queue.cpp
+  src/l0_sampling/sketch.cpp
+  src/l0_sampling/update.cpp
+  src/util.cpp)
 target_link_libraries(mem_tests PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(mem_tests PRIVATE VERIFY_SAMPLES_F)
 # dependencies
@@ -277,10 +252,71 @@ else ()
   endif()
 endif ()
 
+add_executable(statistical_test
+  test/statistical_testing/graph_testing.cpp
+  test/util/file_graph_verifier.cpp
+  test/util/mat_graph_verifier.cpp
+  test/util/graph_gen.cpp
+  src/graph.cpp
+  src/supernode.cpp
+  src/graph_worker.cpp
+  src/work_queue.cpp
+  src/l0_sampling/sketch.cpp
+  src/l0_sampling/update.cpp
+  src/util.cpp)
+target_link_libraries(statistical_test PRIVATE xxHash::xxhash GTest::gtest)
+target_compile_definitions(statistical_test PRIVATE VERIFY_SAMPLES_F USE_FBT_F)
+# dependencies
+add_dependencies(statistical_test BufferTree)
+target_link_libraries(statistical_test PRIVATE libFastBufferTree.a)
+# optimize unless debug
+if (DEFINED ENV{DEBUG})
+  message("Disabling optimizations and enabling debug symbols")
+  target_compile_options(statistical_test PRIVATE -g -fopenmp)
+  target_link_options(statistical_test PRIVATE -fopenmp)
+else ()
+  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    target_compile_options(statistical_test PRIVATE -O3 -fopenmp)
+    target_link_options(statistical_test PRIVATE -fopenmp)
+  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    target_compile_options(statistical_test PRIVATE /O2)
+  endif()
+endif ()
+
+add_executable(mem_statistical_test
+  test/statistical_testing/graph_testing.cpp
+  test/util/file_graph_verifier.cpp
+  test/util/mat_graph_verifier.cpp
+  test/util/graph_gen.cpp
+  src/graph.cpp
+  src/supernode.cpp
+  src/graph_worker.cpp
+  src/work_queue.cpp
+  src/l0_sampling/sketch.cpp
+  src/l0_sampling/update.cpp
+  src/util.cpp)
+target_link_libraries(mem_statistical_test PRIVATE xxHash::xxhash GTest::gtest)
+target_compile_definitions(mem_statistical_test PRIVATE VERIFY_SAMPLES_F)
+# dependencies
+add_dependencies(mem_statistical_test BufferTree)
+target_link_libraries(mem_statistical_test PRIVATE libFastBufferTree.a)
+# optimize unless debug
+if (DEFINED ENV{DEBUG})
+  message("Disabling optimizations and enabling debug symbols")
+  target_compile_options(mem_statistical_test PRIVATE -g -fopenmp)
+  target_link_options(mem_statistical_test PRIVATE -fopenmp)
+else ()
+  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    target_compile_options(mem_statistical_test PRIVATE -O3 -fopenmp)
+    target_link_options(mem_statistical_test PRIVATE -fopenmp)
+  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    target_compile_options(mem_statistical_test PRIVATE /O2)
+  endif()
+endif ()
+
 # executables for experiment/benchmarking
 add_executable(efficient_gen
   test/util/efficient_gen/edge_gen.cpp
-  test/util/efficient_gen/cum_gen.cpp
   test/util/efficient_gen/efficient_gen.cpp)
 target_link_libraries(efficient_gen PRIVATE xxHash::xxhash)
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
@@ -293,16 +329,18 @@ add_executable(experiment
   test/test_runner.cpp
   test/experiment/BCHMK_Graph.cpp
   test/experiment/BCHMK_post_proc.cpp
-  test/util/graph_verifier.cpp
+  test/util/file_graph_verifier.cpp
+  test/util/mat_graph_verifier.cpp
   test/util/graph_gen.cpp
-  graph.cpp
-  supernode.cpp
-  graph_worker.cpp
-  l0_sampling/sketch.cpp
-  l0_sampling/update.cpp
-  util.cpp)
+  src/graph.cpp
+  src/supernode.cpp
+  src/work_queue.cpp
+  src/graph_worker.cpp
+  src/l0_sampling/sketch.cpp
+  src/l0_sampling/update.cpp
+  src/util.cpp)
 target_link_libraries(experiment PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(experiment PRIVATE USE_FBT_F)
+# target_compile_definitions(experiment PRIVATE USE_FBT_F)
 # dependencies
 add_dependencies(experiment BufferTree)
 target_link_libraries(experiment PRIVATE libFastBufferTree.a)
@@ -323,15 +361,16 @@ endif ()
 add_executable(cont_test
   test/test_runner.cpp
   test/cont_test.cpp
-  test/util/graph_verifier.cpp
+  test/util/file_graph_verifier.cpp
+  test/util/mat_graph_verifier.cpp
   test/util/graph_gen.cpp
-  graph.cpp
-  supernode.cpp
-  graph_worker.cpp
-  l0_sampling/sketch.cpp
-  l0_sampling/update.cpp
-  util.cpp
-  work_queue.cpp)
+  src/graph.cpp
+  src/supernode.cpp
+  src/graph_worker.cpp
+  src/l0_sampling/sketch.cpp
+  src/l0_sampling/update.cpp
+  src/util.cpp
+  src/work_queue.cpp)
 target_link_libraries(cont_test PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(cont_test PRIVATE VERIFY_SAMPLES_F)
 # dependencies
@@ -352,16 +391,17 @@ else ()
 endif ()
 
 add_executable(parallelPP
-    test/test_runner.cpp
-    test/util/graph_gen.cpp
-    test/util/graph_verifier.cpp
-    test/parallel_graph_test.cpp
-    graph.cpp
-    supernode.cpp
-    graph_worker.cpp
-    l0_sampling/sketch.cpp
-    l0_sampling/update.cpp
-    util.cpp)
+  test/test_runner.cpp
+  test/util/graph_gen.cpp
+  test/util/file_graph_verifier.cpp
+  test/util/mat_graph_verifier.cpp
+  test/parallel_graph_test.cpp
+  src/graph.cpp
+  src/supernode.cpp
+  src/graph_worker.cpp
+  src/l0_sampling/sketch.cpp
+  src/l0_sampling/update.cpp
+  src/util.cpp)
 target_link_libraries(parallelPP PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(parallelPP PRIVATE USE_FBT_F PARALLEL_PP_F VERIFY_SAMPLES_F)
 # dependencies
@@ -382,17 +422,18 @@ else ()
 endif ()
 
 add_executable(memParallelPP
-        test/test_runner.cpp
-        test/util/graph_gen.cpp
-        test/util/graph_verifier.cpp
-        test/parallel_graph_test.cpp
-        graph.cpp
-        supernode.cpp
-        graph_worker.cpp
-        work_queue.cpp
-        l0_sampling/sketch.cpp
-        l0_sampling/update.cpp
-        util.cpp)
+  test/test_runner.cpp
+  test/util/graph_gen.cpp
+  test/util/file_graph_verifier.cpp
+  test/util/mat_graph_verifier.cpp
+  test/parallel_graph_test.cpp
+  src/graph.cpp
+  src/supernode.cpp
+  src/graph_worker.cpp
+  src/work_queue.cpp
+  src/l0_sampling/sketch.cpp
+  src/l0_sampling/update.cpp
+  src/util.cpp)
 target_link_libraries(memParallelPP PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(memParallelPP PRIVATE PARALLEL_PP_F VERIFY_SAMPLES_F)
 # dependencies

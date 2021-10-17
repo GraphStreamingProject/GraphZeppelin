@@ -1,6 +1,4 @@
-#ifndef TEST_GRAPH_VERIFIER_H
-#define TEST_GRAPH_VERIFIER_H
-
+#pragma once
 #include <set>
 #include "../../include/supernode.h"
 
@@ -9,7 +7,7 @@
  * @param input_file the file to read input from.
  * @return an array of connected components.
  */
-std::vector<std::set<Node>> kruskal(Node n, const std::vector<bool>& input);
+//std::vector<std::set<node_t>> kruskal(const string& input_file = "cumul_sample.txt");
 
 /**
  * A plugin for the Graph class that runs Boruvka alongside the graph algorithm
@@ -17,14 +15,7 @@ std::vector<std::set<Node>> kruskal(Node n, const std::vector<bool>& input);
  * generates.
  */
 class GraphVerifier {
-  std::vector<std::set<Node>> kruskal_ref;
-  std::vector<std::set<Node>> boruvka_cc;
-  std::vector<bool>& det_graph;
-  Node* parent;
-  Node* size;
 public:
-  GraphVerifier(Node n, std::vector<bool>& input);
-  ~GraphVerifier();
   /**
    * Verifies an edge exists in the graph. Verifies that the edge is in the cut
    * of both the endpoints of the edge.
@@ -32,7 +23,7 @@ public:
    * @param det_graph the adjacency list representation of the graph in question.
    * @throws BadEdgeException if the edge does not satisfy both conditions.
    */
-  void verify_edge(Edge edge);
+  virtual void verify_edge(Edge edge) = 0;
 
   /**
    * Verifies the supernode of the given node is a (maximal) connected component.
@@ -40,13 +31,13 @@ public:
    * @param node the node to be tested.
    * @throws NotCCException   if the supernode is not a connected component.
    */
-  void verify_cc(Node node);
+  virtual void verify_cc(node_t node) = 0;
 
   /**
    * Verifies the connected components solution is correct. Compares
    * retval against kruskal_ref.
    */
-  void verify_soln(vector<set<Node>>& retval);
+  virtual void verify_soln(vector<set<node_t>>& retval) = 0;
 };
 
 class BadEdgeException : public exception {
@@ -62,5 +53,3 @@ class NotCCException : public exception {
            "cut!";
   }
 };
-
-#endif //TEST_GRAPH_VERIFIER_H
