@@ -116,13 +116,14 @@ TEST(GraphTestSuite, TestCorrectnessOfReheating) {
         g.update({{a, b}, INSERT});
       } else g.update({{a, b}, DELETE});
     }
-    g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
     g.write_binary("./out_temp.txt");
+    g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
     auto g_res = g.connected_components();
     printf("number of CC = %lu\n", g_res.size());
 
     Graph reheated {"./out_temp.txt"};
 
+    reheated.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
     auto reheated_res = reheated.connected_components();
     printf("number of reheated CC = %lu\n", reheated_res.size());
     ASSERT_EQ(g_res.size(), reheated_res.size());
