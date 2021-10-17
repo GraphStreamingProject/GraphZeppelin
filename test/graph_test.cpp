@@ -47,7 +47,7 @@ TEST(GraphTestSuite, IFconnectedComponentsAlgRunTHENupdateLocked) {
 
 TEST(GraphTestSuite, TestRandomGraphGeneration) {
   generate_stream();
-  ifstream in { "./cum_sample.txt" };
+  ifstream in { "./cumul_sample.txt" };
   node_t n, m;
   in >> n >> m;
   std::vector<bool> cum_in;
