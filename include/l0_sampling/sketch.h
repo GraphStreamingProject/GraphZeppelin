@@ -54,11 +54,13 @@ private:
    */
   Sketch(long seed);
   Sketch(long seed, std::fstream &binary_in);
+  Sketch(const Sketch& s);
 
 public:
   static Sketch* makeSketch(void* loc, long seed);
   static Sketch* makeSketch(void* loc, long seed, std::fstream &binary_in);
   static Sketch* makeSketch(void* loc, long seed, double num_bucket_factor, std::fstream &binary_in);
+  static Sketch* makeSketch(void* loc, const Sketch& s);
   
   // configure the static variables of sketches
   inline static void configure(size_t _n, double _factor) {

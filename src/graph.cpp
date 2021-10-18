@@ -185,6 +185,12 @@ vector<set<node_t>> Graph::connected_components(bool cont) {
   if (!cont)
     return connected_components();
 
+#ifdef USE_FBT_F
+  bf->force_flush(); // flush everything in buffertree to make final updates
+#else
+  wq->force_flush();
+#endif
+
   // Copy supernodes
   Supernode** supernodes = new Supernode*[num_nodes];
   for (node_t i=0;i<num_nodes;++i) {
