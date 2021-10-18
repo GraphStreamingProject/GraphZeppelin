@@ -50,15 +50,15 @@ TEST(GraphTestSuite, TestRandomGraphGeneration) {
   ifstream in { "./cumul_sample.txt" };
   node_t n, m;
   in >> n >> m;
-  std::vector<bool> cum_in;
-  cum_in.reserve(n*(n-1)/2);
+  std::vector<bool> cumul_in;
+  cumul_in.reserve(n*(n-1)/2);
   node_t a, b;
   while (m--) {
     in >> a >> b;
     node_t idx = nondirectional_non_self_edge_pairing_fn(a,b);
-    cum_in[idx] = !cum_in[idx];
+    cumul_in[idx] = !cumul_in[idx];
   }
-  MatGraphVerifier graphVerifier {n, cum_in};
+  MatGraphVerifier graphVerifier {n, cumul_in};
 }
 
 TEST(GraphTestSuite, TestCorrectnessOnSmallRandomGraphs) {
