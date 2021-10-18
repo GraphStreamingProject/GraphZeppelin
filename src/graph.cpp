@@ -292,7 +292,6 @@ vector<set<node_t>> Graph::parallel_connected_components() {
   retval.reserve(temp.size());
   for (const auto& it : temp) retval.push_back(it.second);
 
-  free(parent);
   return retval;
 }
 
