@@ -51,8 +51,8 @@ private:
    */
   Supernode(uint64_t n, long seed, std::fstream &binary_in);
 
+  Supernode(const Supernode& s);
 public:
-//  Supernode(const Supernode& s);
   static Supernode* makeSupernode(uint64_t n, long seed);
   static Supernode* makeSupernode(uint64_t n, long seed, std::fstream &binary_in);
 
@@ -64,6 +64,7 @@ public:
    * @return        a pointer to loc, the location of the supernode.
    */
   static Supernode* makeSupernode(void* loc, uint64_t n, long seed);
+  static Supernode* makeSupernode(const Supernode& s);
 
   ~Supernode();
 

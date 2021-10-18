@@ -28,8 +28,7 @@ void test_continuous(unsigned nodes, unsigned long updates_per_sample, unsigned 
     try {
       g.set_verifier(std::make_unique<MatGraphVerifier>(nodes, adj));
       std::cout << "Running cc" << std::endl;
-      g.connected_components();
-      g.post_cc_resume();
+      g.connected_components(true);
     } catch (const NoGoodBucketException& e) {
       num_failure++;
       std::cout << "CC #" << i << "failed with NoGoodBucket" << std::endl;
@@ -65,8 +64,7 @@ void test_continuous(std::ifstream& in, unsigned long samples) {
     try {
       g.set_verifier(std::make_unique<MatGraphVerifier>(n, adj));
       std::cout << "Running cc" << std::endl;
-      g.connected_components();
-      g.post_cc_resume();
+      g.connected_components(true);
     } catch (const NoGoodBucketException& e) {
       num_failure++;
       std::cout << "CC #" << i << "failed with NoGoodBucket" << std::endl;

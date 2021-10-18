@@ -69,18 +69,18 @@ public:
   vector<set<node_t>> connected_components();
 
   /**
+   * Main algorithm utilizing Boruvka and L_0 sampling.
+   * If cont is true, allow for additional updates when done.
+   * @param cont
+   * @return a vector of the connected components in the graph.
+   */
+  vector<set<node_t>> connected_components(bool cont);
+
+  /**
    * Parallel version of Boruvka.
    * @return a vector of the connected components in the graph.
    */
   vector<set<node_t>> parallel_connected_components();
-
-  /**
-   * Call this function to indicate to the graph that it should begin accepting
-   * updates again. It is important that the sketches be restored to their
-   * pre-connected_components state before calling this function.
-   * Unpauses the graph workers and sets allow update flag.
-   */
-  void post_cc_resume();
 
 #ifdef VERIFY_SAMPLES_F
   std::unique_ptr<GraphVerifier> verifier;

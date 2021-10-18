@@ -135,17 +135,6 @@ vector<set<node_t>> Graph::connected_components() {
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
 
-  /*
-  std::set<Node> representatives;
-  parent = new Node[num_nodes];
-  Supernode** supernodes = new Supernode*[num_nodes];
-  for (Node i=0;i<num_nodes;++i) {
-    supernodes[i] = new Supernode(*this->supernodes[i]);
-    representatives.insert(i);
-    parent[i] = i;
-  }
-  */
-
   do {
     modified = false;
     vector<node_t> removed;
@@ -189,14 +178,33 @@ vector<set<node_t>> Graph::connected_components() {
   verifier->verify_soln(retval);
 #endif
 
-  /*
-  for (unsigned i=0;i<num_nodes;++i)
-    delete supernodes[i];
-  delete[] supernodes;
-  delete[] parent;
-  */
-
   return retval;
+}
+
+vector<set<node_t>> Graph::connected_components(bool cont) {
+  if (!cont)
+    return connected_components();
+
+  // Copy supernodes
+  Supernode** supernodes = new Supernode*[num_nodes];
+  for (node_t i=0;i<num_nodes;++i) {
+    supernodes[i] = Supernode::makeSupernode(*this->supernodes[i]);
+  }
+
+  vector<set<node_t>> ret;
+  ret = connected_components();
+  // Restore supernodes
+  for (node_t i=0;i<num_nodes;++i) {
+    free(this->supernodes[i]);
+    this->supernodes[i] = supernodes[i];
+    representatives->insert(i);
+    parent[i] = i;
+  }
+  delete[] supernodes;
+
+  GraphWorker::unpause_workers();
+  update_locked = false;
+  return ret;
 }
 
 vector<set<node_t>> Graph::parallel_connected_components() {
@@ -278,11 +286,6 @@ vector<set<node_t>> Graph::parallel_connected_components() {
 
   free(parent);
   return retval;
-}
-
-void Graph::post_cc_resume() {
-  GraphWorker::unpause_workers();
-  update_locked = false;
 }
 
 node_t Graph::get_parent(node_t node) {
