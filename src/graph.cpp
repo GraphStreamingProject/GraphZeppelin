@@ -75,6 +75,8 @@ Graph::~Graph() {
   for (unsigned i=0;i<num_nodes;++i)
     free(supernodes[i]); // free because memory is malloc'd in make_supernode
   delete[] supernodes;
+  delete[] parent;
+  delete representatives;
   GraphWorker::stop_workers(); // join the worker threads
 #ifdef USE_FBT_F
   delete bf;

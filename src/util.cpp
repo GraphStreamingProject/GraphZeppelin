@@ -104,17 +104,3 @@ std::string configure_system() {
   GraphWorker::set_config(num_groups, group_size);
   return pre;
 }
-
-std::vector<bool> cum_file_to_adj_matrix(const std::string& file) {
-  std::ifstream input { file };
-  Node n, m;
-  input >> n >> m;
-  std::vector<bool> cum_in(n*(n-1)/2, false);
-  Node a, b;
-  while (m--) {
-    input >> a >> b;
-    Node idx = nondirectional_non_self_edge_pairing_fn(a,b);
-    cum_in[idx] = !cum_in[idx];
-  }
-  return cum_in;
-}
