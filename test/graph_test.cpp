@@ -73,7 +73,7 @@ TEST(GraphTestSuite, TestCorrectnessOnSmallRandomGraphs) {
       fails++;
       if (fails > allow_fail) {
         printf("More than %i failures failing test\n", allow_fail);
-        throw NoGoodBucketException();
+        throw;
       }
     }
   }
@@ -103,7 +103,7 @@ TEST(GraphTestSuite, TestCorrectnessOnSmallSparseGraphs) {
       fails++;
       if (fails > allow_fail) {
         printf("More than %i failures failing test\n", allow_fail);
-        throw NoGoodBucketException();
+        throw;
       }
     }
   }
@@ -136,7 +136,7 @@ TEST(GraphTestSuite, TestCorrectnessOfReheating) {
       continue;
       if (fails > allow_fail) {
         printf("More than %i failures failing test\n", allow_fail);
-        throw NoGoodBucketException();
+        throw;
       }
     }
     printf("number of CC = %lu\n", g_res.size());

@@ -46,7 +46,7 @@ TEST(ParallelGraphTestSuite, SingleTestCorrectnessOnSmallRandomGraphs) {
       fails++;
       if (fails > allow_fail) {
         printf("More than %i failures failing test\n", allow_fail);
-        throw NoGoodBucketException();
+        throw;
       }
     }
   }
@@ -76,7 +76,7 @@ TEST(ParallelGraphTestSuite, SingleTestCorrectnessOnSmallSparseGraphs) {
       fails++;
       if (fails > allow_fail) {
         printf("More than %i failures failing test\n", allow_fail);
-        throw NoGoodBucketException();
+        throw;
       }
     }
   }
@@ -125,7 +125,7 @@ TEST(ParallelGraphTestSuite, ParallelTestCorrectnessOnSmallRandomGraphs) {
       fails++;
       if (fails > allow_fail) {
         printf("More than %i failures failing test\n", allow_fail);
-        throw NoGoodBucketException();
+        throw;
       }
     }
   }
@@ -155,7 +155,7 @@ TEST(ParallelGraphTestSuite, ParallelTestCorrectnessOnSmallSparseGraphs) {
       fails++;
       if (fails > allow_fail) {
         printf("More than %i failures failing test\n", allow_fail);
-        throw NoGoodBucketException();
+        throw;
       }
     }
   }
