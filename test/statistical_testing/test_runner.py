@@ -103,8 +103,10 @@ if __name__ == "__main__":
 
 	for buffering in (True, False):
 		if buffering:
-			log += "BufferTree:\n"
+			print("GutterTree")
+			log += "GutterTree:\n"
 		else:
+			print("Standalone")
 			log += "Standalone:\n"
 		# Run the tests
 		run_test(build_path, buffering)
@@ -112,19 +114,21 @@ if __name__ == "__main__":
 		# Collect statistical results
 		# test_name, test_result_file, expected_result_file
 		try:
+			print("small test")
 			small_err, small_dsc   = check_error('small test', 'small_graph_test', stat_path + '/small_test_expected.txt')
 		except Exception as err:
 			small_err = True
 			small_dsc = "test threw expection: {0}".format(err)
 		try:
+			print("medium test")
 			medium_err, medium_dsc = check_error('medium test', 'medium_graph_test', stat_path + '/medium_test_expected.txt')
 		except Exception as err:
 			medium_err = True
 			medium_dsc = "test threw expection: {0}".format(err)
 
 		# Create a log, and send email
-	
 		log += log_result('small test', small_err, small_dsc) + "\n"
 		log += log_result('medium test', medium_err, medium_dsc) + "\n"
 
+	print("Sending email!")
 	send_email(small_err or medium_err, log, usr, pwd)
