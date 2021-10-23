@@ -65,6 +65,7 @@ std::string configure_system() {
   std::ifstream conf(config_file);
   if (conf.is_open()) {
     while(getline(conf, line)) {
+      if (line[0] == '#' || line[0] == '\n') continue;
       if(line.substr(0, line.find('=')) == "path_prefix") {
         pre = line.substr(line.find('=') + 1);
         printf("Buffertree path_prefix = %s\n", pre.c_str());

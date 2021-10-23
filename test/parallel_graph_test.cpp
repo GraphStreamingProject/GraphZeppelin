@@ -4,6 +4,16 @@
 #include "util/graph_gen.h"
 #include "util/file_graph_verifier.h"
 
+/**
+ * For many of these tests (especially for those upon very sparse and small graphs)
+ * we allow for a certain number of failures per test.
+ * This is because the responsibility of these tests is to quickly alert us 
+ * to “this code is very wrong” whereas the statistical testing is responsible 
+ * for a more fine grained analysis.
+ * In this context a false positive is much worse than a false negative.
+ * With 2 failures allowed per test our entire testing suite should fail 1/5000 runs.
+ */
+
 TEST(ParallelGraphTestSuite, SingleSmallGraphConnectivity) {
   const std::string fname = __FILE__;
   size_t pos = fname.find_last_of("\\/");
@@ -25,6 +35,8 @@ TEST(ParallelGraphTestSuite, SingleSmallGraphConnectivity) {
 
 TEST(ParallelGraphTestSuite, SingleTestCorrectnessOnSmallRandomGraphs) {
   int num_trials = 10;
+  int allow_fail = 2; // allow 2 failures
+  int fails = 0;
   while (num_trials--) {
     generate_stream();
     ifstream in{"./sample.txt"};
@@ -38,13 +50,24 @@ TEST(ParallelGraphTestSuite, SingleTestCorrectnessOnSmallRandomGraphs) {
         g.update({{a, b}, INSERT});
       } else g.update({{a, b}, DELETE});
     }
+
     g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
-    g.connected_components();
+    try {
+      g.connected_components();
+    } catch (NoGoodBucketException& err) {
+      fails++;
+      if (fails > allow_fail) {
+        printf("More than %i failures failing test\n", allow_fail);
+        throw;
+      }
+    }
   }
 }
 
 TEST(ParallelGraphTestSuite, SingleTestCorrectnessOnSmallSparseGraphs) {
   int num_trials = 10;
+  int allow_fail = 2; // allow 2 failures
+  int fails = 0;
   while (num_trials--) {
     generate_stream({1024,0.002,0.5,0,"./sample.txt","./cumul_sample.txt"});
     ifstream in{"./sample.txt"};
@@ -58,8 +81,17 @@ TEST(ParallelGraphTestSuite, SingleTestCorrectnessOnSmallSparseGraphs) {
         g.update({{a, b}, INSERT});
       } else g.update({{a, b}, DELETE});
     }
+
     g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
-    g.connected_components();
+    try {
+      g.connected_components();
+    } catch (NoGoodBucketException& err) {
+      fails++;
+      if (fails > allow_fail) {
+        printf("More than %i failures failing test\n", allow_fail);
+        throw;
+      }
+    }
   }
 }
 
@@ -84,6 +116,8 @@ TEST(ParallelGraphTestSuite, ParallelSmallGraphConnectivity) {
 
 TEST(ParallelGraphTestSuite, ParallelTestCorrectnessOnSmallRandomGraphs) {
   int num_trials = 10;
+  int allow_fail = 2; // allow 2 failures
+  int fails = 0;
   while (num_trials--) {
     generate_stream();
     ifstream in{"./sample.txt"};
@@ -97,13 +131,24 @@ TEST(ParallelGraphTestSuite, ParallelTestCorrectnessOnSmallRandomGraphs) {
         g.update({{a, b}, INSERT});
       } else g.update({{a, b}, DELETE});
     }
+
     g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
-    g.parallel_connected_components();
+    try {
+      g.parallel_connected_components();
+    } catch (NoGoodBucketException& err) {
+      fails++;
+      if (fails > allow_fail) {
+        printf("More than %i failures failing test\n", allow_fail);
+        throw;
+      }
+    }
   }
 }
 
 TEST(ParallelGraphTestSuite, ParallelTestCorrectnessOnSmallSparseGraphs) {
   int num_trials = 10;
+  int allow_fail = 2; // allow 2 failures
+  int fails = 0;
   while (num_trials--) {
     generate_stream({1024,0.002,0.5,0,"./sample.txt","./cumul_sample.txt"});
     ifstream in{"./sample.txt"};
@@ -117,7 +162,16 @@ TEST(ParallelGraphTestSuite, ParallelTestCorrectnessOnSmallSparseGraphs) {
         g.update({{a, b}, INSERT});
       } else g.update({{a, b}, DELETE});
     }
+
     g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
-    g.parallel_connected_components();
+    try {
+      g.parallel_connected_components();
+    } catch (NoGoodBucketException& err) {
+      fails++;
+      if (fails > allow_fail) {
+        printf("More than %i failures failing test\n", allow_fail);
+        throw;
+      }
+    }
   }
 }

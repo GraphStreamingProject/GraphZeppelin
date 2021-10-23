@@ -237,15 +237,28 @@ vector<set<node_t>> Graph::parallel_connected_components() {
 
   do {
     modified = false;
-    #pragma omp parallel for default(none) shared(query, reps)
+    bool except = false;
+    std::exception_ptr err;
+    #pragma omp parallel for default(none) shared(query, reps, except, err)
     for (node_t i = 0; i < reps.size(); ++i) {
-      auto edge = supernodes[reps[i]]->sample();
+      // wrap in a try/catch because exiting through exception is undefined behavior in OMP
+      boost::optional<Edge> edge;
+      try {
+        edge = supernodes[reps[i]]->sample();
+      } catch (...) {
+        except = true;
+        err = std::current_exception();
+      }
       if (!edge.is_initialized()) {
         query[reps[i]] = {i, i};
         continue;
       }
       query[reps[i]] = edge.get();
     }
+
+    // Did one of our threads produce an exception?
+    if (except) std::rethrow_exception(err);
+
     vector<node_t> to_remove;
     for (node_t i : reps) {
       node_t a = get_parent(query[i].first);
