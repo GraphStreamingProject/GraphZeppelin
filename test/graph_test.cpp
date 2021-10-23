@@ -4,6 +4,16 @@
 #include "util/graph_verifier.h"
 #include "util/graph_gen.h"
 
+/**
+ * For many of these tests (especially for those upon very sparse and small graphs)
+ * we allow for a certain number of failures per test.
+ * This is because the responsibility of these tests is to quickly alert us 
+ * to “this code is very wrong” whereas the statistical testing is responsible 
+ * for a more fine grained analysis.
+ * In this context a false false positive is much worse than a false negative.
+ * With 2 failures allowed per test our entire testing suite should fail 1/5000 runs.
+ */
+
 TEST(GraphTestSuite, SmallGraphConnectivity) {
   const std::string fname = __FILE__;
   size_t pos = fname.find_last_of("\\/");
