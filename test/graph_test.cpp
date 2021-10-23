@@ -10,7 +10,7 @@
  * This is because the responsibility of these tests is to quickly alert us 
  * to “this code is very wrong” whereas the statistical testing is responsible 
  * for a more fine grained analysis.
- * In this context a false false positive is much worse than a false negative.
+ * In this context a false positive is much worse than a false negative.
  * With 2 failures allowed per test our entire testing suite should fail 1/5000 runs.
  */
 
