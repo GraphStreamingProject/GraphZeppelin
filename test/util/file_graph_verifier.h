@@ -6,7 +6,7 @@
 /**
  * A plugin for the Graph class that runs Boruvka alongside the graph algorithm
  * and verifies the edges and connected components that the graph algorithm
- * generates.
+ * generates. Takes a reference graph from a file.
  */
 class FileGraphVerifier : public GraphVerifier {
   std::vector<std::set<node_t>> kruskal_ref;

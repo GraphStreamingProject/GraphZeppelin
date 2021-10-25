@@ -55,22 +55,6 @@ TEST(GraphTestSuite, IFconnectedComponentsAlgRunTHENupdateLocked) {
   ASSERT_THROW(g.update({{1,2}, DELETE}), UpdateLockedException);
 }
 
-TEST(GraphTestSuite, TestRandomGraphGeneration) {
-  generate_stream();
-  ifstream in { "./cumul_sample.txt" };
-  node_t n, m;
-  in >> n >> m;
-  std::vector<bool> cumul_in;
-  cumul_in.reserve(n*(n-1)/2);
-  node_t a, b;
-  while (m--) {
-    in >> a >> b;
-    node_t idx = nondirectional_non_self_edge_pairing_fn(a,b);
-    cumul_in[idx] = !cumul_in[idx];
-  }
-  MatGraphVerifier graphVerifier {n, cumul_in};
-}
-
 TEST(GraphTestSuite, TestCorrectnessOnSmallRandomGraphs) {
   int num_trials = 10;
   int allow_fail = 2; // allow 2 failures
