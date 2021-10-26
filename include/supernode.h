@@ -7,7 +7,7 @@
 
 using namespace std;
 
-typedef std::pair<node_t, node_t> Edge;
+typedef std::pair<node_id_t, node_id_t> Edge;
 
 /**
  * This interface implements the "supernode" so Boruvka can use it as a black
