@@ -96,6 +96,7 @@ TEST(TestContinuous, DISABLED_StandardKron17) {
   g.connected_components();
 }
 
+// Uses ./kron17 in the current working directory
 TEST(TestContinuous, TestKron17) {
   std::ifstream input { "./kron17" };
   test_continuous(input, 10);

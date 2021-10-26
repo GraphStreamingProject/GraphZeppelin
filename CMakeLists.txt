@@ -186,7 +186,6 @@ add_executable(tests
   test/supernode_test.cpp
   test/util_test.cpp
   test/util/file_graph_verifier.cpp
-  test/util/mat_graph_verifier.cpp
   test/util/graph_gen.cpp
   test/util/graph_gen_test.cpp
   test/util/graph_verifier_test.cpp
@@ -222,7 +221,6 @@ add_executable(mem_tests
   test/supernode_test.cpp
   test/util_test.cpp
   test/util/file_graph_verifier.cpp
-  test/util/mat_graph_verifier.cpp
   test/util/graph_gen.cpp
   test/util/graph_gen_test.cpp
   test/util/graph_verifier_test.cpp
@@ -255,7 +253,6 @@ endif ()
 add_executable(statistical_test
   test/statistical_testing/graph_testing.cpp
   test/util/file_graph_verifier.cpp
-  test/util/mat_graph_verifier.cpp
   test/util/graph_gen.cpp
   src/graph.cpp
   src/supernode.cpp
@@ -286,7 +283,6 @@ endif ()
 add_executable(mem_statistical_test
   test/statistical_testing/graph_testing.cpp
   test/util/file_graph_verifier.cpp
-  test/util/mat_graph_verifier.cpp
   test/util/graph_gen.cpp
   src/graph.cpp
   src/supernode.cpp
@@ -330,7 +326,6 @@ add_executable(experiment
   test/experiment/BCHMK_Graph.cpp
   test/experiment/BCHMK_post_proc.cpp
   test/util/file_graph_verifier.cpp
-  test/util/mat_graph_verifier.cpp
   test/util/graph_gen.cpp
   src/graph.cpp
   src/supernode.cpp
@@ -361,7 +356,6 @@ endif ()
 add_executable(cont_test
   test/test_runner.cpp
   test/cont_test.cpp
-  test/util/file_graph_verifier.cpp
   test/util/mat_graph_verifier.cpp
   test/util/graph_gen.cpp
   src/graph.cpp
@@ -394,7 +388,6 @@ add_executable(parallelPP
   test/test_runner.cpp
   test/util/graph_gen.cpp
   test/util/file_graph_verifier.cpp
-  test/util/mat_graph_verifier.cpp
   test/parallel_graph_test.cpp
   src/graph.cpp
   src/supernode.cpp
@@ -425,7 +418,6 @@ add_executable(memParallelPP
   test/test_runner.cpp
   test/util/graph_gen.cpp
   test/util/file_graph_verifier.cpp
-  test/util/mat_graph_verifier.cpp
   test/parallel_graph_test.cpp
   src/graph.cpp
   src/supernode.cpp
