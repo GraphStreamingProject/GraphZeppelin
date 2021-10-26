@@ -1,6 +1,7 @@
 #pragma once
 #include <set>
 #include "../../include/supernode.h"
+#include "../../include/dsu.h"
 #include "graph_verifier.h"
 
 /**
@@ -12,12 +13,10 @@ class MatGraphVerifier : public GraphVerifier {
   std::vector<std::set<node_t>> kruskal_ref;
   std::vector<std::set<node_t>> boruvka_cc;
   std::vector<bool>& det_graph;
-  node_t* parent;
-  node_t* size;
+  DisjointSetUnion<node_t> sets;
 
 public:
   MatGraphVerifier(node_t n, std::vector<bool>& input);
-  ~MatGraphVerifier();
 
   void verify_edge(Edge edge);
   void verify_cc(node_t node);
