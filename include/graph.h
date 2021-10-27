@@ -45,6 +45,9 @@ class Graph {
   WorkQueue *wq;
 #endif
 
+  Supernode** backup_supernodes();
+  void restore_supernodes(Supernode** supernodes);
+
   FRIEND_TEST(GraphTestSuite, TestCorrectnessOfReheating);
 public:
   explicit Graph(uint64_t num_nodes);

@@ -183,10 +183,7 @@ vector<set<node_t>> Graph::connected_components() {
   return retval;
 }
 
-vector<set<node_t>> Graph::connected_components(bool cont) {
-  if (!cont)
-    return connected_components();
-
+Supernode** Graph::backup_supernodes() {
 #ifdef USE_FBT_F
   bf->force_flush(); // flush everything in buffertree to make final updates
 #else
@@ -199,8 +196,10 @@ vector<set<node_t>> Graph::connected_components(bool cont) {
     supernodes[i] = Supernode::makeSupernode(*this->supernodes[i]);
   }
 
-  vector<set<node_t>> ret;
-  ret = connected_components();
+  return supernodes;
+}
+
+void Graph::restore_supernodes(Supernode** supernodes) {
   // Restore supernodes
   for (node_t i=0;i<num_nodes;++i) {
     free(this->supernodes[i]);
@@ -212,6 +211,18 @@ vector<set<node_t>> Graph::connected_components(bool cont) {
 
   GraphWorker::unpause_workers();
   update_locked = false;
+}
+
+vector<set<node_t>> Graph::connected_components(bool cont) {
+  if (!cont)
+    return connected_components();
+
+  Supernode** supernodes = backup_supernodes();
+
+  vector<set<node_t>> ret = connected_components();
+
+  restore_supernodes(supernodes);
+
   return ret;
 }
 
