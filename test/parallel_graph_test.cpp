@@ -52,7 +52,7 @@ TEST(ParallelGraphTestSuite, SingleTestCorrectnessOnSmallRandomGraphs) {
     g.set_cumul_in("./cumul_sample.txt");
     try {
       g.connected_components();
-    } catch (NoGoodBucketException& err) {
+    } catch (OutOfQueriesException& err) {
       fails++;
       if (fails > allow_fail) {
         printf("More than %i failures failing test\n", allow_fail);
@@ -82,7 +82,7 @@ TEST(ParallelGraphTestSuite, SingleTestCorrectnessOnSmallSparseGraphs) {
     g.set_cumul_in("./cumul_sample.txt");
     try {
       g.connected_components();
-    } catch (NoGoodBucketException& err) {
+    } catch (OutOfQueriesException& err) {
       fails++;
       if (fails > allow_fail) {
         printf("More than %i failures failing test\n", allow_fail);
@@ -131,7 +131,7 @@ TEST(ParallelGraphTestSuite, ParallelTestCorrectnessOnSmallRandomGraphs) {
     g.set_cumul_in("./cumul_sample.txt");
     try {
       g.parallel_connected_components();
-    } catch (NoGoodBucketException& err) {
+    } catch (OutOfQueriesException& err) {
       fails++;
       if (fails > allow_fail) {
         printf("More than %i failures failing test\n", allow_fail);
@@ -161,7 +161,7 @@ TEST(ParallelGraphTestSuite, ParallelTestCorrectnessOnSmallSparseGraphs) {
     g.set_cumul_in("./cumul_sample.txt");
     try {
       g.parallel_connected_components();
-    } catch (NoGoodBucketException& err) {
+    } catch (OutOfQueriesException& err) {
       fails++;
       if (fails > allow_fail) {
         printf("More than %i failures failing test\n", allow_fail);

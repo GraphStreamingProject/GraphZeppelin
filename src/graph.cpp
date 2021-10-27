@@ -145,25 +145,30 @@ vector<set<node_t>> Graph::connected_components() {
     vector<node_t> removed;
     for (node_t i: (*representatives)) {
       if (parent[i] != i) continue;
-      boost::optional<Edge> edge = supernodes[i]->sample();
+      std::pair<Edge, SampleSketchRet> query_ret = supernodes[i]->sample();
+      Edge edge = query_ret.first;
+      SampleSketchRet ret_code = query_ret.second;
+
 #ifdef VERIFY_SAMPLES_F
-      if (edge.is_initialized())
-        verifier.verify_edge(edge.value());
+      if (ret_code == GOOD)
+        verifier.verify_edge(edge);
       else
         verifier.verify_cc(i);
 #endif
-      if (!edge.is_initialized()) continue;
+      if (ret_code == ZERO) continue;
+      // one of our representatives could not be queried. So we need to try again.
+      if (ret_code == FAIL) modified = true;
 
       node_t n;
       // DSU compression
-      if (get_parent(edge->first) == i) {
-        n = get_parent(edge->second);
+      if (get_parent(edge.first) == i) {
+        n = get_parent(edge.second);
         removed.push_back(n);
         parent[n] = i;
       }
       else {
-        get_parent(edge->second);
-        n = get_parent(edge->first);
+        get_parent(edge.second);
+        n = get_parent(edge.first);
         removed.push_back(n);
         parent[n] = i;
       }
@@ -213,21 +218,31 @@ vector<set<node_t>> Graph::parallel_connected_components() {
     modified = false;
     bool except = false;
     std::exception_ptr err;
-    #pragma omp parallel for default(none) shared(query, reps, except, err)
+
+    #pragma omp parallel for default(none) shared(query, reps, except, err, modified)
     for (node_t i = 0; i < reps.size(); ++i) {
       // wrap in a try/catch because exiting through exception is undefined behavior in OMP
-      boost::optional<Edge> edge;
+      Edge edge;
+      SampleSketchRet ret_code = ZERO;
       try {
-        edge = supernodes[reps[i]]->sample();
+        std::pair<Edge, SampleSketchRet> query_ret = supernodes[reps[i]]->sample();
+        edge     = query_ret.first;
+        ret_code = query_ret.second;
+
       } catch (...) {
         except = true;
         err = std::current_exception();
       }
-      if (!edge.is_initialized()) {
+      if (ret_code == ZERO) {
         query[reps[i]] = {i,i};
         continue;
       }
-      query[reps[i]] = edge.get();
+      if (ret_code == FAIL) {
+        // one of our representatives could not be queried. So we need to try again.
+        modified = true;
+        continue;
+      }
+      query[reps[i]] = edge;
     }
 
     // Did one of our threads produce an exception?

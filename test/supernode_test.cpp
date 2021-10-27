@@ -49,10 +49,8 @@ bool* SupernodeTestSuite::prime;
 
 TEST_F(SupernodeTestSuite, GIVENnoEdgeUpdatesIFsampledTHENnoEdgeIsReturned) {
   Supernode* s = Supernode::makeSupernode(num_nodes, seed);
-  boost::optional<Edge> res;
-  for (int i=0;i<(int)log2(num_nodes);++i) {
-    EXPECT_FALSE(res.is_initialized()) << i << " was inited";
-  }
+  SampleSketchRet ret_code = s->sample().second;
+  ASSERT_EQ(ret_code, ZERO) << "Did not get ZERO when sampling empty vector";
 }
 
 TEST_F(SupernodeTestSuite, IFsampledTooManyTimesTHENthrowOutOfQueries) {
@@ -82,23 +80,24 @@ TEST_F(SupernodeTestSuite, TestSampleInsertGrinder) {
   boost::optional<Edge> sampled;
   for (unsigned i = 2; i < num_nodes; ++i) {
     for (int j = 0; j < (int) log2(num_nodes); ++j) {
-      try {
-        sampled = snodes[i]->sample();
-        if (i >= num_nodes/2 && prime[i]) {
-          ASSERT_FALSE(sampled.is_initialized())
-                            << "False positive in sample " << i;
-        } else {
-          ASSERT_TRUE(sampled.is_initialized())
-                            << "False negative in sample " << i;
-          ASSERT_TRUE(std::max(sampled->first, sampled->second) % std::min
-                (sampled->first, sampled->second) == 0
-                      && (i == sampled->first || i == sampled->second)) <<
-                      "Failed on {" << sampled->first << "," <<
-                      sampled->second << "} with i = " << i;
-        }
-      } catch (NoGoodBucketException &e) {
+      std::pair<Edge, SampleSketchRet> sample_ret = snodes[i]->sample();
+      sampled = sample_ret.first;
+      SampleSketchRet ret_code = sample_ret.second;
+
+      if (ret_code == FAIL) {
         if (second_chance) FAIL() << "2 samplings failed to find a good bucket";
         else second_chance = true;
+      }
+
+      if (i >= num_nodes/2 && prime[i]) {
+        ASSERT_EQ(ret_code, ZERO) << "False positive in sample " << i;
+      } else {
+        ASSERT_NE(ret_code, ZERO) << "False negative in sample " << i;
+        ASSERT_TRUE(std::max(sampled->first, sampled->second) % std::min
+              (sampled->first, sampled->second) == 0
+                    && (i == sampled->first || i == sampled->second)) <<
+                    "Failed on {" << sampled->first << "," <<
+                    sampled->second << "} with i = " << i;
       }
     }
   }
@@ -132,25 +131,26 @@ TEST_F(SupernodeTestSuite, TestSampleDeleteGrinder) {
   boost::optional<Edge> sampled;
   for (unsigned i = 2; i < num_nodes; ++i) {
     for (int j = 0; j < (int) log2(num_nodes); ++j) {
-      try {
-        sampled = snodes[i]->sample();
-        if (i >= num_nodes/2 && i % 2) {
-          ASSERT_FALSE(sampled.is_initialized())
-                            << "False positive in sample " << i;
-        } else {
-          ASSERT_TRUE(sampled.is_initialized())
-                            << "False negative in sample " << i;
-          ASSERT_TRUE(std::max(sampled->first, sampled->second) % std::min
-                (sampled->first, sampled->second) == 0
-                      && (std::max(sampled->first, sampled->second) / std::min
-                (sampled->first, sampled->second)) % 2 == 0
-                      && (i == sampled->first || i == sampled->second)) <<
-                      "Failed on {" << sampled->first << "," <<
-                      sampled->second << "} with i = " << i;
-        }
-      } catch (NoGoodBucketException &e) {
+      std::pair<Edge, SampleSketchRet> sample_ret = snodes[i]->sample();
+      sampled = sample_ret.first;
+      SampleSketchRet ret_code = sample_ret.second;
+
+      if (ret_code == FAIL) {
         if (second_chance) FAIL() << "2 samplings failed to find a good bucket";
         else second_chance = true;
+      }
+
+      if (i >= num_nodes/2 && i % 2) {
+        ASSERT_EQ(ret_code, ZERO) << "False positive in sample " << i;
+      } else {
+        ASSERT_NE(ret_code, ZERO) << "False negative in sample " << i;
+        ASSERT_TRUE(std::max(sampled->first, sampled->second) % std::min
+              (sampled->first, sampled->second) == 0
+                    && (std::max(sampled->first, sampled->second) / std::min
+              (sampled->first, sampled->second)) % 2 == 0
+                    && (i == sampled->first || i == sampled->second)) <<
+                    "Failed on {" << sampled->first << "," <<
+                    sampled->second << "} with i = " << i;
       }
     }
   }

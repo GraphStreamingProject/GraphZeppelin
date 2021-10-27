@@ -41,15 +41,13 @@ Supernode* Supernode::makeSupernode(void* loc, uint64_t n, long seed) {
 Supernode::~Supernode() {
 }
 
-boost::optional<Edge> Supernode::sample() {
+std::pair<Edge, SampleSketchRet> Supernode::sample() {
   if (idx == logn) throw OutOfQueriesException();
-  vec_t query_idx;
-  try {
-    query_idx = get_sketch(idx++)->query();
-  } catch (AllBucketsZeroException &e) {
-    return {};
-  }
-  return inv_nondir_non_self_edge_pairing_fn(query_idx);
+
+  std::pair<vec_t, SampleSketchRet> query_ret = get_sketch(idx++)->query();
+  vec_t idx = query_ret.first;
+  SampleSketchRet ret_code = query_ret.second;
+  return {inv_nondir_non_self_edge_pairing_fn(idx), ret_code};
 }
 
 void Supernode::merge(Supernode &other) {

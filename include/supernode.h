@@ -51,6 +51,16 @@ private:
    */
   Supernode(uint64_t n, long seed, std::fstream &binary_in);
 
+  // get the ith sketch in the sketch array
+  inline Sketch* get_sketch(size_t i) {
+    return reinterpret_cast<Sketch*>(sketch_buffer + i * sketch_size);
+  }
+
+  // get the ith sketch in the sketch array
+  inline const Sketch* get_sketch(size_t i) const {
+    return reinterpret_cast<const Sketch*>(sketch_buffer + i * sketch_size);
+  }
+
 public:
   static Supernode* makeSupernode(uint64_t n, long seed);
   static Supernode* makeSupernode(uint64_t n, long seed, std::fstream &binary_in);
@@ -66,16 +76,6 @@ public:
 
   ~Supernode();
 
-  // get the ith sketch in the sketch array
-  inline Sketch* get_sketch(size_t i) {
-    return reinterpret_cast<Sketch*>(sketch_buffer + i * sketch_size);
-  }
-
-  // get the ith sketch in the sketch array
-  inline const Sketch* get_sketch(size_t i) const {
-    return reinterpret_cast<const Sketch*>(sketch_buffer + i * sketch_size);
-  }
-
   static inline void configure(uint64_t n, double num_bucket_factor=0.5) {
     Sketch::configure(n*n, num_bucket_factor);
     bytes_size = sizeof(Supernode) + log2(n) * Sketch::sketchSizeof() - sizeof(char);
@@ -87,15 +87,11 @@ public:
 
   /**
    * Function to sample an edge from the cut of a supernode.
-   * @return                        an edge in the cut, represented as an Edge
-   *                                with LHS <= RHS, otherwise None.
-   * @throws OutOfQueriesException  if the sketch collection has been sampled
-   *                                too many times.
-   * @throws NoGoodBucketException  if no "good" bucket can be found,
-   *                                according to the specification of L0
-   *                                sampling.
+   * @return   an edge in the cut, represented as an Edge with LHS <= RHS, 
+   *           if one exists. Additionally, returns a code representing the
+   *           sample result (good, zero, or fail)
    */
-  boost::optional<Edge> sample();
+  std::pair<Edge, SampleSketchRet> sample();
 
   /**
    * In-place merge function. Guaranteed to update the caller Supernode.

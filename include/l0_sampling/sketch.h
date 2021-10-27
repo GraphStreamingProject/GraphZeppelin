@@ -6,13 +6,21 @@
 #include <vector>
 #include <memory>
 #include <mutex>
+#include <utility>
 #include "../bucket.h"
 #include "../types.h"
 #include "../util.h"
 #include <gtest/gtest_prod.h>
 
+// #define bucket_gen(d) double_to_ull((log2(d)+1))
 #define bucket_gen(x, c) double_to_ull((c)*(log2(x)+1))
 #define guess_gen(x) double_to_ull(log2(x)+1)
+
+enum SampleSketchRet {
+  GOOD,  // querying this sketch returned a single non-zero value
+  ZERO,  // querying this sketch returned that there are no non-zero values
+  FAIL   // querying this sketch failed to produce a single non-zero value
+};
 
 /**
  * An implementation of a "sketch" as defined in the L0 algorithm.
@@ -21,7 +29,7 @@
  */
 class Sketch {
 private:
-  static double num_bucket_factor; // Factor for how many buckets there are in this sketch.
+  static double failure_factor;    // Factor for how many buckets there are in this sketch.
   static vec_t n;                  // Length of the vector this is sketching.
   static size_t num_elems;         // length of our actual arrays in number of elements
   static size_t num_buckets;       // Portion of array length, number of buckets
@@ -41,7 +49,7 @@ private:
 
   
   // Buckets of this sketch.
-  // Length is bucket_gen(n, num_bucket_factor) * guess_gen(n).
+  // Length is bucket_gen(failure_factor) * guess_gen(n).
   // For buckets[i * guess_gen(n) + j], the bucket has a 1/2^j probability
   // of containing an index. The first two are pointers into the buckets array.
   char buckets[1];
@@ -50,7 +58,7 @@ private:
    * Construct a sketch of a vector of size n
    * @param n Length of the vector to sketch. (static variable)
    * @param seed Seed to use for hashing operations
-   * @param num_bucket_factor Factor to scale the number of buckets in this sketch (static variable)
+   * @param failure_factor The rate at which an individual sketch is allowed to fail (determines column width)
    */
   Sketch(long seed);
   Sketch(long seed, std::fstream &binary_in);
@@ -58,13 +66,13 @@ private:
 public:
   static Sketch* makeSketch(void* loc, long seed);
   static Sketch* makeSketch(void* loc, long seed, std::fstream &binary_in);
-  static Sketch* makeSketch(void* loc, long seed, double num_bucket_factor, std::fstream &binary_in);
+  static Sketch* makeSketch(void* loc, long seed, double failure_factor, std::fstream &binary_in);
   
   // configure the static variables of sketches
   inline static void configure(size_t _n, double _factor) {
     n = _n;
-    num_bucket_factor = _factor;
-    num_buckets = bucket_gen(n, num_bucket_factor);
+    failure_factor = _factor;
+    num_buckets = bucket_gen(n, failure_factor);
     num_guesses = guess_gen(n);
     num_elems = num_buckets * num_guesses + 1;
   }
@@ -73,7 +81,7 @@ public:
   { return sizeof(Sketch) + num_elems * (sizeof(vec_t) + sizeof(vec_hash_t)) - sizeof(char); }
   
   inline static double get_bucket_factor() 
-  { return num_bucket_factor; }
+  { return failure_factor; }
   /**
    * Update a sketch based on information about one of its indices.
    * @param update the point update.
@@ -88,12 +96,9 @@ public:
 
   /**
    * Function to query a sketch.
-   * @return                        an index.
-   * @throws MultipleQueryException if the sketch has already been queried.
-   * @throws NoGoodBucketException  if there are no good buckets to choose an
-   *                                index from.
+   * @return   A pair with the result index and a code indicating if the type of result.
    */
-  vec_t query();
+  std::pair<vec_t, SampleSketchRet> query();
 
   /**
    * Operator to add a sketch to another one in-place. Guaranteed to be
@@ -114,23 +119,9 @@ public:
   void write_binary(std::fstream& binary_out);
 };
 
-class AllBucketsZeroException : public std::exception {
-public:
-  virtual const char* what() const throw() {
-    return "All buckets zero";
-  }
-};
-
 class MultipleQueryException : public std::exception {
 public:
   virtual const char* what() const throw() {
     return "This sketch has already been sampled!";
-  }
-};
-
-class NoGoodBucketException : public std::exception {
-public:
-  virtual const char* what() const throw() {
-    return "Found no good bucket!";
   }
 };

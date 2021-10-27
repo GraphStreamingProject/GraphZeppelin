@@ -2,7 +2,7 @@
 #include <cassert>
 #include <iostream>
 
-double Sketch::num_bucket_factor = 0.5;
+double Sketch::failure_factor = 0.5;
 vec_t Sketch::n;
 size_t Sketch::num_elems;
 size_t Sketch::num_buckets;
@@ -61,35 +61,27 @@ void Sketch::batch_update(const std::vector<vec_t>& updates) {
   }
 }
 
-vec_t Sketch::query() {
+std::pair<vec_t, SampleSketchRet> Sketch::query() {
   if (already_quered) {
     throw MultipleQueryException();
   }
   already_quered = true;
-  bool all_buckets_zero = true;
 
-  if (bucket_a[num_elems - 1] != 0 || bucket_c[num_elems - 1] != 0) {
-    all_buckets_zero = false;
+  if (bucket_a[num_elems - 1] == 0 && bucket_c[num_elems - 1] == 0) {
+    return {0, ZERO}; // the "first" bucket is deterministic so if it is all zero then there are no edges to return
   }
   if (Bucket_Boruvka::is_good(bucket_a[num_elems - 1], bucket_c[num_elems - 1], seed)) {
-    return bucket_a[num_elems - 1];
+    return {bucket_a[num_elems - 1], GOOD};
   }
   for (unsigned i = 0; i < num_buckets; ++i) {
     for (unsigned j = 0; j < num_guesses; ++j) {
       unsigned bucket_id = i * num_guesses + j;
-      if (all_buckets_zero && (bucket_a[bucket_id] != 0 || bucket_c[bucket_id] != 0)) {
-        all_buckets_zero = false;
-      }
       if (Bucket_Boruvka::is_good(bucket_a[bucket_id], bucket_c[bucket_id], i, 2 << j, seed)) {
-        return bucket_a[bucket_id];
+        return {bucket_a[bucket_id], GOOD};
       }
     }
   }
-  if (all_buckets_zero) {
-    throw AllBucketsZeroException();
-  } else {
-    throw NoGoodBucketException();
-  }
+  return {0, FAIL};
 }
 
 Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2) {
