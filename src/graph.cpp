@@ -28,7 +28,7 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
   std::string buffer_loc_prefix = configure_system(); // read the configuration file to configure the system
 #ifdef USE_FBT_F
   // Create buffer tree and start the graphWorkers
-  bf = new BufferTree(buffer_loc_prefix, (1<<20), 16, num_nodes, GraphWorker::get_num_groups(), true);
+  bf = new BufferTree(buffer_loc_prefix, num_nodes, GraphWorker::get_num_groups(), true);
   GraphWorker::start_workers(this, bf, Supernode::get_size());
 #else
   unsigned long node_size = 24*pow((log2(num_nodes)), 3);
@@ -61,7 +61,7 @@ Graph::Graph(const std::string& input_file) : num_updates(0) {
   std::string buffer_loc_prefix = configure_system(); // read the configuration file to configure the system
 #ifdef USE_FBT_F
   // Create buffer tree and start the graphWorkers
-  bf = new BufferTree(buffer_loc_prefix, (1<<20), 16, num_nodes, GraphWorker::get_num_groups(), true);
+  bf = new BufferTree(buffer_loc_prefix, num_nodes, GraphWorker::get_num_groups(), true);
   GraphWorker::start_workers(this, bf, Supernode::get_size());
 #else
   unsigned long node_size = 24*pow((log2(num_nodes)), 3);
