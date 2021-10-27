@@ -189,6 +189,7 @@ Supernode** Graph::backup_supernodes() {
 #else
   wq->force_flush();
 #endif
+  GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
 
   // Copy supernodes
   Supernode** supernodes = new Supernode*[num_nodes];
