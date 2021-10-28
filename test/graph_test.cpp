@@ -3,6 +3,7 @@
 #include "../include/graph.h"
 #include "util/graph_verifier.h"
 #include "util/graph_gen.h"
+#include "util/write_configuration.h"
 
 /**
  * For many of these tests (especially for those upon very sparse and small graphs)
@@ -14,7 +15,15 @@
  * With 2 failures allowed per test our entire testing suite should fail 1/5000 runs.
  */
 
-TEST(GraphTestSuite, SmallGraphConnectivity) {
+// We create this class and instantiate a paramaterized test suite so that we
+// can run these tests both with the GutterTree and with StandAloneGutters
+class GraphTest : public testing::TestWithParam<bool> {
+
+};
+INSTANTIATE_TEST_SUITE_P(GraphTestSuite, GraphTest, testing::Values(true, false));
+
+TEST_P(GraphTest, SmallGraphConnectivity) {
+  write_configuration(GetParam());
   const std::string fname = __FILE__;
   size_t pos = fname.find_last_of("\\/");
   const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
@@ -33,7 +42,8 @@ TEST(GraphTestSuite, SmallGraphConnectivity) {
   ASSERT_EQ(78, g.connected_components().size());
 }
 
-TEST(GraphTestSuite, IFconnectedComponentsAlgRunTHENupdateLocked) {
+TEST_P(GraphTest, IFconnectedComponentsAlgRunTHENupdateLocked) {
+  write_configuration(GetParam());
   const std::string fname = __FILE__;
   size_t pos = fname.find_last_of("\\/");
   const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
@@ -54,12 +64,8 @@ TEST(GraphTestSuite, IFconnectedComponentsAlgRunTHENupdateLocked) {
   ASSERT_THROW(g.update({{1,2}, DELETE}), UpdateLockedException);
 }
 
-TEST(GraphTestSuite, TestRandomGraphGeneration) {
-  generate_stream();
-  GraphVerifier graphVerifier {};
-}
-
-TEST(GraphTestSuite, TestCorrectnessOnSmallRandomGraphs) {
+TEST_P(GraphTest, TestCorrectnessOnSmallRandomGraphs) {
+  write_configuration(GetParam());
   int num_trials = 10;
   int allow_fail = 2; // allow 2 failures
   int fails = 0;
@@ -89,7 +95,8 @@ TEST(GraphTestSuite, TestCorrectnessOnSmallRandomGraphs) {
   }
 }
 
-TEST(GraphTestSuite, TestCorrectnessOnSmallSparseGraphs) {
+TEST_P(GraphTest, TestCorrectnessOnSmallSparseGraphs) {
+  write_configuration(GetParam());
   int num_trials = 10;
   int allow_fail = 2; // allow 2 failures
   int fails = 0;
@@ -119,7 +126,8 @@ TEST(GraphTestSuite, TestCorrectnessOnSmallSparseGraphs) {
   }
 }
 
-TEST(GraphTestSuite, TestCorrectnessOfReheating) {
+TEST_P(GraphTest, TestCorrectnessOfReheating) {
+  write_configuration(GetParam());
   int num_trials = 10;
   int allow_fail = 2; // allow 2 failures
   int fails = 0;

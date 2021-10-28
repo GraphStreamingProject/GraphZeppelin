@@ -172,10 +172,6 @@ link_directories(${CMAKE_CURRENT_BINARY_DIR}/GutterTree/prefix/lib)
 # VERIFY_SAMPLES_F   Use a deterministic connected-components algorithm to
 #                    verify post-processing.
 #
-# USE_FBT_F          Use a Fast Buffer Tree living on secondary storage
-#                    (github.com/Victor-C-Zhang/FastBufferTree) to buffer updates
-#                    instead of in-memory buffering.
-#
 # PARALLEL_PP_F      Use parallel post-processing (connected components)
 #                    function.
 
@@ -197,7 +193,7 @@ add_executable(tests
   src/l0_sampling/update.cpp
   src/util.cpp)
 target_link_libraries(tests PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F USE_FBT_F)
+target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F)
 # dependencies
 add_dependencies(tests GutterTree)
 target_link_libraries(tests PRIVATE libGutterTree.a)
@@ -215,41 +211,6 @@ else ()
   endif()
 endif ()
 
-add_executable(mem_tests
-  test/test_runner.cpp
-  test/graph_test.cpp
-  test/sketch_test.cpp
-  test/supernode_test.cpp
-  test/util_test.cpp
-  test/util/graph_verifier.cpp
-  test/util/graph_gen.cpp
-  test/util/graph_gen_test.cpp
-  test/util/graph_verifier_test.cpp
-  src/graph.cpp
-  src/supernode.cpp
-  src/graph_worker.cpp
-  src/l0_sampling/sketch.cpp
-  src/l0_sampling/update.cpp
-  src/util.cpp)
-target_link_libraries(mem_tests PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(mem_tests PRIVATE VERIFY_SAMPLES_F)
-# dependencies
-add_dependencies(mem_tests GutterTree)
-target_link_libraries(mem_tests PRIVATE libGutterTree.a)
-# optimize unless debug
-if (DEFINED ENV{DEBUG})
-  message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(mem_tests PRIVATE -g -fopenmp)
-  target_link_options(mem_tests PRIVATE -fopenmp)
-else ()
-  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(mem_tests PRIVATE -O3 -fopenmp)
-    target_link_options(mem_tests PRIVATE -fopenmp)
-  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    target_compile_options(mem_tests PRIVATE /O2)
-  endif()
-endif ()
-
 add_executable(statistical_test
   test/statistical_testing/graph_testing.cpp
   test/util/graph_verifier.cpp
@@ -261,7 +222,7 @@ add_executable(statistical_test
   src/l0_sampling/update.cpp
   src/util.cpp)
 target_link_libraries(statistical_test PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(statistical_test PRIVATE VERIFY_SAMPLES_F USE_FBT_F)
+target_compile_definitions(statistical_test PRIVATE VERIFY_SAMPLES_F)
 # dependencies
 add_dependencies(statistical_test GutterTree)
 target_link_libraries(statistical_test PRIVATE libGutterTree.a)
@@ -276,35 +237,6 @@ else ()
     target_link_options(statistical_test PRIVATE -fopenmp)
   elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
     target_compile_options(statistical_test PRIVATE /O2)
-  endif()
-endif ()
-
-add_executable(mem_statistical_test
-  test/statistical_testing/graph_testing.cpp
-  test/util/graph_verifier.cpp
-  test/util/graph_gen.cpp
-  src/graph.cpp
-  src/supernode.cpp
-  src/graph_worker.cpp
-  src/l0_sampling/sketch.cpp
-  src/l0_sampling/update.cpp
-  src/util.cpp)
-target_link_libraries(mem_statistical_test PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(mem_statistical_test PRIVATE VERIFY_SAMPLES_F)
-# dependencies
-add_dependencies(mem_statistical_test GutterTree)
-target_link_libraries(mem_statistical_test PRIVATE libGutterTree.a)
-# optimize unless debug
-if (DEFINED ENV{DEBUG})
-  message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(mem_statistical_test PRIVATE -g -fopenmp)
-  target_link_options(mem_statistical_test PRIVATE -fopenmp)
-else ()
-  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(mem_statistical_test PRIVATE -O3 -fopenmp)
-    target_link_options(mem_statistical_test PRIVATE -fopenmp)
-  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    target_compile_options(mem_statistical_test PRIVATE /O2)
   endif()
 endif ()
 
@@ -332,7 +264,6 @@ add_executable(experiment
   src/l0_sampling/update.cpp
   src/util.cpp)
 target_link_libraries(experiment PRIVATE xxHash::xxhash GTest::gtest)
-# target_compile_definitions(experiment PRIVATE USE_FBT_F)
 # dependencies
 add_dependencies(experiment GutterTree)
 target_link_libraries(experiment PRIVATE libGutterTree.a)
@@ -362,7 +293,7 @@ add_executable(parallelPP
   src/l0_sampling/update.cpp
   src/util.cpp)
 target_link_libraries(parallelPP PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(parallelPP PRIVATE USE_FBT_F PARALLEL_PP_F VERIFY_SAMPLES_F)
+target_compile_definitions(parallelPP PRIVATE PARALLEL_PP_F VERIFY_SAMPLES_F)
 # dependencies
 add_dependencies(parallelPP GutterTree)
 target_link_libraries(parallelPP PRIVATE libGutterTree.a)
@@ -377,35 +308,5 @@ else ()
     target_link_options(parallelPP PRIVATE -fopenmp)
   elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
     target_compile_options(parallelPP PRIVATE /O2)
-  endif()
-endif ()
-
-add_executable(memParallelPP
-  test/test_runner.cpp
-  test/util/graph_gen.cpp
-  test/util/graph_verifier.cpp
-  test/parallel_graph_test.cpp
-  src/graph.cpp
-  src/supernode.cpp
-  src/graph_worker.cpp
-  src/l0_sampling/sketch.cpp
-  src/l0_sampling/update.cpp
-  src/util.cpp)
-target_link_libraries(memParallelPP PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(memParallelPP PRIVATE PARALLEL_PP_F VERIFY_SAMPLES_F)
-# dependencies
-add_dependencies(memParallelPP GutterTree)
-target_link_libraries(memParallelPP PRIVATE libGutterTree.a)
-# optimize unless debug
-if (DEFINED ENV{DEBUG})
-  message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(memParallelPP PRIVATE -g -fopenmp)
-  target_link_options(memParallelPP PRIVATE -fopenmp)
-else ()
-  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(memParallelPP PRIVATE -O3 -fopenmp)
-    target_link_options(memParallelPP PRIVATE -fopenmp)
-  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    target_compile_options(memParallelPP PRIVATE /O2)
   endif()
 endif ()

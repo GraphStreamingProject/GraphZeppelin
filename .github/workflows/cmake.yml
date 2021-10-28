@@ -87,27 +87,17 @@ jobs:
         # Execute the build.  You can specify a specific target with "--target <NAME>"
         run: cmake --build . --config $BUILD_TYPE
 
-      - name: In-memory Testing
-        working-directory: ${{runner.workspace}}/build
-        shell: bash
-        run: ./mem_tests
-
-      - name: Buffer Tree Testing
+      - name: Unit Testing
         working-directory: ${{runner.workspace}}/build
         shell: bash
         run: |
-          mkdir BUFFTREEDATA
-          ./tests
+          mkdir GUTTREEDATA
+          ./mem_tests
 
-      - name: In-memory Parallel Post-Proc Testing
-        working-directory: ${{runner.workspace}}/build
-        shell: bash
-        run: ./parallelPP
-
-      - name: Buffer Tree Parallel Post-Proc Testing
+      - name: Parallel Post-Proc Unit Testing
         working-directory: ${{runner.workspace}}/build
         shell: bash
         run: |
-          rm -r BUFFTREEDATA
-          mkdir BUFFTREEDATA
+          rm -r GUTTREEDATA
+          mkdir GUTTREEDATA
           ./parallelPP

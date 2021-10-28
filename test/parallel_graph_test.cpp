@@ -2,6 +2,7 @@
 #include <fstream>
 #include "../include/graph.h"
 #include "util/graph_gen.h"
+#include "util/write_configuration.h"
 
 /**
  * For many of these tests (especially for those upon very sparse and small graphs)
@@ -13,7 +14,15 @@
  * With 2 failures allowed per test our entire testing suite should fail 1/5000 runs.
  */
 
-TEST(ParallelGraphTestSuite, SingleSmallGraphConnectivity) {
+// We create this class and instantiate a paramaterized test suite so that we
+// can run these tests both with the GutterTree and with StandAloneGutters
+class ParallelGraphTest : public testing::TestWithParam<bool> {
+
+};
+INSTANTIATE_TEST_SUITE_P(ParallelGraphTestSuite, ParallelGraphTest, testing::Values(true, false));
+
+TEST_P(ParallelGraphTest, SingleSmallGraphConnectivity) {
+  write_configuration(GetParam());
   const std::string fname = __FILE__;
   size_t pos = fname.find_last_of("\\/");
   const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
@@ -32,7 +41,8 @@ TEST(ParallelGraphTestSuite, SingleSmallGraphConnectivity) {
   ASSERT_EQ(78, g.connected_components().size());
 }
 
-TEST(ParallelGraphTestSuite, SingleTestCorrectnessOnSmallRandomGraphs) {
+TEST_P(ParallelGraphTest, SingleTestCorrectnessOnSmallRandomGraphs) {
+  write_configuration(GetParam());
   int num_trials = 10;
   int allow_fail = 2; // allow 2 failures
   int fails = 0;
@@ -62,7 +72,8 @@ TEST(ParallelGraphTestSuite, SingleTestCorrectnessOnSmallRandomGraphs) {
   }
 }
 
-TEST(ParallelGraphTestSuite, SingleTestCorrectnessOnSmallSparseGraphs) {
+TEST_P(ParallelGraphTest, SingleTestCorrectnessOnSmallSparseGraphs) {
+  write_configuration(GetParam());
   int num_trials = 10;
   int allow_fail = 2; // allow 2 failures
   int fails = 0;
@@ -92,7 +103,8 @@ TEST(ParallelGraphTestSuite, SingleTestCorrectnessOnSmallSparseGraphs) {
   }
 }
 
-TEST(ParallelGraphTestSuite, ParallelSmallGraphConnectivity) {
+TEST_P(ParallelGraphTest, ParallelSmallGraphConnectivity) {
+  write_configuration(GetParam());
   const std::string fname = __FILE__;
   size_t pos = fname.find_last_of("\\/");
   const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
@@ -111,7 +123,8 @@ TEST(ParallelGraphTestSuite, ParallelSmallGraphConnectivity) {
   ASSERT_EQ(78, g.parallel_connected_components().size());
 }
 
-TEST(ParallelGraphTestSuite, ParallelTestCorrectnessOnSmallRandomGraphs) {
+TEST_P(ParallelGraphTest, ParallelTestCorrectnessOnSmallRandomGraphs) {
+  write_configuration(GetParam());
   int num_trials = 10;
   int allow_fail = 2; // allow 2 failures
   int fails = 0;
@@ -141,7 +154,8 @@ TEST(ParallelGraphTestSuite, ParallelTestCorrectnessOnSmallRandomGraphs) {
   }
 }
 
-TEST(ParallelGraphTestSuite, ParallelTestCorrectnessOnSmallSparseGraphs) {
+TEST_P(ParallelGraphTest, ParallelTestCorrectnessOnSmallSparseGraphs) {
+  write_configuration(GetParam());
   int num_trials = 10;
   int allow_fail = 2; // allow 2 failures
   int fails = 0;

@@ -26,14 +26,15 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
     parent[i] = i;
   }
   num_updates = 0; // REMOVE this later
-  std::string buffer_loc_prefix = configure_system(); // read the configuration file to configure the system
   
+  std::pair<bool, std::string> conf = configure_system(); // read the configuration file to configure the system
+  std::string buffer_loc_prefix = conf.second;
   // Create the buffering system and start the graphWorkers
-#ifdef USE_FBT_F
-  bf = new GutterTree(buffer_loc_prefix, num_nodes, GraphWorker::get_num_groups(), true);
-#else
-  bf = new StandAloneGutters(num_nodes, GraphWorker::get_num_groups());
-#endif
+  if (conf.first)
+    bf = new GutterTree(buffer_loc_prefix, num_nodes, GraphWorker::get_num_groups(), true);
+  else
+    bf = new StandAloneGutters(num_nodes, GraphWorker::get_num_groups());
+
   GraphWorker::start_workers(this, bf, Supernode::get_size());
 }
 
@@ -57,14 +58,15 @@ Graph::Graph(const std::string& input_file) : num_updates(0) {
     parent[i] = i;
   }
   binary_in.close();
-  std::string buffer_loc_prefix = configure_system(); // read the configuration file to configure the system
 
+  std::pair<bool, std::string> conf = configure_system(); // read the configuration file to configure the system
+  std::string buffer_loc_prefix = conf.second;
   // Create the buffering system and start the graphWorkers
-#ifdef USE_FBT_F
-  bf = new GutterTree(buffer_loc_prefix, num_nodes, GraphWorker::get_num_groups(), true);
-#else
-  bf = new StandAloneGutters(num_nodes, GraphWorker::get_num_groups());
-#endif
+  if (conf.first)
+    bf = new GutterTree(buffer_loc_prefix, num_nodes, GraphWorker::get_num_groups(), true);
+  else
+    bf = new StandAloneGutters(num_nodes, GraphWorker::get_num_groups());
+
   GraphWorker::start_workers(this, bf, Supernode::get_size());
 }
 
@@ -272,7 +274,7 @@ node_t Graph::get_parent(node_t node) {
 }
 
 void Graph::write_binary(const std::string& filename) {
-  bf->force_flush(); // flush everything in buffertree to make final updates
+  bf->force_flush(); // flush everything in buffering system to make final updates
   GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
   // after this point all updates have been processed from the buffer tree
 

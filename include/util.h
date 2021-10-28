@@ -37,4 +37,4 @@ uint64_t cantor_pairing_fn(uint64_t i, uint64_t j);
  * Should be called before creating the buffer tree or starting graph workers.
  * @return the prefix of the path in which the buffer tree should be stored.
  */
-std::string configure_system();
+std::pair<bool, std::string> configure_system();
