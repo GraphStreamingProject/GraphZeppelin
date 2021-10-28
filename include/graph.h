@@ -3,12 +3,10 @@
 #include <exception>
 #include <set>
 #include <fstream>
-#include "supernode.h"
 #include <atomic>  // REMOVE LATER
 
-#ifndef USE_FBT_F
-#include "work_queue.h"
-#endif
+#include <buffering_system.h>
+#include "supernode.h"
 
 #ifdef VERIFY_SAMPLES_F
 #include "../test/util/graph_verifier.h"
@@ -17,7 +15,6 @@
 using namespace std;
 
 // forward declarations
-class BufferTree;
 class GraphWorker;
 
 typedef pair<Edge, UpdateType> GraphUpdate;
@@ -37,13 +34,8 @@ class Graph {
   node_t* parent;
   node_t get_parent(node_t node);
 
-#ifdef USE_FBT_F
-  // BufferTree for buffering inputs
-  BufferTree *bf;
-#else
-  // In-memory buffering system
-  WorkQueue *wq;
-#endif
+  // Buffering system for batching updates
+  BufferingSystem *bf;
 
   FRIEND_TEST(GraphTestSuite, TestCorrectnessOfReheating);
 public:

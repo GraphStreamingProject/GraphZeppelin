@@ -146,16 +146,16 @@ if(NOT Boost_FOUND)
 endif()
 include_directories("${Boost_INCLUDE_DIR}")
 
-# Install BufferTree Project
+# Install GutterTree Project
 ExternalProject_Add(
-  BufferTree
+  GutterTree
 
-  PREFIX          BufferTree
+  PREFIX          GutterTree
   GIT_REPOSITORY  "https://github.com/Victor-C-Zhang/FastBufferTree.git"
-  GIT_TAG         "main"
+  GIT_TAG         "naming+standalone"
 
   BUILD_ALWAYS    OFF
-  INSTALL_DIR     ${CMAKE_CURRENT_BINARY_DIR}/BufferTree/prefix
+  INSTALL_DIR     ${CMAKE_CURRENT_BINARY_DIR}/GutterTree/prefix
 
   CMAKE_CACHE_ARGS
         -DAUTODOWNLOAD:BOOL=ON
@@ -164,8 +164,8 @@ ExternalProject_Add(
   BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target install
 )
 
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/BufferTree/prefix/include)
-link_directories(${CMAKE_CURRENT_BINARY_DIR}/BufferTree/prefix/lib)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/GutterTree/prefix/include)
+link_directories(${CMAKE_CURRENT_BINARY_DIR}/GutterTree/prefix/lib)
 
 
 # AVAILABLE COMPILATION DEFINITIONS:
@@ -199,8 +199,8 @@ add_executable(tests
 target_link_libraries(tests PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F USE_FBT_F)
 # dependencies
-add_dependencies(tests BufferTree)
-target_link_libraries(tests PRIVATE libFastBufferTree.a)
+add_dependencies(tests GutterTree)
+target_link_libraries(tests PRIVATE libGutterTree.a)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")
@@ -228,15 +228,14 @@ add_executable(mem_tests
   src/graph.cpp
   src/supernode.cpp
   src/graph_worker.cpp
-  src/work_queue.cpp
   src/l0_sampling/sketch.cpp
   src/l0_sampling/update.cpp
   src/util.cpp)
 target_link_libraries(mem_tests PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(mem_tests PRIVATE VERIFY_SAMPLES_F)
 # dependencies
-add_dependencies(mem_tests BufferTree)
-target_link_libraries(mem_tests PRIVATE libFastBufferTree.a)
+add_dependencies(mem_tests GutterTree)
+target_link_libraries(mem_tests PRIVATE libGutterTree.a)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")
@@ -258,15 +257,14 @@ add_executable(statistical_test
   src/graph.cpp
   src/supernode.cpp
   src/graph_worker.cpp
-  src/work_queue.cpp
   src/l0_sampling/sketch.cpp
   src/l0_sampling/update.cpp
   src/util.cpp)
 target_link_libraries(statistical_test PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(statistical_test PRIVATE VERIFY_SAMPLES_F USE_FBT_F)
 # dependencies
-add_dependencies(statistical_test BufferTree)
-target_link_libraries(statistical_test PRIVATE libFastBufferTree.a)
+add_dependencies(statistical_test GutterTree)
+target_link_libraries(statistical_test PRIVATE libGutterTree.a)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")
@@ -288,15 +286,14 @@ add_executable(mem_statistical_test
   src/graph.cpp
   src/supernode.cpp
   src/graph_worker.cpp
-  src/work_queue.cpp
   src/l0_sampling/sketch.cpp
   src/l0_sampling/update.cpp
   src/util.cpp)
 target_link_libraries(mem_statistical_test PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(mem_statistical_test PRIVATE VERIFY_SAMPLES_F)
 # dependencies
-add_dependencies(mem_statistical_test BufferTree)
-target_link_libraries(mem_statistical_test PRIVATE libFastBufferTree.a)
+add_dependencies(mem_statistical_test GutterTree)
+target_link_libraries(mem_statistical_test PRIVATE libGutterTree.a)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")
@@ -330,7 +327,6 @@ add_executable(experiment
   test/util/graph_gen.cpp
   src/graph.cpp
   src/supernode.cpp
-  src/work_queue.cpp
   src/graph_worker.cpp
   src/l0_sampling/sketch.cpp
   src/l0_sampling/update.cpp
@@ -338,8 +334,8 @@ add_executable(experiment
 target_link_libraries(experiment PRIVATE xxHash::xxhash GTest::gtest)
 # target_compile_definitions(experiment PRIVATE USE_FBT_F)
 # dependencies
-add_dependencies(experiment BufferTree)
-target_link_libraries(experiment PRIVATE libFastBufferTree.a)
+add_dependencies(experiment GutterTree)
+target_link_libraries(experiment PRIVATE libGutterTree.a)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")
@@ -368,8 +364,8 @@ add_executable(parallelPP
 target_link_libraries(parallelPP PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(parallelPP PRIVATE USE_FBT_F PARALLEL_PP_F VERIFY_SAMPLES_F)
 # dependencies
-add_dependencies(parallelPP BufferTree)
-target_link_libraries(parallelPP PRIVATE libFastBufferTree.a)
+add_dependencies(parallelPP GutterTree)
+target_link_libraries(parallelPP PRIVATE libGutterTree.a)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")
@@ -392,15 +388,14 @@ add_executable(memParallelPP
   src/graph.cpp
   src/supernode.cpp
   src/graph_worker.cpp
-  src/work_queue.cpp
   src/l0_sampling/sketch.cpp
   src/l0_sampling/update.cpp
   src/util.cpp)
 target_link_libraries(memParallelPP PRIVATE xxHash::xxhash GTest::gtest)
 target_compile_definitions(memParallelPP PRIVATE PARALLEL_PP_F VERIFY_SAMPLES_F)
 # dependencies
-add_dependencies(memParallelPP BufferTree)
-target_link_libraries(memParallelPP PRIVATE libFastBufferTree.a)
+add_dependencies(memParallelPP GutterTree)
+target_link_libraries(memParallelPP PRIVATE libGutterTree.a)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")

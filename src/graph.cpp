@@ -1,9 +1,10 @@
 #include <map>
 #include <iostream>
-#include <buffer_tree.h>
 #include <chrono>
 #include <random>
 
+#include <gutter_tree.h>
+#include <standalone_gutters.h>
 #include "../include/graph.h"
 #include "../include/graph_worker.h"
 
@@ -26,16 +27,14 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
   }
   num_updates = 0; // REMOVE this later
   std::string buffer_loc_prefix = configure_system(); // read the configuration file to configure the system
+  
+  // Create the buffering system and start the graphWorkers
 #ifdef USE_FBT_F
-  // Create buffer tree and start the graphWorkers
-  bf = new BufferTree(buffer_loc_prefix, num_nodes, GraphWorker::get_num_groups(), true);
-  GraphWorker::start_workers(this, bf, Supernode::get_size());
+  bf = new GutterTree(buffer_loc_prefix, num_nodes, GraphWorker::get_num_groups(), true);
 #else
-  unsigned long node_size = 24*pow((log2(num_nodes)), 3);
-  node_size /= sizeof(node_id_t);
-  wq = new WorkQueue(node_size, num_nodes, 2*GraphWorker::get_num_groups());
-  GraphWorker::start_workers(this, wq, Supernode::get_size());
+  bf = new StandAloneGutters(num_nodes, GraphWorker::get_num_groups());
 #endif
+  GraphWorker::start_workers(this, bf, Supernode::get_size());
 }
 
 Graph::Graph(const std::string& input_file) : num_updates(0) {
@@ -59,16 +58,14 @@ Graph::Graph(const std::string& input_file) : num_updates(0) {
   }
   binary_in.close();
   std::string buffer_loc_prefix = configure_system(); // read the configuration file to configure the system
+
+  // Create the buffering system and start the graphWorkers
 #ifdef USE_FBT_F
-  // Create buffer tree and start the graphWorkers
-  bf = new BufferTree(buffer_loc_prefix, num_nodes, GraphWorker::get_num_groups(), true);
-  GraphWorker::start_workers(this, bf, Supernode::get_size());
+  bf = new GutterTree(buffer_loc_prefix, num_nodes, GraphWorker::get_num_groups(), true);
 #else
-  unsigned long node_size = 24*pow((log2(num_nodes)), 3);
-  node_size /= sizeof(node_id_t);
-  wq = new WorkQueue(node_size, num_nodes, 2*GraphWorker::get_num_groups());
-  GraphWorker::start_workers(this, wq, Supernode::get_size());
+  bf = new StandAloneGutters(num_nodes, GraphWorker::get_num_groups());
 #endif
+  GraphWorker::start_workers(this, bf, Supernode::get_size());
 }
 
 Graph::~Graph() {
@@ -78,26 +75,16 @@ Graph::~Graph() {
   delete[] parent;
   delete representatives;
   GraphWorker::stop_workers(); // join the worker threads
-#ifdef USE_FBT_F
   delete bf;
-#else
-  delete wq;
-#endif
 }
 
 void Graph::update(GraphUpdate upd) {
   if (update_locked) throw UpdateLockedException();
   Edge &edge = upd.first;
 
-#ifdef USE_FBT_F
   bf->insert(edge);
   std::swap(edge.first, edge.second);
   bf->insert(edge);
-#else
-  wq->insert(edge);
-  std::swap(edge.first, edge.second);
-  wq->insert(edge);
-#endif
 }
 
 void Graph::generate_delta_node(uint64_t node_n, long node_seed, uint64_t
@@ -124,11 +111,7 @@ void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges, Super
 }
 
 vector<set<node_t>> Graph::connected_components() {
-#ifdef USE_FBT_F
-  bf->force_flush(); // flush everything in buffertree to make final updates
-#else
-  wq->force_flush();
-#endif
+  bf->force_flush(); // flush everything in buffering system to make final updates
   GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
   // after this point all updates have been processed from the buffer tree
   end_time = std::chrono::steady_clock::now();
@@ -187,11 +170,7 @@ vector<set<node_t>> Graph::connected_components() {
 }
 
 vector<set<node_t>> Graph::parallel_connected_components() {
-#ifdef USE_FBT_F
-  bf->force_flush(); // flush everything in buffertree to make final updates
-#else
-  wq->force_flush();
-#endif
+  bf->force_flush(); // flush everything in buffering system to make final updates
   GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
   // after this point all updates have been processed from the buffer tree
   end_time = std::chrono::steady_clock::now();
@@ -293,11 +272,7 @@ node_t Graph::get_parent(node_t node) {
 }
 
 void Graph::write_binary(const std::string& filename) {
-#ifdef USE_FBT_F
   bf->force_flush(); // flush everything in buffertree to make final updates
-#else
-  wq->force_flush();
-#endif
   GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
   // after this point all updates have been processed from the buffer tree
 
