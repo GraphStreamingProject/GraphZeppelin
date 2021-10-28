@@ -92,7 +92,7 @@ jobs:
         shell: bash
         run: |
           mkdir GUTTREEDATA
-          ./mem_tests
+          ./tests
 
       - name: Parallel Post-Proc Unit Testing
         working-directory: ${{runner.workspace}}/build
