@@ -75,8 +75,7 @@ std::pair<bool, std::string> configure_system() {
           printf("WARNING: string %s is not a valid option for " 
                 "buffering. Defaulting to GutterTree.\n", buf_str.c_str());
         }
-        printf("Using the %s as the buffering system.\n", 
-               use_guttertree? "GutterTree" : "StandAloneGutters");
+        printf("Using %s for buffering.\n", use_guttertree? "GutterTree" : "StandAloneGutters");
       }
       if(line.substr(0, line.find('=')) == "path_prefix" && use_guttertree) {
         pre = line.substr(line.find('=') + 1);

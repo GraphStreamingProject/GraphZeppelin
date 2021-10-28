@@ -1,5 +1,4 @@
 #pragma once
-#include <atomic>
 #include <mutex>
 #include <condition_variable>
 #include <thread>
@@ -60,7 +59,7 @@ private:
   Graph *graph;
   BufferingSystem *bf;
   std::thread thr;
-  std::atomic<bool> thr_paused; // indicates if this individual thread is paused
+  bool thr_paused; // indicates if this individual thread is paused
 
   // thread status and status management
   static bool shutdown;

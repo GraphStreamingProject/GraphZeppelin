@@ -93,11 +93,3 @@ jobs:
         run: |
           mkdir GUTTREEDATA
           ./tests
-
-      - name: Parallel Post-Proc Unit Testing
-        working-directory: ${{runner.workspace}}/build
-        shell: bash
-        run: |
-          rm -r GUTTREEDATA
-          mkdir GUTTREEDATA
-          ./parallelPP

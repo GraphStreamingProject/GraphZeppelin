@@ -138,6 +138,7 @@ TEST_P(GraphTest, TestCorrectnessOfReheating) {
     in >> n >> m;
     Graph g{n};
     int type, a, b;
+    printf("number of updates = %lu\n", m);
     while (m--) {
       in >> type >> a >> b;
       if (type == INSERT) {

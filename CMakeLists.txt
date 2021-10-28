@@ -171,9 +171,6 @@ link_directories(${CMAKE_CURRENT_BINARY_DIR}/GutterTree/prefix/lib)
 # AVAILABLE COMPILATION DEFINITIONS:
 # VERIFY_SAMPLES_F   Use a deterministic connected-components algorithm to
 #                    verify post-processing.
-#
-# PARALLEL_PP_F      Use parallel post-processing (connected components)
-#                    function.
 
 
 add_executable(tests
@@ -278,35 +275,5 @@ else ()
     target_link_options(experiment PRIVATE -fopenmp)
   elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
     target_compile_options(experiment PRIVATE /O2)
-  endif()
-endif ()
-
-add_executable(parallelPP
-  test/test_runner.cpp
-  test/util/graph_gen.cpp
-  test/util/graph_verifier.cpp
-  test/parallel_graph_test.cpp
-  src/graph.cpp
-  src/supernode.cpp
-  src/graph_worker.cpp
-  src/l0_sampling/sketch.cpp
-  src/l0_sampling/update.cpp
-  src/util.cpp)
-target_link_libraries(parallelPP PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(parallelPP PRIVATE PARALLEL_PP_F VERIFY_SAMPLES_F)
-# dependencies
-add_dependencies(parallelPP GutterTree)
-target_link_libraries(parallelPP PRIVATE libGutterTree.a)
-# optimize unless debug
-if (DEFINED ENV{DEBUG})
-  message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(parallelPP PRIVATE -g -fopenmp)
-  target_link_options(parallelPP PRIVATE -fopenmp)
-else ()
-  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(parallelPP PRIVATE -O3 -fopenmp)
-    target_link_options(parallelPP PRIVATE -fopenmp)
-  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    target_compile_options(parallelPP PRIVATE /O2)
   endif()
 endif ()

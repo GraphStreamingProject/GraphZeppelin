@@ -117,65 +117,6 @@ vector<set<node_t>> Graph::connected_components() {
   GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
   // after this point all updates have been processed from the buffer tree
   end_time = std::chrono::steady_clock::now();
-
-  printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
-  update_locked = true; // disallow updating the graph after we run the alg
-  bool modified;
-#ifdef VERIFY_SAMPLES_F
-  GraphVerifier verifier {cumul_in};
-#endif
-
-  do {
-    modified = false;
-    vector<node_t> removed;
-    for (node_t i: (*representatives)) {
-      if (parent[i] != i) continue;
-      boost::optional<Edge> edge = supernodes[i]->sample();
-#ifdef VERIFY_SAMPLES_F
-      if (edge.is_initialized())
-        verifier.verify_edge(edge.value());
-      else
-        verifier.verify_cc(i);
-#endif
-      if (!edge.is_initialized()) continue;
-
-      node_t n;
-      // DSU compression
-      if (get_parent(edge->first) == i) {
-        n = get_parent(edge->second);
-        removed.push_back(n);
-        parent[n] = i;
-      }
-      else {
-        get_parent(edge->second);
-        n = get_parent(edge->first);
-        removed.push_back(n);
-        parent[n] = i;
-      }
-      supernodes[i]->merge(*supernodes[n]);
-    }
-    if (!removed.empty()) modified = true;
-    for (node_t i : removed) representatives->erase(i);
-  } while (modified);
-
-  map<node_t, set<node_t>> temp;
-  for (node_t i=0;i<num_nodes;++i)
-    temp[get_parent(i)].insert(i);
-  vector<set<node_t>> retval;
-  retval.reserve(temp.size());
-  for (const auto& it : temp) retval.push_back(it.second);
-#ifdef VERIFY_SAMPLES_F
-  verifier.verify_soln(retval);
-#endif
-
-  return retval;
-}
-
-vector<set<node_t>> Graph::parallel_connected_components() {
-  bf->force_flush(); // flush everything in buffering system to make final updates
-  GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
-  // after this point all updates have been processed from the buffer tree
-  end_time = std::chrono::steady_clock::now();
   printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
@@ -260,6 +201,7 @@ vector<set<node_t>> Graph::parallel_connected_components() {
   retval.reserve(temp.size());
   for (const auto& it : temp) retval.push_back(it.second);
 
+  printf("CC done\n");
   return retval;
 }
 

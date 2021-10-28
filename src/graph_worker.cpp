@@ -53,7 +53,7 @@ void GraphWorker::pause_workers() {
 
   // wait until all GraphWorkers are paused
   std::unique_lock<std::mutex> lk(pause_lock);
-  pause_condition.wait(lk, []{
+  pause_condition.wait_for(lk, std::chrono::milliseconds(500), []{
     for (int i = 0; i < num_groups; i++)
       if (!workers[i]->get_thr_paused()) return false;
     return true;
@@ -86,25 +86,29 @@ void GraphWorker::do_work() {
   while(true) {
     if(shutdown)
       return;
+    std::unique_lock<std::mutex> lk(pause_lock);
     thr_paused = true; // this thread is currently paused
+    lk.unlock();
     pause_condition.notify_all(); // notify pause_workers()
 
     // wait until we are unpaused
-    std::unique_lock<std::mutex> lk(pause_lock);
+    lk.lock();
     pause_condition.wait(lk, []{return !paused || shutdown;});
     thr_paused = false; // no longer paused
     lk.unlock();
-    while(!thr_paused) {
+    while(true) {
       // call get_data which will handle waiting on the queue
       // and will enforce locking.
+      if (paused) printf("waiting on data\n");
       bool valid = bf->get_data(data);
+      if (paused) printf("got data valid = %s\n", valid? "true" : "false");
 
       if (valid)
         graph->batch_update(data.first, data.second, delta_node);
       else if(shutdown)
         return;
       else if(paused)
-        thr_paused = true; // pause this thread once no more updates
+        break;
     }
   }
 }
