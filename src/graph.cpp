@@ -152,12 +152,15 @@ vector<set<node_t>> Graph::connected_components() {
 #ifdef VERIFY_SAMPLES_F
       if (ret_code == GOOD)
         verifier.verify_edge(edge);
-      else
+      else if (ret_code == ZERO)
         verifier.verify_cc(i);
 #endif
       if (ret_code == ZERO) continue;
       // one of our representatives could not be queried. So we need to try again.
-      if (ret_code == FAIL) modified = true;
+      if (ret_code == FAIL) {
+        modified = true;
+        continue;
+      }
 
       node_t n;
       // DSU compression
