@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 
 #Uncomment to enable debug
-set(ENV{DEBUG} ON)
+#set(ENV{DEBUG} ON)
 
 project(test)
 
