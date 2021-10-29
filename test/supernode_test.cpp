@@ -55,7 +55,7 @@ TEST_F(SupernodeTestSuite, GIVENnoEdgeUpdatesIFsampledTHENnoEdgeIsReturned) {
 
 TEST_F(SupernodeTestSuite, IFsampledTooManyTimesTHENthrowOutOfQueries) {
   Supernode* s = Supernode::makeSupernode(num_nodes, seed);
-  for (int i=0;i<(int)log2(num_nodes);++i) {
+  for (int i = 0; i < s->get_num_sktch(); ++i) {
     s->sample();
   }
   ASSERT_THROW(s->sample(), OutOfQueriesException);
@@ -75,20 +75,18 @@ TEST_F(SupernodeTestSuite, TestSampleInsertGrinder) {
     snodes[edge.second]->update(encoded);
   }
 
-  // allow one NoGoodBucket-type failure
-  bool second_chance = false;
+  // must have at least logn successes per supernode
+  int successes = 0;
+
   boost::optional<Edge> sampled;
   for (unsigned i = 2; i < num_nodes; ++i) {
-    for (int j = 0; j < (int) log2(num_nodes); ++j) {
+    for (int j = 0; j < (int) snodes[i]->get_num_sktch(); ++j) {
       std::pair<Edge, SampleSketchRet> sample_ret = snodes[i]->sample();
       sampled = sample_ret.first;
       SampleSketchRet ret_code = sample_ret.second;
-
-      if (ret_code == FAIL) {
-        if (second_chance) FAIL() << "2 samplings failed to find a good bucket";
-        else second_chance = true;
-      }
-
+      if (ret_code == FAIL) continue;
+    
+      successes++;
       if (i >= num_nodes/2 && prime[i]) {
         ASSERT_EQ(ret_code, ZERO) << "False positive in sample " << i;
       } else {
@@ -100,6 +98,7 @@ TEST_F(SupernodeTestSuite, TestSampleInsertGrinder) {
                     sampled->second << "} with i = " << i;
       }
     }
+    ASSERT_GE(successes, (int) log2(num_nodes)) << "Fewer than logn successful queries: supernode " << i;
   }
   for (unsigned i = 0; i < num_nodes; ++i)
     delete snodes[i];
@@ -126,20 +125,18 @@ TEST_F(SupernodeTestSuite, TestSampleDeleteGrinder) {
     snodes[edge.second]->update(encoded);
   }
 
-  // allow one NoGoodBucket-type failure
-  bool second_chance = false;
+  // must have at least logn successes per supernode
+  int successes = 0;
+
   boost::optional<Edge> sampled;
   for (unsigned i = 2; i < num_nodes; ++i) {
-    for (int j = 0; j < (int) log2(num_nodes); ++j) {
+    for (int j = 0; j < (int) snodes[i]->get_num_sktch(); ++j) {
       std::pair<Edge, SampleSketchRet> sample_ret = snodes[i]->sample();
       sampled = sample_ret.first;
       SampleSketchRet ret_code = sample_ret.second;
-
-      if (ret_code == FAIL) {
-        if (second_chance) FAIL() << "2 samplings failed to find a good bucket";
-        else second_chance = true;
-      }
-
+      if (ret_code == FAIL) continue;
+    
+      successes++;
       if (i >= num_nodes/2 && i % 2) {
         ASSERT_EQ(ret_code, ZERO) << "False positive in sample " << i;
       } else {
@@ -153,6 +150,7 @@ TEST_F(SupernodeTestSuite, TestSampleDeleteGrinder) {
                     sampled->second << "} with i = " << i;
       }
     }
+    ASSERT_GE(successes, (int) log2(num_nodes)) << "Fewer than logn successful queries: supernode " << i;
   }
   for (unsigned i = 0; i < num_nodes; ++i)
     delete snodes[i];
@@ -185,9 +183,9 @@ TEST_F(SupernodeTestSuite, TestBatchUpdate) {
   apply_delta_to_node(supernode_batch, updates);
   std::cout << "Batched updates took " << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
 
-  ASSERT_EQ(supernode->logn, supernode_batch->logn);
+  ASSERT_EQ(supernode->get_num_sktch(), supernode_batch->get_num_sktch());
   ASSERT_EQ(supernode->idx, supernode_batch->idx);
-  for (int i=0;i<supernode->logn;++i) {
+  for (int i=0;i<supernode->get_num_sktch();++i) {
     ASSERT_EQ(*supernode->get_sketch(i), *supernode_batch->get_sketch(i));
   }
 }
@@ -231,7 +229,7 @@ TEST_F(SupernodeTestSuite, TestConcurrency) {
     thd[i].join();
   }
 
-  for (int i = 0; i < supernode->logn; ++i) {
+  for (int i = 0; i < supernode->get_num_sktch(); ++i) {
     ASSERT_EQ(*supernode->get_sketch(i), *piecemeal->get_sketch(i));
   }
 }
@@ -260,7 +258,7 @@ TEST_F(SupernodeTestSuite, TestSerialization) {
 
   Supernode* reheated = Supernode::makeSupernode(num_nodes, seed, in_file);
 
-  for (int i = 0; i < snodes[num_nodes / 2]->logn; ++i) {
+  for (int i = 0; i < snodes[num_nodes / 2]->get_num_sktch(); ++i) {
     ASSERT_EQ(*snodes[num_nodes / 2]->get_sketch(i), *reheated->get_sketch(i));
   }
 }

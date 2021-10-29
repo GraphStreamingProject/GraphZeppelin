@@ -17,7 +17,7 @@ class Supernode {
   // the size of a super-node in bytes including the all sketches off the end
   static uint32_t bytes_size; 
   int idx;
-  int logn;
+  int num_sketches;
   std::mutex node_mt;
 
   FRIEND_TEST(SupernodeTestSuite, TestBatchUpdate);
@@ -76,9 +76,9 @@ public:
 
   ~Supernode();
 
-  static inline void configure(uint64_t n, double num_bucket_factor=0.5) {
-    Sketch::configure(n*n, num_bucket_factor);
-    bytes_size = sizeof(Supernode) + log2(n) * Sketch::sketchSizeof() - sizeof(char);
+  static inline void configure(uint64_t n, int sketch_fail_factor=100) {
+    Sketch::configure(n*n, sketch_fail_factor);
+    bytes_size = sizeof(Supernode) + log2(n)/(log2(3)-1) * Sketch::sketchSizeof() - sizeof(char);
   }
 
   static inline uint32_t get_size() {
@@ -127,6 +127,9 @@ public:
    * @param out the stream to write to.
    */
   void write_binary(fstream &binary_out);
+
+  // return the number of sketches held in this supernode
+  int get_num_sktch() { return num_sketches; };
 };
 
 

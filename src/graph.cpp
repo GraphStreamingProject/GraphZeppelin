@@ -39,12 +39,12 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
 }
 
 Graph::Graph(const std::string& input_file) : num_updates(0) {
-  double num_bucket_factor;
+  int sketch_fail_factor;
   auto binary_in = std::fstream(input_file, std::ios::in | std::ios::binary);
   binary_in.read((char*)&seed, sizeof(long));
   binary_in.read((char*)&num_nodes, sizeof(uint64_t));
-  binary_in.read((char*)&num_bucket_factor, sizeof(double));
-  Supernode::configure(num_nodes, num_bucket_factor);
+  binary_in.read((char*)&sketch_fail_factor, sizeof(int));
+  Supernode::configure(num_nodes, sketch_fail_factor);
 
 #ifdef VERIFY_SAMPLES_F
   cout << "Verifying samples..." << endl;
@@ -158,6 +158,7 @@ vector<set<node_t>> Graph::connected_components() {
       if (ret_code == ZERO) continue;
       // one of our representatives could not be queried. So we need to try again.
       if (ret_code == FAIL) {
+        printf("WARNING: Sketch query failed\n");
         modified = true;
         continue;
       }
@@ -320,10 +321,10 @@ void Graph::write_binary(const std::string& filename) {
   // after this point all updates have been processed from the buffer tree
 
   auto binary_out = std::fstream(filename, std::ios::out | std::ios::binary);
-  double sketch_factor = Sketch::get_bucket_factor();
+  int fail_factor = Sketch::get_failure_factor();
   binary_out.write((char*)&seed, sizeof(long));
   binary_out.write((char*)&num_nodes, sizeof(uint64_t));
-  binary_out.write((char*)&sketch_factor, sizeof(double));
+  binary_out.write((char*)&fail_factor, sizeof(int));
   for (node_t i = 0; i < num_nodes; ++i) {
     supernodes[i]->write_binary(binary_out);
   }

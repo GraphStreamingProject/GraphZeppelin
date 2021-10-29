@@ -12,8 +12,7 @@
 #include "../util.h"
 #include <gtest/gtest_prod.h>
 
-// #define bucket_gen(d) double_to_ull((log2(d)+1))
-#define bucket_gen(x, c) double_to_ull((c)*(log2(x)+1))
+#define bucket_gen(d) double_to_ull((log2(d)+1))
 #define guess_gen(x) double_to_ull(log2(x)+1)
 
 enum SampleSketchRet {
@@ -29,7 +28,7 @@ enum SampleSketchRet {
  */
 class Sketch {
 private:
-  static double failure_factor;    // Factor for how many buckets there are in this sketch.
+  static int failure_factor;       // Failure factor determines number of columns in sketch. Pr(failure) = 1 / factor
   static vec_t n;                  // Length of the vector this is sketching.
   static size_t num_elems;         // length of our actual arrays in number of elements
   static size_t num_buckets;       // Portion of array length, number of buckets
@@ -66,13 +65,13 @@ private:
 public:
   static Sketch* makeSketch(void* loc, long seed);
   static Sketch* makeSketch(void* loc, long seed, std::fstream &binary_in);
-  static Sketch* makeSketch(void* loc, long seed, double failure_factor, std::fstream &binary_in);
+  static Sketch* makeSketch(void* loc, long seed, int failure_factor, std::fstream &binary_in);
   
   // configure the static variables of sketches
-  inline static void configure(size_t _n, double _factor) {
+  inline static void configure(size_t _n, int _factor) {
     n = _n;
     failure_factor = _factor;
-    num_buckets = bucket_gen(n, failure_factor);
+    num_buckets = bucket_gen(failure_factor);
     num_guesses = guess_gen(n);
     num_elems = num_buckets * num_guesses + 1;
   }
@@ -80,7 +79,7 @@ public:
   inline static size_t sketchSizeof()
   { return sizeof(Sketch) + num_elems * (sizeof(vec_t) + sizeof(vec_hash_t)) - sizeof(char); }
   
-  inline static double get_bucket_factor() 
+  inline static int get_failure_factor() 
   { return failure_factor; }
   /**
    * Update a sketch based on information about one of its indices.

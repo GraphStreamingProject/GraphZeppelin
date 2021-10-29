@@ -2,7 +2,7 @@
 #include <cassert>
 #include <iostream>
 
-double Sketch::failure_factor = 0.5;
+int Sketch::failure_factor = 100;
 vec_t Sketch::n;
 size_t Sketch::num_elems;
 size_t Sketch::num_buckets;
