@@ -1,16 +1,16 @@
 #include <gtest/gtest.h>
-#include "graph_verifier.h"
+#include "file_graph_verifier.h"
 
 const std::string fname = __FILE__;
 size_t pos = fname.find_last_of("\\/");
 const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0,pos);
 
 TEST(DeterministicToolsTestSuite, TestKruskal) {
-  ASSERT_EQ(78, kruskal(curr_dir+"/../res/multiples_graph_1024.txt").size());
+  ASSERT_EQ(78,FileGraphVerifier::kruskal(curr_dir+"/../res/multiples_graph_1024.txt").size());
 }
 
 TEST(DeterministicToolsTestSuite, TestEdgeVerifier) {
-  GraphVerifier verifier {curr_dir+"/../res/multiples_graph_1024.txt"};
+  FileGraphVerifier verifier(curr_dir+"/../res/multiples_graph_1024.txt");
   // add edges of the form {i,2i}
   for (int i = 2; i < 512; ++i) {
     verifier.verify_edge({i,i*2});
@@ -27,7 +27,7 @@ TEST(DeterministicToolsTestSuite, TestEdgeVerifier) {
 }
 
 TEST(DeterministicToolsTestSuite, TestCCVerifier) {
-  GraphVerifier verifier {curr_dir+"/../res/multiples_graph_1024.txt"};
+  FileGraphVerifier verifier (curr_dir+"/../res/multiples_graph_1024.txt");
   // {0}, {1}, and primes \in [521,1021] are CCs
   verifier.verify_cc(0);
   verifier.verify_cc(1);

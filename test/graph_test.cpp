@@ -1,7 +1,8 @@
 #include <gtest/gtest.h>
 #include <fstream>
 #include "../include/graph.h"
-#include "util/graph_verifier.h"
+#include "util/file_graph_verifier.h"
+#include "util/mat_graph_verifier.h"
 #include "util/graph_gen.h"
 
 /**
@@ -29,7 +30,7 @@ TEST(GraphTestSuite, SmallGraphConnectivity) {
     in >> a >> b;
     g.update({{a, b}, INSERT});
   }
-  g.set_cumul_in(curr_dir + "/res/multiples_graph_1024.txt");
+  g.set_verifier(std::make_unique<FileGraphVerifier>(curr_dir + "/res/multiples_graph_1024.txt"));
   ASSERT_EQ(78, g.connected_components().size());
 }
 
@@ -48,15 +49,10 @@ TEST(GraphTestSuite, IFconnectedComponentsAlgRunTHENupdateLocked) {
     in >> a >> b;
     g.update({{a, b}, INSERT});
   }
-  g.set_cumul_in(curr_dir + "/res/multiples_graph_1024.txt");
+  g.set_verifier(std::make_unique<FileGraphVerifier>(curr_dir + "/res/multiples_graph_1024.txt"));
   g.connected_components();
   ASSERT_THROW(g.update({{1,2}, INSERT}), UpdateLockedException);
   ASSERT_THROW(g.update({{1,2}, DELETE}), UpdateLockedException);
-}
-
-TEST(GraphTestSuite, TestRandomGraphGeneration) {
-  generate_stream();
-  GraphVerifier graphVerifier {};
 }
 
 TEST(GraphTestSuite, TestCorrectnessOnSmallRandomGraphs) {
@@ -76,7 +72,8 @@ TEST(GraphTestSuite, TestCorrectnessOnSmallRandomGraphs) {
         g.update({{a, b}, INSERT});
       } else g.update({{a, b}, DELETE});
     }
-    g.set_cumul_in("./cumul_sample.txt");
+
+    g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
     try {
       g.connected_components();
     } catch (OutOfQueriesException& err) {
@@ -106,7 +103,8 @@ TEST(GraphTestSuite, TestCorrectnessOnSmallSparseGraphs) {
         g.update({{a, b}, INSERT});
       } else g.update({{a, b}, DELETE});
     }
-    g.set_cumul_in("./cumul_sample.txt");
+
+    g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
     try {
       g.connected_components();
     } catch (OutOfQueriesException& err) {
@@ -136,8 +134,8 @@ TEST(GraphTestSuite, TestCorrectnessOfReheating) {
         g.update({{a, b}, INSERT});
       } else g.update({{a, b}, DELETE});
     }
-    g.set_cumul_in("./cumul_sample.txt");
     g.write_binary("./out_temp.txt");
+    g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
     vector<set<node_t>> g_res;
     try {
       g_res = g.connected_components();
@@ -152,6 +150,7 @@ TEST(GraphTestSuite, TestCorrectnessOfReheating) {
     printf("number of CC = %lu\n", g_res.size());
 
     Graph reheated {"./out_temp.txt"};
+    reheated.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
     auto reheated_res = reheated.connected_components();
     printf("number of reheated CC = %lu\n", reheated_res.size());
     ASSERT_EQ(g_res.size(), reheated_res.size());

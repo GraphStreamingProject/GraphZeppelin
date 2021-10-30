@@ -61,6 +61,7 @@ private:
     return reinterpret_cast<const Sketch*>(sketch_buffer + i * sketch_size);
   }
 
+  Supernode(const Supernode& s);
 public:
   static Supernode* makeSupernode(uint64_t n, long seed);
   static Supernode* makeSupernode(uint64_t n, long seed, std::fstream &binary_in);
@@ -73,6 +74,7 @@ public:
    * @return        a pointer to loc, the location of the supernode.
    */
   static Supernode* makeSupernode(void* loc, uint64_t n, long seed);
+  static Supernode* makeSupernode(const Supernode& s);
 
   ~Supernode();
 

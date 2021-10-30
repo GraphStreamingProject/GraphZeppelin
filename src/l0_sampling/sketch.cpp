@@ -1,5 +1,6 @@
 #include "../../include/l0_sampling/sketch.h"
 #include <cassert>
+#include <cstring>
 #include <iostream>
 
 int Sketch::failure_factor = 100;
@@ -18,6 +19,10 @@ Sketch* Sketch::makeSketch(void* loc, long seed) {
 
 Sketch* Sketch::makeSketch(void* loc, long seed, std::fstream &binary_in) {
   return new (loc) Sketch(seed, binary_in);
+}
+
+Sketch* Sketch::makeSketch(void* loc, const Sketch& s) {
+  return new (loc) Sketch(s);
 }
 
 Sketch::Sketch(long seed): seed(seed) {
@@ -39,6 +44,14 @@ Sketch::Sketch(long seed, std::fstream &binary_in): seed(seed) {
 
   binary_in.read((char*)bucket_a, num_elems * sizeof(vec_t));
   binary_in.read((char*)bucket_c, num_elems * sizeof(vec_hash_t));
+}
+
+Sketch::Sketch(const Sketch& s) : seed(s.seed) {
+  bucket_a = reinterpret_cast<vec_t*>(buckets);
+  bucket_c = reinterpret_cast<vec_hash_t*>(buckets + num_elems * sizeof(vec_t));
+
+  std::memcpy(bucket_a, s.bucket_a, num_elems * sizeof(vec_t));
+  std::memcpy(bucket_c, s.bucket_c, num_elems * sizeof(vec_hash_t));
 }
 
 void Sketch::update(const vec_t& update_idx) {

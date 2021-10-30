@@ -24,6 +24,13 @@ Supernode::Supernode(uint64_t n, long seed, std::fstream &binary_in) :
   }
 }
 
+Supernode::Supernode(const Supernode& s) : idx(s.idx), num_sketches(s.num_sketches), n(s.n),
+    seed(s.seed), sketch_size(s.sketch_size) {
+  for (int i = 0; i < num_sketches; ++i) {
+    Sketch::makeSketch(get_sketch(i), *s.get_sketch(i));
+  }
+}
+
 Supernode* Supernode::makeSupernode(uint64_t n, long seed) {
   void *loc = malloc(bytes_size);
   return new (loc) Supernode(n, seed);
@@ -36,6 +43,11 @@ Supernode* Supernode::makeSupernode(uint64_t n, long seed, std::fstream &binary_
 
 Supernode* Supernode::makeSupernode(void* loc, uint64_t n, long seed) {
   return new (loc) Supernode(n, seed);
+}
+
+Supernode* Supernode::makeSupernode(const Supernode& s) {
+  void *loc = malloc(bytes_size);
+  return new (loc) Supernode(s);
 }
 
 Supernode::~Supernode() {

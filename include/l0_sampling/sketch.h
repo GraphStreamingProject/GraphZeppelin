@@ -56,6 +56,7 @@ private:
   // private constructors -- use makeSketch
   Sketch(long seed);
   Sketch(long seed, std::fstream &binary_in);
+  Sketch(const Sketch& s);
 
 public:
   /**
@@ -68,6 +69,14 @@ public:
    */
   static Sketch* makeSketch(void* loc, long seed);
   static Sketch* makeSketch(void* loc, long seed, std::fstream &binary_in);
+  
+  /**
+   * Copy constructor to create a sketch from another
+   * @param loc   A pointer to a location in memory where the caller would like the sketch constructed
+   * @param s     A sketch to make a copy of
+   * @return      A pointer to a newly constructed sketch 
+   */
+  static Sketch* makeSketch(void* loc, const Sketch& s);
   
   /* configure the static variables of sketches
    * @param n               Length of the vector to sketch. (static variable)

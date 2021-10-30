@@ -2,7 +2,7 @@
 #include <iostream>
 #include "../../include/graph.h"
 #include "../util/graph_gen.h"
-#include "../util/graph_verifier.h"
+#include "../util/file_graph_verifier.h"
 
 static inline int do_run() {
     ifstream in{"./sample.txt"};
@@ -16,7 +16,7 @@ static inline int do_run() {
         g.update({{a, b}, INSERT});
       } else g.update({{a, b}, DELETE});
     }
-    g.set_cumul_in("./cumul_sample.txt");
+    g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
     try {
         g.connected_components();
     } catch (std::exception const &err) {

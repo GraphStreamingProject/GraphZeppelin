@@ -136,9 +136,6 @@ vector<set<node_t>> Graph::connected_components() {
   printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
-#ifdef VERIFY_SAMPLES_F
-  GraphVerifier verifier {cumul_in};
-#endif
 
   do {
     modified = false;
@@ -151,9 +148,9 @@ vector<set<node_t>> Graph::connected_components() {
 
 #ifdef VERIFY_SAMPLES_F
       if (ret_code == GOOD)
-        verifier.verify_edge(edge);
+        verifier->verify_edge(edge);
       else if (ret_code == ZERO)
-        verifier.verify_cc(i);
+        verifier->verify_cc(i);
 #endif
       if (ret_code == ZERO) continue;
       // one of our representatives could not be queried. So we need to try again.
@@ -189,10 +186,54 @@ vector<set<node_t>> Graph::connected_components() {
   retval.reserve(temp.size());
   for (const auto& it : temp) retval.push_back(it.second);
 #ifdef VERIFY_SAMPLES_F
-  verifier.verify_soln(retval);
+  verifier->verify_soln(retval);
 #endif
 
   return retval;
+}
+
+Supernode** Graph::backup_supernodes() {
+#ifdef USE_FBT_F
+  bf->force_flush(); // flush everything in buffertree to make final updates
+#else
+  wq->force_flush();
+#endif
+  GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
+
+  // Copy supernodes
+  Supernode** supernodes = new Supernode*[num_nodes];
+  for (node_t i=0;i<num_nodes;++i) {
+    supernodes[i] = Supernode::makeSupernode(*this->supernodes[i]);
+  }
+
+  return supernodes;
+}
+
+void Graph::restore_supernodes(Supernode** supernodes) {
+  // Restore supernodes
+  for (node_t i=0;i<num_nodes;++i) {
+    free(this->supernodes[i]);
+    this->supernodes[i] = supernodes[i];
+    representatives->insert(i);
+    parent[i] = i;
+  }
+  delete[] supernodes;
+
+  GraphWorker::unpause_workers();
+  update_locked = false;
+}
+
+vector<set<node_t>> Graph::connected_components(bool cont) {
+  if (!cont)
+    return connected_components();
+
+  Supernode** supernodes = backup_supernodes();
+
+  vector<set<node_t>> ret = connected_components();
+
+  restore_supernodes(supernodes);
+
+  return ret;
 }
 
 vector<set<node_t>> Graph::parallel_connected_components() {
@@ -207,9 +248,6 @@ vector<set<node_t>> Graph::parallel_connected_components() {
   printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
-#ifdef VERIFY_SAMPLES_F
-  GraphVerifier verifier {cumul_in };
-#endif
   pair<node_t,node_t> query[num_nodes];
   node_t size[num_nodes];
   vector<node_t> reps(num_nodes);
@@ -238,7 +276,7 @@ vector<set<node_t>> Graph::parallel_connected_components() {
         err = std::current_exception();
       }
       if (ret_code == ZERO) {
-        query[reps[i]] = {i,i};
+        query[reps[i]] = {i, i};
         continue;
       }
       if (ret_code == FAIL) {
@@ -258,7 +296,7 @@ vector<set<node_t>> Graph::parallel_connected_components() {
       node_t b = get_parent(query[i].second);
       if (a == b) continue;
 #ifdef VERIFY_SAMPLES_F
-      verifier.verify_edge({query[i].first,query[i].second});
+      verifier->verify_edge({query[i].first,query[i].second});
 #endif
 
       // make sure a is the one to be merged into
@@ -299,11 +337,6 @@ vector<set<node_t>> Graph::parallel_connected_components() {
   for (const auto& it : temp) retval.push_back(it.second);
 
   return retval;
-}
-
-void Graph::post_cc_resume() {
-  GraphWorker::unpause_workers();
-  update_locked = false;
 }
 
 node_t Graph::get_parent(node_t node) {

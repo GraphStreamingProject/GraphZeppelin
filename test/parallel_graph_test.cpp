@@ -2,6 +2,7 @@
 #include <fstream>
 #include "../include/graph.h"
 #include "util/graph_gen.h"
+#include "util/file_graph_verifier.h"
 
 /**
  * For many of these tests (especially for those upon very sparse and small graphs)
@@ -28,7 +29,7 @@ TEST(ParallelGraphTestSuite, SingleSmallGraphConnectivity) {
     in >> a >> b;
     g.update({{a, b}, INSERT});
   }
-  g.set_cumul_in(curr_dir + "/res/multiples_graph_1024.txt");
+  g.set_verifier(std::make_unique<FileGraphVerifier>(curr_dir + "/res/multiples_graph_1024.txt"));
   ASSERT_EQ(78, g.connected_components().size());
 }
 
@@ -49,7 +50,8 @@ TEST(ParallelGraphTestSuite, SingleTestCorrectnessOnSmallRandomGraphs) {
         g.update({{a, b}, INSERT});
       } else g.update({{a, b}, DELETE});
     }
-    g.set_cumul_in("./cumul_sample.txt");
+
+    g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
     try {
       g.connected_components();
     } catch (OutOfQueriesException& err) {
@@ -79,7 +81,8 @@ TEST(ParallelGraphTestSuite, SingleTestCorrectnessOnSmallSparseGraphs) {
         g.update({{a, b}, INSERT});
       } else g.update({{a, b}, DELETE});
     }
-    g.set_cumul_in("./cumul_sample.txt");
+
+    g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
     try {
       g.connected_components();
     } catch (OutOfQueriesException& err) {
@@ -107,7 +110,7 @@ TEST(ParallelGraphTestSuite, ParallelSmallGraphConnectivity) {
     in >> a >> b;
     g.update({{a, b}, INSERT});
   }
-  g.set_cumul_in(curr_dir + "/res/multiples_graph_1024.txt");
+  g.set_verifier(std::make_unique<FileGraphVerifier>(curr_dir + "/res/multiples_graph_1024.txt"));
   ASSERT_EQ(78, g.parallel_connected_components().size());
 }
 
@@ -128,7 +131,8 @@ TEST(ParallelGraphTestSuite, ParallelTestCorrectnessOnSmallRandomGraphs) {
         g.update({{a, b}, INSERT});
       } else g.update({{a, b}, DELETE});
     }
-    g.set_cumul_in("./cumul_sample.txt");
+
+    g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
     try {
       g.parallel_connected_components();
     } catch (OutOfQueriesException& err) {
@@ -158,7 +162,8 @@ TEST(ParallelGraphTestSuite, ParallelTestCorrectnessOnSmallSparseGraphs) {
         g.update({{a, b}, INSERT});
       } else g.update({{a, b}, DELETE});
     }
-    g.set_cumul_in("./cumul_sample.txt");
+
+    g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
     try {
       g.parallel_connected_components();
     } catch (OutOfQueriesException& err) {
