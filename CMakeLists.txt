@@ -4,7 +4,7 @@
 cmake_minimum_required(VERSION 3.15)
 include (ExternalProject)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 
@@ -179,14 +179,13 @@ link_directories(${CMAKE_CURRENT_BINARY_DIR}/BufferTree/prefix/lib)
 # PARALLEL_PP_F      Use parallel post-processing (connected components)
 #                    function.
 
-
 add_executable(tests
   test/test_runner.cpp
   test/graph_test.cpp
   test/sketch_test.cpp
   test/supernode_test.cpp
   test/util_test.cpp
-  test/util/graph_verifier.cpp
+  test/util/file_graph_verifier.cpp
   test/util/graph_gen.cpp
   test/util/graph_gen_test.cpp
   test/util/graph_verifier_test.cpp
@@ -221,7 +220,7 @@ add_executable(mem_tests
   test/sketch_test.cpp
   test/supernode_test.cpp
   test/util_test.cpp
-  test/util/graph_verifier.cpp
+  test/util/file_graph_verifier.cpp
   test/util/graph_gen.cpp
   test/util/graph_gen_test.cpp
   test/util/graph_verifier_test.cpp
@@ -253,7 +252,7 @@ endif ()
 
 add_executable(statistical_test
   test/statistical_testing/graph_testing.cpp
-  test/util/graph_verifier.cpp
+  test/util/file_graph_verifier.cpp
   test/util/graph_gen.cpp
   src/graph.cpp
   src/supernode.cpp
@@ -283,7 +282,7 @@ endif ()
 
 add_executable(mem_statistical_test
   test/statistical_testing/graph_testing.cpp
-  test/util/graph_verifier.cpp
+  test/util/file_graph_verifier.cpp
   test/util/graph_gen.cpp
   src/graph.cpp
   src/supernode.cpp
@@ -326,7 +325,7 @@ add_executable(experiment
   test/test_runner.cpp
   test/experiment/BCHMK_Graph.cpp
   test/experiment/BCHMK_post_proc.cpp
-  test/util/graph_verifier.cpp
+  test/util/file_graph_verifier.cpp
   test/util/graph_gen.cpp
   src/graph.cpp
   src/supernode.cpp
@@ -354,10 +353,41 @@ else ()
   endif()
 endif ()
 
+add_executable(cont_test
+  test/test_runner.cpp
+  test/cont_test.cpp
+  test/util/mat_graph_verifier.cpp
+  test/util/graph_gen.cpp
+  src/graph.cpp
+  src/supernode.cpp
+  src/graph_worker.cpp
+  src/l0_sampling/sketch.cpp
+  src/l0_sampling/update.cpp
+  src/util.cpp
+  src/work_queue.cpp)
+target_link_libraries(cont_test PRIVATE xxHash::xxhash GTest::gtest)
+target_compile_definitions(cont_test PRIVATE VERIFY_SAMPLES_F)
+# dependencies
+add_dependencies(cont_test BufferTree)
+target_link_libraries(cont_test PRIVATE libFastBufferTree.a)
+# optimize unless debug
+if (DEFINED ENV{DEBUG})
+  message("Disabling optimizations and enabling debug symbols")
+  target_compile_options(cont_test PRIVATE -g -fopenmp)
+  target_link_options(cont_test PRIVATE -fopenmp)
+else ()
+  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    target_compile_options(cont_test PRIVATE -O3 -fopenmp)
+    target_link_options(cont_test PRIVATE -fopenmp)
+  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    target_compile_options(cont_test PRIVATE /O2)
+  endif()
+endif ()
+
 add_executable(parallelPP
   test/test_runner.cpp
   test/util/graph_gen.cpp
-  test/util/graph_verifier.cpp
+  test/util/file_graph_verifier.cpp
   test/parallel_graph_test.cpp
   src/graph.cpp
   src/supernode.cpp
@@ -387,7 +417,7 @@ endif ()
 add_executable(memParallelPP
   test/test_runner.cpp
   test/util/graph_gen.cpp
-  test/util/graph_verifier.cpp
+  test/util/file_graph_verifier.cpp
   test/parallel_graph_test.cpp
   src/graph.cpp
   src/supernode.cpp
