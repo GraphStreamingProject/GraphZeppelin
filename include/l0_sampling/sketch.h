@@ -53,21 +53,27 @@ private:
   // of containing an index. The first two are pointers into the buckets array.
   char buckets[1];
 
-  /**
-   * Construct a sketch of a vector of size n
-   * @param n Length of the vector to sketch. (static variable)
-   * @param seed Seed to use for hashing operations
-   * @param failure_factor The rate at which an individual sketch is allowed to fail (determines column width)
-   */
+  // private constructors -- use makeSketch
   Sketch(long seed);
   Sketch(long seed, std::fstream &binary_in);
 
 public:
+  /**
+   * Construct a sketch of a vector of size n
+   * The optional parameters are used when building a sketch from a file
+   * @param loc        A pointer to a location in memory where the caller would like the sketch constructed
+   * @param seed       Seed to use for hashing operations
+   * @param binary_in  (Optional) A file which holds an encoding of a sketch
+   * @return           A pointer to a newly constructed sketch 
+   */
   static Sketch* makeSketch(void* loc, long seed);
   static Sketch* makeSketch(void* loc, long seed, std::fstream &binary_in);
-  static Sketch* makeSketch(void* loc, long seed, int failure_factor, std::fstream &binary_in);
   
-  // configure the static variables of sketches
+  /* configure the static variables of sketches
+   * @param n               Length of the vector to sketch. (static variable)
+   * @param failure_factor  The rate at which an individual sketch is allowed to fail (determines column width)
+   * @return nothing
+   */
   inline static void configure(size_t _n, int _factor) {
     n = _n;
     failure_factor = _factor;
