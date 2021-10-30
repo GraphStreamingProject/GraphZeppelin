@@ -152,7 +152,7 @@ ExternalProject_Add(
 
   PREFIX          GutterTree
   GIT_REPOSITORY  "https://github.com/Victor-C-Zhang/FastBufferTree.git"
-  GIT_TAG         "naming+standalone"
+  GIT_TAG         "async_3_electric-er"
 
   BUILD_ALWAYS    OFF
   INSTALL_DIR     ${CMAKE_CURRENT_BINARY_DIR}/GutterTree/prefix
