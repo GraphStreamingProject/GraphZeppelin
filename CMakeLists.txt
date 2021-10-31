@@ -1,17 +1,17 @@
 #TODO: write FindxxHash for libxxhash-dev compatibility?
 #Cmake for xxHash is unofficial, so libxxhash-dev doesn't have xxHashConfig.cmake
-
 cmake_minimum_required(VERSION 3.15)
+project(GraphStreamingCC)
+
 include (ExternalProject)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 
 #Uncomment to enable debug
 #set(ENV{DEBUG} ON)
-
-project(GraphStreamingCC)
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   message("Adding GNU compiler flags")
@@ -164,7 +164,6 @@ ExternalProject_Add(
 
   BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target install
 )
-
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/GutterTree/prefix/include)
 link_directories(${CMAKE_CURRENT_BINARY_DIR}/GutterTree/prefix/lib)
 
@@ -172,6 +171,33 @@ link_directories(${CMAKE_CURRENT_BINARY_DIR}/GutterTree/prefix/lib)
 # AVAILABLE COMPILATION DEFINITIONS:
 # VERIFY_SAMPLES_F   Use a deterministic connected-components algorithm to
 #                    verify post-processing.
+
+add_library(GraphStreamingCC
+  src/graph.cpp
+  src/supernode.cpp
+  src/graph_worker.cpp
+  src/l0_sampling/sketch.cpp
+  src/l0_sampling/update.cpp
+  src/util.cpp)
+target_link_libraries(GraphStreamingCC PRIVATE xxHash::xxhash GTest::gtest)
+add_dependencies(GraphStreamingCC GutterTree)
+target_link_libraries(GraphStreamingCC PRIVATE libGutterTree.a)
+# optimize unless debug
+if (DEFINED ENV{DEBUG})
+  message("Disabling optimizations and enabling debug symbols")
+  target_compile_options(GraphStreamingCC PRIVATE -g -fopenmp)
+  target_link_options(GraphStreamingCC PRIVATE -fopenmp)
+else ()
+  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    target_compile_options(GraphStreamingCC PRIVATE -O3 -fopenmp)
+    target_link_options(GraphStreamingCC PRIVATE -fopenmp)
+  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    target_compile_options(GraphStreamingCC PRIVATE /O2)
+  endif()
+endif ()
+set_target_properties(GraphStreamingCC PROPERTIES PUBLIC_HEADER
+  "include/graph.h;include/binary_graph_stream.h;include/types.h"
+)
 
 add_executable(tests
   test/test_runner.cpp
@@ -248,36 +274,6 @@ elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
   target_compile_options(efficient_gen PRIVATE /O2)
 endif()
 
-add_executable(experiment
-  test/test_runner.cpp
-  test/experiment/BCHMK_Graph.cpp
-  test/experiment/BCHMK_post_proc.cpp
-  test/util/file_graph_verifier.cpp
-  test/util/graph_gen.cpp
-  src/graph.cpp
-  src/supernode.cpp
-  src/graph_worker.cpp
-  src/l0_sampling/sketch.cpp
-  src/l0_sampling/update.cpp
-  src/util.cpp)
-target_link_libraries(experiment PRIVATE xxHash::xxhash GTest::gtest)
-# dependencies
-add_dependencies(experiment GutterTree)
-target_link_libraries(experiment PRIVATE libGutterTree.a)
-# optimize unless debug
-if (DEFINED ENV{DEBUG})
-  message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(experiment PRIVATE -g -fopenmp)
-  target_link_options(experiment PRIVATE -fopenmp)
-else ()
-  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(experiment PRIVATE -O3 -fopenmp)
-    target_link_options(experiment PRIVATE -fopenmp)
-  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    target_compile_options(experiment PRIVATE /O2)
-  endif()
-endif ()
-
 add_executable(cont_test
   test/test_runner.cpp
   test/cont_test.cpp
@@ -307,3 +303,13 @@ else ()
     target_compile_options(cont_test PRIVATE /O2)
   endif()
 endif ()
+
+#uncomment if manually installing project
+#without specifying INSTALL_PREFIX elsewhere
+#set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_BINARY_DIR}/GraphStreamingCC/prefix)
+
+# for use when building as an external project
+install(TARGETS GraphStreamingCC
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
