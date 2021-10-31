@@ -11,7 +11,7 @@ set(CMAKE_CXX_EXTENSIONS ON)
 #Uncomment to enable debug
 #set(ENV{DEBUG} ON)
 
-project(test)
+project(GraphStreamingCC)
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   message("Adding GNU compiler flags")
