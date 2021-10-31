@@ -139,20 +139,19 @@ TEST_P(GraphTest, TestCorrectnessOfReheating) {
     ifstream in{"./sample.txt"};
     node_t n, m;
     in >> n >> m;
-    Graph g{n};
+    Graph *g = new Graph (n);
     int type, a, b;
     printf("number of updates = %lu\n", m);
     while (m--) {
       in >> type >> a >> b;
-      if (type == INSERT) {
-        g.update({{a, b}, INSERT});
-      } else g.update({{a, b}, DELETE});
+      if (type == INSERT) g->update({{a, b}, INSERT});
+      else g->update({{a, b}, DELETE});
     }
-    g.write_binary("./out_temp.txt");
-    g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
+    g->write_binary("./out_temp.txt");
+    g->set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
     vector<set<node_t>> g_res;
     try {
-      g_res = g.connected_components();
+      g_res = g->connected_components();
     } catch (OutOfQueriesException& err) {
       fails++;
       continue;
@@ -162,6 +161,7 @@ TEST_P(GraphTest, TestCorrectnessOfReheating) {
       }
     }
     printf("number of CC = %lu\n", g_res.size());
+    delete g; // delete g to avoid having multiple graphs open at once. Which is illegal.
 
     Graph reheated {"./out_temp.txt"};
     reheated.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));

@@ -8,7 +8,12 @@
 #include "../include/graph.h"
 #include "../include/graph_worker.h"
 
+// static variable for enforcing that only one graph is open at a time
+bool Graph::open_graph = false;
+
 Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
+  if (open_graph) throw MultipleGraphsException();
+
 #ifdef VERIFY_SAMPLES_F
   cout << "Verifying samples..." << endl;
 #endif
@@ -36,9 +41,12 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
     bf = new StandAloneGutters(num_nodes, GraphWorker::get_num_groups());
 
   GraphWorker::start_workers(this, bf, Supernode::get_size());
+  open_graph = true;
 }
 
 Graph::Graph(const std::string& input_file) : num_updates(0) {
+  if (open_graph) throw MultipleGraphsException();
+  
   int sketch_fail_factor;
   auto binary_in = std::fstream(input_file, std::ios::in | std::ios::binary);
   binary_in.read((char*)&seed, sizeof(long));
@@ -68,6 +76,7 @@ Graph::Graph(const std::string& input_file) : num_updates(0) {
     bf = new StandAloneGutters(num_nodes, GraphWorker::get_num_groups());
 
   GraphWorker::start_workers(this, bf, Supernode::get_size());
+  open_graph = true;
 }
 
 Graph::~Graph() {
@@ -78,6 +87,7 @@ Graph::~Graph() {
   delete representatives;
   GraphWorker::stop_workers(); // join the worker threads
   delete bf;
+  open_graph = false;
 }
 
 void Graph::update(GraphUpdate upd) {

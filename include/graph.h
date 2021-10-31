@@ -41,6 +41,7 @@ class Graph {
   void restore_supernodes(Supernode** supernodes);
 
   FRIEND_TEST(GraphTestSuite, TestCorrectnessOfReheating);
+  static bool open_graph;
 public:
   explicit Graph(uint64_t num_nodes);
   explicit Graph(const string &input_file);
@@ -117,3 +118,10 @@ class UpdateLockedException : public exception {
            "already started";
   }
 };
+
+class MultipleGraphsException : public exception {
+  virtual const char * what() const throw() {
+    return "Only one Graph may be open at one time. The other Graph must be deleted.";
+  }
+};
+

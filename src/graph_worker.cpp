@@ -99,9 +99,7 @@ void GraphWorker::do_work() {
     while(true) {
       // call get_data which will handle waiting on the queue
       // and will enforce locking.
-      if (paused) printf("waiting on data\n");
       bool valid = bf->get_data(data);
-      if (paused) printf("got data valid = %s\n", valid? "true" : "false");
 
       if (valid)
         graph->batch_update(data.first, data.second, delta_node);

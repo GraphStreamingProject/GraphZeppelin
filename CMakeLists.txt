@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 
 #Uncomment to enable debug
-set(ENV{DEBUG} ON)
+#set(ENV{DEBUG} ON)
 
 project(test)
 
@@ -154,7 +154,7 @@ ExternalProject_Add(
   GIT_REPOSITORY  "https://github.com/Victor-C-Zhang/FastBufferTree.git"
   GIT_TAG         "async_3_electric-er"
 
-  UPDATE_DISCONNECTED true
+  UPDATE_DISCONNECTED false
   BUILD_ALWAYS    OFF
   INSTALL_DIR     ${CMAKE_CURRENT_BINARY_DIR}/GutterTree/prefix
 
