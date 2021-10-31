@@ -22,9 +22,12 @@ std::ofstream& operator<< (std::ofstream &os, const std::pair<ull,ull> p) {
 
 void write_edges(long n, double p, const std::string& out_f) {
   ul num_edges = (n*(n-1))/2;
-  ul* arr = (ul*) malloc(num_edges*sizeof(ul));
-  for (unsigned i=0;i<num_edges;++i) {
-    arr[i] = i;
+  ull* arr = (ull*) malloc(num_edges*sizeof(ull));
+  ul e = 0;
+  for (unsigned i = 0; i < n; ++i) {
+    for (unsigned j = i+1; j < n; ++j) {
+      arr[e++] = nondirectional_non_self_edge_pairing_fn(i,j);
+    }
   }
   std::shuffle(arr,arr+num_edges, std::mt19937(std::random_device()()));
   std::ofstream out(out_f);
@@ -45,24 +48,24 @@ void insert_delete(double p, int max_appearances, const std::string& in_file,
   std::ofstream out(out_file);
   int n; ul m; in >> n >> m;
   long long full_m = m;
-  ul ins_del_arr[(ul)log2(m)+2];
+  ull ins_del_arr[(ul)log2(m)+2];
   std::fill(ins_del_arr,ins_del_arr + (ul)log2(m)+2,0);
   ins_del_arr[0] = m;
   if (max_appearances == 0) {
     for (unsigned i = 0; ins_del_arr[i] > 1; ++i) {
-      ins_del_arr[i + 1] = (ul) (ins_del_arr[i] * p);
+      ins_del_arr[i + 1] = (ull) (ins_del_arr[i] * p);
       full_m += ins_del_arr[i + 1];
     }
   } else {
     for (int i = 0; i < max_appearances - 1; ++i) {
-      ins_del_arr[i + 1] = (ul) (ins_del_arr[i] * p);
+      ins_del_arr[i + 1] = (ull) (ins_del_arr[i] * p);
       full_m += ins_del_arr[i + 1];
     }
   }
 
   out << n << " " << full_m << endl;
 
-  ul* memoized = (ul*) malloc(ins_del_arr[1]*sizeof(ul));
+  ull* memoized = (ull*) malloc(ins_del_arr[1]*sizeof(ull));
   ul a,b;
 
   for (unsigned i=0;i<ins_del_arr[1];++i) {

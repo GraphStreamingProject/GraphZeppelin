@@ -7,7 +7,7 @@
 
 using namespace std;
 
-typedef std::pair<node_t, node_t> Edge;
+typedef std::pair<node_id_t, node_id_t> Edge;
 
 /**
  * This interface implements the "supernode" so Boruvka can use it as a black
@@ -17,7 +17,7 @@ class Supernode {
   // the size of a super-node in bytes including the all sketches off the end
   static uint32_t bytes_size; 
   int idx;
-  int logn;
+  int num_sketches;
   std::mutex node_mt;
 
   FRIEND_TEST(SupernodeTestSuite, TestBatchUpdate);
@@ -51,6 +51,17 @@ private:
    */
   Supernode(uint64_t n, long seed, std::fstream &binary_in);
 
+  // get the ith sketch in the sketch array
+  inline Sketch* get_sketch(size_t i) {
+    return reinterpret_cast<Sketch*>(sketch_buffer + i * sketch_size);
+  }
+
+  // get the ith sketch in the sketch array
+  inline const Sketch* get_sketch(size_t i) const {
+    return reinterpret_cast<const Sketch*>(sketch_buffer + i * sketch_size);
+  }
+
+  Supernode(const Supernode& s);
 public:
   static Supernode* makeSupernode(uint64_t n, long seed);
   static Supernode* makeSupernode(uint64_t n, long seed, std::fstream &binary_in);
@@ -63,22 +74,13 @@ public:
    * @return        a pointer to loc, the location of the supernode.
    */
   static Supernode* makeSupernode(void* loc, uint64_t n, long seed);
+  static Supernode* makeSupernode(const Supernode& s);
 
   ~Supernode();
 
-  // get the ith sketch in the sketch array
-  inline Sketch* get_sketch(size_t i) {
-    return reinterpret_cast<Sketch*>(sketch_buffer + i * sketch_size);
-  }
-
-  // get the ith sketch in the sketch array
-  inline const Sketch* get_sketch(size_t i) const {
-    return reinterpret_cast<const Sketch*>(sketch_buffer + i * sketch_size);
-  }
-
-  static inline void configure(uint64_t n, double num_bucket_factor=0.5) {
-    Sketch::configure(n*n, num_bucket_factor);
-    bytes_size = sizeof(Supernode) + log2(n) * Sketch::sketchSizeof() - sizeof(char);
+  static inline void configure(uint64_t n, int sketch_fail_factor=100) {
+    Sketch::configure(n*n, sketch_fail_factor);
+    bytes_size = sizeof(Supernode) + log2(n)/(log2(3)-1) * Sketch::sketchSizeof() - sizeof(char);
   }
 
   static inline uint32_t get_size() {
@@ -87,15 +89,11 @@ public:
 
   /**
    * Function to sample an edge from the cut of a supernode.
-   * @return                        an edge in the cut, represented as an Edge
-   *                                with LHS <= RHS, otherwise None.
-   * @throws OutOfQueriesException  if the sketch collection has been sampled
-   *                                too many times.
-   * @throws NoGoodBucketException  if no "good" bucket can be found,
-   *                                according to the specification of L0
-   *                                sampling.
+   * @return   an edge in the cut, represented as an Edge with LHS <= RHS, 
+   *           if one exists. Additionally, returns a code representing the
+   *           sample result (good, zero, or fail)
    */
-  boost::optional<Edge> sample();
+  std::pair<Edge, SampleSketchRet> sample();
 
   /**
    * In-place merge function. Guaranteed to update the caller Supernode.
@@ -131,6 +129,9 @@ public:
    * @param out the stream to write to.
    */
   void write_binary(fstream &binary_out);
+
+  // return the number of sketches held in this supernode
+  int get_num_sktch() { return num_sketches; };
 };
 
 

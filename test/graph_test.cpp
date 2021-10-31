@@ -1,7 +1,8 @@
 #include <gtest/gtest.h>
 #include <fstream>
 #include "../include/graph.h"
-#include "util/graph_verifier.h"
+#include "util/file_graph_verifier.h"
+#include "util/mat_graph_verifier.h"
 #include "util/graph_gen.h"
 #include "util/write_configuration.h"
 
@@ -38,7 +39,7 @@ TEST_P(GraphTest, SmallGraphConnectivity) {
     in >> a >> b;
     g.update({{a, b}, INSERT});
   }
-  g.set_cumul_in(curr_dir + "/res/multiples_graph_1024.txt");
+  g.set_verifier(std::make_unique<FileGraphVerifier>(curr_dir + "/res/multiples_graph_1024.txt"));
   ASSERT_EQ(78, g.connected_components().size());
 }
 
@@ -58,7 +59,7 @@ TEST_P(GraphTest, IFconnectedComponentsAlgRunTHENupdateLocked) {
     in >> a >> b;
     g.update({{a, b}, INSERT});
   }
-  g.set_cumul_in(curr_dir + "/res/multiples_graph_1024.txt");
+  g.set_verifier(std::make_unique<FileGraphVerifier>(curr_dir + "/res/multiples_graph_1024.txt"));
   g.connected_components();
   ASSERT_THROW(g.update({{1,2}, INSERT}), UpdateLockedException);
   ASSERT_THROW(g.update({{1,2}, DELETE}), UpdateLockedException);
@@ -82,10 +83,11 @@ TEST_P(GraphTest, TestCorrectnessOnSmallRandomGraphs) {
         g.update({{a, b}, INSERT});
       } else g.update({{a, b}, DELETE});
     }
-    g.set_cumul_in("./cumul_sample.txt");
+
+    g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
     try {
       g.connected_components();
-    } catch (NoGoodBucketException& err) {
+    } catch (OutOfQueriesException& err) {
       fails++;
       if (fails > allow_fail) {
         printf("More than %i failures failing test\n", allow_fail);
@@ -113,10 +115,11 @@ TEST_P(GraphTest, TestCorrectnessOnSmallSparseGraphs) {
         g.update({{a, b}, INSERT});
       } else g.update({{a, b}, DELETE});
     }
-    g.set_cumul_in("./cumul_sample.txt");
+
+    g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
     try {
       g.connected_components();
-    } catch (NoGoodBucketException& err) {
+    } catch (OutOfQueriesException& err) {
       fails++;
       if (fails > allow_fail) {
         printf("More than %i failures failing test\n", allow_fail);
@@ -145,12 +148,12 @@ TEST_P(GraphTest, TestCorrectnessOfReheating) {
         g.update({{a, b}, INSERT});
       } else g.update({{a, b}, DELETE});
     }
-    g.set_cumul_in("./cumul_sample.txt");
     g.write_binary("./out_temp.txt");
+    g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
     vector<set<node_t>> g_res;
     try {
       g_res = g.connected_components();
-    } catch (NoGoodBucketException& err) {
+    } catch (OutOfQueriesException& err) {
       fails++;
       continue;
       if (fails > allow_fail) {
@@ -161,6 +164,7 @@ TEST_P(GraphTest, TestCorrectnessOfReheating) {
     printf("number of CC = %lu\n", g_res.size());
 
     Graph reheated {"./out_temp.txt"};
+    reheated.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
     auto reheated_res = reheated.connected_components();
     printf("number of reheated CC = %lu\n", reheated_res.size());
     ASSERT_EQ(g_res.size(), reheated_res.size());

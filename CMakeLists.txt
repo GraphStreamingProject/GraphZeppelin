@@ -4,12 +4,12 @@
 cmake_minimum_required(VERSION 3.15)
 include (ExternalProject)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 
 #Uncomment to enable debug
-#set(ENV{DEBUG} ON)
+set(ENV{DEBUG} ON)
 
 project(test)
 
@@ -154,6 +154,7 @@ ExternalProject_Add(
   GIT_REPOSITORY  "https://github.com/Victor-C-Zhang/FastBufferTree.git"
   GIT_TAG         "async_3_electric-er"
 
+  UPDATE_DISCONNECTED true
   BUILD_ALWAYS    OFF
   INSTALL_DIR     ${CMAKE_CURRENT_BINARY_DIR}/GutterTree/prefix
 
@@ -172,14 +173,13 @@ link_directories(${CMAKE_CURRENT_BINARY_DIR}/GutterTree/prefix/lib)
 # VERIFY_SAMPLES_F   Use a deterministic connected-components algorithm to
 #                    verify post-processing.
 
-
 add_executable(tests
   test/test_runner.cpp
   test/graph_test.cpp
   test/sketch_test.cpp
   test/supernode_test.cpp
   test/util_test.cpp
-  test/util/graph_verifier.cpp
+  test/util/file_graph_verifier.cpp
   test/util/graph_gen.cpp
   test/util/graph_gen_test.cpp
   test/util/graph_verifier_test.cpp
@@ -210,7 +210,7 @@ endif ()
 
 add_executable(statistical_test
   test/statistical_testing/graph_testing.cpp
-  test/util/graph_verifier.cpp
+  test/util/file_graph_verifier.cpp
   test/util/graph_gen.cpp
   src/graph.cpp
   src/supernode.cpp
@@ -252,7 +252,7 @@ add_executable(experiment
   test/test_runner.cpp
   test/experiment/BCHMK_Graph.cpp
   test/experiment/BCHMK_post_proc.cpp
-  test/util/graph_verifier.cpp
+  test/util/file_graph_verifier.cpp
   test/util/graph_gen.cpp
   src/graph.cpp
   src/supernode.cpp
@@ -275,5 +275,35 @@ else ()
     target_link_options(experiment PRIVATE -fopenmp)
   elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
     target_compile_options(experiment PRIVATE /O2)
+  endif()
+endif ()
+
+add_executable(cont_test
+  test/test_runner.cpp
+  test/cont_test.cpp
+  test/util/mat_graph_verifier.cpp
+  test/util/graph_gen.cpp
+  src/graph.cpp
+  src/supernode.cpp
+  src/graph_worker.cpp
+  src/l0_sampling/sketch.cpp
+  src/l0_sampling/update.cpp
+  src/util.cpp)
+target_link_libraries(cont_test PRIVATE xxHash::xxhash GTest::gtest)
+target_compile_definitions(cont_test PRIVATE VERIFY_SAMPLES_F)
+# dependencies
+add_dependencies(cont_test GutterTree)
+target_link_libraries(cont_test PRIVATE libGutterTree.a)
+# optimize unless debug
+if (DEFINED ENV{DEBUG})
+  message("Disabling optimizations and enabling debug symbols")
+  target_compile_options(cont_test PRIVATE -g -fopenmp)
+  target_link_options(cont_test PRIVATE -fopenmp)
+else ()
+  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    target_compile_options(cont_test PRIVATE -O3 -fopenmp)
+    target_link_options(cont_test PRIVATE -fopenmp)
+  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    target_compile_options(cont_test PRIVATE /O2)
   endif()
 endif ()

@@ -39,12 +39,12 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
 }
 
 Graph::Graph(const std::string& input_file) : num_updates(0) {
-  double num_bucket_factor;
+  int sketch_fail_factor;
   auto binary_in = std::fstream(input_file, std::ios::in | std::ios::binary);
   binary_in.read((char*)&seed, sizeof(long));
   binary_in.read((char*)&num_nodes, sizeof(uint64_t));
-  binary_in.read((char*)&num_bucket_factor, sizeof(double));
-  Supernode::configure(num_nodes, num_bucket_factor);
+  binary_in.read((char*)&sketch_fail_factor, sizeof(int));
+  Supernode::configure(num_nodes, sketch_fail_factor);
 
 #ifdef VERIFY_SAMPLES_F
   cout << "Verifying samples..." << endl;
@@ -120,9 +120,6 @@ vector<set<node_t>> Graph::connected_components() {
   printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
-#ifdef VERIFY_SAMPLES_F
-  GraphVerifier verifier {cumul_in };
-#endif
   pair<node_t,node_t> query[num_nodes];
   node_t size[num_nodes];
   vector<node_t> reps(num_nodes);
@@ -135,21 +132,31 @@ vector<set<node_t>> Graph::connected_components() {
     modified = false;
     bool except = false;
     std::exception_ptr err;
-    #pragma omp parallel for default(none) shared(query, reps, except, err)
+
+    #pragma omp parallel for default(none) shared(query, reps, except, err, modified)
     for (node_t i = 0; i < reps.size(); ++i) {
       // wrap in a try/catch because exiting through exception is undefined behavior in OMP
-      boost::optional<Edge> edge;
+      Edge edge;
+      SampleSketchRet ret_code = ZERO;
       try {
-        edge = supernodes[reps[i]]->sample();
+        std::pair<Edge, SampleSketchRet> query_ret = supernodes[reps[i]]->sample();
+        edge     = query_ret.first;
+        ret_code = query_ret.second;
+
       } catch (...) {
         except = true;
         err = std::current_exception();
       }
-      if (!edge.is_initialized()) {
-        query[reps[i]] = {i,i};
+      if (ret_code == ZERO) {
+        query[reps[i]] = {i, i};
         continue;
       }
-      query[reps[i]] = edge.get();
+      if (ret_code == FAIL) {
+        // one of our representatives could not be queried. So we need to try again.
+        modified = true;
+        continue;
+      }
+      query[reps[i]] = edge;
     }
 
     // Did one of our threads produce an exception?
@@ -161,7 +168,7 @@ vector<set<node_t>> Graph::connected_components() {
       node_t b = get_parent(query[i].second);
       if (a == b) continue;
 #ifdef VERIFY_SAMPLES_F
-      verifier.verify_edge({query[i].first,query[i].second});
+      verifier->verify_edge({query[i].first,query[i].second});
 #endif
 
       // make sure a is the one to be merged into
@@ -205,9 +212,44 @@ vector<set<node_t>> Graph::connected_components() {
   return retval;
 }
 
-void Graph::post_cc_resume() {
+Supernode** Graph::backup_supernodes() {
+  bf->force_flush(); // flush everything in buffering system to make final updates
+  GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
+
+  // Copy supernodes
+  Supernode** supernodes = new Supernode*[num_nodes];
+  for (node_t i=0;i<num_nodes;++i) {
+    supernodes[i] = Supernode::makeSupernode(*this->supernodes[i]);
+  }
+
+  return supernodes;
+}
+
+void Graph::restore_supernodes(Supernode** supernodes) {
+  // Restore supernodes
+  for (node_t i=0;i<num_nodes;++i) {
+    free(this->supernodes[i]);
+    this->supernodes[i] = supernodes[i];
+    representatives->insert(i);
+    parent[i] = i;
+  }
+  delete[] supernodes;
+
   GraphWorker::unpause_workers();
   update_locked = false;
+}
+
+vector<set<node_t>> Graph::connected_components(bool cont) {
+  if (!cont)
+    return connected_components();
+
+  Supernode** supernodes = backup_supernodes();
+
+  vector<set<node_t>> ret = connected_components();
+
+  restore_supernodes(supernodes);
+
+  return ret;
 }
 
 node_t Graph::get_parent(node_t node) {
@@ -218,13 +260,13 @@ node_t Graph::get_parent(node_t node) {
 void Graph::write_binary(const std::string& filename) {
   bf->force_flush(); // flush everything in buffering system to make final updates
   GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
-  // after this point all updates have been processed from the buffer tree
+  // after this point all updates have been processed from the buffering system
 
   auto binary_out = std::fstream(filename, std::ios::out | std::ios::binary);
-  double sketch_factor = Sketch::get_bucket_factor();
+  int fail_factor = Sketch::get_failure_factor();
   binary_out.write((char*)&seed, sizeof(long));
   binary_out.write((char*)&num_nodes, sizeof(uint64_t));
-  binary_out.write((char*)&sketch_factor, sizeof(double));
+  binary_out.write((char*)&fail_factor, sizeof(int));
   for (node_t i = 0; i < num_nodes; ++i) {
     supernodes[i]->write_binary(binary_out);
   }
