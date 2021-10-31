@@ -18,7 +18,7 @@ static void write_configuration(bool use_tree, int groups=1, int g_size=1) {
 	in.close();
 
 	std::ofstream out("streaming.conf");
-	out << "buffering_system=" << (use_tree? "tree" : "gutters") << std::endl;
+	out << "buffering_system=" << (use_tree? "tree" : "standalone") << std::endl;
 	out << "path_prefix=" << path_prefix << std::endl;
 	out << "num_groups=" << groups << std::endl;
 	out << "group_size=" << g_size << std::endl;
