@@ -39,12 +39,12 @@ Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
 }
 
 Graph::Graph(const std::string& input_file) : num_updates(0) {
-  double num_bucket_factor;
+  int sketch_fail_factor;
   auto binary_in = std::fstream(input_file, std::ios::in | std::ios::binary);
   binary_in.read((char*)&seed, sizeof(long));
   binary_in.read((char*)&num_nodes, sizeof(uint64_t));
-  binary_in.read((char*)&num_bucket_factor, sizeof(double));
-  Supernode::configure(num_nodes, num_bucket_factor);
+  binary_in.read((char*)&sketch_fail_factor, sizeof(int));
+  Supernode::configure(num_nodes, sketch_fail_factor);
 
 #ifdef VERIFY_SAMPLES_F
   cout << "Verifying samples..." << endl;
@@ -142,25 +142,34 @@ vector<set<node_t>> Graph::connected_components() {
     vector<node_t> removed;
     for (node_t i: (*representatives)) {
       if (parent[i] != i) continue;
-      boost::optional<Edge> edge = supernodes[i]->sample();
+      std::pair<Edge, SampleSketchRet> query_ret = supernodes[i]->sample();
+      Edge edge = query_ret.first;
+      SampleSketchRet ret_code = query_ret.second;
+
 #ifdef VERIFY_SAMPLES_F
-      if (edge.is_initialized())
-        verifier->verify_edge(edge.value());
-      else
+      if (ret_code == GOOD)
+        verifier->verify_edge(edge);
+      else if (ret_code == ZERO)
         verifier->verify_cc(i);
 #endif
-      if (!edge.is_initialized()) continue;
+      if (ret_code == ZERO) continue;
+      // one of our representatives could not be queried. So we need to try again.
+      if (ret_code == FAIL) {
+        printf("WARNING: Sketch query failed\n");
+        modified = true;
+        continue;
+      }
 
       node_t n;
       // DSU compression
-      if (get_parent(edge->first) == i) {
-        n = get_parent(edge->second);
+      if (get_parent(edge.first) == i) {
+        n = get_parent(edge.second);
         removed.push_back(n);
         parent[n] = i;
       }
       else {
-        get_parent(edge->second);
-        n = get_parent(edge->first);
+        get_parent(edge.second);
+        n = get_parent(edge.first);
         removed.push_back(n);
         parent[n] = i;
       }
@@ -251,21 +260,31 @@ vector<set<node_t>> Graph::parallel_connected_components() {
     modified = false;
     bool except = false;
     std::exception_ptr err;
-    #pragma omp parallel for default(none) shared(query, reps, except, err)
+
+    #pragma omp parallel for default(none) shared(query, reps, except, err, modified)
     for (node_t i = 0; i < reps.size(); ++i) {
       // wrap in a try/catch because exiting through exception is undefined behavior in OMP
-      boost::optional<Edge> edge;
+      Edge edge;
+      SampleSketchRet ret_code = ZERO;
       try {
-        edge = supernodes[reps[i]]->sample();
+        std::pair<Edge, SampleSketchRet> query_ret = supernodes[reps[i]]->sample();
+        edge     = query_ret.first;
+        ret_code = query_ret.second;
+
       } catch (...) {
         except = true;
         err = std::current_exception();
       }
-      if (!edge.is_initialized()) {
+      if (ret_code == ZERO) {
         query[reps[i]] = {i, i};
         continue;
       }
-      query[reps[i]] = edge.get();
+      if (ret_code == FAIL) {
+        // one of our representatives could not be queried. So we need to try again.
+        modified = true;
+        continue;
+      }
+      query[reps[i]] = edge;
     }
 
     // Did one of our threads produce an exception?
@@ -335,10 +354,10 @@ void Graph::write_binary(const std::string& filename) {
   // after this point all updates have been processed from the buffer tree
 
   auto binary_out = std::fstream(filename, std::ios::out | std::ios::binary);
-  double sketch_factor = Sketch::get_bucket_factor();
+  int fail_factor = Sketch::get_failure_factor();
   binary_out.write((char*)&seed, sizeof(long));
   binary_out.write((char*)&num_nodes, sizeof(uint64_t));
-  binary_out.write((char*)&sketch_factor, sizeof(double));
+  binary_out.write((char*)&fail_factor, sizeof(int));
   for (node_t i = 0; i < num_nodes; ++i) {
     supernodes[i]->write_binary(binary_out);
   }

@@ -4,19 +4,21 @@
 #include "util/testing_vector.h"
 #include "util/sketch_constructors.h"
 
+static const int fail_factor = 100;
+
 TEST(SketchTestSuite, TestExceptions) {
-  Sketch::configure(10 * 10, 1);
+  Sketch::configure(10 * 10, fail_factor);
   SketchUniquePtr sketch1 = makeSketch(rand());
-  ASSERT_THROW(sketch1->query(), AllBucketsZeroException);
+  ASSERT_EQ(sketch1->query().second, ZERO);
   ASSERT_THROW(sketch1->query(), MultipleQueryException);
 
   /**
    * Find a vector that makes no good buckets
    */
-  Sketch::configure(100 * 100, 0.5);
+  Sketch::configure(100 * 100, fail_factor);
   SketchUniquePtr sketch2 = makeSketch(0);
   std::vector<bool> vec_idx(sketch2->n, true);
-  unsigned long long num_buckets = bucket_gen(sketch2->n, 1);
+  unsigned long long num_buckets = bucket_gen(fail_factor);
   unsigned long long num_guesses = guess_gen(sketch2->n);
   for (unsigned long long i = 0; i < num_buckets; ++i) {
     for (unsigned long long j = 0; j < num_guesses;) {
@@ -44,21 +46,25 @@ TEST(SketchTestSuite, TestExceptions) {
       sketch2->update(static_cast<vec_t>(i));
     }
   }
-  ASSERT_THROW(sketch2->query(), NoGoodBucketException);
+  ASSERT_EQ(sketch2->query().second, FAIL);
 }
 
 TEST(SketchTestSuite, GIVENonlyIndexZeroUpdatedTHENitWorks) {
   // GIVEN only the index 0 is updated
   srand(time(nullptr));
-  Sketch::configure(1000 * 1000, 0.5);
+  Sketch::configure(1000 * 1000, fail_factor);
   SketchUniquePtr sketch = makeSketch(rand());
   sketch->update(0);
   sketch->update(0);
   sketch->update(0);
 
   // THEN it works
-  vec_t res = sketch->query();
+  std::pair<vec_t, SampleSketchRet> query_ret = sketch->query();
+  vec_t res = query_ret.first;
+  SampleSketchRet ret_code = query_ret.second;
+
   ASSERT_EQ(res, 0) << "Expected: 0" << std::endl << "Actual: " << res;
+  ASSERT_EQ(ret_code, GOOD);
 }
 
 /**
@@ -67,7 +73,7 @@ TEST(SketchTestSuite, GIVENonlyIndexZeroUpdatedTHENitWorks) {
 void test_sketch_sample(unsigned long num_sketches,
     unsigned long vec_size, unsigned long num_updates,
     double max_sample_fail_prob, double max_bucket_fail_prob) {
-  Sketch::configure(vec_size * vec_size, 1);
+  Sketch::configure(vec_size * vec_size, fail_factor);
 
   srand(time(nullptr));
   std::chrono::duration<long double> runtime(0);
@@ -82,27 +88,34 @@ void test_sketch_sample(unsigned long num_sketches,
     }
     runtime += std::chrono::steady_clock::now() - start_time;
     try {
-      vec_t res_idx = sketch->query();
-      //Multiple queries shouldn't happen, but if we do get here fail test
-      ASSERT_LT(res_idx, vec_size) << "Sampled index out of bounds";
-      if (!test_vec.get_entry(res_idx)) {
-        //Undetected sample error
-        sample_incorrect_failures++;
-      }
-    } catch (AllBucketsZeroException& e) {
-      //All buckets being 0 implies that the whole vector should be 0
-      bool vec_zero = true;
-      for (unsigned long j = 0; vec_zero && j < vec_size; j++) {
-        if (test_vec.get_entry(j)) {
-          vec_zero = false;
+      std::pair<vec_t, SampleSketchRet> query_ret = sketch->query();
+      vec_t res_idx = query_ret.first;
+      SampleSketchRet ret_code = query_ret.second;
+
+      if (ret_code == GOOD) {
+        //Multiple queries shouldn't happen, but if we do get here fail test
+        ASSERT_LT(res_idx, vec_size) << "Sampled index out of bounds";
+        if (!test_vec.get_entry(res_idx)) {
+          //Undetected sample error
+          sample_incorrect_failures++;
         }
       }
-      if (!vec_zero) {
-        sample_incorrect_failures++;
+      else if (ret_code == ZERO) {
+        //All buckets being 0 implies that the whole vector should be 0
+        bool vec_zero = true;
+        for (unsigned long j = 0; vec_zero && j < vec_size; j++) {
+          if (test_vec.get_entry(j)) {
+            vec_zero = false;
+          }
+        }
+        if (!vec_zero) {
+          sample_incorrect_failures++;
+        }
       }
-    } catch (NoGoodBucketException& e) {
-      //No good bucket
-      all_bucket_failures++;
+      else { // sketch failed
+        //No good bucket
+        all_bucket_failures++;
+      }
     } catch (MultipleQueryException& e) {
       //Multiple queries shouldn't happen, but if we do get here fail test
       FAIL() << e.what();
@@ -132,7 +145,7 @@ TEST(SketchTestSuite, TestSketchSample) {
 void test_sketch_addition(unsigned long num_sketches,
     unsigned long vec_size, unsigned long num_updates,
     double max_sample_fail_prob, double max_bucket_fail_prob) {
-  Sketch::configure(vec_size * vec_size, 1);
+  Sketch::configure(vec_size * vec_size, fail_factor);
 
   srand (time(NULL));
   unsigned long all_bucket_failures = 0;
@@ -150,25 +163,32 @@ void test_sketch_addition(unsigned long num_sketches,
     }
     *sketch1 += *sketch2;
     try {
-      vec_t res_idx = sketch1->query();
-      ASSERT_LT(res_idx, vec_size) << "Sampled index out of bounds";
-      if (test_vec1.get_entry(res_idx) == test_vec2.get_entry(res_idx)) {
-        sample_incorrect_failures++;
-      }
-    } catch (AllBucketsZeroException& e) {
-      //All buckets being 0 implies that the whole vector should be 0
-      bool vec_zero = true;
-      for (unsigned long j = 0; vec_zero && j < vec_size; j++) {
-        if (test_vec1.get_entry(j) != test_vec2.get_entry(j)) {
-          vec_zero = false;
+      std::pair<vec_t, SampleSketchRet> query_ret = sketch1->query();
+      vec_t res_idx = query_ret.first;
+      SampleSketchRet ret_code = query_ret.second;
+
+      if (ret_code == GOOD) {
+        ASSERT_LT(res_idx, vec_size) << "Sampled index out of bounds";
+        if (test_vec1.get_entry(res_idx) == test_vec2.get_entry(res_idx)) {
+          sample_incorrect_failures++;
         }
       }
-      if (!vec_zero) {
-        sample_incorrect_failures++;
+      else if (ret_code == ZERO) {
+        //All buckets being 0 implies that the whole vector should be 0
+        bool vec_zero = true;
+        for (unsigned long j = 0; vec_zero && j < vec_size; j++) {
+          if (test_vec1.get_entry(j) != test_vec2.get_entry(j)) {
+            vec_zero = false;
+          }
+        }
+        if (!vec_zero) {
+          sample_incorrect_failures++;
+        }
       }
-    } catch (NoGoodBucketException& e) {
-      //No good bucket
-      all_bucket_failures++;
+      else { // sketch failed
+        //No good bucket
+        all_bucket_failures++;
+      }
     } catch (MultipleQueryException& e) {
       //Multiple queries shouldn't happen, but if we do get here fail test
       FAIL() << e.what();
@@ -192,7 +212,7 @@ TEST(SketchTestSuite, TestSketchAddition){
  * Large sketch test
  */
 void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
-  Sketch::configure(vec_size * vec_size, 0.5);
+  Sketch::configure(vec_size * vec_size, fail_factor);
 
   srand(time(nullptr));
   SketchUniquePtr sketch = makeSketch(rand());
@@ -207,26 +227,33 @@ void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
     << " updates took " << std::chrono::duration<long double>(
       std::chrono::steady_clock::now() - start_time).count() << std::endl;
   try {
-    vec_t res_idx = sketch->query();
-    //Multiple queries shouldn't happen, but if we do get here fail test
-    ASSERT_LT(res_idx, vec_size) << "Sampled index out of bounds";
-    //Replay update stream, keep track of the sampled index
-    srand(seed);
-    bool actual_delta = false;
-    for (unsigned long j = 0; j < num_updates; j++){
-      vec_t update_idx = static_cast<vec_t>(rand() % vec_size);
-      if (update_idx == res_idx) {
-        actual_delta = !actual_delta;
+    std::pair<vec_t, SampleSketchRet> query_ret = sketch->query();
+    vec_t res_idx = query_ret.first;
+    SampleSketchRet ret_code = query_ret.second;
+
+    if (ret_code == GOOD) {
+      //Multiple queries shouldn't happen, but if we do get here fail test
+      ASSERT_LT(res_idx, vec_size) << "Sampled index out of bounds";
+      //Replay update stream, keep track of the sampled index
+      srand(seed);
+      bool actual_delta = false;
+      for (unsigned long j = 0; j < num_updates; j++){
+        vec_t update_idx = static_cast<vec_t>(rand() % vec_size);
+        if (update_idx == res_idx) {
+          actual_delta = !actual_delta;
+        }
       }
+      //Undetected sample error, not likely to happen for large vectors
+      ASSERT_EQ(actual_delta, true);
     }
-    //Undetected sample error, not likely to happen for large vectors
-    ASSERT_EQ(actual_delta, true);
-  } catch (AllBucketsZeroException& e) {
-    //All buckets being 0 implies that the whole vector should be 0, not likely to happen for large vectors
-    FAIL() << "AllBucketsZeroException:" << e.what();
-  } catch (NoGoodBucketException& e) {
-    //No good bucket, not likely to happen for large vectors
-    FAIL() << "NoGoodBucketException:" << e.what();
+    else if (ret_code == ZERO) {
+      //All buckets being 0 implies that the whole vector should be 0, not likely to happen for large vectors
+      FAIL() << "Got a Zero Sketch!";
+    }
+    else { // sketch failed
+      // No good bucket, not likely to happen for large vectors
+      FAIL() << "Sketch Failed: No good bucket.";
+    }
   } catch (MultipleQueryException& e) {
     //Multiple queries shouldn't happen, but if we do get here fail test
     FAIL() << "MultipleQueryException:" << e.what();
@@ -242,7 +269,7 @@ TEST(SketchTestSuite, TestSketchLarge) {
 
 TEST(SketchTestSuite, TestBatchUpdate) {
   unsigned long vec_size = 1000000000, num_updates = 10000;
-  Sketch::configure(vec_size * vec_size, 0.5);
+  Sketch::configure(vec_size * vec_size, fail_factor);
   srand(time(nullptr));
   std::vector<vec_t> updates(num_updates);
   for (unsigned long i = 0; i < num_updates; i++) {
@@ -267,7 +294,7 @@ TEST(SketchTestSuite, TestSerialization) {
   printf("starting test!\n");
   unsigned long vec_size = 1024*1024;
   unsigned long num_updates = 10000;
-  Sketch::configure(vec_size * vec_size, 1);
+  Sketch::configure(vec_size * vec_size, fail_factor);
   Testing_Vector test_vec = Testing_Vector(vec_size, num_updates);
   auto seed = rand();
   SketchUniquePtr sketch = makeSketch(seed);

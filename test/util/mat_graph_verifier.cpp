@@ -39,11 +39,11 @@ void MatGraphVerifier::verify_edge(Edge edge) {
   node_t s = sets.find_set(edge.second);
   if (boruvka_cc[f].find(edge.second) != boruvka_cc[f].end()
   || boruvka_cc[s].find(edge.first) != boruvka_cc[s].end()) {
-    printf("Got an error of node %lu to node (1)%lu\n", edge.first, edge.second);
+    printf("Got an error of node %u to node (1)%u\n", edge.first, edge.second);
     throw BadEdgeException();
   }
   if (!det_graph[nondirectional_non_self_edge_pairing_fn(edge.first,edge.second)]) {
-    printf("Got an error of node %lu to node (2)%lu\n", edge.first, edge.second);
+    printf("Got an error of node %u to node (2)%u\n", edge.first, edge.second);
     throw BadEdgeException();
   }
 

@@ -76,7 +76,7 @@ TEST(GraphTestSuite, TestCorrectnessOnSmallRandomGraphs) {
     g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
     try {
       g.connected_components();
-    } catch (NoGoodBucketException& err) {
+    } catch (OutOfQueriesException& err) {
       fails++;
       if (fails > allow_fail) {
         printf("More than %i failures failing test\n", allow_fail);
@@ -107,7 +107,7 @@ TEST(GraphTestSuite, TestCorrectnessOnSmallSparseGraphs) {
     g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
     try {
       g.connected_components();
-    } catch (NoGoodBucketException& err) {
+    } catch (OutOfQueriesException& err) {
       fails++;
       if (fails > allow_fail) {
         printf("More than %i failures failing test\n", allow_fail);
@@ -139,7 +139,7 @@ TEST(GraphTestSuite, TestCorrectnessOfReheating) {
     vector<set<node_t>> g_res;
     try {
       g_res = g.connected_components();
-    } catch (NoGoodBucketException& err) {
+    } catch (OutOfQueriesException& err) {
       fails++;
       continue;
       if (fails > allow_fail) {

@@ -3,7 +3,7 @@
 #include <cstring>
 #include <iostream>
 
-double Sketch::num_bucket_factor = 0.5;
+int Sketch::failure_factor = 100;
 vec_t Sketch::n;
 size_t Sketch::num_elems;
 size_t Sketch::num_buckets;
@@ -74,35 +74,27 @@ void Sketch::batch_update(const std::vector<vec_t>& updates) {
   }
 }
 
-vec_t Sketch::query() {
+std::pair<vec_t, SampleSketchRet> Sketch::query() {
   if (already_quered) {
     throw MultipleQueryException();
   }
   already_quered = true;
-  bool all_buckets_zero = true;
 
-  if (bucket_a[num_elems - 1] != 0 || bucket_c[num_elems - 1] != 0) {
-    all_buckets_zero = false;
+  if (bucket_a[num_elems - 1] == 0 && bucket_c[num_elems - 1] == 0) {
+    return {0, ZERO}; // the "first" bucket is deterministic so if it is all zero then there are no edges to return
   }
-  if (Bucket_Boruvka::is_good(bucket_a[num_elems - 1], bucket_c[num_elems - 1], n, seed)) {
-    return bucket_a[num_elems - 1];
+  if (Bucket_Boruvka::is_good(bucket_a[num_elems - 1], bucket_c[num_elems - 1], seed)) {
+    return {bucket_a[num_elems - 1], GOOD};
   }
   for (unsigned i = 0; i < num_buckets; ++i) {
     for (unsigned j = 0; j < num_guesses; ++j) {
       unsigned bucket_id = i * num_guesses + j;
-      if (all_buckets_zero && (bucket_a[bucket_id] != 0 || bucket_c[bucket_id] != 0)) {
-        all_buckets_zero = false;
-      }
-      if (Bucket_Boruvka::is_good(bucket_a[bucket_id], bucket_c[bucket_id], n, i, 2 << j, seed)) {
-        return bucket_a[bucket_id];
+      if (Bucket_Boruvka::is_good(bucket_a[bucket_id], bucket_c[bucket_id], i, 2 << j, seed)) {
+        return {bucket_a[bucket_id], GOOD};
       }
     }
   }
-  if (all_buckets_zero) {
-    throw AllBucketsZeroException();
-  } else {
-    throw NoGoodBucketException();
-  }
+  return {0, FAIL};
 }
 
 Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2) {
@@ -137,7 +129,7 @@ std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
   os << std::endl
      << "a:" << sketch.bucket_a[Sketch::num_buckets * Sketch::num_guesses] << std::endl
      << "c:" << sketch.bucket_c[Sketch::num_buckets * Sketch::num_guesses] << std::endl
-     << (Bucket_Boruvka::is_good(sketch.bucket_a[Sketch::num_buckets * Sketch::num_guesses], sketch.bucket_c[Sketch::num_buckets * Sketch::num_guesses], sketch.n, sketch.seed) ? "good" : "bad") << std::endl;
+     << (Bucket_Boruvka::is_good(sketch.bucket_a[Sketch::num_buckets * Sketch::num_guesses], sketch.bucket_c[Sketch::num_buckets * Sketch::num_guesses], sketch.seed) ? "good" : "bad") << std::endl;
 
   for (unsigned i = 0; i < Sketch::num_buckets; ++i) {
     for (unsigned j = 0; j < Sketch::num_guesses; ++j) {
@@ -148,7 +140,7 @@ std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
       os << std::endl
          << "a:" << sketch.bucket_a[bucket_id] << std::endl
          << "c:" << sketch.bucket_c[bucket_id] << std::endl
-         << (Bucket_Boruvka::is_good(sketch.bucket_a[bucket_id], sketch.bucket_c[bucket_id], Sketch::n, i, 2 << j, sketch.seed) ? "good" : "bad") << std::endl;
+         << (Bucket_Boruvka::is_good(sketch.bucket_a[bucket_id], sketch.bucket_c[bucket_id], i, 2 << j, sketch.seed) ? "good" : "bad") << std::endl;
     }
   }
   return os;

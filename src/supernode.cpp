@@ -6,27 +6,27 @@
 
 uint32_t Supernode::bytes_size;
 
-Supernode::Supernode(uint64_t n, long seed): idx(0), logn(log2(n)),
+Supernode::Supernode(uint64_t n, long seed): idx(0), num_sketches(log2(n)/(log2(3)-1)),
                n(n), seed(seed), sketch_size(Sketch::sketchSizeof()) {
 
-  // generate logn sketches for each supernode (read: node)
-  for (int i = 0; i < logn; ++i) {
+  // generate num_sketches sketches for each supernode (read: node)
+  for (int i = 0; i < num_sketches; ++i) {
     Sketch::makeSketch(get_sketch(i), seed++);
   }
 }
 
 Supernode::Supernode(uint64_t n, long seed, std::fstream &binary_in) :
-  idx(0), logn(log2(n)), n(n), seed(seed), sketch_size(Sketch::sketchSizeof()) {
+  idx(0), num_sketches(log2(n)/(log2(3)-1)), n(n), seed(seed), sketch_size(Sketch::sketchSizeof()) {
 
-  // read logn sketches from file for each supernode (read: node)
-  for (int i = 0; i < logn; ++i) {
+  // read num_sketches sketches from file for each supernode (read: node)
+  for (int i = 0; i < num_sketches; ++i) {
     Sketch::makeSketch(get_sketch(i), seed++, binary_in);
   }
 }
 
-Supernode::Supernode(const Supernode& s) : idx(s.idx), logn(s.logn), n(s.n),
+Supernode::Supernode(const Supernode& s) : idx(s.idx), num_sketches(s.num_sketches), n(s.n),
     seed(s.seed), sketch_size(s.sketch_size) {
-  for (int i = 0; i < logn; ++i) {
+  for (int i = 0; i < num_sketches; ++i) {
     Sketch::makeSketch(get_sketch(i), *s.get_sketch(i));
   }
 }
@@ -53,32 +53,30 @@ Supernode* Supernode::makeSupernode(const Supernode& s) {
 Supernode::~Supernode() {
 }
 
-boost::optional<Edge> Supernode::sample() {
-  if (idx == logn) throw OutOfQueriesException();
-  vec_t query_idx;
-  try {
-    query_idx = get_sketch(idx++)->query();
-  } catch (AllBucketsZeroException &e) {
-    return {};
-  }
-  return inv_nondir_non_self_edge_pairing_fn(query_idx);
+std::pair<Edge, SampleSketchRet> Supernode::sample() {
+  if (idx == num_sketches) throw OutOfQueriesException();
+
+  std::pair<vec_t, SampleSketchRet> query_ret = get_sketch(idx++)->query();
+  vec_t idx = query_ret.first;
+  SampleSketchRet ret_code = query_ret.second;
+  return {inv_nondir_non_self_edge_pairing_fn(idx), ret_code};
 }
 
 void Supernode::merge(Supernode &other) {
   idx = max(idx, other.idx);
-  for (int i=idx;i<logn;++i) {
+  for (int i=idx;i<num_sketches;++i) {
     (*get_sketch(i))+=(*other.get_sketch(i));
   }
 }
 
 void Supernode::update(vec_t upd) {
-  for (int i = 0; i < logn; ++i)
+  for (int i = 0; i < num_sketches; ++i)
     get_sketch(i)->update(upd);
 }
 
 void Supernode::apply_delta_update(const Supernode* delta_node) {
   std::unique_lock<std::mutex> lk(node_mt);
-  for (int i = 0; i < logn; ++i) {
+  for (int i = 0; i < num_sketches; ++i) {
     *get_sketch(i) += *delta_node->get_sketch(i);
   }
   lk.unlock();
@@ -90,7 +88,7 @@ void Supernode::apply_delta_update(const Supernode* delta_node) {
  * of threads employed for each parallel section
  * OMP_NUM_THREADS (or set_omp_num_threads): how many threads to spin up for
  * each parallel section. the default is (probably) one per CPU core
- * available, but we may want to set it lower if logn is a nice multiple of
+ * available, but we may want to set it lower if num_sketches is a nice multiple of
  * a lower number.
  *
  * We may want to use omp option schedule(dynamic) or schedule(guided) if
@@ -109,13 +107,13 @@ void Supernode::delta_supernode(uint64_t n, long seed,
                const vector<vec_t> &updates, void *loc) {
   auto delta_node = makeSupernode(loc, n, seed);
 #pragma omp parallel for num_threads(GraphWorker::get_group_size()) default(shared)
-  for (int i = 0; i < delta_node->logn; ++i) {
+  for (int i = 0; i < delta_node->num_sketches; ++i) {
     delta_node->get_sketch(i)->batch_update(updates);
   }
 }
 
 void Supernode::write_binary(std::fstream& binary_out) {
-  for (int i = 0; i < logn; ++i) {
+  for (int i = 0; i < num_sketches; ++i) {
     get_sketch(i)->write_binary(binary_out);
   }
 }

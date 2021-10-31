@@ -29,9 +29,9 @@ void test_continuous(unsigned nodes, unsigned long updates_per_sample, unsigned 
       g.set_verifier(std::make_unique<MatGraphVerifier>(nodes, adj));
       std::cout << "Running cc" << std::endl;
       g.connected_components(true);
-    } catch (const NoGoodBucketException& e) {
+    } catch (const OutOfQueriesException& e) {
       num_failure++;
-      std::cout << "CC #" << i << "failed with NoGoodBucket" << std::endl;
+      std::cout << "CC #" << i << "failed with NoMoreQueries" << std::endl;
     } catch (const NotCCException& e) {
       num_failure++;
       std::cout << "CC #" << i << "failed with NotCC" << std::endl;
@@ -65,9 +65,9 @@ void test_continuous(std::ifstream& in, unsigned long samples) {
       g.set_verifier(std::make_unique<MatGraphVerifier>(n, adj));
       std::cout << "Running cc" << std::endl;
       g.connected_components(true);
-    } catch (const NoGoodBucketException& e) {
+    } catch (const OutOfQueriesException& e) {
       num_failure++;
-      std::cout << "CC #" << i << "failed with NoGoodBucket" << std::endl;
+      std::cout << "CC #" << i << "failed with NoMoreQueries" << std::endl;
     } catch (const NotCCException& e) {
       num_failure++;
       std::cout << "CC #" << i << "failed with NotCC" << std::endl;
