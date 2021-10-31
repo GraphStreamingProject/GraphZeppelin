@@ -130,7 +130,7 @@ vector<set<node_t>> Graph::connected_components() {
   printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
-  pair<node_t,node_t> query[num_nodes];
+  std::pair<Edge, SampleSketchRet> query[num_nodes];
   node_t size[num_nodes];
   vector<node_t> reps(num_nodes);
   fill(size, size + num_nodes, 1);
@@ -146,42 +146,42 @@ vector<set<node_t>> Graph::connected_components() {
     #pragma omp parallel for default(none) shared(query, reps, except, err, modified)
     for (node_t i = 0; i < reps.size(); ++i) {
       // wrap in a try/catch because exiting through exception is undefined behavior in OMP
-      Edge edge;
-      SampleSketchRet ret_code = ZERO;
       try {
-        std::pair<Edge, SampleSketchRet> query_ret = supernodes[reps[i]]->sample();
-        edge     = query_ret.first;
-        ret_code = query_ret.second;
+        query[reps[i]] = supernodes[reps[i]]->sample();
 
       } catch (...) {
         except = true;
         err = std::current_exception();
       }
-      if (ret_code == ZERO) {
-        query[reps[i]] = {i, i};
-        continue;
-      }
-      if (ret_code == FAIL) {
-        // one of our representatives could not be queried. So we need to try again.
-        modified = true;
-        continue;
-      }
-      query[reps[i]] = edge;
     }
-
     // Did one of our threads produce an exception?
     if (except) std::rethrow_exception(err);
 
     vector<node_t> to_remove;
     for (node_t i : reps) {
-      node_t a = get_parent(query[i].first);
-      node_t b = get_parent(query[i].second);
-      if (a == b) continue;
+      // unpack query result
+      Edge edge = query[i].first;
+      SampleSketchRet ret_code = query[i].second;
+
+      // try this query again next round as it failed this round
+      if (ret_code == FAIL) {modified = true; continue;} 
+      if (ret_code == ZERO) {
 #ifdef VERIFY_SAMPLES_F
-      verifier->verify_edge({query[i].first,query[i].second});
+        verifier->verify_cc(i);
+#endif
+        continue;
+      }
+
+      // query dsu
+      node_t a = get_parent(edge.first);
+      node_t b = get_parent(edge.second);
+      if (a == b) continue;
+
+#ifdef VERIFY_SAMPLES_F
+      verifier->verify_edge(edge);
 #endif
 
-      // make sure a is the one to be merged into
+      // make sure a is the one to be merged into and merge
       if (size[a] < size[b]) std::swap(a,b);
       to_remove.push_back(b);
       parent[b] = a;
