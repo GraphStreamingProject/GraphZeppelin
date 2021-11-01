@@ -79,7 +79,7 @@ jobs:
         # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
         env:
           BOOST_ROOT: ${{runner.workspace}}/boost
-        run: cmake -DCMAKE_INSTALL_PREFIX=${{runner.workspace}}/install -DCMAKE_BUILD_TYPE=$BUILD_TYPE $GITHUB_WORKSPACE
+        run: cmake -DCMAKE_INSTALL_PREFIX=${{runner.workspace}}/install -DCMAKE_INSTALL_INCLUDEDIR=${{runner.workspace}}/install/include -DCMAKE_BUILD_TYPE=$BUILD_TYPE $GITHUB_WORKSPACE
 
       - name: Build
         working-directory: ${{runner.workspace}}/build
