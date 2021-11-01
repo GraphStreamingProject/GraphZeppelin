@@ -179,9 +179,9 @@ add_library(GraphStreamingCC
   src/l0_sampling/sketch.cpp
   src/l0_sampling/update.cpp
   src/util.cpp)
-target_link_libraries(GraphStreamingCC PRIVATE xxHash::xxhash GTest::gtest)
+target_link_libraries(GraphStreamingCC PUBLIC xxHash::xxhash GTest::gtest)
 add_dependencies(GraphStreamingCC GutterTree)
-target_link_libraries(GraphStreamingCC PRIVATE libGutterTree.a)
+target_link_libraries(GraphStreamingCC PUBLIC libGutterTree.a)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")
@@ -195,9 +195,6 @@ else ()
     target_compile_options(GraphStreamingCC PRIVATE /O2)
   endif()
 endif ()
-set_target_properties(GraphStreamingCC PROPERTIES PUBLIC_HEADER
-  "include/graph.h;include/binary_graph_stream.h;include/types.h"
-)
 
 add_executable(tests
   test/test_runner.cpp
@@ -309,7 +306,17 @@ endif ()
 #set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_BINARY_DIR}/GraphStreamingCC/prefix)
 
 # for use when building as an external project
+# The Directory commands are used to copy over our headers and the GutterTree headers
 install(TARGETS GraphStreamingCC
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+install(
+  DIRECTORY include/
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  FILES_MATCHING PATTERN "*.h"
+)
+install(
+  DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/GutterTree/prefix/include/"
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/GutterTree/
+  FILES_MATCHING PATTERN "*.h"
 )
