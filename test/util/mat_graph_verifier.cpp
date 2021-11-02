@@ -16,7 +16,7 @@ std::vector<std::set<node_t>> MatGraphVerifier::kruskal(node_t n, const std::vec
   uint64_t num_edges = n * (n - 1) / 2;
   for (uint64_t i = 0; i < num_edges; i++) {
     if (compactified_input[i]) {
-      Edge e = inv_nondir_non_self_edge_pairing_fn(i);
+      Edge e = inv_uid(i);
       sets.union_set(e.first, e.second);
     }
   }
@@ -42,7 +42,7 @@ void MatGraphVerifier::verify_edge(Edge edge) {
     printf("Got an error of node %u to node (1)%u\n", edge.first, edge.second);
     throw BadEdgeException();
   }
-  if (!det_graph[nondirectional_non_self_edge_pairing_fn(edge.first,edge.second)]) {
+  if (!det_graph[get_uid(edge.first,edge.second)]) {
     printf("Got an error of node %u to node (2)%u\n", edge.first, edge.second);
     throw BadEdgeException();
   }
