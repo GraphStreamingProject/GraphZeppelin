@@ -30,7 +30,7 @@ public:
   static std::vector<std::set<node_t>> kruskal(node_t n, const std::vector<bool>& input);
 
   // Returns a unique identifier for each edge using diagonalization
-  inline uint64_t get_uid(node_t i, node_t j) {
+  static inline uint64_t get_uid(node_t i, node_t j) {
     // swap i,j if necessary
     if (i > j) {
       std::swap(i,j);
@@ -42,7 +42,7 @@ public:
     return i+j;
   }
 
-  inline std::pair<node_id_t, node_id_t> inv_uid(node_t uid) {
+  static inline std::pair<node_id_t, node_id_t> inv_uid(node_t uid) {
     node_t eidx = 8*uid + 1;
     eidx = sqrt(eidx)+1;
     eidx/=2;
