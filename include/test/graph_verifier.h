@@ -31,6 +31,8 @@ public:
    * retval against kruskal_ref.
    */
   virtual void verify_soln(vector<set<node_t>>& retval) = 0;
+
+  virtual ~GraphVerifier() {};
 };
 
 class BadEdgeException : public exception {
