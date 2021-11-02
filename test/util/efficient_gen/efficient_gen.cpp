@@ -1,5 +1,5 @@
 #include <iostream>
-#include "efficient_gen.h"
+#include "../../../include/test/efficient_gen.h"
 
 int main() {
   int n; double p, r = 0.1; std::string s,t; char c = 0; bool cumul = false;

@@ -1,8 +1,8 @@
 #include "../include/l0_sampling/sketch.h"
 #include <chrono>
 #include <gtest/gtest.h>
-#include "util/testing_vector.h"
-#include "util/sketch_constructors.h"
+#include "../include/test/testing_vector.h"
+#include "../include/test/sketch_constructors.h"
 
 static const int fail_factor = 100;
 

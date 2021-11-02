@@ -1,6 +1,6 @@
 #include <map>
 #include <iostream>
-#include "file_graph_verifier.h"
+#include "../../include/test/file_graph_verifier.h"
 
 FileGraphVerifier::FileGraphVerifier(const string &input_file) {
   kruskal_ref = kruskal(input_file);

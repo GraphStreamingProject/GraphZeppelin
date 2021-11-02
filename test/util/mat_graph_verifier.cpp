@@ -1,6 +1,6 @@
 #include <map>
 #include <iostream>
-#include "mat_graph_verifier.h"
+#include "../../include/test/mat_graph_verifier.h"
 
 MatGraphVerifier::MatGraphVerifier(node_t n, std::vector<bool>&
       compactified_input) : det_graph(compactified_input), sets(n) {

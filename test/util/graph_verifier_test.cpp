@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "file_graph_verifier.h"
+#include "../../include/test/file_graph_verifier.h"
 
 const std::string fname = __FILE__;
 size_t pos = fname.find_last_of("\\/");

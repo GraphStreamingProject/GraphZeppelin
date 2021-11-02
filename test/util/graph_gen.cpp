@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <boost/multiprecision/cpp_int.hpp>
 #include <random>
-#include "graph_gen.h"
+#include "../../include/test/graph_gen.h"
 #include "../../include/graph.h"
 
 #define endl '\n'

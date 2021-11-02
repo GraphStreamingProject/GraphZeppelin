@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "graph_gen.h"
+#include "../../include/test/graph_gen.h"
 
 TEST(GraphGenTestSuite, TestGeneration) {
   std::string fname = __FILE__;

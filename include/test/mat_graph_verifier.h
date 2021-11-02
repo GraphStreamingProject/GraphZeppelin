@@ -1,7 +1,7 @@
 #pragma once
 #include <set>
-#include "../../include/supernode.h"
-#include "../../include/dsu.h"
+#include "../supernode.h"
+#include "../dsu.h"
 #include "graph_verifier.h"
 
 /**

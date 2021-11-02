@@ -194,7 +194,34 @@ else ()
   elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
     target_compile_options(GraphStreamingCC PRIVATE /O2)
   endif()
-endif ()
+endif()
+
+add_library(GraphStreamingVerifyCC
+  src/graph.cpp
+  src/supernode.cpp
+  src/graph_worker.cpp
+  src/l0_sampling/sketch.cpp
+  src/l0_sampling/update.cpp
+  src/util.cpp
+  test/util/file_graph_verifier.cpp
+  test/util/mat_graph_verifier.cpp)
+target_link_libraries(GraphStreamingVerifyCC PUBLIC xxHash::xxhash GTest::gtest)
+target_compile_definitions(GraphStreamingVerifyCC PRIVATE VERIFY_SAMPLES_F)
+add_dependencies(GraphStreamingVerifyCC GutterTree)
+target_link_libraries(GraphStreamingVerifyCC PUBLIC libGutterTree.a)
+# optimize unless debug
+if (DEFINED ENV{DEBUG})
+  message("Disabling optimizations and enabling debug symbols")
+  target_compile_options(GraphStreamingVerifyCC PRIVATE -g -fopenmp)
+  target_link_options(GraphStreamingVerifyCC PRIVATE -fopenmp)
+else ()
+  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    target_compile_options(GraphStreamingVerifyCC PRIVATE -O3 -fopenmp)
+    target_link_options(GraphStreamingVerifyCC PRIVATE -fopenmp)
+  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    target_compile_options(GraphStreamingVerifyCC PRIVATE /O2)
+  endif()
+endif()
 
 add_executable(tests
   test/test_runner.cpp
@@ -205,14 +232,8 @@ add_executable(tests
   test/util/file_graph_verifier.cpp
   test/util/graph_gen.cpp
   test/util/graph_gen_test.cpp
-  test/util/graph_verifier_test.cpp
-  src/graph.cpp
-  src/supernode.cpp
-  src/graph_worker.cpp
-  src/l0_sampling/sketch.cpp
-  src/l0_sampling/update.cpp
-  src/util.cpp)
-target_link_libraries(tests PRIVATE xxHash::xxhash GTest::gtest)
+  test/util/graph_verifier_test.cpp)
+target_link_libraries(tests PRIVATE xxHash::xxhash GTest::gtest GraphStreamingVerifyCC)
 target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F)
 # dependencies
 add_dependencies(tests GutterTree)
@@ -234,14 +255,8 @@ endif ()
 add_executable(statistical_test
   test/statistical_testing/graph_testing.cpp
   test/util/file_graph_verifier.cpp
-  test/util/graph_gen.cpp
-  src/graph.cpp
-  src/supernode.cpp
-  src/graph_worker.cpp
-  src/l0_sampling/sketch.cpp
-  src/l0_sampling/update.cpp
-  src/util.cpp)
-target_link_libraries(statistical_test PRIVATE xxHash::xxhash GTest::gtest)
+  test/util/graph_gen.cpp)
+target_link_libraries(statistical_test PRIVATE xxHash::xxhash GTest::gtest GraphStreamingVerifyCC)
 target_compile_definitions(statistical_test PRIVATE VERIFY_SAMPLES_F)
 # dependencies
 add_dependencies(statistical_test GutterTree)
@@ -275,14 +290,8 @@ add_executable(cont_test
   test/test_runner.cpp
   test/cont_test.cpp
   test/util/mat_graph_verifier.cpp
-  test/util/graph_gen.cpp
-  src/graph.cpp
-  src/supernode.cpp
-  src/graph_worker.cpp
-  src/l0_sampling/sketch.cpp
-  src/l0_sampling/update.cpp
-  src/util.cpp)
-target_link_libraries(cont_test PRIVATE xxHash::xxhash GTest::gtest)
+  test/util/graph_gen.cpp)
+target_link_libraries(cont_test PRIVATE xxHash::xxhash GTest::gtest GraphStreamingVerifyCC)
 target_compile_definitions(cont_test PRIVATE VERIFY_SAMPLES_F)
 # dependencies
 add_dependencies(cont_test GutterTree)
@@ -307,7 +316,7 @@ endif ()
 
 # for use when building as an external project
 # The Directory commands are used to copy over our headers and the GutterTree headers
-install(TARGETS GraphStreamingCC
+install(TARGETS GraphStreamingCC GraphStreamingVerifyCC
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
 install(

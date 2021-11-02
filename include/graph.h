@@ -9,7 +9,7 @@
 #include "supernode.h"
 
 #ifdef VERIFY_SAMPLES_F
-#include "../test/util/graph_verifier.h"
+#include "test/graph_verifier.h"
 #endif
 
 using namespace std;

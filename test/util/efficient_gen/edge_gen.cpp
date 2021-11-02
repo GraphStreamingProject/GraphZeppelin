@@ -1,7 +1,7 @@
 #include <fstream>
 #include <algorithm>
 #include <boost/multiprecision/cpp_int.hpp>
-#include "efficient_gen.h"
+#include "../../../include/test/efficient_gen.h"
 #include "../../../include/types.h"
 
 #define endl '\n'

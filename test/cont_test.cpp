@@ -2,8 +2,8 @@
 #include <fstream>
 #include <unordered_map>
 #include "../include/graph.h"
-#include "util/graph_gen.h"
-#include "util/mat_graph_verifier.h"
+#include "../include/test/graph_gen.h"
+#include "../include/test/mat_graph_verifier.h"
 
 void test_continuous(unsigned nodes, unsigned long updates_per_sample, unsigned long samples) {
   srand(time(NULL));

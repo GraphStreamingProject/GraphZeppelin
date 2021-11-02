@@ -1,10 +1,10 @@
 #include <gtest/gtest.h>
 #include <fstream>
 #include "../include/graph.h"
-#include "util/file_graph_verifier.h"
-#include "util/mat_graph_verifier.h"
-#include "util/graph_gen.h"
-#include "util/write_configuration.h"
+#include "../include/test/file_graph_verifier.h"
+#include "../include/test/mat_graph_verifier.h"
+#include "../include/test/graph_gen.h"
+#include "../include/test/write_configuration.h"
 
 /**
  * For many of these tests (especially for those upon very sparse and small graphs)

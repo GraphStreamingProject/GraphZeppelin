@@ -1,9 +1,9 @@
 #include <fstream>
 #include <iostream>
 #include "../../include/graph.h"
-#include "../util/graph_gen.h"
-#include "../util/write_configuration.h"
-#include "../util/file_graph_verifier.h"
+#include "../../include/test/graph_gen.h"
+#include "../../include/test/write_configuration.h"
+#include "../../include/test/file_graph_verifier.h"
 
 static inline int do_run() {
     ifstream in{"./sample.txt"};
