@@ -21,7 +21,7 @@ void test_continuous(unsigned nodes, unsigned long updates_per_sample, unsigned 
       } else {
         edgej++;
       }
-      uint64_t edgeidx = nondirectional_non_self_edge_pairing_fn(edgei, edgej);
+      uint64_t edgeidx = MatGraphVerifier::get_uid(edgei, edgej);
       g.update({{edgei, edgej}, INSERT});
       adj[edgeidx] = !adj[edgeidx];
     }
@@ -57,7 +57,7 @@ void test_continuous(std::ifstream& in, unsigned long samples) {
     std::cout << "Starting updates" << std::endl;
     for (unsigned long j = 0; j < updates_per_sample; j++) {
       in >> t >> a >> b;
-      uint64_t edgeidx = nondirectional_non_self_edge_pairing_fn(a, b);
+      uint64_t edgeidx = MatGraphVerifier::get_uid(a, b);
       g.update({{a, b}, INSERT});
       adj[edgeidx] = !adj[edgeidx];
     }
