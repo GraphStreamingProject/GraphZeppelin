@@ -152,7 +152,7 @@ ExternalProject_Add(
 
   PREFIX          GutterTree
   GIT_REPOSITORY  "https://github.com/Victor-C-Zhang/FastBufferTree.git"
-  GIT_TAG         "async_3_electric-er"
+  GIT_TAG         "main"
 
   UPDATE_DISCONNECTED false
   BUILD_ALWAYS    OFF
