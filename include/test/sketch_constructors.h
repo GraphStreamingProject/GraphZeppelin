@@ -1,5 +1,5 @@
 #pragma once
-#include "../../include/l0_sampling/sketch.h"
+#include "../l0_sampling/sketch.h"
 
 /*
  * Static functions for creating sketches without a provided memory location

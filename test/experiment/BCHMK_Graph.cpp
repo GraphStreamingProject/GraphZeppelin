@@ -6,7 +6,7 @@
 #include "../util/graph_gen.h"
 
 TEST(Benchmark, BCHMKGraph) {
-  BinaryGraphStream stream("/mnt/ssd2/binary_streams/kron_15_stream_binary", 32 * 1024);
+  BinaryGraphStream stream("/mnt/ssd2/binary_streams/kron_13_stream_binary", 32 * 1024);
   Node num_nodes = stream.nodes();
   long m         = stream.edges();
   
@@ -31,6 +31,6 @@ TEST(Benchmark, BCHMKGraph) {
   double num_seconds = diff.count();
   printf("Total insertion time was: %lf\n", num_seconds);
   printf("Insertion rate was:       %lf\n", stream.edges() / num_seconds);
-  ASSERT_EQ(51, cc_num);
+  ASSERT_EQ(26, cc_num);
 
 }

@@ -40,11 +40,8 @@ def configure():
 '''
 Run the statistical_testing executables
 '''
-def run_test(build_path, buffertree):
-	if buffertree:
-		subprocess.run(build_path + '/statistical_test', stdout=subprocess.DEVNULL, check=True)
-	else:
-		subprocess.run(build_path + '/mem_statistical_test', stdout=subprocess.DEVNULL, check=True)
+def run_test(build_path):
+	subprocess.run(build_path + '/statistical_test', stdout=subprocess.DEVNULL, check=True)
 
 '''
 Format the results of the test and raise an error if necessary
@@ -86,9 +83,9 @@ if __name__ == "__main__":
 
 	try:
 		repo     = git.Repo("./")
-		buf_repo = git.Repo(build_path + "/BufferTree/src/BufferTree")
+		buf_repo = git.Repo(build_path + "/GutterTree/src/GutterTree")
 	except:
-		print("Must run code at root directory of StreamingRepo and must have BufferTree code present in build dir")
+		print("Must run code at root directory of StreamingRepo and must have GutterTree code present in build dir")
 		exit(1)
 	head = repo.heads[0]
 	stream_commit_hash = head.commit.hexsha
@@ -99,29 +96,28 @@ if __name__ == "__main__":
 	buffer_commit_msg  = head.commit.message
 
 	log =  "StreamRepo Commit: " + stream_commit_hash + "\n" + stream_commit_msg + "\n"
-	log += "BufferTree Commit: " + buffer_commit_hash + "\n" + buffer_commit_msg + "\n"
+	log += "GutterTree Commit: " + buffer_commit_hash + "\n" + buffer_commit_msg + "\n"
 
-	for buffering in (True, False):
-		if buffering:
-			print("GutterTree")
-			log += "GutterTree:\n"
+	# Run the tests
+	run_test(build_path)
+
+	for pre in ["tree", "gutters"]:
+		if pre == "tree":
+			log += "GutterTree\n"
 		else:
-			print("Standalone")
-			log += "Standalone:\n"
-		# Run the tests
-		run_test(build_path, buffering)
+			log += "StandAloneGutters\n"
 
 		# Collect statistical results
 		# test_name, test_result_file, expected_result_file
 		try:
 			print("small test")
-			small_err, small_dsc   = check_error('small test', 'small_graph_test', stat_path + '/small_test_expected.txt')
+			small_err, small_dsc   = check_error('small test', pre + 'small_graph_test', stat_path + '/small_test_expected.txt')
 		except Exception as err:
 			small_err = True
 			small_dsc = "test threw expection: {0}".format(err)
 		try:
 			print("medium test")
-			medium_err, medium_dsc = check_error('medium test', 'medium_graph_test', stat_path + '/medium_test_expected.txt')
+			medium_err, medium_dsc = check_error('medium test', pre + 'medium_graph_test', stat_path + '/medium_test_expected.txt')
 		except Exception as err:
 			medium_err = True
 			medium_dsc = "test threw expection: {0}".format(err)

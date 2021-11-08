@@ -1,17 +1,17 @@
 #TODO: write FindxxHash for libxxhash-dev compatibility?
 #Cmake for xxHash is unofficial, so libxxhash-dev doesn't have xxHashConfig.cmake
-
 cmake_minimum_required(VERSION 3.15)
+project(GraphStreamingCC)
+
 include (ExternalProject)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 
 #Uncomment to enable debug
 #set(ENV{DEBUG} ON)
-
-project(test)
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   message("Adding GNU compiler flags")
@@ -146,16 +146,17 @@ if(NOT Boost_FOUND)
 endif()
 include_directories("${Boost_INCLUDE_DIR}")
 
-# Install BufferTree Project
+# Install GutterTree Project
 ExternalProject_Add(
-  BufferTree
+  GutterTree
 
-  PREFIX          BufferTree
+  PREFIX          GutterTree
   GIT_REPOSITORY  "https://github.com/Victor-C-Zhang/FastBufferTree.git"
   GIT_TAG         "main"
 
+  UPDATE_DISCONNECTED false
   BUILD_ALWAYS    OFF
-  INSTALL_DIR     ${CMAKE_CURRENT_BINARY_DIR}/BufferTree/prefix
+  INSTALL_DIR     ${CMAKE_CURRENT_BINARY_DIR}/GutterTree/prefix
 
   CMAKE_CACHE_ARGS
         -DAUTODOWNLOAD:BOOL=ON
@@ -163,21 +164,64 @@ ExternalProject_Add(
 
   BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target install
 )
-
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/BufferTree/prefix/include)
-link_directories(${CMAKE_CURRENT_BINARY_DIR}/BufferTree/prefix/lib)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/GutterTree/prefix/include)
+link_directories(${CMAKE_CURRENT_BINARY_DIR}/GutterTree/prefix/lib)
 
 
 # AVAILABLE COMPILATION DEFINITIONS:
 # VERIFY_SAMPLES_F   Use a deterministic connected-components algorithm to
 #                    verify post-processing.
-#
-# USE_FBT_F          Use a Fast Buffer Tree living on secondary storage
-#                    (github.com/Victor-C-Zhang/FastBufferTree) to buffer updates
-#                    instead of in-memory buffering.
-#
-# PARALLEL_PP_F      Use parallel post-processing (connected components)
-#                    function.
+
+add_library(GraphStreamingCC
+  src/graph.cpp
+  src/supernode.cpp
+  src/graph_worker.cpp
+  src/l0_sampling/sketch.cpp
+  src/l0_sampling/update.cpp
+  src/util.cpp)
+target_link_libraries(GraphStreamingCC PUBLIC xxHash::xxhash GTest::gtest)
+add_dependencies(GraphStreamingCC GutterTree)
+target_link_libraries(GraphStreamingCC PUBLIC libGutterTree.a)
+# optimize unless debug
+if (DEFINED ENV{DEBUG})
+  message("Disabling optimizations and enabling debug symbols")
+  target_compile_options(GraphStreamingCC PRIVATE -g -fopenmp)
+  target_link_options(GraphStreamingCC PRIVATE -fopenmp)
+else ()
+  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    target_compile_options(GraphStreamingCC PRIVATE -O3 -fopenmp)
+    target_link_options(GraphStreamingCC PRIVATE -fopenmp)
+  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    target_compile_options(GraphStreamingCC PRIVATE /O2)
+  endif()
+endif()
+
+add_library(GraphStreamingVerifyCC
+  src/graph.cpp
+  src/supernode.cpp
+  src/graph_worker.cpp
+  src/l0_sampling/sketch.cpp
+  src/l0_sampling/update.cpp
+  src/util.cpp
+  test/util/file_graph_verifier.cpp
+  test/util/mat_graph_verifier.cpp)
+target_link_libraries(GraphStreamingVerifyCC PUBLIC xxHash::xxhash GTest::gtest)
+target_compile_definitions(GraphStreamingVerifyCC PRIVATE VERIFY_SAMPLES_F)
+add_dependencies(GraphStreamingVerifyCC GutterTree)
+target_link_libraries(GraphStreamingVerifyCC PUBLIC libGutterTree.a)
+# optimize unless debug
+if (DEFINED ENV{DEBUG})
+  message("Disabling optimizations and enabling debug symbols")
+  target_compile_options(GraphStreamingVerifyCC PRIVATE -g -fopenmp)
+  target_link_options(GraphStreamingVerifyCC PRIVATE -fopenmp)
+else ()
+  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    target_compile_options(GraphStreamingVerifyCC PRIVATE -O3 -fopenmp)
+    target_link_options(GraphStreamingVerifyCC PRIVATE -fopenmp)
+  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    target_compile_options(GraphStreamingVerifyCC PRIVATE /O2)
+  endif()
+endif()
 
 add_executable(tests
   test/test_runner.cpp
@@ -188,18 +232,12 @@ add_executable(tests
   test/util/file_graph_verifier.cpp
   test/util/graph_gen.cpp
   test/util/graph_gen_test.cpp
-  test/util/graph_verifier_test.cpp
-  src/graph.cpp
-  src/supernode.cpp
-  src/graph_worker.cpp
-  src/l0_sampling/sketch.cpp
-  src/l0_sampling/update.cpp
-  src/util.cpp)
-target_link_libraries(tests PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F USE_FBT_F)
+  test/util/graph_verifier_test.cpp)
+target_link_libraries(tests PRIVATE xxHash::xxhash GTest::gtest GraphStreamingVerifyCC)
+target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F)
 # dependencies
-add_dependencies(tests BufferTree)
-target_link_libraries(tests PRIVATE libFastBufferTree.a)
+add_dependencies(tests GutterTree)
+target_link_libraries(tests PRIVATE libGutterTree.a)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")
@@ -214,58 +252,15 @@ else ()
   endif()
 endif ()
 
-add_executable(mem_tests
-  test/test_runner.cpp
-  test/graph_test.cpp
-  test/sketch_test.cpp
-  test/supernode_test.cpp
-  test/util_test.cpp
-  test/util/file_graph_verifier.cpp
-  test/util/graph_gen.cpp
-  test/util/graph_gen_test.cpp
-  test/util/graph_verifier_test.cpp
-  src/graph.cpp
-  src/supernode.cpp
-  src/graph_worker.cpp
-  src/work_queue.cpp
-  src/l0_sampling/sketch.cpp
-  src/l0_sampling/update.cpp
-  src/util.cpp)
-target_link_libraries(mem_tests PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(mem_tests PRIVATE VERIFY_SAMPLES_F)
-# dependencies
-add_dependencies(mem_tests BufferTree)
-target_link_libraries(mem_tests PRIVATE libFastBufferTree.a)
-# optimize unless debug
-if (DEFINED ENV{DEBUG})
-  message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(mem_tests PRIVATE -g -fopenmp)
-  target_link_options(mem_tests PRIVATE -fopenmp)
-else ()
-  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(mem_tests PRIVATE -O3 -fopenmp)
-    target_link_options(mem_tests PRIVATE -fopenmp)
-  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    target_compile_options(mem_tests PRIVATE /O2)
-  endif()
-endif ()
-
 add_executable(statistical_test
   test/statistical_testing/graph_testing.cpp
   test/util/file_graph_verifier.cpp
-  test/util/graph_gen.cpp
-  src/graph.cpp
-  src/supernode.cpp
-  src/graph_worker.cpp
-  src/work_queue.cpp
-  src/l0_sampling/sketch.cpp
-  src/l0_sampling/update.cpp
-  src/util.cpp)
-target_link_libraries(statistical_test PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(statistical_test PRIVATE VERIFY_SAMPLES_F USE_FBT_F)
+  test/util/graph_gen.cpp)
+target_link_libraries(statistical_test PRIVATE xxHash::xxhash GTest::gtest GraphStreamingVerifyCC)
+target_compile_definitions(statistical_test PRIVATE VERIFY_SAMPLES_F)
 # dependencies
-add_dependencies(statistical_test BufferTree)
-target_link_libraries(statistical_test PRIVATE libFastBufferTree.a)
+add_dependencies(statistical_test GutterTree)
+target_link_libraries(statistical_test PRIVATE libGutterTree.a)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")
@@ -280,36 +275,6 @@ else ()
   endif()
 endif ()
 
-add_executable(mem_statistical_test
-  test/statistical_testing/graph_testing.cpp
-  test/util/file_graph_verifier.cpp
-  test/util/graph_gen.cpp
-  src/graph.cpp
-  src/supernode.cpp
-  src/graph_worker.cpp
-  src/work_queue.cpp
-  src/l0_sampling/sketch.cpp
-  src/l0_sampling/update.cpp
-  src/util.cpp)
-target_link_libraries(mem_statistical_test PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(mem_statistical_test PRIVATE VERIFY_SAMPLES_F)
-# dependencies
-add_dependencies(mem_statistical_test BufferTree)
-target_link_libraries(mem_statistical_test PRIVATE libFastBufferTree.a)
-# optimize unless debug
-if (DEFINED ENV{DEBUG})
-  message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(mem_statistical_test PRIVATE -g -fopenmp)
-  target_link_options(mem_statistical_test PRIVATE -fopenmp)
-else ()
-  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(mem_statistical_test PRIVATE -O3 -fopenmp)
-    target_link_options(mem_statistical_test PRIVATE -fopenmp)
-  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    target_compile_options(mem_statistical_test PRIVATE /O2)
-  endif()
-endif ()
-
 # executables for experiment/benchmarking
 add_executable(efficient_gen
   test/util/efficient_gen/edge_gen.cpp
@@ -321,55 +286,16 @@ elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
   target_compile_options(efficient_gen PRIVATE /O2)
 endif()
 
-add_executable(experiment
-  test/test_runner.cpp
-  test/experiment/BCHMK_Graph.cpp
-  test/experiment/BCHMK_post_proc.cpp
-  test/util/file_graph_verifier.cpp
-  test/util/graph_gen.cpp
-  src/graph.cpp
-  src/supernode.cpp
-  src/work_queue.cpp
-  src/graph_worker.cpp
-  src/l0_sampling/sketch.cpp
-  src/l0_sampling/update.cpp
-  src/util.cpp)
-target_link_libraries(experiment PRIVATE xxHash::xxhash GTest::gtest)
-# target_compile_definitions(experiment PRIVATE USE_FBT_F)
-# dependencies
-add_dependencies(experiment BufferTree)
-target_link_libraries(experiment PRIVATE libFastBufferTree.a)
-# optimize unless debug
-if (DEFINED ENV{DEBUG})
-  message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(experiment PRIVATE -g -fopenmp)
-  target_link_options(experiment PRIVATE -fopenmp)
-else ()
-  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(experiment PRIVATE -O3 -fopenmp)
-    target_link_options(experiment PRIVATE -fopenmp)
-  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    target_compile_options(experiment PRIVATE /O2)
-  endif()
-endif ()
-
 add_executable(cont_test
   test/test_runner.cpp
   test/cont_test.cpp
   test/util/mat_graph_verifier.cpp
-  test/util/graph_gen.cpp
-  src/graph.cpp
-  src/supernode.cpp
-  src/graph_worker.cpp
-  src/l0_sampling/sketch.cpp
-  src/l0_sampling/update.cpp
-  src/util.cpp
-  src/work_queue.cpp)
-target_link_libraries(cont_test PRIVATE xxHash::xxhash GTest::gtest)
+  test/util/graph_gen.cpp)
+target_link_libraries(cont_test PRIVATE xxHash::xxhash GTest::gtest GraphStreamingVerifyCC)
 target_compile_definitions(cont_test PRIVATE VERIFY_SAMPLES_F)
 # dependencies
-add_dependencies(cont_test BufferTree)
-target_link_libraries(cont_test PRIVATE libFastBufferTree.a)
+add_dependencies(cont_test GutterTree)
+target_link_libraries(cont_test PRIVATE libGutterTree.a)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")
@@ -384,63 +310,22 @@ else ()
   endif()
 endif ()
 
-add_executable(parallelPP
-  test/test_runner.cpp
-  test/util/graph_gen.cpp
-  test/util/file_graph_verifier.cpp
-  test/parallel_graph_test.cpp
-  src/graph.cpp
-  src/supernode.cpp
-  src/graph_worker.cpp
-  src/l0_sampling/sketch.cpp
-  src/l0_sampling/update.cpp
-  src/util.cpp)
-target_link_libraries(parallelPP PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(parallelPP PRIVATE USE_FBT_F PARALLEL_PP_F VERIFY_SAMPLES_F)
-# dependencies
-add_dependencies(parallelPP BufferTree)
-target_link_libraries(parallelPP PRIVATE libFastBufferTree.a)
-# optimize unless debug
-if (DEFINED ENV{DEBUG})
-  message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(parallelPP PRIVATE -g -fopenmp)
-  target_link_options(parallelPP PRIVATE -fopenmp)
-else ()
-  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(parallelPP PRIVATE -O3 -fopenmp)
-    target_link_options(parallelPP PRIVATE -fopenmp)
-  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    target_compile_options(parallelPP PRIVATE /O2)
-  endif()
-endif ()
+#uncomment if manually installing project
+#without specifying INSTALL_PREFIX elsewhere
+#set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_BINARY_DIR}/GraphStreamingCC/prefix)
 
-add_executable(memParallelPP
-  test/test_runner.cpp
-  test/util/graph_gen.cpp
-  test/util/file_graph_verifier.cpp
-  test/parallel_graph_test.cpp
-  src/graph.cpp
-  src/supernode.cpp
-  src/graph_worker.cpp
-  src/work_queue.cpp
-  src/l0_sampling/sketch.cpp
-  src/l0_sampling/update.cpp
-  src/util.cpp)
-target_link_libraries(memParallelPP PRIVATE xxHash::xxhash GTest::gtest)
-target_compile_definitions(memParallelPP PRIVATE PARALLEL_PP_F VERIFY_SAMPLES_F)
-# dependencies
-add_dependencies(memParallelPP BufferTree)
-target_link_libraries(memParallelPP PRIVATE libFastBufferTree.a)
-# optimize unless debug
-if (DEFINED ENV{DEBUG})
-  message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(memParallelPP PRIVATE -g -fopenmp)
-  target_link_options(memParallelPP PRIVATE -fopenmp)
-else ()
-  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(memParallelPP PRIVATE -O3 -fopenmp)
-    target_link_options(memParallelPP PRIVATE -fopenmp)
-  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    target_compile_options(memParallelPP PRIVATE /O2)
-  endif()
-endif ()
+# for use when building as an external project
+# The Directory commands are used to copy over our headers and the GutterTree headers
+install(TARGETS GraphStreamingCC GraphStreamingVerifyCC
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+install(
+  DIRECTORY include/
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  FILES_MATCHING PATTERN "*.h"
+)
+install(
+  DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/GutterTree/prefix/include/"
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/GutterTree/
+  FILES_MATCHING PATTERN "*.h"
+)

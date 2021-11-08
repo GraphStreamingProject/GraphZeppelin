@@ -27,4 +27,4 @@ std::pair<uint32_t , uint32_t> inv_nondir_non_self_edge_pairing_fn(uint64_t idx)
  * Should be called before creating the buffer tree or starting graph workers.
  * @return the prefix of the path in which the buffer tree should be stored.
  */
-std::string configure_system();
+std::pair<bool, std::string> configure_system();

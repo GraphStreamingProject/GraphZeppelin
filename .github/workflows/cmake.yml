@@ -79,7 +79,7 @@ jobs:
         # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
         env:
           BOOST_ROOT: ${{runner.workspace}}/boost
-        run: cmake -DCMAKE_INSTALL_PREFIX=${{runner.workspace}}/install -DCMAKE_BUILD_TYPE=$BUILD_TYPE $GITHUB_WORKSPACE
+        run: cmake -DCMAKE_INSTALL_PREFIX=${{runner.workspace}}/install -DCMAKE_INSTALL_INCLUDEDIR=${{runner.workspace}}/install/include -DCMAKE_BUILD_TYPE=$BUILD_TYPE $GITHUB_WORKSPACE
 
       - name: Build
         working-directory: ${{runner.workspace}}/build
@@ -87,27 +87,9 @@ jobs:
         # Execute the build.  You can specify a specific target with "--target <NAME>"
         run: cmake --build . --config $BUILD_TYPE
 
-      - name: In-memory Testing
-        working-directory: ${{runner.workspace}}/build
-        shell: bash
-        run: ./mem_tests
-
-      - name: Buffer Tree Testing
+      - name: Unit Testing
         working-directory: ${{runner.workspace}}/build
         shell: bash
         run: |
-          mkdir BUFFTREEDATA
+          mkdir GUTTREEDATA
           ./tests
-
-      - name: In-memory Parallel Post-Proc Testing
-        working-directory: ${{runner.workspace}}/build
-        shell: bash
-        run: ./parallelPP
-
-      - name: Buffer Tree Parallel Post-Proc Testing
-        working-directory: ${{runner.workspace}}/build
-        shell: bash
-        run: |
-          rm -r BUFFTREEDATA
-          mkdir BUFFTREEDATA
-          ./parallelPP
