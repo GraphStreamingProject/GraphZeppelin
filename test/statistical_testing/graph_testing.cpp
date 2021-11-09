@@ -1,4 +1,3 @@
-#include <fstream>
 #include <iostream>
 #include "../../include/graph.h"
 #include "../../include/test/graph_gen.h"
@@ -7,7 +6,8 @@
 
 static inline int do_run() {
     ifstream in{"./sample.txt"};
-    node_t n, m;
+    node_id_t n;
+    edge_id_t m;
     in >> n >> m;
     Graph g{n};
     int type, a, b;
