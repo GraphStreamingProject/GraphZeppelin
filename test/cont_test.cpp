@@ -44,15 +44,16 @@ void test_continuous(unsigned nodes, unsigned long updates_per_sample, unsigned 
 }
 
 void test_continuous(std::ifstream& in, unsigned long samples) {
-  node_t n, m;
+  node_id_t n;
+  edge_id_t m;
   in >> n >> m;
   Graph g(n);
   size_t total_edges = static_cast<size_t>(n - 1) * n / 2;
-  node_t updates_per_sample = m / samples;
+  edge_id_t updates_per_sample = m / samples;
   std::vector<bool> adj(total_edges);
   unsigned long num_failure = 0;
 
-  node_t t, a, b;
+  node_id_t t, a, b;
   for (unsigned long i = 0; i < samples; i++) {
     std::cout << "Starting updates" << std::endl;
     for (unsigned long j = 0; j < updates_per_sample; j++) {
@@ -85,7 +86,8 @@ void test_continuous(std::ifstream& in, unsigned long samples) {
 
 TEST(TestContinuous, DISABLED_StandardKron17) {
   std::ifstream in{ "./kron17" };
-  node_t n, m;
+  node_id_t n;
+  edge_id_t m;
   in >> n >> m;
   Graph g{n};
   int type, a, b;
