@@ -10,22 +10,22 @@
  * generates. Takes a reference graph from a file.
  */
 class FileGraphVerifier : public GraphVerifier {
-  std::vector<std::set<node_t>> kruskal_ref;
-  std::vector<std::set<node_t>> boruvka_cc;
-  std::vector<std::set<node_t>> det_graph;
-  DisjointSetUnion<node_t> sets;
+  std::vector<std::set<node_id_t>> kruskal_ref;
+  std::vector<std::set<node_id_t>> boruvka_cc;
+  std::vector<std::set<node_id_t>> det_graph;
+  DisjointSetUnion<node_id_t> sets;
 
 public:
   FileGraphVerifier(const string& input_file = "./cumul_sample.txt");
 
   void verify_edge(Edge edge);
-  void verify_cc(node_t node);
-  void verify_soln(vector<set<node_t>>& retval);
+  void verify_cc(node_id_t node);
+  void verify_soln(vector<set<node_id_t>>& retval);
 
   /**
    * Runs Kruskal's (deterministic) CC algo.
    * @param input_file the file to read input from.
    * @return an array of connected components.
    */
-  static std::vector<std::set<node_t>> kruskal(const string& input_file = "cumul_sample.txt");
+  static std::vector<std::set<node_id_t>> kruskal(const string& input_file = "cumul_sample.txt");
 };

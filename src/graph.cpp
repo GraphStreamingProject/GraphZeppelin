@@ -11,21 +11,21 @@
 // static variable for enforcing that only one graph is open at a time
 bool Graph::open_graph = false;
 
-Graph::Graph(uint64_t num_nodes): num_nodes(num_nodes) {
+Graph::Graph(node_id_t num_nodes): num_nodes(num_nodes) {
   if (open_graph) throw MultipleGraphsException();
 
 #ifdef VERIFY_SAMPLES_F
   cout << "Verifying samples..." << endl;
 #endif
   Supernode::configure(num_nodes);
-  representatives = new set<node_t>();
+  representatives = new set<node_id_t>();
   supernodes = new Supernode*[num_nodes];
-  parent = new node_t[num_nodes];
+  parent = new node_id_t[num_nodes];
   seed = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
   std::mt19937_64 r(seed);
   seed = r();
 
-  for (node_t i=0;i<num_nodes;++i) {
+  for (node_id_t i = 0; i < num_nodes; ++i) {
     representatives->insert(i);
     supernodes[i] = Supernode::makeSupernode(num_nodes,seed);
     parent[i] = i;
@@ -57,10 +57,10 @@ Graph::Graph(const std::string& input_file) : num_updates(0) {
 #ifdef VERIFY_SAMPLES_F
   cout << "Verifying samples..." << endl;
 #endif
-  representatives = new set<node_t>();
+  representatives = new set<node_id_t>();
   supernodes = new Supernode*[num_nodes];
-  parent = new node_t[num_nodes];
-  for (node_t i = 0; i < num_nodes; ++i) {
+  parent = new node_id_t[num_nodes];
+  for (node_id_t i = 0; i < num_nodes; ++i) {
     representatives->insert(i);
     supernodes[i] = Supernode::makeSupernode(num_nodes, seed, binary_in);
     parent[i] = i;
@@ -99,8 +99,8 @@ void Graph::update(GraphUpdate upd) {
   bf->insert(edge);
 }
 
-void Graph::generate_delta_node(uint64_t node_n, long node_seed, uint64_t
-               src, const std::vector<uint64_t>& edges, Supernode *delta_loc) {
+void Graph::generate_delta_node(node_id_t node_n, long node_seed, node_id_t
+               src, const vector<node_id_t> &edges, Supernode *delta_loc) {
   std::vector<vec_t> updates;
   updates.reserve(edges.size());
   for (const auto& edge : edges) {
@@ -114,7 +114,7 @@ void Graph::generate_delta_node(uint64_t node_n, long node_seed, uint64_t
   }
   Supernode::delta_supernode(node_n, node_seed, updates, delta_loc);
 }
-void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges, Supernode *delta_loc) {
+void Graph::batch_update(node_id_t src, const vector<node_id_t> &edges, Supernode *delta_loc) {
   if (update_locked) throw UpdateLockedException();
 
   num_updates += edges.size();
@@ -122,7 +122,7 @@ void Graph::batch_update(uint64_t src, const std::vector<uint64_t>& edges, Super
   supernodes[src]->apply_delta_update(delta_loc);
 }
 
-vector<set<node_t>> Graph::connected_components() {
+vector<set<node_id_t>> Graph::connected_components() {
   bf->force_flush(); // flush everything in buffering system to make final updates
   GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
   // after this point all updates have been processed from the buffer tree
@@ -131,10 +131,10 @@ vector<set<node_t>> Graph::connected_components() {
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
   std::pair<Edge, SampleSketchRet> query[num_nodes];
-  node_t size[num_nodes];
-  vector<node_t> reps(num_nodes);
+  node_id_t size[num_nodes];
+  vector<node_id_t> reps(num_nodes);
   fill(size, size + num_nodes, 1);
-  for (node_t i = 0; i < num_nodes; ++i) {
+  for (node_id_t i = 0; i < num_nodes; ++i) {
     reps[i] = i;
   }
 
@@ -144,7 +144,7 @@ vector<set<node_t>> Graph::connected_components() {
     std::exception_ptr err;
 
     #pragma omp parallel for default(none) shared(query, reps, except, err, modified)
-    for (node_t i = 0; i < reps.size(); ++i) {
+    for (node_id_t i = 0; i < reps.size(); ++i) { // NOLINT(modernize-loop-convert)
       // wrap in a try/catch because exiting through exception is undefined behavior in OMP
       try {
         query[reps[i]] = supernodes[reps[i]]->sample();
@@ -157,8 +157,8 @@ vector<set<node_t>> Graph::connected_components() {
     // Did one of our threads produce an exception?
     if (except) std::rethrow_exception(err);
 
-    vector<node_t> to_remove;
-    for (node_t i : reps) {
+    vector<node_id_t> to_remove;
+    for (auto i : reps) {
       // unpack query result
       Edge edge = query[i].first;
       SampleSketchRet ret_code = query[i].second;
@@ -173,8 +173,8 @@ vector<set<node_t>> Graph::connected_components() {
       }
 
       // query dsu
-      node_t a = get_parent(edge.first);
-      node_t b = get_parent(edge.second);
+      node_id_t a = get_parent(edge.first);
+      node_id_t b = get_parent(edge.second);
       if (a == b) continue;
 
 #ifdef VERIFY_SAMPLES_F
@@ -192,9 +192,9 @@ vector<set<node_t>> Graph::connected_components() {
     sort(to_remove.begin(), to_remove.end());
 
     // 2-pointer to find set difference
-    vector<node_t> temp_diff;
-    node_t ptr1 = 0;
-    node_t ptr2 = 0;
+    vector<node_id_t> temp_diff;
+    unsigned long ptr1 = 0;
+    unsigned long ptr2 = 0;
     while (ptr1 < reps.size() && ptr2 < to_remove.size()) {
       if (reps[ptr1] == to_remove[ptr2]) {
         ++ ptr1; ++ptr2;
@@ -211,10 +211,10 @@ vector<set<node_t>> Graph::connected_components() {
     swap(reps, temp_diff);
   } while (modified);
 
-  map<node_t, set<node_t>> temp;
-  for (node_t i=0;i<num_nodes;++i)
+  map<node_id_t, set<node_id_t>> temp;
+  for (node_id_t i = 0; i < num_nodes; ++i)
     temp[get_parent(i)].insert(i);
-  vector<set<node_t>> retval;
+  vector<set<node_id_t>> retval;
   retval.reserve(temp.size());
   for (const auto& it : temp) retval.push_back(it.second);
 
@@ -228,7 +228,7 @@ Supernode** Graph::backup_supernodes() {
 
   // Copy supernodes
   Supernode** supernodes = new Supernode*[num_nodes];
-  for (node_t i=0;i<num_nodes;++i) {
+  for (node_id_t i = 0; i < num_nodes; ++i) {
     supernodes[i] = Supernode::makeSupernode(*this->supernodes[i]);
   }
 
@@ -237,7 +237,7 @@ Supernode** Graph::backup_supernodes() {
 
 void Graph::restore_supernodes(Supernode** supernodes) {
   // Restore supernodes
-  for (node_t i=0;i<num_nodes;++i) {
+  for (node_id_t i=0;i<num_nodes;++i) {
     free(this->supernodes[i]);
     this->supernodes[i] = supernodes[i];
     representatives->insert(i);
@@ -249,20 +249,20 @@ void Graph::restore_supernodes(Supernode** supernodes) {
   update_locked = false;
 }
 
-vector<set<node_t>> Graph::connected_components(bool cont) {
+vector<set<node_id_t>> Graph::connected_components(bool cont) {
   if (!cont)
     return connected_components();
 
   Supernode** supernodes = backup_supernodes();
 
-  vector<set<node_t>> ret = connected_components();
+  vector<set<node_id_t>> ret = connected_components();
 
   restore_supernodes(supernodes);
 
   return ret;
 }
 
-node_t Graph::get_parent(node_t node) {
+node_id_t Graph::get_parent(node_id_t node) {
   if (parent[node] == node) return node;
   return parent[node] = get_parent(parent[node]);
 }
@@ -277,7 +277,7 @@ void Graph::write_binary(const std::string& filename) {
   binary_out.write((char*)&seed, sizeof(long));
   binary_out.write((char*)&num_nodes, sizeof(uint64_t));
   binary_out.write((char*)&fail_factor, sizeof(int));
-  for (node_t i = 0; i < num_nodes; ++i) {
+  for (node_id_t i = 0; i < num_nodes; ++i) {
     supernodes[i]->write_binary(binary_out);
   }
   binary_out.close();

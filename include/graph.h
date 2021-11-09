@@ -24,15 +24,15 @@ typedef pair<Edge, UpdateType> GraphUpdate;
  * multiple edges, or weights.
  */
 class Graph {
-  uint64_t num_nodes;
+  node_id_t num_nodes;
   long seed;
   bool update_locked = false;
   // a set containing one "representative" from each supernode
-  set<node_t>* representatives;
+  set<node_id_t>* representatives;
   Supernode** supernodes;
   // DSU representation of supernode relationship
-  node_t* parent;
-  node_t get_parent(node_t node);
+  node_id_t * parent;
+  node_id_t get_parent(node_id_t node);
 
   // Buffering system for batching updates
   BufferingSystem *bf;
@@ -43,7 +43,7 @@ class Graph {
   FRIEND_TEST(GraphTestSuite, TestCorrectnessOfReheating);
   static bool open_graph;
 public:
-  explicit Graph(uint64_t num_nodes);
+  explicit Graph(node_id_t num_nodes);
   explicit Graph(const string &input_file);
 
   ~Graph();
@@ -56,27 +56,21 @@ public:
    * @param delta_loc  Memory location where we should initialize the delta
    *                   supernode.
    */
-  void batch_update(uint64_t src, const std::vector<uint64_t>& edges, Supernode *delta_loc);
+  void batch_update(node_id_t src, const vector<node_id_t> &edges, Supernode *delta_loc);
 
   /**
-   * Main algorithm utilizing Boruvka and L_0 sampling.
+   * Main parallel algorithm utilizing Boruvka and L_0 sampling.
    * @return a vector of the connected components in the graph.
    */
-  vector<set<node_t>> connected_components();
+  vector<set<node_id_t>> connected_components();
 
   /**
-   * Main algorithm utilizing Boruvka and L_0 sampling.
+   * Main parallel algorithm utilizing Boruvka and L_0 sampling.
    * If cont is true, allow for additional updates when done.
    * @param cont
    * @return a vector of the connected components in the graph.
    */
-  vector<set<node_t>> connected_components(bool cont);
-
-  /**
-   * Parallel version of Boruvka.
-   * @return a vector of the connected components in the graph.
-   */
-  vector<set<node_t>> parallel_connected_components();
+  vector<set<node_id_t>> connected_components(bool cont);
 
 #ifdef VERIFY_SAMPLES_F
   std::unique_ptr<GraphVerifier> verifier;
@@ -100,8 +94,8 @@ public:
    *                   calling thread.
    * @returns nothing (supernode delta is in delta_loc).
    */
-  static void generate_delta_node(uint64_t node_n, long node_seed, uint64_t src,
-                 const vector<uint64_t> &edges, Supernode *delta_loc);
+  static void generate_delta_node(node_id_t node_n, long node_seed, node_id_t src,
+                                  const vector<node_id_t> &edges, Supernode *delta_loc);
 
   /**
    * Serialize the graph data to a binary file.

@@ -5,9 +5,11 @@
 FileGraphVerifier::FileGraphVerifier(const string &input_file) {
   kruskal_ref = kruskal(input_file);
   ifstream in(input_file);
-  node_t n,m; in >> n >> m;
-  node_t a,b;
-  sets = DisjointSetUnion<node_t>(n);
+  node_id_t n;
+  edge_id_t m;
+  node_id_t a, b;
+  in >> n >> m;
+  sets = DisjointSetUnion<node_id_t>(n);
   for (unsigned i = 0; i < n; ++i) {
     boruvka_cc.push_back({i});
     det_graph.emplace_back();
@@ -20,10 +22,12 @@ FileGraphVerifier::FileGraphVerifier(const string &input_file) {
   in.close();
 }
 
-std::vector<std::set<node_t>> FileGraphVerifier::kruskal(const string& input_file) {
+std::vector<std::set<node_id_t>> FileGraphVerifier::kruskal(const string& input_file) {
   ifstream in(input_file);
-  node_t n, m; in >> n >> m;
-  DisjointSetUnion<node_t> sets(n);
+  node_id_t n;
+  edge_id_t m;
+  in >> n >> m;
+  DisjointSetUnion<node_id_t> sets(n);
   int a,b;
   while (m--) {
     in >> a >> b;
@@ -31,12 +35,12 @@ std::vector<std::set<node_t>> FileGraphVerifier::kruskal(const string& input_fil
   }
   in.close();
 
-  std::map<node_t, std::set<node_t>> temp;
+  std::map<node_id_t, std::set<node_id_t>> temp;
   for (unsigned i = 0; i < n; ++i) {
     temp[sets.find_set(i)].insert(i);
   }
 
-  std::vector<std::set<node_t>> retval;
+  std::vector<std::set<node_id_t>> retval;
   retval.reserve(temp.size());
   for (const auto& entry : temp) {
     retval.push_back(entry.second);
@@ -45,8 +49,8 @@ std::vector<std::set<node_t>> FileGraphVerifier::kruskal(const string& input_fil
 }
 
 void FileGraphVerifier::verify_edge(Edge edge) {
-  node_t f = sets.find_set(edge.first);
-  node_t s = sets.find_set(edge.second);
+  auto f = sets.find_set(edge.first);
+  auto s = sets.find_set(edge.second);
   if (boruvka_cc[f].find(edge.second) != boruvka_cc[f].end()
   || boruvka_cc[s].find(edge.first) != boruvka_cc[s].end()) {
     printf("Got an error of node %u to node (1)%u\n", edge.first, edge.second);
@@ -64,7 +68,7 @@ void FileGraphVerifier::verify_edge(Edge edge) {
   for (auto& i : boruvka_cc[s]) boruvka_cc[f].insert(i);
 }
 
-void FileGraphVerifier::verify_cc(node_t node) {
+void FileGraphVerifier::verify_cc(node_id_t node) {
   node = sets.find_set(node);
   for (const auto& cc : kruskal_ref) {
     if (boruvka_cc[node] == cc) return;
@@ -72,8 +76,8 @@ void FileGraphVerifier::verify_cc(node_t node) {
   throw NotCCException();
 }
 
-void FileGraphVerifier::verify_soln(vector<set<node_t>> &retval) {
-  vector<set<node_t>> temp {retval};
+void FileGraphVerifier::verify_soln(vector<set<node_id_t>> &retval) {
+  auto temp {retval};
   sort(temp.begin(),temp.end());
   sort(kruskal_ref.begin(),kruskal_ref.end());
   assert(kruskal_ref == temp);

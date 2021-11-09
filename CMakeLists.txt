@@ -146,13 +146,33 @@ if(NOT Boost_FOUND)
 endif()
 include_directories("${Boost_INCLUDE_DIR}")
 
+# Include common components
+ExternalProject_Add(
+    GraphZeppelinCommon
+
+    PREFIX          GraphZeppelinCommon
+    GIT_REPOSITORY  "https://github.com/Victor-C-Zhang/GraphZeppelinCommon.git"
+    GIT_TAG         "main"
+
+    UPDATE_DISCONNECTED false
+    BUILD_ALWAYS    OFF
+    INSTALL_DIR     ${CMAKE_CURRENT_BINARY_DIR}/GraphZeppelinCommon/prefix
+
+    CMAKE_CACHE_ARGS
+    -DAUTODOWNLOAD:BOOL=ON
+    -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
+
+    BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target install
+)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/GraphZeppelinCommon/prefix/include)
+
 # Install GutterTree Project
 ExternalProject_Add(
   GutterTree
 
   PREFIX          GutterTree
-  GIT_REPOSITORY  "https://github.com/Victor-C-Zhang/FastBufferTree.git"
-  GIT_TAG         "main"
+  GIT_REPOSITORY  "https://github.com/GraphStreamingProject/GutterTree.git"
+  GIT_TAG         "commons"
 
   UPDATE_DISCONNECTED false
   BUILD_ALWAYS    OFF
@@ -180,7 +200,7 @@ add_library(GraphStreamingCC
   src/l0_sampling/update.cpp
   src/util.cpp)
 target_link_libraries(GraphStreamingCC PUBLIC xxHash::xxhash GTest::gtest)
-add_dependencies(GraphStreamingCC GutterTree)
+add_dependencies(GraphStreamingCC GutterTree GraphZeppelinCommon)
 target_link_libraries(GraphStreamingCC PUBLIC libGutterTree.a)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
@@ -207,7 +227,7 @@ add_library(GraphStreamingVerifyCC
   test/util/mat_graph_verifier.cpp)
 target_link_libraries(GraphStreamingVerifyCC PUBLIC xxHash::xxhash GTest::gtest)
 target_compile_definitions(GraphStreamingVerifyCC PRIVATE VERIFY_SAMPLES_F)
-add_dependencies(GraphStreamingVerifyCC GutterTree)
+add_dependencies(GraphStreamingVerifyCC GutterTree GraphZeppelinCommon)
 target_link_libraries(GraphStreamingVerifyCC PUBLIC libGutterTree.a)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
@@ -236,7 +256,7 @@ add_executable(tests
 target_link_libraries(tests PRIVATE xxHash::xxhash GTest::gtest GraphStreamingVerifyCC)
 target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F)
 # dependencies
-add_dependencies(tests GutterTree)
+add_dependencies(tests GutterTree GraphZeppelinCommon)
 target_link_libraries(tests PRIVATE libGutterTree.a)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
@@ -259,7 +279,7 @@ add_executable(statistical_test
 target_link_libraries(statistical_test PRIVATE xxHash::xxhash GTest::gtest GraphStreamingVerifyCC)
 target_compile_definitions(statistical_test PRIVATE VERIFY_SAMPLES_F)
 # dependencies
-add_dependencies(statistical_test GutterTree)
+add_dependencies(statistical_test GutterTree GraphZeppelinCommon)
 target_link_libraries(statistical_test PRIVATE libGutterTree.a)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
@@ -294,7 +314,7 @@ add_executable(cont_test
 target_link_libraries(cont_test PRIVATE xxHash::xxhash GTest::gtest GraphStreamingVerifyCC)
 target_compile_definitions(cont_test PRIVATE VERIFY_SAMPLES_F)
 # dependencies
-add_dependencies(cont_test GutterTree)
+add_dependencies(cont_test GutterTree GraphZeppelinCommon)
 target_link_libraries(cont_test PRIVATE libGutterTree.a)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
@@ -327,5 +347,10 @@ install(
 install(
   DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/GutterTree/prefix/include/"
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/GutterTree/
+  FILES_MATCHING PATTERN "*.h"
+)
+install(
+  DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/GraphZeppelinCommon/prefix/include/"
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/GraphZeppelinCommon/
   FILES_MATCHING PATTERN "*.h"
 )
