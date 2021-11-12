@@ -151,7 +151,7 @@ ExternalProject_Add(
   GutterTree
 
   PREFIX          GutterTree
-  GIT_REPOSITORY  "https://github.com/Victor-C-Zhang/FastBufferTree.git"
+  GIT_REPOSITORY  "https://github.com/GraphStreamingProject/GutterTree.git"
   GIT_TAG         "main"
 
   UPDATE_DISCONNECTED false
