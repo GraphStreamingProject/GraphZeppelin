@@ -172,7 +172,7 @@ ExternalProject_Add(
 
   PREFIX          GutterTree
   GIT_REPOSITORY  "https://github.com/GraphStreamingProject/GutterTree.git"
-  GIT_TAG         "commons"
+  GIT_TAG         "main"
 
   UPDATE_DISCONNECTED false
   BUILD_ALWAYS    OFF

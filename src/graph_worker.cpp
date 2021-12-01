@@ -52,13 +52,27 @@ void GraphWorker::pause_workers() {
   workers[0]->bf->set_non_block(true); // make the GraphWorkers bypass waiting in queue
 
   // wait until all GraphWorkers are paused
-  std::unique_lock<std::mutex> lk(pause_lock);
-  pause_condition.wait_for(lk, std::chrono::milliseconds(500), []{
-    for (int i = 0; i < num_groups; i++)
-      if (!workers[i]->get_thr_paused()) return false;
-    return true;
-  });
-  lk.unlock();
+  while (true) {
+    std::unique_lock<std::mutex> lk(pause_lock);
+    pause_condition.wait_for(lk, std::chrono::milliseconds(500), []{
+      for (int i = 0; i < num_groups; i++)
+        if (!workers[i]->get_thr_paused()) return false;
+      return true;
+    });
+    
+
+    // double check that we didn't get a spurious wake-up
+    bool all_paused = true;
+    for (int i = 0; i < num_groups; i++) {
+      if (!workers[i]->get_thr_paused()) {
+        all_paused = false; // a worker still working so don't stop
+        break;
+      }
+    }
+    lk.unlock();
+
+    if (all_paused) return; // all workers are done so exit
+  }
 }
 
 void GraphWorker::unpause_workers() {
