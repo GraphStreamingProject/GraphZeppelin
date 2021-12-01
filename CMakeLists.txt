@@ -306,30 +306,6 @@ elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
   target_compile_options(efficient_gen PRIVATE /O2)
 endif()
 
-add_executable(cont_test
-  test/test_runner.cpp
-  test/cont_test.cpp
-  test/util/mat_graph_verifier.cpp
-  test/util/graph_gen.cpp)
-target_link_libraries(cont_test PRIVATE xxHash::xxhash GTest::gtest GraphStreamingVerifyCC)
-target_compile_definitions(cont_test PRIVATE VERIFY_SAMPLES_F)
-# dependencies
-add_dependencies(cont_test GutterTree GraphZeppelinCommon)
-target_link_libraries(cont_test PRIVATE libGutterTree.a)
-# optimize unless debug
-if (DEFINED ENV{DEBUG})
-  message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(cont_test PRIVATE -g -fopenmp)
-  target_link_options(cont_test PRIVATE -fopenmp)
-else ()
-  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(cont_test PRIVATE -O3 -fopenmp)
-    target_link_options(cont_test PRIVATE -fopenmp)
-  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    target_compile_options(cont_test PRIVATE /O2)
-  endif()
-endif ()
-
 #uncomment if manually installing project
 #without specifying INSTALL_PREFIX elsewhere
 #set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_BINARY_DIR}/GraphStreamingCC/prefix)
