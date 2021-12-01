@@ -151,7 +151,7 @@ ExternalProject_Add(
     GraphZeppelinCommon
 
     PREFIX          GraphZeppelinCommon
-    GIT_REPOSITORY  "https://github.com/Victor-C-Zhang/GraphZeppelinCommon.git"
+    GIT_REPOSITORY  "https://github.com/GraphStreamingProject/GraphZeppelinCommon.git"
     GIT_TAG         "main"
 
     UPDATE_DISCONNECTED false
