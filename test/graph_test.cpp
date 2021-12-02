@@ -29,11 +29,11 @@ TEST_P(GraphTest, SmallGraphConnectivity) {
   size_t pos = fname.find_last_of("\\/");
   const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
   ifstream in{curr_dir + "/res/multiples_graph_1024.txt"};
-  node_t num_nodes;
+  node_id_t num_nodes;
   in >> num_nodes;
-  long m;
+  edge_id_t m;
   in >> m;
-  node_t a, b;
+  node_id_t a, b;
   Graph g{num_nodes};
   while (m--) {
     in >> a >> b;
@@ -49,11 +49,11 @@ TEST_P(GraphTest, IFconnectedComponentsAlgRunTHENupdateLocked) {
   size_t pos = fname.find_last_of("\\/");
   const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
   ifstream in{curr_dir + "/res/multiples_graph_1024.txt"};
-  node_t num_nodes;
+  node_id_t num_nodes;
   in >> num_nodes;
-  long m;
+  edge_id_t m;
   in >> m;
-  node_t a, b;
+  node_id_t a, b;
   Graph g{num_nodes};
   while (m--) {
     in >> a >> b;
@@ -73,7 +73,8 @@ TEST_P(GraphTest, TestCorrectnessOnSmallRandomGraphs) {
   while (num_trials--) {
     generate_stream();
     ifstream in{"./sample.txt"};
-    node_t n, m;
+    node_id_t n;
+    edge_id_t m;
     in >> n >> m;
     Graph g{n};
     int type, a, b;
@@ -105,7 +106,8 @@ TEST_P(GraphTest, TestCorrectnessOnSmallSparseGraphs) {
   while (num_trials--) {
     generate_stream({1024,0.002,0.5,0,"./sample.txt","./cumul_sample.txt"});
     ifstream in{"./sample.txt"};
-    node_t n, m;
+    node_id_t n;
+    edge_id_t m;
     in >> n >> m;
     Graph g{n};
     int type, a, b;
@@ -137,7 +139,8 @@ TEST_P(GraphTest, TestCorrectnessOfReheating) {
   while (num_trials--) {
     generate_stream({1024,0.002,0.5,0,"./sample.txt","./cumul_sample.txt"});
     ifstream in{"./sample.txt"};
-    node_t n, m;
+    node_id_t n;
+    edge_id_t m;
     in >> n >> m;
     Graph *g = new Graph (n);
     int type, a, b;
@@ -149,7 +152,7 @@ TEST_P(GraphTest, TestCorrectnessOfReheating) {
     }
     g->write_binary("./out_temp.txt");
     g->set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
-    vector<set<node_t>> g_res;
+    vector<set<node_id_t>> g_res;
     try {
       g_res = g->connected_components();
     } catch (OutOfQueriesException& err) {
@@ -169,7 +172,7 @@ TEST_P(GraphTest, TestCorrectnessOfReheating) {
     printf("number of reheated CC = %lu\n", reheated_res.size());
     ASSERT_EQ(g_res.size(), reheated_res.size());
     for (unsigned i = 0; i < g_res.size(); ++i) {
-      std::vector<node_t> symdif;
+      std::vector<node_id_t> symdif;
       std::set_symmetric_difference(g_res[i].begin(), g_res[i].end(),
           reheated_res[i].begin(), reheated_res[i].end(),
           std::back_inserter(symdif));

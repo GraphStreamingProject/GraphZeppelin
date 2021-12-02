@@ -24,13 +24,13 @@ public:
    * @param node the node to be tested.
    * @throws NotCCException   if the supernode is not a connected component.
    */
-  virtual void verify_cc(node_t node) = 0;
+  virtual void verify_cc(node_id_t node) = 0;
 
   /**
    * Verifies the connected components solution is correct. Compares
    * retval against kruskal_ref.
    */
-  virtual void verify_soln(vector<set<node_t>>& retval) = 0;
+  virtual void verify_soln(vector<set<node_id_t>> &retval) = 0;
 
   virtual ~GraphVerifier() {};
 };

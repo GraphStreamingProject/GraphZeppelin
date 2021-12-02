@@ -2,6 +2,7 @@
 #include <boost/optional.hpp>
 #include <fstream>
 #include <sys/mman.h>
+#include <graph_zeppelin_common.h>
 
 #include "l0_sampling/sketch.h"
 
