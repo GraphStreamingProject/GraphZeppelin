@@ -300,6 +300,7 @@ add_executable(efficient_gen
   test/util/efficient_gen/edge_gen.cpp
   test/util/efficient_gen/efficient_gen.cpp)
 target_link_libraries(efficient_gen PRIVATE xxHash::xxhash)
+add_dependencies(efficient_gen GraphZeppelinCommon)
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   target_compile_options(efficient_gen PRIVATE -O3)
 elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
