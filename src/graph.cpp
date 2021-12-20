@@ -126,7 +126,7 @@ vector<set<node_id_t>> Graph::connected_components() {
   bf->force_flush(); // flush everything in buffering system to make final updates
   GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
   // after this point all updates have been processed from the buffer tree
-  end_time = std::chrono::steady_clock::now();
+  cc_start_time = std::chrono::steady_clock::now();
   printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
@@ -218,6 +218,7 @@ vector<set<node_id_t>> Graph::connected_components() {
   retval.reserve(temp.size());
   for (const auto& it : temp) retval.push_back(it.second);
 
+  cc_end_time = std::chrono::steady_clock::now();
   printf("CC done\n");
   return retval;
 }
