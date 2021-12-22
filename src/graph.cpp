@@ -256,9 +256,20 @@ vector<set<node_id_t>> Graph::connected_components(bool cont) {
 
   Supernode** supernodes = backup_supernodes();
 
-  vector<set<node_id_t>> ret = connected_components();
+  bool except = false;
+  std::exception_ptr err;
+  vector<set<node_id_t>> ret;
 
+  try {
+    ret = connected_components();
+  } catch (...) {
+    except = true;
+    err = std::current_exception();
+  }
   restore_supernodes(supernodes);
+
+  // Did one of our threads produce an exception?
+  if (except) std::rethrow_exception(err);
 
   return ret;
 }
