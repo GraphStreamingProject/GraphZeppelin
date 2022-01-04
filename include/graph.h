@@ -104,6 +104,7 @@ public:
   void write_binary(const string &filename);
 
   std::chrono::steady_clock::time_point cc_start_time;
+  std::chrono::steady_clock::time_point cc_flush_end_time;
   std::chrono::steady_clock::time_point cc_end_time;
 };
 
