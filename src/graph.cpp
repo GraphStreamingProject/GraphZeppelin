@@ -123,13 +123,16 @@ void Graph::batch_update(node_id_t src, const vector<node_id_t> &edges, Supernod
 }
 
 vector<set<node_id_t>> Graph::connected_components() {
-  cc_start_time = std::chrono::steady_clock::now();
+  // cc_start_time = std::chrono::steady_clock::now();
   bf->force_flush(); // flush everything in buffering system to make final updates
   GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
+  // cc_flush_end_time = std::chrono::steady_clock::now();
+
   // after this point all updates have been processed from the buffer tree
-  cc_flush_end_time = std::chrono::steady_clock::now();
   printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
   update_locked = true; // disallow updating the graph after we run the alg
+
+  cc_start_time = std::chrono::steady_clock::now();
   bool modified;
   std::pair<Edge, SampleSketchRet> query[num_nodes];
   node_id_t size[num_nodes];
@@ -225,8 +228,10 @@ vector<set<node_id_t>> Graph::connected_components() {
 }
 
 Supernode** Graph::backup_supernodes() {
+  cc_flush_start_time = std::chrono::steady_clock::now();
   bf->force_flush(); // flush everything in buffering system to make final updates
   GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
+  cc_flush_end_time = std::chrono::steady_clock::now();
 
   // Copy supernodes
   Supernode** supernodes = new Supernode*[num_nodes];
