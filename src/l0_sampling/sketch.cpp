@@ -3,7 +3,7 @@
 #include <cstring>
 #include <iostream>
 
-int Sketch::failure_factor = 100;
+vec_t Sketch::failure_factor = 100;
 vec_t Sketch::n;
 size_t Sketch::num_elems;
 size_t Sketch::num_buckets;
