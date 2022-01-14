@@ -4,6 +4,7 @@ cmake_minimum_required(VERSION 3.15)
 project(GraphStreamingCC)
 
 include (ExternalProject)
+include (FetchContent)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -60,42 +61,14 @@ if(NOT xxHash_FOUND)
   endif()
 endif()
 
-#Find or download GTest
-find_package(GTest CONFIG)
-if(NOT GTest_FOUND)
-  if(NOT AUTODOWNLOAD)
-    message(FATAL_ERROR "GTest config not found.\n"
-      "Set GTest_DIR to a directory containing one of \n"
-      "  GTestConfig.cmake\n"
-      "  gtest-config.cmake\n"
-      "or use -DAUTODOWNLOAD:BOOL=ON to automatically download")
-  else()
-    #Download googletest
-    download_project(
-      PROJ googletest
-      GIT_REPOSITORY "https://github.com/google/googletest.git"
-      GIT_TAG "release-1.10.0"
-    )
-
-    #As specified in the googletest docs, need to set
-    #gtest_force_shared_crt for windows visual studio.
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-      set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-    endif()
-
-    add_subdirectory(
-      "${googletest_SOURCE_DIR}"
-      "${googletest_BINARY_DIR}"
-      EXCLUDE_FROM_ALL
-    )
-
-    #Add aliases to targets
-    add_library(GTest::gtest ALIAS gtest)
-    add_library(GTest::gtest_main ALIAS gtest_main)
-    add_library(GTest::gmock ALIAS gmock)
-    add_library(GTest::gmock_main ALIAS gmock_main)
-  endif()
-endif()
+FetchContent_Declare(
+  googletest
+  GIT_REPOSITORY https://github.com/google/googletest.git
+  GIT_TAG "release-1.11.0"
+)
+# For Windows: Prevent overriding the parent project's compiler/linker settings
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
 
 #Find or download boost
 find_package(Boost 1.66.0)
@@ -162,7 +135,7 @@ ExternalProject_Add(
     -DAUTODOWNLOAD:BOOL=ON
     -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
 
-    BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target install
+    BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR>
 )
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/GraphZeppelinCommon/prefix/include)
 
@@ -172,7 +145,7 @@ ExternalProject_Add(
 
   PREFIX          GutterTree
   GIT_REPOSITORY  "https://github.com/GraphStreamingProject/GutterTree.git"
-  GIT_TAG         "main"
+  GIT_TAG         "cmake_updates"
 
   UPDATE_DISCONNECTED false
   BUILD_ALWAYS    OFF
@@ -182,7 +155,7 @@ ExternalProject_Add(
         -DAUTODOWNLOAD:BOOL=ON
         -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
 
-  BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target install
+  BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR>
 )
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/GutterTree/prefix/include)
 link_directories(${CMAKE_CURRENT_BINARY_DIR}/GutterTree/prefix/lib)
@@ -319,15 +292,5 @@ install(TARGETS GraphStreamingCC GraphStreamingVerifyCC
 install(
   DIRECTORY include/
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-  FILES_MATCHING PATTERN "*.h"
-)
-install(
-  DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/GutterTree/prefix/include/"
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/GutterTree/
-  FILES_MATCHING PATTERN "*.h"
-)
-install(
-  DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/GraphZeppelinCommon/prefix/include/"
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/GraphZeppelinCommon/
   FILES_MATCHING PATTERN "*.h"
 )
