@@ -61,102 +61,18 @@ if(NOT xxHash_FOUND)
   endif()
 endif()
 
+# GutterTree Project
 FetchContent_Declare(
-  googletest
-  GIT_REPOSITORY https://github.com/google/googletest.git
-  GIT_TAG "release-1.11.0"
-)
-# For Windows: Prevent overriding the parent project's compiler/linker settings
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(googletest)
-
-#Find or download boost
-find_package(Boost 1.66.0)
-if(NOT Boost_FOUND)
-  if(NOT AUTODOWNLOAD)
-    message(FATAL_ERROR "Boost not found.\n"
-      "Set BOOST_ROOT to a directory where Boost is installed\n"
-      "or use -DAUTODOWNLOAD:BOOL=ON to automatically download")
-  else()
-    message("Downloading boost")
-    #Download boost
-    download_project(
-      PROJ boost
-      GIT_REPOSITORY "https://github.com/boostorg/boost.git"
-      GIT_TAG "boost-1.66.0"
-    )
-
-    #Run bootstrap according to OS version
-    if (WIN32)
-      set(boost_bootstrap_script ".\\bootstrap.bat")
-    else()
-      set(boost_bootstrap_script "./bootstrap.sh")
-    endif()
-    execute_process(
-      COMMAND "${boost_bootstrap_script}"
-      RESULT_VARIABLE result
-      WORKING_DIRECTORY "${boost_SOURCE_DIR}"
-    )
-    if(result)
-      message(FATAL_ERROR "Failed to run bootstrap script")
-    endif()
-
-    #Generate header files with b2
-    execute_process(
-      COMMAND "./b2" "headers"
-      RESULT_VARIABLE result
-      WORKING_DIRECTORY "${boost_SOURCE_DIR}"
-    )
-    if(result)
-      message(FATAL_ERROR "Failed to run b2 headers")
-    endif()
-
-    #Set BOOST_ROOT in cache to what we just downloaded, FindBoost again
-    set(ENV{BOOST_LIBRARYDIR} ${boost_SOURCE_DIR}/../boost-install/lib)
-    set(BOOST_ROOT "${boost_SOURCE_DIR}" CACHE STRING "" FORCE)
-    find_package(Boost 1.66.0 REQUIRED)
-  endif()
-endif()
-include_directories("${Boost_INCLUDE_DIR}")
-
-# Include common components
-ExternalProject_Add(
-    GraphZeppelinCommon
-
-    PREFIX          GraphZeppelinCommon
-    GIT_REPOSITORY  "https://github.com/GraphStreamingProject/GraphZeppelinCommon.git"
-    GIT_TAG         "main"
-
-    UPDATE_DISCONNECTED false
-    BUILD_ALWAYS    OFF
-    INSTALL_DIR     ${CMAKE_CURRENT_BINARY_DIR}/GraphZeppelinCommon/prefix
-
-    CMAKE_CACHE_ARGS
-    -DAUTODOWNLOAD:BOOL=ON
-    -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
-
-    BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR>
-)
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/GraphZeppelinCommon/prefix/include)
-
-# Install GutterTree Project
-ExternalProject_Add(
   GutterTree
 
-  PREFIX          GutterTree
   GIT_REPOSITORY  "https://github.com/GraphStreamingProject/GutterTree.git"
   GIT_TAG         "cmake_updates"
-
-  UPDATE_DISCONNECTED false
-  BUILD_ALWAYS    OFF
-  INSTALL_DIR     ${CMAKE_CURRENT_BINARY_DIR}/GutterTree/prefix
-
-  CMAKE_CACHE_ARGS
-        -DAUTODOWNLOAD:BOOL=ON
-        -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
-
-  BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR>
 )
+
+FetchContent_MakeAvailable(GutterTree)
+
+# include the relevant h files from the other projects
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/GraphZeppelinCommon/prefix/include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/GutterTree/prefix/include)
 link_directories(${CMAKE_CURRENT_BINARY_DIR}/GutterTree/prefix/lib)
 
@@ -172,22 +88,10 @@ add_library(GraphStreamingCC
   src/l0_sampling/sketch.cpp
   src/l0_sampling/update.cpp
   src/util.cpp)
-target_link_libraries(GraphStreamingCC PUBLIC xxHash::xxhash GTest::gtest)
-add_dependencies(GraphStreamingCC GutterTree GraphZeppelinCommon)
-target_link_libraries(GraphStreamingCC PUBLIC libGutterTree.a)
-# optimize unless debug
-if (DEFINED ENV{DEBUG})
-  message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(GraphStreamingCC PRIVATE -g -fopenmp)
-  target_link_options(GraphStreamingCC PRIVATE -fopenmp)
-else ()
-  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(GraphStreamingCC PRIVATE -O3 -fopenmp)
-    target_link_options(GraphStreamingCC PRIVATE -fopenmp)
-  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    target_compile_options(GraphStreamingCC PRIVATE /O2)
-  endif()
-endif()
+add_dependencies(GraphStreamingCC GutterTree)
+target_link_libraries(GraphStreamingCC PUBLIC xxHash::xxhash GutterTree)
+target_compile_options(GraphStreamingCC PUBLIC -fopenmp)
+target_link_options(GraphStreamingCC PUBLIC -fopenmp)
 
 add_library(GraphStreamingVerifyCC
   src/graph.cpp
@@ -198,23 +102,11 @@ add_library(GraphStreamingVerifyCC
   src/util.cpp
   test/util/file_graph_verifier.cpp
   test/util/mat_graph_verifier.cpp)
-target_link_libraries(GraphStreamingVerifyCC PUBLIC xxHash::xxhash GTest::gtest)
-target_compile_definitions(GraphStreamingVerifyCC PRIVATE VERIFY_SAMPLES_F)
-add_dependencies(GraphStreamingVerifyCC GutterTree GraphZeppelinCommon)
-target_link_libraries(GraphStreamingVerifyCC PUBLIC libGutterTree.a)
-# optimize unless debug
-if (DEFINED ENV{DEBUG})
-  message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(GraphStreamingVerifyCC PRIVATE -g -fopenmp)
-  target_link_options(GraphStreamingVerifyCC PRIVATE -fopenmp)
-else ()
-  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(GraphStreamingVerifyCC PRIVATE -O3 -fopenmp)
-    target_link_options(GraphStreamingVerifyCC PRIVATE -fopenmp)
-  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    target_compile_options(GraphStreamingVerifyCC PRIVATE /O2)
-  endif()
-endif()
+add_dependencies(GraphStreamingVerifyCC GutterTree)
+target_link_libraries(GraphStreamingVerifyCC PUBLIC xxHash::xxhash GutterTree)
+target_compile_options(GraphStreamingVerifyCC PUBLIC -fopenmp)
+target_link_options(GraphStreamingVerifyCC PUBLIC -fopenmp)
+target_compile_definitions(GraphStreamingVerifyCC PUBLIC VERIFY_SAMPLES_F)
 
 add_executable(tests
   test/test_runner.cpp
@@ -226,59 +118,21 @@ add_executable(tests
   test/util/graph_gen.cpp
   test/util/graph_gen_test.cpp
   test/util/graph_verifier_test.cpp)
-target_link_libraries(tests PRIVATE xxHash::xxhash GTest::gtest GraphStreamingVerifyCC)
-target_compile_definitions(tests PRIVATE VERIFY_SAMPLES_F)
-# dependencies
-add_dependencies(tests GutterTree GraphZeppelinCommon)
-target_link_libraries(tests PRIVATE libGutterTree.a)
-# optimize unless debug
-if (DEFINED ENV{DEBUG})
-  message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(tests PRIVATE -g -fopenmp)
-  target_link_options(tests PRIVATE -fopenmp)
-else ()
-  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(tests PRIVATE -O3 -fopenmp)
-    target_link_options(tests PRIVATE -fopenmp)
-  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    target_compile_options(tests PRIVATE /O2)
-  endif()
-endif ()
+add_dependencies(tests GraphStreamingVerifyCC)
+target_link_libraries(tests PRIVATE GraphStreamingVerifyCC)
 
 add_executable(statistical_test
   test/statistical_testing/graph_testing.cpp
   test/util/file_graph_verifier.cpp
   test/util/graph_gen.cpp)
-target_link_libraries(statistical_test PRIVATE xxHash::xxhash GTest::gtest GraphStreamingVerifyCC)
-target_compile_definitions(statistical_test PRIVATE VERIFY_SAMPLES_F)
-# dependencies
-add_dependencies(statistical_test GutterTree GraphZeppelinCommon)
-target_link_libraries(statistical_test PRIVATE libGutterTree.a)
-# optimize unless debug
-if (DEFINED ENV{DEBUG})
-  message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(statistical_test PRIVATE -g -fopenmp)
-  target_link_options(statistical_test PRIVATE -fopenmp)
-else ()
-  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(statistical_test PRIVATE -O3 -fopenmp)
-    target_link_options(statistical_test PRIVATE -fopenmp)
-  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    target_compile_options(statistical_test PRIVATE /O2)
-  endif()
-endif ()
+add_dependencies(statistical_test GraphStreamingVerifyCC)
+target_link_libraries(statistical_test PRIVATE GraphStreamingVerifyCC)
 
 # executables for experiment/benchmarking
 add_executable(efficient_gen
   test/util/efficient_gen/edge_gen.cpp
   test/util/efficient_gen/efficient_gen.cpp)
-target_link_libraries(efficient_gen PRIVATE xxHash::xxhash)
-add_dependencies(efficient_gen GraphZeppelinCommon)
-if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-  target_compile_options(efficient_gen PRIVATE -O3)
-elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-  target_compile_options(efficient_gen PRIVATE /O2)
-endif()
+target_link_libraries(efficient_gen PRIVATE xxHash::xxhash GraphZeppelinCommon)
 
 #uncomment if manually installing project
 #without specifying INSTALL_PREFIX elsewhere
