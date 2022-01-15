@@ -11,8 +11,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 
-#Uncomment to enable debug
-#set(ENV{DEBUG} ON)
+# Make the default build type Release. If user or another
+# project sets a different value than use that
+if(NOT CMAKE_BUILD_TYPE)
+  message(STATUS "Setting build type to default -- Release")
+  set(CMAKE_BUILD_TYPE "Release" CACHE
+      STRING "Choose the type of build." FORCE)
+endif()
+message(STATUS "GraphStreamingCC Build Type: ${CMAKE_BUILD_TYPE}")
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   message(STATUS "Adding GNU compiler flags")
@@ -24,14 +30,14 @@ else()
   message(STATUS "${CMAKE_CXX_COMPILER_ID} not recognized, no flags added")
 endif()
 
-# include("DownloadProject.cmake")
-
 # Get xxHash
 FetchContent_Declare(
   xxhash
 
   GIT_REPOSITORY "https://github.com/Cyan4973/xxHash.git"
   GIT_TAG        "v0.8.0"
+
+  UPDATE_DISCONNECTED OFF
 )
 
 # Get GutterTree Project
@@ -40,6 +46,10 @@ FetchContent_Declare(
 
   GIT_REPOSITORY  "https://github.com/GraphStreamingProject/GutterTree.git"
   GIT_TAG         "cmake_updates"
+
+  UPDATE_DISCONNECTED OFF
+  CMAKE_CACHE_ARGS
+    -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
 )
 
 FetchContent_MakeAvailable(xxHash GutterTree)
