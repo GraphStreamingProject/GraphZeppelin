@@ -36,9 +36,19 @@ FetchContent_Declare(
 
   GIT_REPOSITORY "https://github.com/Cyan4973/xxHash.git"
   GIT_TAG        "v0.8.0"
-
-  UPDATE_DISCONNECTED OFF
 )
+
+# Get Boost -- since boost is so big, try to find on system first
+find_package(Boost 1.66.0)
+if(NOT Boost_FOUND)
+  FetchContent_Declare(
+    boost
+
+    GIT_REPOSITORY "https://github.com/boostorg/boost.git"
+    GIT_TAG "boost-1.66.0"
+  )
+  FetchContent_MakeAvailable(boost)
+endif()
 
 # Get GutterTree Project
 FetchContent_Declare(
@@ -80,7 +90,7 @@ add_library(GraphStreamingCC
   src/l0_sampling/update.cpp
   src/util.cpp)
 add_dependencies(GraphStreamingCC GutterTree)
-target_link_libraries(GraphStreamingCC PUBLIC xxhash GutterTree)
+target_link_libraries(GraphStreamingCC PUBLIC xxhash boost GutterTree)
 target_include_directories(GraphStreamingCC PUBLIC include/ include/l0_sampling/)
 target_compile_options(GraphStreamingCC PUBLIC -fopenmp)
 target_link_options(GraphStreamingCC PUBLIC -fopenmp)
@@ -95,7 +105,7 @@ add_library(GraphStreamingVerifyCC
   test/util/file_graph_verifier.cpp
   test/util/mat_graph_verifier.cpp)
 add_dependencies(GraphStreamingVerifyCC GutterTree)
-target_link_libraries(GraphStreamingVerifyCC PUBLIC xxhash GutterTree)
+target_link_libraries(GraphStreamingVerifyCC PUBLIC xxhash boost GutterTree)
 target_include_directories(GraphStreamingVerifyCC PUBLIC include/ include/l0_sampling/ include/test/)
 target_compile_options(GraphStreamingVerifyCC PUBLIC -fopenmp)
 target_link_options(GraphStreamingVerifyCC PUBLIC -fopenmp)
