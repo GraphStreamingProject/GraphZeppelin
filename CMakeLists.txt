@@ -47,7 +47,7 @@ if(NOT Boost_FOUND)
     GIT_REPOSITORY "https://github.com/boostorg/boost.git"
     GIT_TAG "boost-1.66.0"
   )
-  FetchContent_MakeAvailable(boost)
+  FetchContent_MakeAvailable(Boost)
 endif()
 include_directories("${Boost_INCLUDE_DIR}")
 
