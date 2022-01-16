@@ -42,7 +42,7 @@ FetchContent_Declare(
 find_package(Boost 1.66.0)
 if(NOT Boost_FOUND)
   FetchContent_Declare(
-    boost
+    Boost
 
     GIT_REPOSITORY "https://github.com/boostorg/boost.git"
     GIT_TAG "boost-1.66.0"
