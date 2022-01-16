@@ -81,7 +81,7 @@ add_library(GraphStreamingCC
   src/util.cpp)
 add_dependencies(GraphStreamingCC GutterTree)
 target_link_libraries(GraphStreamingCC PUBLIC xxhash GutterTree)
-target_include_directories(GraphStreamingCC PUBLIC include/)
+target_include_directories(GraphStreamingCC PUBLIC include/ include/l0_sampling/)
 target_compile_options(GraphStreamingCC PUBLIC -fopenmp)
 target_link_options(GraphStreamingCC PUBLIC -fopenmp)
 
@@ -96,7 +96,7 @@ add_library(GraphStreamingVerifyCC
   test/util/mat_graph_verifier.cpp)
 add_dependencies(GraphStreamingVerifyCC GutterTree)
 target_link_libraries(GraphStreamingVerifyCC PUBLIC xxhash GutterTree)
-target_include_directories(GraphStreamingVerifyCC PUBLIC include/)
+target_include_directories(GraphStreamingVerifyCC PUBLIC include/ include/l0_sampling/ include/test/)
 target_compile_options(GraphStreamingVerifyCC PUBLIC -fopenmp)
 target_link_options(GraphStreamingVerifyCC PUBLIC -fopenmp)
 target_compile_definitions(GraphStreamingVerifyCC PUBLIC VERIFY_SAMPLES_F)
