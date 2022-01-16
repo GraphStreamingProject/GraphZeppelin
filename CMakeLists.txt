@@ -1,9 +1,6 @@
-#TODO: write FindxxHash for libxxhash-dev compatibility?
-#Cmake for xxHash is unofficial, so libxxhash-dev doesn't have xxHashConfig.cmake
 cmake_minimum_required(VERSION 3.15)
 project(GraphStreamingCC)
 
-include (ExternalProject)
 include (FetchContent)
 
 set(CMAKE_CXX_STANDARD 14)
