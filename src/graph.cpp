@@ -2,6 +2,7 @@
 #include <iostream>
 #include <chrono>
 #include <random>
+#include <algorithm>
 
 #include <gutter_tree.h>
 #include <standalone_gutters.h>

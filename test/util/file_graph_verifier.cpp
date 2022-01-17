@@ -1,6 +1,8 @@
+#include "../../include/test/file_graph_verifier.h"
+
 #include <map>
 #include <iostream>
-#include "../../include/test/file_graph_verifier.h"
+#include <algorithm>
 
 FileGraphVerifier::FileGraphVerifier(const std::string &input_file) {
   kruskal_ref = kruskal(input_file);
@@ -78,8 +80,8 @@ void FileGraphVerifier::verify_cc(node_id_t node) {
 
 void FileGraphVerifier::verify_soln(std::vector<std::set<node_id_t>> &retval) {
   auto temp {retval};
-  sort(temp.begin(),temp.end());
-  sort(kruskal_ref.begin(),kruskal_ref.end());
+  std::sort(temp.begin(),temp.end());
+  std::sort(kruskal_ref.begin(),kruskal_ref.end());
   assert(kruskal_ref == temp);
   std::cout << "Solution ok: " << retval.size() << " CCs found." << std::endl;
 }
