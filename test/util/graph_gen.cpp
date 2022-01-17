@@ -1,13 +1,11 @@
 #include <fstream>
 #include <algorithm>
-#include <boost/multiprecision/cpp_int.hpp>
 #include <random>
+#include <iostream>
 #include "../../include/test/graph_gen.h"
 #include "../../include/graph.h"
 
 #define endl '\n'
-
-using uint128_t = boost::multiprecision::uint128_t;
 
 typedef uint32_t ul;
 typedef uint64_t ull;

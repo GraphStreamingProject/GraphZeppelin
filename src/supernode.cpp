@@ -1,6 +1,5 @@
 #include <stdexcept>
 #include <cmath>
-#include <boost/multiprecision/cpp_int.hpp>
 #include "../include/supernode.h"
 #include "../include/graph_worker.h"
 

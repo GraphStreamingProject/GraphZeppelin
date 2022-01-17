@@ -1,5 +1,7 @@
 #include <map>
 #include <iostream>
+#include <algorithm>
+#include <cassert>
 #include "../../include/test/file_graph_verifier.h"
 
 FileGraphVerifier::FileGraphVerifier(const string &input_file) {

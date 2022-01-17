@@ -97,55 +97,6 @@ if(NOT GTest_FOUND)
   endif()
 endif()
 
-#Find or download boost
-find_package(Boost 1.66.0)
-if(NOT Boost_FOUND)
-  if(NOT AUTODOWNLOAD)
-    message(FATAL_ERROR "Boost not found.\n"
-      "Set BOOST_ROOT to a directory where Boost is installed\n"
-      "or use -DAUTODOWNLOAD:BOOL=ON to automatically download")
-  else()
-    message("Downloading boost")
-    #Download boost
-    download_project(
-      PROJ boost
-      GIT_REPOSITORY "https://github.com/boostorg/boost.git"
-      GIT_TAG "boost-1.66.0"
-    )
-
-    #Run bootstrap according to OS version
-    if (WIN32)
-      set(boost_bootstrap_script ".\\bootstrap.bat")
-    else()
-      set(boost_bootstrap_script "./bootstrap.sh")
-    endif()
-    execute_process(
-      COMMAND "${boost_bootstrap_script}"
-      RESULT_VARIABLE result
-      WORKING_DIRECTORY "${boost_SOURCE_DIR}"
-    )
-    if(result)
-      message(FATAL_ERROR "Failed to run bootstrap script")
-    endif()
-
-    #Generate header files with b2
-    execute_process(
-      COMMAND "./b2" "headers"
-      RESULT_VARIABLE result
-      WORKING_DIRECTORY "${boost_SOURCE_DIR}"
-    )
-    if(result)
-      message(FATAL_ERROR "Failed to run b2 headers")
-    endif()
-
-    #Set BOOST_ROOT in cache to what we just downloaded, FindBoost again
-    set(ENV{BOOST_LIBRARYDIR} ${boost_SOURCE_DIR}/../boost-install/lib)
-    set(BOOST_ROOT "${boost_SOURCE_DIR}" CACHE STRING "" FORCE)
-    find_package(Boost 1.66.0 REQUIRED)
-  endif()
-endif()
-include_directories("${Boost_INCLUDE_DIR}")
-
 # Include common components
 ExternalProject_Add(
     GraphZeppelinCommon

@@ -1,5 +1,7 @@
 #include <map>
 #include <iostream>
+#include <algorithm>
+#include <cassert>
 #include "../../include/test/mat_graph_verifier.h"
 
 MatGraphVerifier::MatGraphVerifier(node_id_t n, std::vector<bool>&
