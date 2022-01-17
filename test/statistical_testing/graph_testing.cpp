@@ -5,7 +5,7 @@
 #include "../../include/test/file_graph_verifier.h"
 
 static inline int do_run() {
-    ifstream in{"./sample.txt"};
+    std::ifstream in{"./sample.txt"};
     node_id_t n;
     edge_id_t m;
     in >> n >> m;

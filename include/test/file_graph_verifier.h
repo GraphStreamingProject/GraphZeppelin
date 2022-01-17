@@ -16,16 +16,16 @@ class FileGraphVerifier : public GraphVerifier {
   DisjointSetUnion<node_id_t> sets;
 
 public:
-  FileGraphVerifier(const string& input_file = "./cumul_sample.txt");
+  FileGraphVerifier(const std::string& input_file = "./cumul_sample.txt");
 
   void verify_edge(Edge edge);
   void verify_cc(node_id_t node);
-  void verify_soln(vector<set<node_id_t>>& retval);
+  void verify_soln(std::vector<std::set<node_id_t>>& retval);
 
   /**
    * Runs Kruskal's (deterministic) CC algo.
    * @param input_file the file to read input from.
    * @return an array of connected components.
    */
-  static std::vector<std::set<node_id_t>> kruskal(const string& input_file = "cumul_sample.txt");
+  static std::vector<std::set<node_id_t>> kruskal(const std::string& input_file = "cumul_sample.txt");
 };

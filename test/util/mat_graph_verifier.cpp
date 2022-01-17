@@ -62,7 +62,7 @@ void MatGraphVerifier::verify_cc(node_id_t node) {
   throw NotCCException();
 }
 
-void MatGraphVerifier::verify_soln(vector<set<node_id_t>> &retval) {
+void MatGraphVerifier::verify_soln(std::vector<std::set<node_id_t>> &retval) {
   auto temp {retval};
   sort(temp.begin(),temp.end());
   sort(kruskal_ref.begin(),kruskal_ref.end());

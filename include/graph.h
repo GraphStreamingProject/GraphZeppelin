@@ -12,12 +12,10 @@
 #include "test/graph_verifier.h"
 #endif
 
-using namespace std;
-
 // forward declarations
 class GraphWorker;
 
-typedef pair<Edge, UpdateType> GraphUpdate;
+typedef std::pair<Edge, UpdateType> GraphUpdate;
 
 /**
  * Undirected graph object with n nodes labelled 0 to n-1, no self-edges,
@@ -28,7 +26,7 @@ class Graph {
   long seed;
   bool update_locked = false;
   // a set containing one "representative" from each supernode
-  set<node_id_t>* representatives;
+  std::set<node_id_t>* representatives;
   Supernode** supernodes;
   // DSU representation of supernode relationship
   node_id_t * parent;
@@ -44,7 +42,7 @@ class Graph {
   static bool open_graph;
 public:
   explicit Graph(node_id_t num_nodes);
-  explicit Graph(const string &input_file);
+  explicit Graph(const std::string &input_file);
 
   ~Graph();
   void update(GraphUpdate upd);
@@ -56,13 +54,13 @@ public:
    * @param delta_loc  Memory location where we should initialize the delta
    *                   supernode.
    */
-  void batch_update(node_id_t src, const vector<node_id_t> &edges, Supernode *delta_loc);
+  void batch_update(node_id_t src, const std::vector<node_id_t> &edges, Supernode *delta_loc);
 
   /**
    * Main parallel algorithm utilizing Boruvka and L_0 sampling.
    * @return a vector of the connected components in the graph.
    */
-  vector<set<node_id_t>> connected_components();
+  std::vector<std::set<node_id_t>> connected_components();
 
   /**
    * Main parallel algorithm utilizing Boruvka and L_0 sampling.
@@ -70,7 +68,7 @@ public:
    * @param cont
    * @return a vector of the connected components in the graph.
    */
-  vector<set<node_id_t>> connected_components(bool cont);
+  std::vector<std::set<node_id_t>> connected_components(bool cont);
 
 #ifdef VERIFY_SAMPLES_F
   std::unique_ptr<GraphVerifier> verifier;
@@ -95,25 +93,25 @@ public:
    * @returns nothing (supernode delta is in delta_loc).
    */
   static void generate_delta_node(node_id_t node_n, long node_seed, node_id_t src,
-                                  const vector<node_id_t> &edges, Supernode *delta_loc);
+                                  const std::vector<node_id_t> &edges, Supernode *delta_loc);
 
   /**
    * Serialize the graph data to a binary file.
    * @param filename the name of the file to (over)write data to.
    */
-  void write_binary(const string &filename);
+  void write_binary(const std::string &filename);
 
   std::chrono::steady_clock::time_point end_time;
 };
 
-class UpdateLockedException : public exception {
+class UpdateLockedException : public std::exception {
   virtual const char* what() const throw() {
     return "The graph cannot be updated: Connected components algorithm has "
            "already started";
   }
 };
 
-class MultipleGraphsException : public exception {
+class MultipleGraphsException : public std::exception {
   virtual const char * what() const throw() {
     return "Only one Graph may be open at one time. The other Graph must be deleted.";
   }
