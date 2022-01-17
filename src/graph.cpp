@@ -141,6 +141,8 @@ vector<set<node_id_t>> Graph::connected_components() {
   for (node_id_t i = 0; i < num_nodes; ++i) {
     reps[i] = i;
   }
+  
+  int num_rounds = 0;
 
   do {
     modified = false;
@@ -213,6 +215,7 @@ vector<set<node_id_t>> Graph::connected_components() {
     }
 
     swap(reps, temp_diff);
+    ++num_rounds;
   } while (modified);
 
   map<node_id_t, set<node_id_t>> temp;
@@ -223,7 +226,7 @@ vector<set<node_id_t>> Graph::connected_components() {
   for (const auto& it : temp) retval.push_back(it.second);
 
   cc_end_time = std::chrono::steady_clock::now();
-  printf("CC done\n");
+  printf("CC done in %d rounds\n", num_rounds);
   return retval;
 }
 
