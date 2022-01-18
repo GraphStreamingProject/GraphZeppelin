@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <fstream>
+#include <algorithm>
 #include "../include/graph.h"
 #include "../include/test/file_graph_verifier.h"
 #include "../include/test/mat_graph_verifier.h"
