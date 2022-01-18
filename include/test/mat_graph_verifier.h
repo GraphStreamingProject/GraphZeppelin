@@ -20,7 +20,7 @@ public:
 
   void verify_edge(Edge edge);
   void verify_cc(node_id_t node);
-  void verify_soln(vector<set<node_id_t>> &retval);
+  void verify_soln(std::vector<std::set<node_id_t>> &retval);
 
   /**
    * Runs Kruskal's (deterministic) CC algo.

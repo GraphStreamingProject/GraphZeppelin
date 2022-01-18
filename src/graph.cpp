@@ -2,6 +2,7 @@
 #include <iostream>
 #include <chrono>
 #include <random>
+#include <algorithm>
 
 #include <gutter_tree.h>
 #include <standalone_gutters.h>
@@ -15,10 +16,10 @@ Graph::Graph(node_id_t num_nodes): num_nodes(num_nodes) {
   if (open_graph) throw MultipleGraphsException();
 
 #ifdef VERIFY_SAMPLES_F
-  cout << "Verifying samples..." << endl;
+  std::cout << "Verifying samples..." << std::endl;
 #endif
   Supernode::configure(num_nodes);
-  representatives = new set<node_id_t>();
+  representatives = new std::set<node_id_t>();
   supernodes = new Supernode*[num_nodes];
   parent = new node_id_t[num_nodes];
   seed = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
@@ -55,9 +56,9 @@ Graph::Graph(const std::string& input_file) : num_updates(0) {
   Supernode::configure(num_nodes, sketch_fail_factor);
 
 #ifdef VERIFY_SAMPLES_F
-  cout << "Verifying samples..." << endl;
+  std::cout << "Verifying samples..." << std::endl;
 #endif
-  representatives = new set<node_id_t>();
+  representatives = new std::set<node_id_t>();
   supernodes = new Supernode*[num_nodes];
   parent = new node_id_t[num_nodes];
   for (node_id_t i = 0; i < num_nodes; ++i) {
@@ -100,7 +101,7 @@ void Graph::update(GraphUpdate upd) {
 }
 
 void Graph::generate_delta_node(node_id_t node_n, long node_seed, node_id_t
-               src, const vector<node_id_t> &edges, Supernode *delta_loc) {
+               src, const std::vector<node_id_t> &edges, Supernode *delta_loc) {
   std::vector<vec_t> updates;
   updates.reserve(edges.size());
   for (const auto& edge : edges) {
@@ -114,7 +115,7 @@ void Graph::generate_delta_node(node_id_t node_n, long node_seed, node_id_t
   }
   Supernode::delta_supernode(node_n, node_seed, updates, delta_loc);
 }
-void Graph::batch_update(node_id_t src, const vector<node_id_t> &edges, Supernode *delta_loc) {
+void Graph::batch_update(node_id_t src, const std::vector<node_id_t> &edges, Supernode *delta_loc) {
   if (update_locked) throw UpdateLockedException();
 
   num_updates += edges.size();
@@ -122,7 +123,7 @@ void Graph::batch_update(node_id_t src, const vector<node_id_t> &edges, Supernod
   supernodes[src]->apply_delta_update(delta_loc);
 }
 
-vector<set<node_id_t>> Graph::connected_components() {
+std::vector<std::set<node_id_t>> Graph::connected_components() {
   bf->force_flush(); // flush everything in buffering system to make final updates
   GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
   // after this point all updates have been processed from the buffer tree
@@ -132,8 +133,8 @@ vector<set<node_id_t>> Graph::connected_components() {
   bool modified;
   std::pair<Edge, SampleSketchRet> query[num_nodes];
   node_id_t size[num_nodes];
-  vector<node_id_t> reps(num_nodes);
-  fill(size, size + num_nodes, 1);
+  std::vector<node_id_t> reps(num_nodes);
+  std::fill(size, size + num_nodes, 1);
   for (node_id_t i = 0; i < num_nodes; ++i) {
     reps[i] = i;
   }
@@ -157,7 +158,7 @@ vector<set<node_id_t>> Graph::connected_components() {
     // Did one of our threads produce an exception?
     if (except) std::rethrow_exception(err);
 
-    vector<node_id_t> to_remove;
+    std::vector<node_id_t> to_remove;
     for (auto i : reps) {
       // unpack query result
       Edge edge = query[i].first;
@@ -189,10 +190,10 @@ vector<set<node_id_t>> Graph::connected_components() {
       supernodes[a]->merge(*supernodes[b]);
     }
     if (!to_remove.empty()) modified = true;
-    sort(to_remove.begin(), to_remove.end());
+    std::sort(to_remove.begin(), to_remove.end());
 
     // 2-pointer to find set difference
-    vector<node_id_t> temp_diff;
+    std::vector<node_id_t> temp_diff;
     unsigned long ptr1 = 0;
     unsigned long ptr2 = 0;
     while (ptr1 < reps.size() && ptr2 < to_remove.size()) {
@@ -211,10 +212,10 @@ vector<set<node_id_t>> Graph::connected_components() {
     swap(reps, temp_diff);
   } while (modified);
 
-  map<node_id_t, set<node_id_t>> temp;
+  std::map<node_id_t, std::set<node_id_t>> temp;
   for (node_id_t i = 0; i < num_nodes; ++i)
     temp[get_parent(i)].insert(i);
-  vector<set<node_id_t>> retval;
+  std::vector<std::set<node_id_t>> retval;
   retval.reserve(temp.size());
   for (const auto& it : temp) retval.push_back(it.second);
 
@@ -249,13 +250,13 @@ void Graph::restore_supernodes(Supernode** supernodes) {
   update_locked = false;
 }
 
-vector<set<node_id_t>> Graph::connected_components(bool cont) {
+std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
   if (!cont)
     return connected_components();
 
   Supernode** supernodes = backup_supernodes();
 
-  vector<set<node_id_t>> ret = connected_components();
+  std::vector<std::set<node_id_t>> ret = connected_components();
 
   restore_supernodes(supernodes);
 

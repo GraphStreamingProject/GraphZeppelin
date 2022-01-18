@@ -63,7 +63,7 @@ std::pair<Edge, SampleSketchRet> Supernode::sample() {
 }
 
 void Supernode::merge(Supernode &other) {
-  idx = max(idx, other.idx);
+  idx = std::max(idx, other.idx);
   for (int i=idx;i<num_sketches;++i) {
     (*get_sketch(i))+=(*other.get_sketch(i));
   }
@@ -104,7 +104,7 @@ void Supernode::apply_delta_update(const Supernode* delta_node) {
  * this was slow (at least on small graph inputs).
  */
 void Supernode::delta_supernode(uint64_t n, long seed,
-               const vector<vec_t> &updates, void *loc) {
+               const std::vector<vec_t> &updates, void *loc) {
   auto delta_node = makeSupernode(loc, n, seed);
 #pragma omp parallel for num_threads(GraphWorker::get_group_size()) default(shared)
   for (int i = 0; i < delta_node->num_sketches; ++i) {

@@ -1,10 +1,12 @@
-#include <map>
-#include <iostream>
 #include "../../include/test/file_graph_verifier.h"
 
-FileGraphVerifier::FileGraphVerifier(const string &input_file) {
+#include <map>
+#include <iostream>
+#include <algorithm>
+
+FileGraphVerifier::FileGraphVerifier(const std::string &input_file) {
   kruskal_ref = kruskal(input_file);
-  ifstream in(input_file);
+  std::ifstream in(input_file);
   node_id_t n;
   edge_id_t m;
   node_id_t a, b;
@@ -22,8 +24,8 @@ FileGraphVerifier::FileGraphVerifier(const string &input_file) {
   in.close();
 }
 
-std::vector<std::set<node_id_t>> FileGraphVerifier::kruskal(const string& input_file) {
-  ifstream in(input_file);
+std::vector<std::set<node_id_t>> FileGraphVerifier::kruskal(const std::string& input_file) {
+  std::ifstream in(input_file);
   node_id_t n;
   edge_id_t m;
   in >> n >> m;
@@ -76,10 +78,10 @@ void FileGraphVerifier::verify_cc(node_id_t node) {
   throw NotCCException();
 }
 
-void FileGraphVerifier::verify_soln(vector<set<node_id_t>> &retval) {
+void FileGraphVerifier::verify_soln(std::vector<std::set<node_id_t>> &retval) {
   auto temp {retval};
-  sort(temp.begin(),temp.end());
-  sort(kruskal_ref.begin(),kruskal_ref.end());
+  std::sort(temp.begin(),temp.end());
+  std::sort(kruskal_ref.begin(),kruskal_ref.end());
   assert(kruskal_ref == temp);
-  std::cout << "Solution ok: " << retval.size() << " CCs found." << endl;
+  std::cout << "Solution ok: " << retval.size() << " CCs found." << std::endl;
 }
