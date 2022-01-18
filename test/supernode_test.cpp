@@ -10,13 +10,13 @@ const unsigned long long int num_nodes = 2000;
 
 class SupernodeTestSuite : public testing::Test {
 protected:
-  static vector<Edge>* graph_edges;
-  static vector<Edge>* odd_graph_edges;
+  static std::vector<Edge>* graph_edges;
+  static std::vector<Edge>* odd_graph_edges;
   static bool* prime;
   static void SetUpTestSuite() {
     srand(1000000007);
-    graph_edges = new vector<Edge>();
-    odd_graph_edges = new vector<Edge>();
+    graph_edges = new std::vector<Edge>();
+    odd_graph_edges = new std::vector<Edge>();
     for (unsigned i=2;i<num_nodes;++i) {
       for (unsigned j = i*2; j < num_nodes; j+=i) {
         graph_edges->push_back({i,j});
@@ -26,7 +26,7 @@ protected:
 
     // sieve
     prime = (bool*) malloc(num_nodes*sizeof(bool));
-    fill(prime,prime+num_nodes,true);
+    std::fill(prime,prime+num_nodes,true);
     for (unsigned i = 2; i < num_nodes; i++) {
       if (prime[i]) {
         for (unsigned j = i * i; j < num_nodes; j += i) prime[j] = false;
@@ -43,8 +43,8 @@ protected:
   void TearDown() override {}
 };
 
-vector<Edge>* SupernodeTestSuite::graph_edges;
-vector<Edge>* SupernodeTestSuite::odd_graph_edges;
+std::vector<Edge>* SupernodeTestSuite::graph_edges;
+std::vector<Edge>* SupernodeTestSuite::odd_graph_edges;
 bool* SupernodeTestSuite::prime;
 
 TEST_F(SupernodeTestSuite, GIVENnoEdgeUpdatesIFsampledTHENnoEdgeIsReturned) {
@@ -62,7 +62,7 @@ TEST_F(SupernodeTestSuite, IFsampledTooManyTimesTHENthrowOutOfQueries) {
 }
 
 TEST_F(SupernodeTestSuite, TestSampleInsertGrinder) {
-  vector<Supernode*> snodes;
+  std::vector<Supernode*> snodes;
   snodes.reserve(num_nodes);
   for (unsigned i = 0; i < num_nodes; ++i)
     snodes[i] = Supernode::makeSupernode(num_nodes, seed);
@@ -105,7 +105,7 @@ TEST_F(SupernodeTestSuite, TestSampleInsertGrinder) {
 }
 
 TEST_F(SupernodeTestSuite, TestSampleDeleteGrinder) {
-  vector<Supernode*> snodes;
+  std::vector<Supernode*> snodes;
   snodes.reserve(num_nodes);
   for (unsigned i = 0; i < num_nodes; ++i)
     snodes[i] = Supernode::makeSupernode(num_nodes, seed);
@@ -235,7 +235,7 @@ TEST_F(SupernodeTestSuite, TestConcurrency) {
 }
 
 TEST_F(SupernodeTestSuite, TestSerialization) {
-  vector<Supernode*> snodes;
+  std::vector<Supernode*> snodes;
   snodes.reserve(num_nodes);
   for (unsigned i = 0; i < num_nodes; ++i)
     snodes[i] = Supernode::makeSupernode(num_nodes, seed);

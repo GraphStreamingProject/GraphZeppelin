@@ -40,7 +40,7 @@ std::pair<bool, std::string> configure_system() {
     while(getline(conf, line)) {
       if (line[0] == '#' || line[0] == '\n') continue;
       if(line.substr(0, line.find('=')) == "buffering_system") {
-        string buf_str = line.substr(line.find('=') + 1);
+        std::string buf_str = line.substr(line.find('=') + 1);
         if (buf_str == "standalone") {
           use_guttertree = false;
         } else if (buf_str != "tree") {

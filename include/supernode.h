@@ -5,8 +5,6 @@
 
 #include "l0_sampling/sketch.h"
 
-using namespace std;
-
 typedef std::pair<node_id_t, node_id_t> Edge;
 
 /**
@@ -128,14 +126,14 @@ public:
    * Serialize the supernode to a binary output stream.
    * @param out the stream to write to.
    */
-  void write_binary(fstream &binary_out);
+  void write_binary(std::fstream &binary_out);
 
   // return the number of sketches held in this supernode
   int get_num_sktch() { return num_sketches; };
 };
 
 
-class OutOfQueriesException : public exception {
+class OutOfQueriesException : public std::exception {
   virtual const char* what() const throw() {
     return "This supernode cannot be sampled more times!";
   }

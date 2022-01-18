@@ -30,19 +30,19 @@ public:
    * Verifies the connected components solution is correct. Compares
    * retval against kruskal_ref.
    */
-  virtual void verify_soln(vector<set<node_id_t>> &retval) = 0;
+  virtual void verify_soln(std::vector<std::set<node_id_t>> &retval) = 0;
 
   virtual ~GraphVerifier() {};
 };
 
-class BadEdgeException : public exception {
+class BadEdgeException : public std::exception {
   virtual const char* what() const throw() {
     return "The edge is not in the cut of the sample! (standard)";
   }
 };
 
 
-class NotCCException : public exception {
+class NotCCException : public std::exception {
   virtual const char* what() const throw() {
     return "The supernode is not a connected component. It has edges in its "
            "cut!";
