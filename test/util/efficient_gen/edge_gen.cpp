@@ -32,7 +32,7 @@ std::ofstream& operator<< (std::ofstream &os, const std::pair<ull,ull> p) {
 }
 
 void write_edges(ul n, double p, std::string out_f) {
-  ull num_edges = (n*(n-1))/2;
+  ull num_edges = ((ull)n*(n-1))/2;
   ull* arr = (ull*) malloc(num_edges*sizeof(ull));
   ul idx = 0;
 
