@@ -35,19 +35,6 @@ FetchContent_Declare(
   GIT_TAG        "v0.8.0"
 )
 
-# Get Boost -- since boost is so big, try to find on system first
-find_package(Boost 1.66.0)
-if(NOT Boost_FOUND)
-  FetchContent_Declare(
-    Boost
-
-    GIT_REPOSITORY "https://github.com/boostorg/boost.git"
-    GIT_TAG "boost-1.66.0"
-  )
-  FetchContent_MakeAvailable(Boost)
-endif()
-include_directories("${Boost_INCLUDE_DIR}")
-
 # Get GutterTree Project
 FetchContent_Declare(
   GutterTree

@@ -1,11 +1,9 @@
 #include <stdexcept>
-#include <boost/multiprecision/cpp_int.hpp>
 #include "../include/util.h"
 #include "../include/graph_worker.h"
 #include "../include/graph.h"
 
 const char *config_file = "streaming.conf";
-using uint128_t = boost::multiprecision::uint128_t;
 
 typedef uint32_t ul;
 typedef uint64_t ull;

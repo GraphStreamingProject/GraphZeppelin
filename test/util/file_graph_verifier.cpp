@@ -3,6 +3,7 @@
 #include <map>
 #include <iostream>
 #include <algorithm>
+#include <cassert>
 
 FileGraphVerifier::FileGraphVerifier(const std::string &input_file) {
   kruskal_ref = kruskal(input_file);

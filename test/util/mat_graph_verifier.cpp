@@ -3,6 +3,7 @@
 #include <map>
 #include <iostream>
 #include <algorithm>
+#include <cassert>
 
 MatGraphVerifier::MatGraphVerifier(node_id_t n, std::vector<bool>&
       input) : det_graph(input), sets(n) {

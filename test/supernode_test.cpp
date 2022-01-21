@@ -78,7 +78,7 @@ TEST_F(SupernodeTestSuite, TestSampleInsertGrinder) {
   // must have at least logn successes per supernode
   int successes = 0;
 
-  boost::optional<Edge> sampled;
+  Edge sampled;
   for (unsigned i = 2; i < num_nodes; ++i) {
     for (int j = 0; j < (int) snodes[i]->get_num_sktch(); ++j) {
       std::pair<Edge, SampleSketchRet> sample_ret = snodes[i]->sample();
@@ -91,11 +91,11 @@ TEST_F(SupernodeTestSuite, TestSampleInsertGrinder) {
         ASSERT_EQ(ret_code, ZERO) << "False positive in sample " << i;
       } else {
         ASSERT_NE(ret_code, ZERO) << "False negative in sample " << i;
-        ASSERT_TRUE(std::max(sampled->first, sampled->second) % std::min
-              (sampled->first, sampled->second) == 0
-                    && (i == sampled->first || i == sampled->second)) <<
-                    "Failed on {" << sampled->first << "," <<
-                    sampled->second << "} with i = " << i;
+        ASSERT_TRUE(std::max(sampled.first, sampled.second) % std::min
+              (sampled.first, sampled.second) == 0
+                    && (i == sampled.first || i == sampled.second)) <<
+                    "Failed on {" << sampled.first << "," <<
+                    sampled.second << "} with i = " << i;
       }
     }
     ASSERT_GE(successes, (int) log2(num_nodes)) << "Fewer than logn successful queries: supernode " << i;
@@ -128,7 +128,7 @@ TEST_F(SupernodeTestSuite, TestSampleDeleteGrinder) {
   // must have at least logn successes per supernode
   int successes = 0;
 
-  boost::optional<Edge> sampled;
+  Edge sampled;
   for (unsigned i = 2; i < num_nodes; ++i) {
     for (int j = 0; j < (int) snodes[i]->get_num_sktch(); ++j) {
       std::pair<Edge, SampleSketchRet> sample_ret = snodes[i]->sample();
@@ -141,13 +141,13 @@ TEST_F(SupernodeTestSuite, TestSampleDeleteGrinder) {
         ASSERT_EQ(ret_code, ZERO) << "False positive in sample " << i;
       } else {
         ASSERT_NE(ret_code, ZERO) << "False negative in sample " << i;
-        ASSERT_TRUE(std::max(sampled->first, sampled->second) % std::min
-              (sampled->first, sampled->second) == 0
-                    && (std::max(sampled->first, sampled->second) / std::min
-              (sampled->first, sampled->second)) % 2 == 0
-                    && (i == sampled->first || i == sampled->second)) <<
-                    "Failed on {" << sampled->first << "," <<
-                    sampled->second << "} with i = " << i;
+        ASSERT_TRUE(std::max(sampled.first, sampled.second) % std::min
+              (sampled.first, sampled.second) == 0
+                    && (std::max(sampled.first, sampled.second) / std::min
+              (sampled.first, sampled.second)) % 2 == 0
+                    && (i == sampled.first || i == sampled.second)) <<
+                    "Failed on {" << sampled.first << "," <<
+                    sampled.second << "} with i = " << i;
       }
     }
     ASSERT_GE(successes, (int) log2(num_nodes)) << "Fewer than logn successful queries: supernode " << i;
