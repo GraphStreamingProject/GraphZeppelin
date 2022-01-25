@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <fstream>
+#include <algorithm>
 #include "../include/graph.h"
 #include "../include/test/file_graph_verifier.h"
 #include "../include/test/mat_graph_verifier.h"
@@ -28,7 +29,7 @@ TEST_P(GraphTest, SmallGraphConnectivity) {
   const std::string fname = __FILE__;
   size_t pos = fname.find_last_of("\\/");
   const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
-  ifstream in{curr_dir + "/res/multiples_graph_1024.txt"};
+  std::ifstream in{curr_dir + "/res/multiples_graph_1024.txt"};
   node_id_t num_nodes;
   in >> num_nodes;
   edge_id_t m;
@@ -48,7 +49,7 @@ TEST_P(GraphTest, IFconnectedComponentsAlgRunTHENupdateLocked) {
   const std::string fname = __FILE__;
   size_t pos = fname.find_last_of("\\/");
   const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
-  ifstream in{curr_dir + "/res/multiples_graph_1024.txt"};
+  std::ifstream in{curr_dir + "/res/multiples_graph_1024.txt"};
   node_id_t num_nodes;
   in >> num_nodes;
   edge_id_t m;
@@ -72,7 +73,7 @@ TEST_P(GraphTest, TestCorrectnessOnSmallRandomGraphs) {
   int fails = 0;
   while (num_trials--) {
     generate_stream();
-    ifstream in{"./sample.txt"};
+    std::ifstream in{"./sample.txt"};
     node_id_t n;
     edge_id_t m;
     in >> n >> m;
@@ -105,7 +106,7 @@ TEST_P(GraphTest, TestCorrectnessOnSmallSparseGraphs) {
   int fails = 0;
   while (num_trials--) {
     generate_stream({1024,0.002,0.5,0,"./sample.txt","./cumul_sample.txt"});
-    ifstream in{"./sample.txt"};
+    std::ifstream in{"./sample.txt"};
     node_id_t n;
     edge_id_t m;
     in >> n >> m;
@@ -138,7 +139,7 @@ TEST_P(GraphTest, TestCorrectnessOfReheating) {
   int fails = 0;
   while (num_trials--) {
     generate_stream({1024,0.002,0.5,0,"./sample.txt","./cumul_sample.txt"});
-    ifstream in{"./sample.txt"};
+    std::ifstream in{"./sample.txt"};
     node_id_t n;
     edge_id_t m;
     in >> n >> m;
@@ -152,7 +153,7 @@ TEST_P(GraphTest, TestCorrectnessOfReheating) {
     }
     g->write_binary("./out_temp.txt");
     g->set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
-    vector<set<node_id_t>> g_res;
+    std::vector<std::set<node_id_t>> g_res;
     try {
       g_res = g->connected_components();
     } catch (OutOfQueriesException& err) {

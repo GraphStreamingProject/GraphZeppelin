@@ -1,11 +1,9 @@
 #include <stdexcept>
-#include <boost/multiprecision/cpp_int.hpp>
 #include "../include/util.h"
 #include "../include/graph_worker.h"
 #include "../include/graph.h"
 
 const char *config_file = "streaming.conf";
-using uint128_t = boost::multiprecision::uint128_t;
 
 typedef uint32_t ul;
 typedef uint64_t ull;
@@ -42,7 +40,7 @@ std::pair<bool, std::string> configure_system() {
     while(getline(conf, line)) {
       if (line[0] == '#' || line[0] == '\n') continue;
       if(line.substr(0, line.find('=')) == "buffering_system") {
-        string buf_str = line.substr(line.find('=') + 1);
+        std::string buf_str = line.substr(line.find('=') + 1);
         if (buf_str == "standalone") {
           use_guttertree = false;
         } else if (buf_str != "tree") {

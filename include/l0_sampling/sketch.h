@@ -28,7 +28,7 @@ enum SampleSketchRet {
  */
 class Sketch {
 private:
-  static int failure_factor;       // Failure factor determines number of columns in sketch. Pr(failure) = 1 / factor
+  static vec_t failure_factor;     // Failure factor determines number of columns in sketch. Pr(failure) = 1 / factor
   static vec_t n;                  // Length of the vector this is sketching.
   static size_t num_elems;         // length of our actual arrays in number of elements
   static size_t num_buckets;       // Portion of array length, number of buckets
@@ -83,7 +83,7 @@ public:
    * @param failure_factor  The rate at which an individual sketch is allowed to fail (determines column width)
    * @return nothing
    */
-  inline static void configure(size_t _n, int _factor) {
+  inline static void configure(vec_t _n, vec_t _factor) {
     n = _n;
     failure_factor = _factor;
     num_buckets = bucket_gen(failure_factor);
@@ -94,7 +94,7 @@ public:
   inline static size_t sketchSizeof()
   { return sizeof(Sketch) + num_elems * (sizeof(vec_t) + sizeof(vec_hash_t)) - sizeof(char); }
   
-  inline static int get_failure_factor() 
+  inline static vec_t get_failure_factor() 
   { return failure_factor; }
   /**
    * Update a sketch based on information about one of its indices.
