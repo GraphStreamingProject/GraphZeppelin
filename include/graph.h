@@ -101,8 +101,16 @@ public:
    */
   void write_binary(const std::string &filename);
 
+  // times flushing from within backup_supernodes function
+  // necessary since different experimental setups record different flush times
+  std::chrono::steady_clock::time_point cont_cc_flush_start_time;
+  std::chrono::steady_clock::time_point cont_cc_flush_end_time;
+
+  // times flushing from within connected_components function
   std::chrono::steady_clock::time_point cc_flush_start_time;
   std::chrono::steady_clock::time_point cc_flush_end_time;
+
+  // times CC post-flush
   std::chrono::steady_clock::time_point cc_start_time;
   std::chrono::steady_clock::time_point cc_end_time;
 };

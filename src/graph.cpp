@@ -124,10 +124,10 @@ void Graph::batch_update(node_id_t src, const std::vector<node_id_t> &edges, Sup
 }
 
 std::vector<std::set<node_id_t>> Graph::connected_components() {
-  // cc_start_time = std::chrono::steady_clock::now();
+  cc_flush_start_time = std::chrono::steady_clock::now();
   bf->force_flush(); // flush everything in buffering system to make final updates
   GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
-  // cc_flush_end_time = std::chrono::steady_clock::now();
+  cc_flush_end_time = std::chrono::steady_clock::now();
 
   // after this point all updates have been processed from the buffer tree
   printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
@@ -232,10 +232,10 @@ std::vector<std::set<node_id_t>> Graph::connected_components() {
 }
 
 Supernode** Graph::backup_supernodes() {
-  cc_flush_start_time = std::chrono::steady_clock::now();
+  cont_cc_flush_start_time = std::chrono::steady_clock::now();
   bf->force_flush(); // flush everything in buffering system to make final updates
   GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
-  cc_flush_end_time = std::chrono::steady_clock::now();
+  cont_cc_flush_end_time = std::chrono::steady_clock::now();
 
   // Copy supernodes
   Supernode** supernodes = new Supernode*[num_nodes];
