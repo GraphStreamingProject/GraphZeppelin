@@ -61,7 +61,7 @@ void Sketch::update(const vec_t& update_idx) {
     col_hash_t col_index_hash = Bucket_Boruvka::col_index_hash(update_idx, seed + i);
     for (unsigned j = 0; j < num_guesses; ++j) {
       unsigned bucket_id = i * num_guesses + j;
-      if (Bucket_Boruvka::contains(col_index_hash, 1 << (j+1))){
+      if (Bucket_Boruvka::contains(col_index_hash, 2 << j)){
         Bucket_Boruvka::update(bucket_a[bucket_id], bucket_c[bucket_id], update_idx, update_hash);
       } else break;
     }
