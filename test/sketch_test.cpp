@@ -24,7 +24,7 @@ TEST(SketchTestSuite, TestExceptions) {
     for (unsigned long long j = 0; j < num_guesses;) {
       uint64_t index = 0;
       for (uint64_t k = 0; k < sketch2->n; ++k) {
-        if (vec_idx[k] && Bucket_Boruvka::contains(Bucket_Boruvka::col_index_hash(k, sketch2->seed + 1), 1 << j)) {
+        if (vec_idx[k] && Bucket_Boruvka::contains(Bucket_Boruvka::col_index_hash(k, sketch2->seed + i), 1 << j)) {
           if (index == 0) {
             index = k + 1;
           } else {
