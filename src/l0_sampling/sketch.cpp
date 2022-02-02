@@ -58,7 +58,7 @@ void Sketch::update(const vec_t& update_idx) {
   XXH64_hash_t update_hash = Bucket_Boruvka::index_hash(update_idx, seed);
   Bucket_Boruvka::update(bucket_a[num_elems - 1], bucket_c[num_elems - 1], update_idx, update_hash);
   for (unsigned i = 0; i < num_buckets; ++i) {
-    col_hash_t col_index_hash = Bucket_Boruvka::col_index_hash(i, update_idx, seed);
+    col_hash_t col_index_hash = Bucket_Boruvka::col_index_hash(update_idx, seed + i);
     for (unsigned j = 0; j < num_guesses; ++j) {
       unsigned bucket_id = i * num_guesses + j;
       if (Bucket_Boruvka::contains(col_index_hash, 1 << (j+1))){
@@ -135,7 +135,7 @@ std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
     for (unsigned j = 0; j < Sketch::num_guesses; ++j) {
       unsigned bucket_id = i * Sketch::num_guesses + j;
       for (unsigned k = 0; k < Sketch::n; k++) {
-        os << (Bucket_Boruvka::contains(Bucket_Boruvka::col_index_hash(i, k, sketch.seed), 2 << j) ? '1' : '0');
+        os << (Bucket_Boruvka::contains(Bucket_Boruvka::col_index_hash(k, sketch.seed + 1), 2 << j) ? '1' : '0');
       }
       os << std::endl
          << "a:" << sketch.bucket_a[bucket_id] << std::endl

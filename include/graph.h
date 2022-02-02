@@ -50,11 +50,11 @@ public:
   /**
    * Update all the sketches in supernode, given a batch of updates.
    * @param src        The supernode where the edges originate.
-   * @param edges      A vector of <destination, delta> pairs.
+   * @param edges      A vector of destinations.
    * @param delta_loc  Memory location where we should initialize the delta
    *                   supernode.
    */
-  void batch_update(node_id_t src, const std::vector<node_id_t> &edges, Supernode *delta_loc);
+  void batch_update(node_id_t src, const std::vector<size_t> &edges, Supernode *delta_loc);
 
   /**
    * Main parallel algorithm utilizing Boruvka and L_0 sampling.
@@ -93,7 +93,7 @@ public:
    * @returns nothing (supernode delta is in delta_loc).
    */
   static void generate_delta_node(node_id_t node_n, long node_seed, node_id_t src,
-                                  const std::vector<node_id_t> &edges, Supernode *delta_loc);
+                                  const std::vector<size_t> &edges, Supernode *delta_loc);
 
   /**
    * Serialize the graph data to a binary file.

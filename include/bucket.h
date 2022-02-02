@@ -12,7 +12,7 @@ namespace Bucket_Boruvka {
    * @param sketch_seed The seed of the Sketch this Bucket belongs to.
    * @return The hash of (bucket_col, update_idx) using sketch_seed as a seed.
    */
-  inline static col_hash_t col_index_hash(const unsigned bucket_col, const vec_t& update_idx, const long sketch_seed);
+  inline static col_hash_t col_index_hash(const vec_t& update_idx, const long seed_and_col);
 
   /**
    * Hashes the index.
@@ -61,12 +61,8 @@ namespace Bucket_Boruvka {
   inline static void update(vec_t& a, vec_hash_t& c, const vec_t& update_idx, const vec_hash_t& update_hash);
 } // namespace Bucket_Boruvka
 
-inline col_hash_t Bucket_Boruvka::col_index_hash(const unsigned bucket_col, const vec_t& update_idx, const long sketch_seed) {
-  struct {
-    unsigned bucket_col;
-    vec_t update_idx;
-  } __attribute__((packed)) buf = {bucket_col, update_idx};
-  return col_hash(&buf, sizeof(buf), sketch_seed);
+inline col_hash_t Bucket_Boruvka::col_index_hash(const vec_t& update_idx, const long seed_and_col) {
+  return col_hash(&update_idx, sizeof(update_idx), seed_and_col);
 }
 
 inline vec_hash_t Bucket_Boruvka::index_hash(const vec_t& index, long sketch_seed) {
@@ -84,7 +80,7 @@ inline bool Bucket_Boruvka::is_good(const vec_t& a, const vec_hash_t& c, const l
 
 inline bool Bucket_Boruvka::is_good(const vec_t& a, const vec_hash_t& c, const unsigned bucket_col, const vec_t& guess_nonzero, const long& sketch_seed) {
   return c == index_hash(a, sketch_seed)
-    && contains(col_index_hash(bucket_col, a, sketch_seed), guess_nonzero);
+    && contains(col_index_hash(a, sketch_seed + bucket_col), guess_nonzero);
 }
 
 inline void Bucket_Boruvka::update(vec_t& a, vec_hash_t& c, const vec_t& update_idx, const vec_hash_t& update_hash) {
