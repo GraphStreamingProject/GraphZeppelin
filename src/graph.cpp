@@ -34,10 +34,11 @@ Graph::Graph(node_id_t num_nodes): num_nodes(num_nodes) {
   num_updates = 0; // REMOVE this later
   
   std::pair<bool, std::string> conf = configure_system(); // read the configuration file to configure the system
-  std::string buffer_loc_prefix = conf.second;
+  std::string disk_loc = conf.second;
+  backup_file = disk_loc + "supernode_backup.data";
   // Create the buffering system and start the graphWorkers
   if (conf.first)
-    bf = new GutterTree(buffer_loc_prefix, num_nodes, GraphWorker::get_num_groups(), true);
+    bf = new GutterTree(disk_loc, num_nodes, GraphWorker::get_num_groups(), true);
   else
     bf = new StandAloneGutters(num_nodes, GraphWorker::get_num_groups());
 
@@ -229,12 +230,22 @@ Supernode** Graph::backup_supernodes() {
   bf->force_flush(); // flush everything in buffering system to make final updates
   GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
   flush_return = std::chrono::steady_clock::now();
-
-  // Copy supernodes
   create_backup_start = std::chrono::steady_clock::now();
-  Supernode** supernodes = new Supernode*[num_nodes];
-  for (node_id_t i = 0; i < num_nodes; ++i) {
-    supernodes[i] = Supernode::makeSupernode(*this->supernodes[i]);
+
+  if (copy_in_mem) {
+    // Copy supernodes
+    Supernode** supernodes = new Supernode*[num_nodes];
+    for (node_id_t i = 0; i < num_nodes; ++i) {
+      supernodes[i] = Supernode::makeSupernode(*this->supernodes[i]);
+    }
+  }
+  else {
+    // Make a copy on disk
+    std::fstream binary_out(backup_file, std::ios::out | std::ios::binary);
+    for (node_id_t i = 0; i < num_nodes; ++i) {
+      supernodes[i]->write_binary(binary_out);
+    }
+    binary_out.close();
   }
   create_backup_end = std::chrono::steady_clock::now();
 
@@ -242,15 +253,25 @@ Supernode** Graph::backup_supernodes() {
 }
 
 void Graph::restore_supernodes(Supernode** supernodes) {
-  // Restore supernodes
   restore_backup_start = std::chrono::steady_clock::now();
-  for (node_id_t i=0;i<num_nodes;++i) {
-    free(this->supernodes[i]);
-    this->supernodes[i] = supernodes[i];
-    representatives->insert(i);
-    parent[i] = i;
+  if (copy_in_mem) {
+    // Restore supernodes
+    for (node_id_t i=0;i<num_nodes;++i) {
+      free(this->supernodes[i]);
+      this->supernodes[i] = supernodes[i];
+      representatives->insert(i);
+      parent[i] = i;
+    }
+    delete[] supernodes;
+  } else {
+    std::fstream binary_in(backup_file, std::ios::in | std::ios::binary);
+    for (node_id_t i = 0; i < num_nodes; ++i) {
+      free(this->supernodes[i]);
+      this->supernodes[i] = Supernode::makeSupernode(num_nodes, seed, binary_in);
+      representatives->insert(i);
+      parent[i] = i;
+    }
   }
-  delete[] supernodes;
 
   GraphWorker::unpause_workers();
   update_locked = false;

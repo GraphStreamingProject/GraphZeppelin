@@ -38,6 +38,9 @@ class Graph {
   Supernode** backup_supernodes();
   void restore_supernodes(Supernode** supernodes);
 
+  std::string backup_file; // where to backup the supernodes
+  bool copy_in_mem = false; // should backups be made in memory or on disk
+
   FRIEND_TEST(GraphTestSuite, TestCorrectnessOfReheating);
   static bool open_graph;
 public:
@@ -109,6 +112,7 @@ public:
   std::chrono::steady_clock::time_point create_backup_end;
   std::chrono::steady_clock::time_point restore_backup_start;
   std::chrono::steady_clock::time_point restore_backup_end;
+
 };
 
 class UpdateLockedException : public std::exception {
