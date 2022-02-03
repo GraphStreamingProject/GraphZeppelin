@@ -101,7 +101,14 @@ public:
    */
   void write_binary(const std::string &filename);
 
-  std::chrono::steady_clock::time_point end_time;
+  std::chrono::steady_clock::time_point flush_call;
+  std::chrono::steady_clock::time_point flush_return;
+  std::chrono::steady_clock::time_point cc_alg_start;
+  std::chrono::steady_clock::time_point cc_alg_end;
+  std::chrono::steady_clock::time_point create_backup_start;
+  std::chrono::steady_clock::time_point create_backup_end;
+  std::chrono::steady_clock::time_point restore_backup_start;
+  std::chrono::steady_clock::time_point restore_backup_end;
 };
 
 class UpdateLockedException : public std::exception {
