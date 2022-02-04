@@ -217,6 +217,7 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation() {
 }
 
 Supernode** Graph::backup_supernodes() {
+  std::cout << "Backing up supernodes" << std::endl;
   if (copy_in_mem) {
     // Copy supernodes
     Supernode** copy_supernodes = new Supernode*[num_nodes];
