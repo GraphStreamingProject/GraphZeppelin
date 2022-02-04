@@ -124,10 +124,7 @@ void Graph::batch_update(node_id_t src, const std::vector<size_t> &edges, Supern
   supernodes[src]->apply_delta_update(delta_loc);
 }
 
-std::vector<std::set<node_id_t>> Graph::connected_components() {
-  bf->force_flush(); // flush everything in buffering system to make final updates
-  GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
-  // after this point all updates have been processed from the buffer tree
+std::vector<std::set<node_id_t>> Graph::boruvka_emulation() {
   cc_alg_start = std::chrono::steady_clock::now();
   printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
   update_locked = true; // disallow updating the graph after we run the alg
@@ -219,25 +216,18 @@ std::vector<std::set<node_id_t>> Graph::connected_components() {
   std::vector<std::set<node_id_t>> retval;
   retval.reserve(temp.size());
   for (const auto& it : temp) retval.push_back(it.second);
-  
+
   cc_alg_end = std::chrono::steady_clock::now();
   printf("CC done\n");
   return retval;
 }
 
 Supernode** Graph::backup_supernodes() {
-  flush_call = std::chrono::steady_clock::now();
-  bf->force_flush(); // flush everything in buffering system to make final updates
-  GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
-  flush_return = std::chrono::steady_clock::now();
-  create_backup_start = std::chrono::steady_clock::now();
-
   if (copy_in_mem) {
     // Copy supernodes
     Supernode** supernodes = new Supernode*[num_nodes];
-    for (node_id_t i = 0; i < num_nodes; ++i) {
+    for (node_id_t i = 0; i < num_nodes; ++i)
       supernodes[i] = Supernode::makeSupernode(*this->supernodes[i]);
-    }
   }
   else {
     // Make a copy on disk
@@ -279,14 +269,25 @@ void Graph::restore_supernodes(Supernode** supernodes) {
 }
 
 std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
+  flush_call = std::chrono::steady_clock::now();
+  bf->force_flush(); // flush everything in buffering system to make final updates
+  GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
+  flush_return = std::chrono::steady_clock::now();
+  // after this point all updates have been processed from the buffer tree
+
   if (!cont)
-    return connected_components();
+    return boruvka_emulation();
 
+  create_backup_start = std::chrono::steady_clock::now();
   Supernode** supernodes = backup_supernodes();
+  create_backup_end = std::chrono::steady_clock::now();
 
-  std::vector<std::set<node_id_t>> ret = connected_components();
+  std::vector<std::set<node_id_t>> ret = boruvka_emulation();
 
+  restore_backup_start = std::chrono::steady_clock::now();
   restore_supernodes(supernodes);
+  restore_backup_end = std::chrono::steady_clock::now();
+
   return ret;
 }
 
