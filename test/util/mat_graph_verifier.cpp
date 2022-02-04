@@ -5,22 +5,36 @@
 #include <algorithm>
 #include <cassert>
 
-MatGraphVerifier::MatGraphVerifier(node_id_t n, std::vector<bool>&
-      input) : det_graph(input), sets(n) {
-  kruskal_ref = kruskal(n, input);
-  for (unsigned i = 0; i < n; ++i) {
-    boruvka_cc.push_back({i});
-  }
+MatGraphVerifier::MatGraphVerifier(node_id_t n) : n(n) {
+  adj_graph = std::vector<std::vector<bool>>(n);
+  for (node_id_t i = 0; i < n; ++i)
+    adj_graph[i] = std::vector<bool>(n - i);
 }
 
-std::vector<std::set<node_id_t>> MatGraphVerifier::kruskal(node_id_t n, const std::vector<bool>& input) {
+void MatGraphVerifier::edge_update(node_id_t src, node_id_t dst) {
+  if (src > dst) std::swap(src, dst);
+  
+  dst = dst - src;
+  
+  // update adj_matrix entry
+  adj_graph[src][dst] = !adj_graph[src][dst];
+}
+  
+
+void MatGraphVerifier::reset_cc_state() {
+  kruskal_ref = kruskal();
+  sets = DisjointSetUnion<node_id_t>(n);
+  boruvka_cc.clear();
+  for (node_id_t i = 0; i < n; ++i)
+    boruvka_cc.push_back({i});
+}
+
+std::vector<std::set<node_id_t>> MatGraphVerifier::kruskal() {
   DisjointSetUnion<node_id_t> sets(n);
 
-  uint64_t num_edges = n * (n - 1) / 2;
-  for (uint64_t i = 0; i < num_edges; i++) {
-    if (input[i]) {
-      Edge e = inv_uid(i);
-      sets.union_set(e.first, e.second);
+  for (node_id_t i = 0; i < n; i++) {
+    for (node_id_t j = 0; j < adj_graph[i].size(); j++) {
+      if (adj_graph[i][j]) sets.union_set(i, i + j);
     }
   }
 
@@ -45,7 +59,8 @@ void MatGraphVerifier::verify_edge(Edge edge) {
     printf("Got an error of node %u to node (1)%u\n", edge.first, edge.second);
     throw BadEdgeException();
   }
-  if (!det_graph[get_uid(edge.first,edge.second)]) {
+  if (edge.first > edge.second) std::swap(edge.first, edge.second);
+  if (!adj_graph[edge.first][edge.second - edge.first]) {
     printf("Got an error of node %u to node (2)%u\n", edge.first, edge.second);
     throw BadEdgeException();
   }
