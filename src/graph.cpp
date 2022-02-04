@@ -70,10 +70,11 @@ Graph::Graph(const std::string& input_file) : num_updates(0) {
   binary_in.close();
 
   std::pair<bool, std::string> conf = configure_system(); // read the configuration file to configure the system
-  std::string buffer_loc_prefix = conf.second;
+  std::string disk_loc = conf.second;
+  backup_file = disk_loc + "supernode_backup.data";
   // Create the buffering system and start the graphWorkers
   if (conf.first)
-    bf = new GutterTree(buffer_loc_prefix, num_nodes, GraphWorker::get_num_groups(), true);
+    bf = new GutterTree(disk_loc, num_nodes, GraphWorker::get_num_groups(), true);
   else
     bf = new StandAloneGutters(num_nodes, GraphWorker::get_num_groups());
 
@@ -225,36 +226,44 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation() {
 Supernode** Graph::backup_supernodes() {
   if (copy_in_mem) {
     // Copy supernodes
-    Supernode** supernodes = new Supernode*[num_nodes];
+    Supernode** copy_supernodes = new Supernode*[num_nodes];
     for (node_id_t i = 0; i < num_nodes; ++i)
-      supernodes[i] = Supernode::makeSupernode(*this->supernodes[i]);
+      copy_supernodes[i] = Supernode::makeSupernode(*supernodes[i]);  
+    return copy_supernodes;
   }
   else {
     // Make a copy on disk
     std::fstream binary_out(backup_file, std::ios::out | std::ios::binary);
+    if (!binary_out.is_open()) {
+      std::cerr << "Failed to open file for writing backup!" << backup_file << std::endl;
+      exit(EXIT_FAILURE);
+    }
     for (node_id_t i = 0; i < num_nodes; ++i) {
       supernodes[i]->write_binary(binary_out);
     }
     binary_out.close();
+    return nullptr; // backup on disk not in memory
   }
-  create_backup_end = std::chrono::steady_clock::now();
 
-  return supernodes;
 }
 
-void Graph::restore_supernodes(Supernode** supernodes) {
-  restore_backup_start = std::chrono::steady_clock::now();
+void Graph::restore_supernodes(Supernode** copy_supernodes) {
   if (copy_in_mem) {
     // Restore supernodes
     for (node_id_t i=0;i<num_nodes;++i) {
       free(this->supernodes[i]);
-      this->supernodes[i] = supernodes[i];
+      this->supernodes[i] = copy_supernodes[i];
       representatives->insert(i);
       parent[i] = i;
     }
-    delete[] supernodes;
+    delete[] copy_supernodes;
   } else {
+    // restore from disk
     std::fstream binary_in(backup_file, std::ios::in | std::ios::binary);
+    if (!binary_in.is_open()) {
+      std::cerr << "Failed to open file for reading backup!" << backup_file << std::endl;
+      exit(EXIT_FAILURE);
+    }
     for (node_id_t i = 0; i < num_nodes; ++i) {
       free(this->supernodes[i]);
       this->supernodes[i] = Supernode::makeSupernode(num_nodes, seed, binary_in);
@@ -265,7 +274,6 @@ void Graph::restore_supernodes(Supernode** supernodes) {
 
   GraphWorker::unpause_workers();
   update_locked = false;
-  restore_backup_end = std::chrono::steady_clock::now();
 }
 
 std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
@@ -279,13 +287,13 @@ std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
     return boruvka_emulation();
 
   create_backup_start = std::chrono::steady_clock::now();
-  Supernode** supernodes = backup_supernodes();
+  Supernode** copy_supernodes = backup_supernodes();
   create_backup_end = std::chrono::steady_clock::now();
 
   std::vector<std::set<node_id_t>> ret = boruvka_emulation();
 
   restore_backup_start = std::chrono::steady_clock::now();
-  restore_supernodes(supernodes);
+  restore_supernodes(copy_supernodes);
   restore_backup_end = std::chrono::steady_clock::now();
 
   return ret;
