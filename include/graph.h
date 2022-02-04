@@ -17,6 +17,20 @@ class GraphWorker;
 
 typedef std::pair<Edge, UpdateType> GraphUpdate;
 
+// Exceptions the Graph class may throw
+class UpdateLockedException : public std::exception {
+  virtual const char* what() const throw() {
+    return "The graph cannot be updated: Connected components algorithm has "
+           "already started";
+  }
+};
+
+class MultipleGraphsException : public std::exception {
+  virtual const char * what() const throw() {
+    return "Only one Graph may be open at one time. The other Graph must be deleted.";
+  }
+};
+
 /**
  * Undirected graph object with n nodes labelled 0 to n-1, no self-edges,
  * multiple edges, or weights.
@@ -49,7 +63,7 @@ public:
 
   ~Graph();
 
-  inline void Graph::update(GraphUpdate upd) {
+  inline void update(GraphUpdate upd) {
     if (update_locked) throw UpdateLockedException();
     Edge &edge = upd.first;
 
@@ -120,18 +134,5 @@ public:
   std::chrono::steady_clock::time_point create_backup_end;
   std::chrono::steady_clock::time_point restore_backup_start;
   std::chrono::steady_clock::time_point restore_backup_end;
-};
-
-class UpdateLockedException : public std::exception {
-  virtual const char* what() const throw() {
-    return "The graph cannot be updated: Connected components algorithm has "
-           "already started";
-  }
-};
-
-class MultipleGraphsException : public std::exception {
-  virtual const char * what() const throw() {
-    return "Only one Graph may be open at one time. The other Graph must be deleted.";
-  }
 };
 
