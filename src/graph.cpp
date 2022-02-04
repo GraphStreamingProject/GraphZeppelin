@@ -33,11 +33,12 @@ Graph::Graph(node_id_t num_nodes): num_nodes(num_nodes) {
   }
   num_updates = 0; // REMOVE this later
   
-  std::pair<bool, std::string> conf = configure_system(); // read the configuration file to configure the system
-  std::string disk_loc = conf.second;
+  std::tuple<bool, bool, std::string> conf = configure_system(); // read the configuration file to configure the system
+  copy_in_mem = std::get<1>(conf);
+  std::string disk_loc = std::get<2>(conf);
   backup_file = disk_loc + "supernode_backup.data";
   // Create the buffering system and start the graphWorkers
-  if (conf.first)
+  if (std::get<0>(conf))
     bf = new GutterTree(disk_loc, num_nodes, GraphWorker::get_num_groups(), true);
   else
     bf = new StandAloneGutters(num_nodes, GraphWorker::get_num_groups());
@@ -69,11 +70,12 @@ Graph::Graph(const std::string& input_file) : num_updates(0) {
   }
   binary_in.close();
 
-  std::pair<bool, std::string> conf = configure_system(); // read the configuration file to configure the system
-  std::string disk_loc = conf.second;
+  std::tuple<bool, bool, std::string> conf = configure_system(); // read the configuration file to configure the system
+  copy_in_mem = std::get<1>(conf);
+  std::string disk_loc = std::get<2>(conf);
   backup_file = disk_loc + "supernode_backup.data";
   // Create the buffering system and start the graphWorkers
-  if (conf.first)
+  if (std::get<0>(conf))
     bf = new GutterTree(disk_loc, num_nodes, GraphWorker::get_num_groups(), true);
   else
     bf = new StandAloneGutters(num_nodes, GraphWorker::get_num_groups());
@@ -91,15 +93,6 @@ Graph::~Graph() {
   GraphWorker::stop_workers(); // join the worker threads
   delete bf;
   open_graph = false;
-}
-
-void Graph::update(GraphUpdate upd) {
-  if (update_locked) throw UpdateLockedException();
-  Edge &edge = upd.first;
-
-  bf->insert(edge);
-  std::swap(edge.first, edge.second);
-  bf->insert(edge);
 }
 
 void Graph::generate_delta_node(node_id_t node_n, long node_seed, node_id_t

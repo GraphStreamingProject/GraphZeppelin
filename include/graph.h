@@ -48,7 +48,15 @@ public:
   explicit Graph(const std::string &input_file);
 
   ~Graph();
-  void update(GraphUpdate upd);
+
+  inline void Graph::update(GraphUpdate upd) {
+    if (update_locked) throw UpdateLockedException();
+    Edge &edge = upd.first;
+
+    bf->insert(edge);
+    std::swap(edge.first, edge.second);
+    bf->insert(edge);
+  }
 
   /**
    * Update all the sketches in supernode, given a batch of updates.

@@ -29,7 +29,7 @@ std::pair<ul, ul> inv_nondir_non_self_edge_pairing_fn(ull idx) {
   return {i, j};
 }
 
-std::pair<bool, std::string> configure_system() {
+std::tuple<bool, bool, std::string> configure_system() {
   bool use_guttertree = true;
   std::string dir = "./";
   int num_groups = 1;
@@ -88,5 +88,5 @@ std::pair<bool, std::string> configure_system() {
   printf("Directory for on disk data = %s\n", dir.c_str());
   printf("Query backups in memory = %s\n", backup_in_mem? "ON" : "OFF");
   GraphWorker::set_config(num_groups, group_size);
-  return {use_guttertree, dir};
+  return {use_guttertree, backup_in_mem, dir};
 }
