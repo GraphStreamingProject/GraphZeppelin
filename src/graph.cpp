@@ -150,14 +150,22 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation() {
     // Did one of our threads produce an exception?
     if (except) std::rethrow_exception(err);
 
-    std::vector<node_id_t> to_remove;
+    // Run the disjoint set union to determine what supernodes
+    // Should be merged together. 
+    // Map from nodes to a vector of nodes to merge with them
+    std::vector<std::vector<node_id_t>> to_merge(num_nodes);
+    std::vector<node_id_t> new_reps;
     for (auto i : reps) {
       // unpack query result
       Edge edge = query[i].first;
       SampleSketchRet ret_code = query[i].second;
 
       // try this query again next round as it failed this round
-      if (ret_code == FAIL) {modified = true; continue;} 
+      if (ret_code == FAIL) {
+        modified = true; 
+        new_reps.push_back(i); 
+        continue;
+      } 
       if (ret_code == ZERO) {
 #ifdef VERIFY_SAMPLES_F
         verifier->verify_cc(i);
@@ -174,34 +182,43 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation() {
       verifier->verify_edge(edge);
 #endif
 
-      // make sure a is the one to be merged into and merge
+      // make a the parent of b
       if (size[a] < size[b]) std::swap(a,b);
-      to_remove.push_back(b);
       parent[b] = a;
       size[a] += size[b];
-      supernodes[a]->merge(*supernodes[b]);
-    }
-    if (!to_remove.empty()) modified = true;
-    std::sort(to_remove.begin(), to_remove.end());
 
-    // 2-pointer to find set difference
-    std::vector<node_id_t> temp_diff;
-    unsigned long ptr1 = 0;
-    unsigned long ptr2 = 0;
-    while (ptr1 < reps.size() && ptr2 < to_remove.size()) {
-      if (reps[ptr1] == to_remove[ptr2]) {
-        ++ ptr1; ++ptr2;
-      } else {
-        temp_diff.push_back(reps[ptr1]);
-        ++ptr1;
-      }
-    }
-    while (ptr1 < reps.size()) {
-      temp_diff.push_back(reps[ptr1]);
-      ++ptr1;
+      // add b and any of the nodes to merge with it to a's vector
+      to_merge[a].push_back(b);
+      to_merge[a].insert(to_merge[a].end(), to_merge[b].begin(), to_merge[b].end());
+      to_merge[b].clear();
+      modified = true;
     }
 
-    swap(reps, temp_diff);
+    std::set<node_id_t> found_nodes;
+
+    for (node_id_t a = 0; a < num_nodes; a++)
+      if (to_merge[a].size() != 0) new_reps.push_back(a);
+
+    // loop over the to_merge vector and perform supernode merging
+    #pragma omp parallel for default(none) shared(new_reps, to_merge, except, err)
+    for (node_id_t a = 0; a < num_nodes; a++) {
+      try {
+        if(to_merge[a].size() == 0) continue;
+
+        // we have stuff to merge into a, so do that
+        for (node_id_t b : to_merge[a]) {
+          supernodes[a]->merge(*supernodes[b]);
+        }
+      } catch (...) {
+        except = true;
+        err = std::current_exception();
+      } 
+    }
+
+    // Did one of our threads produce an exception?
+    if (except) std::rethrow_exception(err);
+
+    swap(reps, new_reps);
   } while (modified);
 
   std::map<node_id_t, std::set<node_id_t>> temp;
