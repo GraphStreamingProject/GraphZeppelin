@@ -67,11 +67,10 @@ inline col_hash_t Bucket_Boruvka::col_index_hash(const vec_t& update_idx, const 
 
 inline vec_hash_t Bucket_Boruvka::index_hash(const vec_t& index, long sketch_seed) {
   return vec_hash(&index, sizeof(index), sketch_seed);
-
 }
 
-inline bool Bucket_Boruvka::contains(const col_hash_t& col_index_hash, const vec_t& guess_nonzero) {
-  return col_index_hash % guess_nonzero == 0;
+inline bool Bucket_Boruvka::contains(const col_hash_t& col_index_hash, const col_hash_t& guess_nonzero) {
+  return (col_index_hash & guess_nonzero) == 0;
 }
 
 inline bool Bucket_Boruvka::is_good(const vec_t& a, const vec_hash_t& c, const long& sketch_seed) {
