@@ -75,10 +75,10 @@ void Sketch::batch_update(const std::vector<vec_t>& updates) {
 }
 
 std::pair<vec_t, SampleSketchRet> Sketch::query() {
-  if (already_quered) {
+  if (already_queried) {
     throw MultipleQueryException();
   }
-  already_quered = true;
+  already_queried = true;
 
   if (bucket_a[num_elems - 1] == 0 && bucket_c[num_elems - 1] == 0) {
     return {0, ZERO}; // the "first" bucket is deterministic so if it is all zero then there are no edges to return
@@ -103,12 +103,12 @@ Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2) {
     sketch1.bucket_a[i] ^= sketch2.bucket_a[i];
     sketch1.bucket_c[i] ^= sketch2.bucket_c[i];
   }
-  sketch1.already_quered = sketch1.already_quered || sketch2.already_quered;
+  sketch1.already_queried = sketch1.already_queried || sketch2.already_queried;
   return sketch1;
 }
 
 bool operator== (const Sketch &sketch1, const Sketch &sketch2) {
-  if (sketch1.seed != sketch2.seed || sketch1.already_quered != sketch2.already_quered) 
+  if (sketch1.seed != sketch2.seed || sketch1.already_queried != sketch2.already_queried) 
     return false;
 
   for (size_t i = 0; i < Sketch::num_elems; ++i) {

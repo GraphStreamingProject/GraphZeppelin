@@ -41,7 +41,7 @@ private:
   vec_hash_t* bucket_c;
 
   // Flag to keep track if this sketch has already been queried.
-  bool already_quered = false;
+  bool already_queried = false;
 
   FRIEND_TEST(SketchTestSuite, TestExceptions);
   FRIEND_TEST(EXPR_Parallelism, N10kU100k);
@@ -96,6 +96,10 @@ public:
   
   inline static vec_t get_failure_factor() 
   { return failure_factor; }
+
+  inline void reset_queried() 
+  { already_queried = false; }
+
   /**
    * Update a sketch based on information about one of its indices.
    * @param update the point update.

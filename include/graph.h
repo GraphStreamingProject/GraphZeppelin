@@ -49,8 +49,14 @@ class Graph {
   // Buffering system for batching updates
   BufferingSystem *bf;
 
-  Supernode** backup_supernodes();
-  void restore_supernodes(Supernode** supernodes);
+  void backup_to_disk();
+  void restore_from_disk();
+
+  /**
+   * Main parallel algorithm utilizing Boruvka and L_0 sampling.
+   * @return a vector of the connected components in the graph.
+   */
+  std::vector<std::set<node_id_t>> boruvka_emulation(bool make_copy);
 
   std::string backup_file; // where to backup the supernodes
   bool copy_in_mem = false; // should backups be made in memory or on disk
@@ -80,12 +86,6 @@ public:
    *                   supernode.
    */
   void batch_update(node_id_t src, const std::vector<size_t> &edges, Supernode *delta_loc);
-
-  /**
-   * Main parallel algorithm utilizing Boruvka and L_0 sampling.
-   * @return a vector of the connected components in the graph.
-   */
-  std::vector<std::set<node_id_t>> boruvka_emulation();
 
   /**
    * Main parallel algorithm utilizing Boruvka and L_0 sampling.

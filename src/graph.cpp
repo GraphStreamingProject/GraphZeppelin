@@ -118,17 +118,21 @@ void Graph::batch_update(node_id_t src, const std::vector<size_t> &edges, Supern
   supernodes[src]->apply_delta_update(delta_loc);
 }
 
-std::vector<std::set<node_id_t>> Graph::boruvka_emulation() {
+std::vector<std::set<node_id_t>> Graph::boruvka_emulation(const bool make_copy) {
   cc_alg_start = std::chrono::steady_clock::now();
   printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
   update_locked = true; // disallow updating the graph after we run the alg
   bool modified;
+  bool first_round = true;
+  Supernode** copy_supernodes;
+  if (make_copy) copy_supernodes = new Supernode*[num_nodes];
   std::pair<Edge, SampleSketchRet> query[num_nodes];
   node_id_t size[num_nodes];
   std::vector<node_id_t> reps(num_nodes);
   std::fill(size, size + num_nodes, 1);
   for (node_id_t i = 0; i < num_nodes; ++i) {
     reps[i] = i;
+    if (make_copy) copy_supernodes[i] = nullptr;
   }
 
   do {
@@ -164,6 +168,8 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation() {
       if (ret_code == FAIL) {
         modified = true; 
         new_reps.push_back(i); 
+        if (make_copy && first_round)
+          copy_supernodes[i] = Supernode::makeSupernode(*supernodes[i]);
         continue;
       } 
       if (ret_code == ZERO) {
@@ -194,20 +200,28 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation() {
       modified = true;
     }
 
-    std::set<node_id_t> found_nodes;
-
     for (node_id_t a = 0; a < num_nodes; a++)
       if (to_merge[a].size() != 0) new_reps.push_back(a);
 
     // loop over the to_merge vector and perform supernode merging
-    #pragma omp parallel for default(none) shared(new_reps, to_merge, except, err)
+    #pragma omp parallel for default(none) shared(first_round, make_copy, copy_supernodes, new_reps, to_merge, except, err)
     for (node_id_t a = 0; a < num_nodes; a++) {
       try {
         if(to_merge[a].size() == 0) continue;
 
-        // we have stuff to merge into a, so do that
-        for (node_id_t b : to_merge[a]) {
-          supernodes[a]->merge(*supernodes[b]);
+        if (make_copy && first_round) {
+          // make a copy of a to merge into
+          copy_supernodes[a] = Supernode::makeSupernode(*supernodes[a]);
+          // we have stuff to merge into a, so do that
+          for (node_id_t b : to_merge[a]) {
+            copy_supernodes[a]->merge(*supernodes[b]);
+          }
+        } 
+        else {
+          // perform merging without copying
+          for (node_id_t b : to_merge[a]) {
+            supernodes[a]->merge(*supernodes[b]);
+          }
         }
       } catch (...) {
         except = true;
@@ -217,6 +231,12 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation() {
 
     // Did one of our threads produce an exception?
     if (except) std::rethrow_exception(err);
+
+    // if applicable perform the rest of the rounds 
+    // upon the supernode copies
+    if (make_copy && first_round)
+      std::swap(copy_supernodes, supernodes);
+    first_round = false;
 
     swap(reps, new_reps);
   } while (modified);
@@ -228,63 +248,45 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation() {
   retval.reserve(temp.size());
   for (const auto& it : temp) retval.push_back(it.second);
 
+  if (make_copy) {
+    // restore original supernodes and free memory
+    for (node_id_t i = 0; i < num_nodes; i++) {
+      if (supernodes[i] != nullptr) free(supernodes[i]);
+      supernodes[i] = copy_supernodes[i];
+      supernodes[i]->reset_query_state();
+    }
+    delete[] copy_supernodes;
+  }
+
   cc_alg_end = std::chrono::steady_clock::now();
   printf("CC done\n");
   return retval;
 }
 
-Supernode** Graph::backup_supernodes() {
-  std::cout << "Backing up supernodes" << std::endl;
-  if (copy_in_mem) {
-    // Copy supernodes
-    Supernode** copy_supernodes = new Supernode*[num_nodes];
-    for (node_id_t i = 0; i < num_nodes; ++i)
-      copy_supernodes[i] = Supernode::makeSupernode(*supernodes[i]);  
-    return copy_supernodes;
+void Graph::backup_to_disk() {
+  // Make a copy on disk
+  std::fstream binary_out(backup_file, std::ios::out | std::ios::binary);
+  if (!binary_out.is_open()) {
+    std::cerr << "Failed to open file for writing backup!" << backup_file << std::endl;
+    exit(EXIT_FAILURE);
   }
-  else {
-    // Make a copy on disk
-    std::fstream binary_out(backup_file, std::ios::out | std::ios::binary);
-    if (!binary_out.is_open()) {
-      std::cerr << "Failed to open file for writing backup!" << backup_file << std::endl;
-      exit(EXIT_FAILURE);
-    }
-    for (node_id_t i = 0; i < num_nodes; ++i) {
-      supernodes[i]->write_binary(binary_out);
-    }
-    binary_out.close();
-    return nullptr; // backup on disk not in memory
+  for (node_id_t i = 0; i < num_nodes; ++i) {
+    supernodes[i]->write_binary(binary_out);
   }
-
+  binary_out.close();
 }
 
-void Graph::restore_supernodes(Supernode** copy_supernodes) {
-  if (copy_in_mem) {
-    // Restore supernodes
-    for (node_id_t i=0;i<num_nodes;++i) {
-      free(this->supernodes[i]);
-      this->supernodes[i] = copy_supernodes[i];
-      representatives->insert(i);
-      parent[i] = i;
-    }
-    delete[] copy_supernodes;
-  } else {
-    // restore from disk
-    std::fstream binary_in(backup_file, std::ios::in | std::ios::binary);
-    if (!binary_in.is_open()) {
-      std::cerr << "Failed to open file for reading backup!" << backup_file << std::endl;
-      exit(EXIT_FAILURE);
-    }
-    for (node_id_t i = 0; i < num_nodes; ++i) {
-      free(this->supernodes[i]);
-      this->supernodes[i] = Supernode::makeSupernode(num_nodes, seed, binary_in);
-      representatives->insert(i);
-      parent[i] = i;
-    }
+void Graph::restore_from_disk() {
+  // restore from disk
+  std::fstream binary_in(backup_file, std::ios::in | std::ios::binary);
+  if (!binary_in.is_open()) {
+    std::cerr << "Failed to open file for reading backup!" << backup_file << std::endl;
+    exit(EXIT_FAILURE);
   }
-
-  GraphWorker::unpause_workers();
-  update_locked = false;
+  for (node_id_t i = 0; i < num_nodes; ++i) {
+    free(this->supernodes[i]);
+    this->supernodes[i] = Supernode::makeSupernode(num_nodes, seed, binary_in);
+  }
 }
 
 std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
@@ -295,17 +297,30 @@ std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
   // after this point all updates have been processed from the buffer tree
 
   if (!cont)
-    return boruvka_emulation();
+    return boruvka_emulation(false); // merge in place
 
-  create_backup_start = std::chrono::steady_clock::now();
-  Supernode** copy_supernodes = backup_supernodes();
-  create_backup_end = std::chrono::steady_clock::now();
+  if (!copy_in_mem) {
+    create_backup_start = std::chrono::steady_clock::now();
+    backup_to_disk(); // back up supernodes so merging can be done in place
+    create_backup_end = std::chrono::steady_clock::now();
+  }
+  
+  // if backing up in memory then perform copying in boruvka
+  std::vector<std::set<node_id_t>> ret = boruvka_emulation(copy_in_mem);
 
-  std::vector<std::set<node_id_t>> ret = boruvka_emulation();
+  if (!copy_in_mem) {
+    restore_backup_start = std::chrono::steady_clock::now();
+    restore_from_disk();
+    restore_backup_end = std::chrono::steady_clock::now();
+  }
 
-  restore_backup_start = std::chrono::steady_clock::now();
-  restore_supernodes(copy_supernodes);
-  restore_backup_end = std::chrono::steady_clock::now();
+  // get ready for ingesting more from the stream
+  // reset dsu and resume graph workers
+  for (node_id_t i = 0; i < num_nodes; i++) {
+    parent[i] = i;
+  }
+  update_locked = false;
+  GraphWorker::unpause_workers();
 
   return ret;
 }
