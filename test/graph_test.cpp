@@ -181,3 +181,36 @@ TEST_P(GraphTest, TestCorrectnessOfReheating) {
     }
   }
 }
+
+TEST(DynamicTests, TestQueryDuringStream) {
+  generate_stream({1024, 0.002, 0.5, 0, "./sample.txt", "./cumul_sample.txt"});
+  std::ifstream in{"./sample.txt"};
+  node_id_t n;
+  edge_id_t m;
+  in >> n >> m;
+  Graph g(n);
+  MatGraphVerifier verify(n);
+
+  int type;
+  node_id_t a, b;
+  edge_id_t tenth = m / 10;
+  for(int j = 0; j < 9; j++) {
+    for (edge_id_t i = 0; i < tenth; i++) {
+      in >> type >> a >> b;
+      g.update({{a,b}, (UpdateType)type});
+      verify.edge_update(a, b);
+    }
+    verify.reset_cc_state();
+    g.set_verifier(std::make_unique<MatGraphVerifier>(verify));
+    g.connected_components(true);
+  }
+  m -= 9 * tenth;
+  while(m--) {
+    in >> type >> a >> b;
+    g.update({{a,b}, (UpdateType)type});
+    verify.edge_update(a, b);
+  }
+  verify.reset_cc_state();
+  g.set_verifier(std::make_unique<MatGraphVerifier>(verify));
+  g.connected_components();
+}
