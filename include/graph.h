@@ -49,8 +49,8 @@ class Graph {
   // Buffering system for batching updates
   BufferingSystem *bf;
 
-  void backup_to_disk();
-  void restore_from_disk();
+  void backup_to_disk(std::vector<node_id_t> ids_to_backup);
+  void restore_from_disk(std::vector<node_id_t> ids_to_restore);
 
   /**
    * Main parallel algorithm utilizing Boruvka and L_0 sampling.

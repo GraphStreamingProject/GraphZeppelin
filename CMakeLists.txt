@@ -40,7 +40,7 @@ FetchContent_Declare(
   GutterTree
 
   GIT_REPOSITORY  "https://github.com/GraphStreamingProject/GutterTree.git"
-  GIT_TAG         "main"
+  GIT_TAG         "size-parallel-optimizations"
 
   UPDATE_DISCONNECTED OFF
   CMAKE_CACHE_ARGS

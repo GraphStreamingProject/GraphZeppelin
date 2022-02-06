@@ -125,14 +125,17 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(const bool make_copy) 
   bool modified;
   bool first_round = true;
   Supernode** copy_supernodes;
-  if (make_copy) copy_supernodes = new Supernode*[num_nodes];
+  if (make_copy && copy_in_mem) 
+    copy_supernodes = new Supernode*[num_nodes];
   std::pair<Edge, SampleSketchRet> query[num_nodes];
   node_id_t size[num_nodes];
   std::vector<node_id_t> reps(num_nodes);
+  std::vector<node_id_t> backed_up;
   std::fill(size, size + num_nodes, 1);
   for (node_id_t i = 0; i < num_nodes; ++i) {
     reps[i] = i;
-    if (make_copy) copy_supernodes[i] = nullptr;
+    if (make_copy && copy_in_mem) 
+      copy_supernodes[i] = nullptr;
   }
 
   do {
@@ -168,7 +171,7 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(const bool make_copy) 
       if (ret_code == FAIL) {
         modified = true; 
         new_reps.push_back(i); 
-        if (make_copy && first_round)
+        if (make_copy && first_round && copy_in_mem)
           copy_supernodes[i] = Supernode::makeSupernode(*supernodes[i]);
         continue;
       } 
@@ -203,13 +206,18 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(const bool make_copy) 
     for (node_id_t a = 0; a < num_nodes; a++)
       if (to_merge[a].size() != 0) new_reps.push_back(a);
 
+    if(make_copy && first_round && !copy_in_mem) {
+      backed_up = new_reps;
+      backup_to_disk(backed_up);
+    }
+
     // loop over the to_merge vector and perform supernode merging
     #pragma omp parallel for default(none) shared(first_round, make_copy, copy_supernodes, new_reps, to_merge, except, err)
     for (node_id_t a = 0; a < num_nodes; a++) {
       try {
         if(to_merge[a].size() == 0) continue;
 
-        if (make_copy && first_round) {
+        if (make_copy && first_round && copy_in_mem) {
           // make a copy of a to merge into
           copy_supernodes[a] = Supernode::makeSupernode(*supernodes[a]);
           // we have stuff to merge into a, so do that
@@ -234,7 +242,7 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(const bool make_copy) 
 
     // if applicable perform the rest of the rounds 
     // upon the supernode copies
-    if (make_copy && first_round)
+    if (make_copy && first_round && copy_in_mem)
       std::swap(copy_supernodes, supernodes);
     first_round = false;
 
@@ -249,13 +257,16 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(const bool make_copy) 
   for (const auto& it : temp) retval.push_back(it.second);
 
   if (make_copy) {
-    // restore original supernodes and free memory
-    for (node_id_t i = 0; i < num_nodes; i++) {
-      if (supernodes[i] != nullptr) free(supernodes[i]);
-      supernodes[i] = copy_supernodes[i];
-      supernodes[i]->reset_query_state();
+    if(copy_in_mem) {
+      // restore original supernodes and free memory
+      for (node_id_t i = 0; i < num_nodes; i++) {
+        if (supernodes[i] != nullptr) free(supernodes[i]);
+        supernodes[i] = copy_supernodes[i];
+      }
+      delete[] copy_supernodes;
+    } else {
+      restore_from_disk(backed_up);
     }
-    delete[] copy_supernodes;
   }
 
   cc_alg_end = std::chrono::steady_clock::now();
@@ -263,29 +274,31 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(const bool make_copy) 
   return retval;
 }
 
-void Graph::backup_to_disk() {
+void Graph::backup_to_disk(std::vector<node_id_t> ids_to_backup) {
   // Make a copy on disk
   std::fstream binary_out(backup_file, std::ios::out | std::ios::binary);
   if (!binary_out.is_open()) {
     std::cerr << "Failed to open file for writing backup!" << backup_file << std::endl;
     exit(EXIT_FAILURE);
   }
-  for (node_id_t i = 0; i < num_nodes; ++i) {
-    supernodes[i]->write_binary(binary_out);
+  for (node_id_t idx : ids_to_backup) {
+    supernodes[idx]->write_binary(binary_out);
   }
   binary_out.close();
 }
 
-void Graph::restore_from_disk() {
+// given a list of ids restore those supernodes from disk
+// IMPORTANT: ids_to_restore must be the same as ids_to_backup
+void Graph::restore_from_disk(std::vector<node_id_t> ids_to_restore) {
   // restore from disk
   std::fstream binary_in(backup_file, std::ios::in | std::ios::binary);
   if (!binary_in.is_open()) {
     std::cerr << "Failed to open file for reading backup!" << backup_file << std::endl;
     exit(EXIT_FAILURE);
   }
-  for (node_id_t i = 0; i < num_nodes; ++i) {
-    free(this->supernodes[i]);
-    this->supernodes[i] = Supernode::makeSupernode(num_nodes, seed, binary_in);
+  for (node_id_t idx : ids_to_restore) {
+    free(this->supernodes[idx]);
+    this->supernodes[idx] = Supernode::makeSupernode(num_nodes, seed, binary_in);
   }
 }
 
@@ -298,25 +311,14 @@ std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
 
   if (!cont)
     return boruvka_emulation(false); // merge in place
-
-  if (!copy_in_mem) {
-    create_backup_start = std::chrono::steady_clock::now();
-    backup_to_disk(); // back up supernodes so merging can be done in place
-    create_backup_end = std::chrono::steady_clock::now();
-  }
   
   // if backing up in memory then perform copying in boruvka
-  std::vector<std::set<node_id_t>> ret = boruvka_emulation(copy_in_mem);
-
-  if (!copy_in_mem) {
-    restore_backup_start = std::chrono::steady_clock::now();
-    restore_from_disk();
-    restore_backup_end = std::chrono::steady_clock::now();
-  }
+  std::vector<std::set<node_id_t>> ret = boruvka_emulation(true);
 
   // get ready for ingesting more from the stream
   // reset dsu and resume graph workers
   for (node_id_t i = 0; i < num_nodes; i++) {
+    supernodes[i]->reset_query_state();
     parent[i] = i;
   }
   update_locked = false;
