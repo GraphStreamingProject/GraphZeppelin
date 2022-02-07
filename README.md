@@ -4,7 +4,7 @@
 1. Clone this repository
 2. Create a `build` directory in the directory where you cloned this repository.
 3. Initialize cmake by running `cmake ..` in the build dir.
-4. Build the experiments by running `cmake --build .` in the build dir.
+4. Build the library and executables for testing by running `cmake --build .` in the build dir.
 
 This library can easily be included with other cmake projects using FetchContent or ExternalProject.
 
