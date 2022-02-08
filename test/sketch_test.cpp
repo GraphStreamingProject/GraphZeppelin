@@ -24,7 +24,7 @@ TEST(SketchTestSuite, TestExceptions) {
     for (unsigned long long j = 0; j < num_guesses;) {
       uint64_t index = 0;
       for (uint64_t k = 0; k < sketch2->n; ++k) {
-        if (vec_idx[k] && Bucket_Boruvka::contains(Bucket_Boruvka::col_index_hash(i, k, sketch2->seed), 1 << j)) {
+        if (vec_idx[k] && Bucket_Boruvka::contains(Bucket_Boruvka::col_index_hash(k, sketch2->seed + i), 2 << j)) {
           if (index == 0) {
             index = k + 1;
           } else {
@@ -134,9 +134,9 @@ void test_sketch_sample(unsigned long num_sketches,
 
 TEST(SketchTestSuite, TestSketchSample) {
   srand (time(nullptr));
-  test_sketch_sample(10000, 100, 100, 0.005, 0.005);
-  test_sketch_sample(1000, 1000, 1000, 0.001, 0.001);
-  test_sketch_sample(1000, 10000, 10000, 0.001, 0.001);
+  test_sketch_sample(10000, 100, 100, 0.005, 0.02);
+  test_sketch_sample(1000, 1000, 1000, 0.001, 0.02);
+  test_sketch_sample(1000, 10000, 10000, 0.001, 0.02);
 }
 
 /**
@@ -203,9 +203,9 @@ void test_sketch_addition(unsigned long num_sketches,
 }
 
 TEST(SketchTestSuite, TestSketchAddition){
-  test_sketch_addition(10000, 100, 100, 0.005, 0.005);
-  test_sketch_addition(1000, 1000, 1000, 0.001, 0.001);
-  test_sketch_addition(1000, 10000, 10000, 0.001, 0.001);
+  test_sketch_addition(10000, 100, 100, 0.005, 0.02);
+  test_sketch_addition(1000, 1000, 1000, 0.001, 0.02);
+  test_sketch_addition(1000, 10000, 10000, 0.001, 0.02);
 }
 
 /**

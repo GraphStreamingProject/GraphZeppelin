@@ -101,7 +101,7 @@ void Graph::update(GraphUpdate upd) {
 }
 
 void Graph::generate_delta_node(node_id_t node_n, long node_seed, node_id_t
-               src, const std::vector<node_id_t> &edges, Supernode *delta_loc) {
+               src, const std::vector<size_t> &edges, Supernode *delta_loc) {
   std::vector<vec_t> updates;
   updates.reserve(edges.size());
   for (const auto& edge : edges) {
@@ -115,7 +115,7 @@ void Graph::generate_delta_node(node_id_t node_n, long node_seed, node_id_t
   }
   Supernode::delta_supernode(node_n, node_seed, updates, delta_loc);
 }
-void Graph::batch_update(node_id_t src, const std::vector<node_id_t> &edges, Supernode *delta_loc) {
+void Graph::batch_update(node_id_t src, const std::vector<size_t> &edges, Supernode *delta_loc) {
   if (update_locked) throw UpdateLockedException();
 
   num_updates += edges.size();
@@ -123,13 +123,8 @@ void Graph::batch_update(node_id_t src, const std::vector<node_id_t> &edges, Sup
   supernodes[src]->apply_delta_update(delta_loc);
 }
 
-std::vector<std::set<node_id_t>> Graph::connected_components() {
-  cc_flush_start_time = std::chrono::steady_clock::now();
-  bf->force_flush(); // flush everything in buffering system to make final updates
-  GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
-  cc_flush_end_time = std::chrono::steady_clock::now();
-
-  // after this point all updates have been processed from the buffer tree
+std::vector<std::set<node_id_t>> Graph::boruvka_emulation() {
+  cc_alg_start = std::chrono::steady_clock::now();
   printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
   update_locked = true; // disallow updating the graph after we run the alg
 
@@ -226,17 +221,12 @@ std::vector<std::set<node_id_t>> Graph::connected_components() {
   retval.reserve(temp.size());
   for (const auto& it : temp) retval.push_back(it.second);
 
-  cc_end_time = std::chrono::steady_clock::now();
+  cc_alg_end = std::chrono::steady_clock::now();
   printf("CC done in %d rounds\n", num_rounds);
   return retval;
 }
 
 Supernode** Graph::backup_supernodes() {
-  cont_cc_flush_start_time = std::chrono::steady_clock::now();
-  bf->force_flush(); // flush everything in buffering system to make final updates
-  GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
-  cont_cc_flush_end_time = std::chrono::steady_clock::now();
-
   // Copy supernodes
   Supernode** supernodes = new Supernode*[num_nodes];
   for (node_id_t i = 0; i < num_nodes; ++i) {
@@ -261,24 +251,35 @@ void Graph::restore_supernodes(Supernode** supernodes) {
 }
 
 std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
-  if (!cont)
-    return connected_components();
+  flush_start = std::chrono::steady_clock::now();
+  bf->force_flush(); // flush everything in buffering system to make final updates
+  GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
+  flush_end = std::chrono::steady_clock::now();
+  // after this point all updates have been processed from the buffer tree
 
+  if (!cont)
+    return boruvka_emulation();
+
+  create_backup_start = std::chrono::steady_clock::now();
   Supernode** supernodes = backup_supernodes();
+  create_backup_end = std::chrono::steady_clock::now();
 
   bool except = false;
   std::exception_ptr err;
   std::vector<std::set<node_id_t>> ret;
 
+  // ensure backup restore happens before error is thrown
   try {
-    ret = connected_components();
+    ret = boruvka_emulation();
   } catch (...) {
     except = true;
     err = std::current_exception();
   }
-  restore_supernodes(supernodes);
 
-  // Did one of our threads produce an exception?
+  restore_backup_start = std::chrono::steady_clock::now();
+  restore_supernodes(supernodes);
+  restore_backup_end = std::chrono::steady_clock::now();
+
   if (except) std::rethrow_exception(err);
 
   return ret;

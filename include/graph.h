@@ -50,17 +50,17 @@ public:
   /**
    * Update all the sketches in supernode, given a batch of updates.
    * @param src        The supernode where the edges originate.
-   * @param edges      A vector of <destination, delta> pairs.
+   * @param edges      A vector of destinations.
    * @param delta_loc  Memory location where we should initialize the delta
    *                   supernode.
    */
-  void batch_update(node_id_t src, const std::vector<node_id_t> &edges, Supernode *delta_loc);
+  void batch_update(node_id_t src, const std::vector<size_t> &edges, Supernode *delta_loc);
 
   /**
    * Main parallel algorithm utilizing Boruvka and L_0 sampling.
    * @return a vector of the connected components in the graph.
    */
-  std::vector<std::set<node_id_t>> connected_components();
+  std::vector<std::set<node_id_t>> boruvka_emulation();
 
   /**
    * Main parallel algorithm utilizing Boruvka and L_0 sampling.
@@ -68,7 +68,7 @@ public:
    * @param cont
    * @return a vector of the connected components in the graph.
    */
-  std::vector<std::set<node_id_t>> connected_components(bool cont);
+  std::vector<std::set<node_id_t>> connected_components(bool cont=false);
 
 #ifdef VERIFY_SAMPLES_F
   std::unique_ptr<GraphVerifier> verifier;
@@ -93,7 +93,7 @@ public:
    * @returns nothing (supernode delta is in delta_loc).
    */
   static void generate_delta_node(node_id_t node_n, long node_seed, node_id_t src,
-                                  const std::vector<node_id_t> &edges, Supernode *delta_loc);
+                                  const std::vector<size_t> &edges, Supernode *delta_loc);
 
   /**
    * Serialize the graph data to a binary file.
@@ -101,18 +101,15 @@ public:
    */
   void write_binary(const std::string &filename);
 
-  // times flushing from within backup_supernodes function
-  // necessary since different experimental setups record different flush times
-  std::chrono::steady_clock::time_point cont_cc_flush_start_time;
-  std::chrono::steady_clock::time_point cont_cc_flush_end_time;
-
-  // times flushing from within connected_components function
-  std::chrono::steady_clock::time_point cc_flush_start_time;
-  std::chrono::steady_clock::time_point cc_flush_end_time;
-
-  // times CC post-flush
-  std::chrono::steady_clock::time_point cc_start_time;
-  std::chrono::steady_clock::time_point cc_end_time;
+  // time hooks for experiments
+  std::chrono::steady_clock::time_point flush_start;
+  std::chrono::steady_clock::time_point flush_end;
+  std::chrono::steady_clock::time_point cc_alg_start;
+  std::chrono::steady_clock::time_point cc_alg_end;
+  std::chrono::steady_clock::time_point create_backup_start;
+  std::chrono::steady_clock::time_point create_backup_end;
+  std::chrono::steady_clock::time_point restore_backup_start;
+  std::chrono::steady_clock::time_point restore_backup_end;
 };
 
 class UpdateLockedException : public std::exception {

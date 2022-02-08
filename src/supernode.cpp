@@ -8,18 +8,22 @@ uint32_t Supernode::bytes_size;
 Supernode::Supernode(uint64_t n, long seed): idx(0), num_sketches(log2(n)/(log2(3)-1)),
                n(n), seed(seed), sketch_size(Sketch::sketchSizeof()) {
 
+  uint32_t sketch_width = guess_gen(Sketch::get_failure_factor());
   // generate num_sketches sketches for each supernode (read: node)
   for (int i = 0; i < num_sketches; ++i) {
-    Sketch::makeSketch(get_sketch(i), seed++);
+    Sketch::makeSketch(get_sketch(i), seed);
+    seed += sketch_width;
   }
 }
 
 Supernode::Supernode(uint64_t n, long seed, std::fstream &binary_in) :
   idx(0), num_sketches(log2(n)/(log2(3)-1)), n(n), seed(seed), sketch_size(Sketch::sketchSizeof()) {
 
+  uint32_t sketch_width = guess_gen(Sketch::get_failure_factor());
   // read num_sketches sketches from file for each supernode (read: node)
   for (int i = 0; i < num_sketches; ++i) {
-    Sketch::makeSketch(get_sketch(i), seed++, binary_in);
+    Sketch::makeSketch(get_sketch(i), seed, binary_in);
+    seed += sketch_width;
   }
 }
 
