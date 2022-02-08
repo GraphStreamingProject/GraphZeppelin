@@ -118,7 +118,7 @@ void Graph::batch_update(node_id_t src, const std::vector<size_t> &edges, Supern
   supernodes[src]->apply_delta_update(delta_loc);
 }
 
-std::vector<std::set<node_id_t>> Graph::boruvka_emulation(const bool make_copy) {
+std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
   cc_alg_start = std::chrono::steady_clock::now();
   printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
   update_locked = true; // disallow updating the graph after we run the alg
