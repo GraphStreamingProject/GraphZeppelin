@@ -124,11 +124,10 @@ void Graph::batch_update(node_id_t src, const std::vector<size_t> &edges, Supern
 }
 
 std::vector<std::set<node_id_t>> Graph::boruvka_emulation() {
-  cc_alg_start = std::chrono::steady_clock::now();
   printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
   update_locked = true; // disallow updating the graph after we run the alg
 
-  cc_start_time = std::chrono::steady_clock::now();
+  cc_alg_start = std::chrono::steady_clock::now();
   bool modified;
   std::pair<Edge, SampleSketchRet> query[num_nodes];
   node_id_t size[num_nodes];
