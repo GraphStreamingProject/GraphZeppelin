@@ -60,7 +60,7 @@ public:
    * Main parallel algorithm utilizing Boruvka and L_0 sampling.
    * @return a vector of the connected components in the graph.
    */
-  std::vector<std::set<node_id_t>> connected_components();
+  std::vector<std::set<node_id_t>> boruvka_emulation();
 
   /**
    * Main parallel algorithm utilizing Boruvka and L_0 sampling.
@@ -68,7 +68,7 @@ public:
    * @param cont
    * @return a vector of the connected components in the graph.
    */
-  std::vector<std::set<node_id_t>> connected_components(bool cont);
+  std::vector<std::set<node_id_t>> connected_components(bool cont=false);
 
 #ifdef VERIFY_SAMPLES_F
   std::unique_ptr<GraphVerifier> verifier;
@@ -101,7 +101,14 @@ public:
    */
   void write_binary(const std::string &filename);
 
-  std::chrono::steady_clock::time_point end_time;
+  std::chrono::steady_clock::time_point flush_call;
+  std::chrono::steady_clock::time_point flush_return;
+  std::chrono::steady_clock::time_point cc_alg_start;
+  std::chrono::steady_clock::time_point cc_alg_end;
+  std::chrono::steady_clock::time_point create_backup_start;
+  std::chrono::steady_clock::time_point create_backup_end;
+  std::chrono::steady_clock::time_point restore_backup_start;
+  std::chrono::steady_clock::time_point restore_backup_end;
 };
 
 class UpdateLockedException : public std::exception {

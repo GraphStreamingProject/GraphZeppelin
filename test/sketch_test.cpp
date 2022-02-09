@@ -134,9 +134,9 @@ void test_sketch_sample(unsigned long num_sketches,
 
 TEST(SketchTestSuite, TestSketchSample) {
   srand (time(nullptr));
-  test_sketch_sample(10000, 100, 100, 0.005, 0.005);
-  test_sketch_sample(1000, 1000, 1000, 0.001, 0.001);
-  test_sketch_sample(1000, 10000, 10000, 0.001, 0.001);
+  test_sketch_sample(10000, 100, 100, 0.005, 0.02);
+  test_sketch_sample(1000, 1000, 1000, 0.001, 0.02);
+  test_sketch_sample(1000, 10000, 10000, 0.001, 0.02);
 }
 
 /**
@@ -203,9 +203,9 @@ void test_sketch_addition(unsigned long num_sketches,
 }
 
 TEST(SketchTestSuite, TestSketchAddition){
-  test_sketch_addition(10000, 100, 100, 0.005, 0.005);
-  test_sketch_addition(1000, 1000, 1000, 0.001, 0.001);
-  test_sketch_addition(1000, 10000, 10000, 0.001, 0.001);
+  test_sketch_addition(10000, 100, 100, 0.005, 0.02);
+  test_sketch_addition(1000, 1000, 1000, 0.001, 0.02);
+  test_sketch_addition(1000, 10000, 10000, 0.001, 0.02);
 }
 
 /**
