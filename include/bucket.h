@@ -26,7 +26,7 @@ namespace Bucket_Boruvka {
   /**
    * Checks whether the hash associated with the Bucket hashes the index to 0.
    * @param col_index_hash The return value to Bucket::col_index_hash
-   * @param guess_nonzero A power of 2, used as a modulus
+   * @param guess_nonzero A power of 2, used to check if a specific bit value is non-zero
    * @return true if the index is NOT hashed to zero mod guess_nonzero.
    */
   inline static bool contains(const col_hash_t& col_index_hash, const vec_t& guess_nonzero);
@@ -70,7 +70,7 @@ inline vec_hash_t Bucket_Boruvka::index_hash(const vec_t& index, long sketch_see
 }
 
 inline bool Bucket_Boruvka::contains(const col_hash_t& col_index_hash, const col_hash_t& guess_nonzero) {
-  return (col_index_hash & guess_nonzero) == 0;
+  return (col_index_hash & guess_nonzero) == 0; // use guess_nonzero (power of 2) to check ith bit
 }
 
 inline bool Bucket_Boruvka::is_good(const vec_t& a, const vec_hash_t& c, const long& sketch_seed) {

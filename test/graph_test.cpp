@@ -151,6 +151,8 @@ TEST_P(GraphTest, TestCorrectnessOfReheating) {
   }
 }
 
+// Test the multithreaded system by specifiying multiple
+// Graph Workers of size 2. Ingest a stream and run CC algorithm.
 TEST_P(GraphTest, MultipleInserters) {
   write_configuration(GetParam(), false, 4, 2);
   int num_trials = 5;
