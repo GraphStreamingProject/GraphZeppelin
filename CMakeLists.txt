@@ -126,4 +126,4 @@ target_link_libraries(efficient_gen PRIVATE xxhash GraphZeppelinCommon)
 add_executable(xxhash_bench
   test/experiment/xxhash_speed.cpp)
 target_link_libraries(xxhash_bench PRIVATE xxhash)
-target_complile_definition(xxhash_bench PRIVATE XXH_INLINE_ALL)
+target_compile_definitions(xxhash_bench PRIVATE XXH_INLINE_ALL)
