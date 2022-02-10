@@ -12,8 +12,9 @@
 #include "../util.h"
 #include <gtest/gtest_prod.h>
 
+// max number of non-zeroes in vector is n/2*n/2=n^2/4
+#define guess_gen(x) double_to_ull(log2(x) - 2)
 #define bucket_gen(d) double_to_ull((log2(d)+1))
-#define guess_gen(x) double_to_ull(log2(x)+1)
 
 enum SampleSketchRet {
   GOOD,  // querying this sketch returned a single non-zero value
