@@ -68,9 +68,7 @@ TEST_P(GraphTest, IFconnectedComponentsAlgRunTHENupdateLocked) {
 
 TEST_P(GraphTest, TestCorrectnessOnSmallRandomGraphs) {
   write_configuration(GetParam());
-  int num_trials = 10;
-  int allow_fail = 2; // allow 2 failures
-  int fails = 0;
+  int num_trials = 5;
   while (num_trials--) {
     generate_stream();
     std::ifstream in{"./sample.txt"};
@@ -87,24 +85,14 @@ TEST_P(GraphTest, TestCorrectnessOnSmallRandomGraphs) {
     }
 
     g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
-    try {
-      g.connected_components();
-    } catch (OutOfQueriesException& err) {
-      fails++;
-      if (fails > allow_fail) {
-        printf("More than %i failures failing test\n", allow_fail);
-        throw;
-      }
-    }
+    g.connected_components();
   }
 }
 
 TEST_P(GraphTest, TestCorrectnessOnSmallSparseGraphs) {
   write_configuration(GetParam());
-  int num_trials = 10;
-  int allow_fail = 2; // allow 2 failures
-  int fails = 0;
-  while (num_trials--) {
+  int num_trials = 5;
+  while(num_trials--) {
     generate_stream({1024,0.002,0.5,0,"./sample.txt","./cumul_sample.txt"});
     std::ifstream in{"./sample.txt"};
     node_id_t n;
@@ -120,23 +108,13 @@ TEST_P(GraphTest, TestCorrectnessOnSmallSparseGraphs) {
     }
 
     g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
-    try {
-      g.connected_components();
-    } catch (OutOfQueriesException& err) {
-      fails++;
-      if (fails > allow_fail) {
-        printf("More than %i failures failing test\n", allow_fail);
-        throw;
-      }
-    }
-  }
+    g.connected_components();
+  } 
 }
 
 TEST_P(GraphTest, TestCorrectnessOfReheating) {
   write_configuration(GetParam());
-  int num_trials = 10;
-  int allow_fail = 2; // allow 2 failures
-  int fails = 0;
+  int num_trials = 5;
   while (num_trials--) {
     generate_stream({1024,0.002,0.5,0,"./sample.txt","./cumul_sample.txt"});
     std::ifstream in{"./sample.txt"};
@@ -154,16 +132,7 @@ TEST_P(GraphTest, TestCorrectnessOfReheating) {
     g->write_binary("./out_temp.txt");
     g->set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
     std::vector<std::set<node_id_t>> g_res;
-    try {
-      g_res = g->connected_components();
-    } catch (OutOfQueriesException& err) {
-      fails++;
-      continue;
-      if (fails > allow_fail) {
-        printf("More than %i failures failing test\n", allow_fail);
-        throw;
-      }
-    }
+    g_res = g->connected_components();
     printf("number of CC = %lu\n", g_res.size());
     delete g; // delete g to avoid having multiple graphs open at once. Which is illegal.
 
@@ -179,5 +148,100 @@ TEST_P(GraphTest, TestCorrectnessOfReheating) {
           std::back_inserter(symdif));
       ASSERT_EQ(0, symdif.size());
     }
+  }
+}
+
+// Test the multithreaded system by specifiying multiple
+// Graph Workers of size 2. Ingest a stream and run CC algorithm.
+TEST_P(GraphTest, MultipleInserters) {
+  write_configuration(GetParam(), false, 4, 2);
+  int num_trials = 5;
+  while(num_trials--) {
+    generate_stream({1024,0.002,0.5,0,"./sample.txt","./cumul_sample.txt"});
+    std::ifstream in{"./sample.txt"};
+    node_id_t n;
+    edge_id_t m;
+    in >> n >> m;
+    Graph g{n};
+    int type, a, b;
+    while (m--) {
+      in >> type >> a >> b;
+      if (type == INSERT) {
+        g.update({{a, b}, INSERT});
+      } else g.update({{a, b}, DELETE});
+    }
+
+    g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
+    g.connected_components();
+  } 
+}
+
+TEST(GraphTest, TestQueryDuringStream) {
+  write_configuration(false, false);
+  { // test copying to disk
+    generate_stream({1024, 0.002, 0.5, 0, "./sample.txt", "./cumul_sample.txt"});
+    std::ifstream in{"./sample.txt"};
+    node_id_t n;
+    edge_id_t m;
+    in >> n >> m;
+    Graph g(n);
+    MatGraphVerifier verify(n);
+
+    int type;
+    node_id_t a, b;
+    edge_id_t tenth = m / 10;
+    for(int j = 0; j < 9; j++) {
+      for (edge_id_t i = 0; i < tenth; i++) {
+        in >> type >> a >> b;
+        g.update({{a,b}, (UpdateType)type});
+        verify.edge_update(a, b);
+      }
+      verify.reset_cc_state();
+      g.set_verifier(std::make_unique<MatGraphVerifier>(verify));
+      g.connected_components(true);
+    }
+    m -= 9 * tenth;
+    while(m--) {
+      in >> type >> a >> b;
+      g.update({{a,b}, (UpdateType)type});
+      verify.edge_update(a, b);
+    }
+    verify.reset_cc_state();
+    g.set_verifier(std::make_unique<MatGraphVerifier>(verify));
+    g.connected_components();
+  }
+
+  write_configuration(false, true);
+  { // test copying in memory
+    generate_stream({1024, 0.002, 0.5, 0, "./sample.txt", "./cumul_sample.txt"});
+    std::ifstream in{"./sample.txt"};
+    node_id_t n;
+    edge_id_t m;
+    in >> n >> m;
+    Graph g(n);
+    MatGraphVerifier verify(n);
+
+    int type;
+    node_id_t a, b;
+    edge_id_t tenth = m / 10;
+    for(int j = 0; j < 9; j++) {
+      for (edge_id_t i = 0; i < tenth; i++) {
+        in >> type >> a >> b;
+        g.update({{a,b}, (UpdateType)type});
+        verify.edge_update(a, b);
+      }
+      verify.reset_cc_state();
+      g.set_verifier(std::make_unique<MatGraphVerifier>(verify));
+      g.connected_components(true);
+    }
+    m -= 9 * tenth;
+    while(m--) {
+      in >> type >> a >> b;
+      g.update({{a,b}, (UpdateType)type});
+      verify.edge_update(a, b);
+    }
+    verify.reset_cc_state();
+    g.set_verifier(std::make_unique<MatGraphVerifier>(verify));
+    g.connected_components();
   }
 }

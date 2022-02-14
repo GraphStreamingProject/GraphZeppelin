@@ -85,6 +85,15 @@ public:
     return bytes_size;
   }
 
+  // reset the supernode query metadata
+  // we use this when resuming insertions after CC made copies in memory
+  inline void reset_query_state() { 
+    for (int i = 0; i < idx; i++) {
+      get_sketch(i)->reset_queried();
+    }
+    idx = 0;
+  }
+
   /**
    * Function to sample an edge from the cut of a supernode.
    * @return   an edge in the cut, represented as an Edge with LHS <= RHS, 

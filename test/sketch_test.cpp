@@ -6,6 +6,15 @@
 
 static const int fail_factor = 100;
 
+bool contains_inclusive(col_hash_t hash, col_hash_t guess) {
+  for (col_hash_t i = 1; i <= guess; i<<=1) {
+    if (!Bucket_Boruvka::contains(hash, i)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 TEST(SketchTestSuite, TestExceptions) {
   Sketch::configure(10 * 10, fail_factor);
   SketchUniquePtr sketch1 = makeSketch(rand());
@@ -24,7 +33,7 @@ TEST(SketchTestSuite, TestExceptions) {
     for (unsigned long long j = 0; j < num_guesses;) {
       uint64_t index = 0;
       for (uint64_t k = 0; k < sketch2->n; ++k) {
-        if (vec_idx[k] && Bucket_Boruvka::contains(Bucket_Boruvka::col_index_hash(k, sketch2->seed + i), 2 << j)) {
+        if (vec_idx[k] && contains_inclusive(Bucket_Boruvka::col_index_hash(k, sketch2->seed + i), 1 << j)) {
           if (index == 0) {
             index = k + 1;
           } else {

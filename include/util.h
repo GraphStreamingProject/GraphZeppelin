@@ -1,4 +1,5 @@
 #pragma once
+#include <tuple>
 
 /**
  * Cast a double to unsigned long long with epsilon adjustment.
@@ -25,6 +26,9 @@ std::pair<uint32_t , uint32_t> inv_nondir_non_self_edge_pairing_fn(uint64_t idx)
  * Gets the path prefix where the buffer tree data will be stored and sets
  * with the number of threads used for a variety of tasks.
  * Should be called before creating the buffer tree or starting graph workers.
- * @return the prefix of the path in which the buffer tree should be stored.
+ * @return a tuple with the following elements
+ *   - use_guttertree
+ *   - in_memory_backups
+ *   - disk_dir
  */
-std::pair<bool, std::string> configure_system();
+std::tuple<bool, bool, std::string> configure_system();
