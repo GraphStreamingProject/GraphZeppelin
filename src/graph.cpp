@@ -139,13 +139,28 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
     if (make_copy && copy_in_mem) 
       copy_supernodes[i] = nullptr;
   }
-  
+
+  auto cleanup_copy = [&make_copy, this, &backed_up, &copy_supernodes]() {
+    if (make_copy) {
+      if(copy_in_mem) {
+        // restore original supernodes and free memory
+        for (node_id_t i : backed_up) {
+          if (supernodes[i] != nullptr) free(supernodes[i]);
+          supernodes[i] = copy_supernodes[i];
+        }
+        delete[] copy_supernodes;
+      } else {
+        restore_from_disk(backed_up);
+      }
+    }
+  };
+
   int num_rounds = 0;
+  bool except = false;
+  std::exception_ptr err;
 
   do {
     modified = false;
-    bool except = false;
-    std::exception_ptr err;
 
     #pragma omp parallel for default(none) shared(query, reps, except, err, modified)
     for (node_id_t i = 0; i < reps.size(); ++i) { // NOLINT(modernize-loop-convert)
@@ -159,7 +174,10 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
       }
     }
     // Did one of our threads produce an exception?
-    if (except) std::rethrow_exception(err);
+    if (except) {
+      cleanup_copy();
+      std::rethrow_exception(err);
+    }
 
     // Run the disjoint set union to determine what supernodes
     // Should be merged together. 
@@ -241,7 +259,10 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
     }
 
     // Did one of our threads produce an exception?
-    if (except) std::rethrow_exception(err);
+    if (except) {
+      cleanup_copy();
+      std::rethrow_exception(err);
+    }
     
     first_round = false;
     ++num_rounds;
@@ -256,18 +277,7 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
   retval.reserve(temp.size());
   for (const auto& it : temp) retval.push_back(it.second);
 
-  if (make_copy) {
-    if(copy_in_mem) {
-      // restore original supernodes and free memory
-      for (node_id_t i : backed_up) {
-        if (supernodes[i] != nullptr) free(supernodes[i]);
-        supernodes[i] = copy_supernodes[i];
-      }
-      delete[] copy_supernodes;
-    } else {
-      restore_from_disk(backed_up);
-    }
-  }
+  cleanup_copy();
 
   cc_alg_end = std::chrono::steady_clock::now();
   printf("CC done in %d rounds\n", num_rounds);
@@ -314,7 +324,15 @@ std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
   }
   
   // if backing up in memory then perform copying in boruvka
-  std::vector<std::set<node_id_t>> ret = boruvka_emulation(true);
+  bool except = false;
+  std::exception_ptr err;
+  std::vector<std::set<node_id_t>> ret;
+  try {
+    ret = boruvka_emulation(true);
+  } catch (...) {
+    except = true;
+    err = std::current_exception();
+  }
 
   // get ready for ingesting more from the stream
   // reset dsu and resume graph workers
@@ -325,6 +343,7 @@ std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
   update_locked = false;
   GraphWorker::unpause_workers();
 
+  // check if boruvka errored
   if (except) std::rethrow_exception(err);
 
   return ret;
