@@ -171,8 +171,6 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
       if (ret_code == FAIL) {
         modified = true; 
         new_reps.push_back(i); 
-        if (make_copy && first_round && copy_in_mem)
-          copy_supernodes[i] = Supernode::makeSupernode(*supernodes[i]);
         continue;
       } 
       if (ret_code == ZERO) {
@@ -203,33 +201,33 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
       modified = true;
     }
 
+    // remove nodes added to new_reps due to sketch failures that
+    // did end up being able to merge after all
+    std::vector<node_id_t> temp_vec;
+    for (node_id_t a : new_reps)
+      if (to_merge[a].size() == 0) temp_vec.push_back(a);
+    std::swap(new_reps, temp_vec);
+
+    // add to new_reps all the nodes we will merge into
     for (node_id_t a = 0; a < num_nodes; a++)
       if (to_merge[a].size() != 0) new_reps.push_back(a);
 
-    if(make_copy && first_round && !copy_in_mem) {
+    // make a copy if necessary
+    if(make_copy && first_round) {
       backed_up = new_reps;
-      backup_to_disk(backed_up);
+      if (!copy_in_mem) backup_to_disk(backed_up);
     }
 
     // loop over the to_merge vector and perform supernode merging
     #pragma omp parallel for default(none) shared(first_round, make_copy, copy_supernodes, new_reps, to_merge, except, err)
-    for (node_id_t a = 0; a < num_nodes; a++) {
+    for (node_id_t a : new_reps) {
       try {
-        if(to_merge[a].size() == 0) continue;
-
-        if (make_copy && first_round && copy_in_mem) {
-          // make a copy of a to merge into
+        if (make_copy && first_round && copy_in_mem) // make a copy of a
           copy_supernodes[a] = Supernode::makeSupernode(*supernodes[a]);
-          // we have stuff to merge into a, so do that
-          for (node_id_t b : to_merge[a]) {
-            copy_supernodes[a]->merge(*supernodes[b]);
-          }
-        } 
-        else {
-          // perform merging without copying
-          for (node_id_t b : to_merge[a]) {
-            supernodes[a]->merge(*supernodes[b]);
-          }
+        
+        // perform merging of nodes b into node a
+        for (node_id_t b : to_merge[a]) {
+          supernodes[a]->merge(*supernodes[b]);
         }
       } catch (...) {
         except = true;
@@ -239,16 +237,12 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
 
     // Did one of our threads produce an exception?
     if (except) std::rethrow_exception(err);
-
-    // if applicable perform the rest of the rounds 
-    // upon the supernode copies
-    if (make_copy && first_round && copy_in_mem)
-      std::swap(copy_supernodes, supernodes);
+    
     first_round = false;
-
-    swap(reps, new_reps);
+    std::swap(reps, new_reps);
   } while (modified);
 
+  // calculate connected components using DSU structure
   std::map<node_id_t, std::set<node_id_t>> temp;
   for (node_id_t i = 0; i < num_nodes; ++i)
     temp[get_parent(i)].insert(i);
@@ -259,8 +253,9 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
   if (make_copy) {
     if(copy_in_mem) {
       // restore original supernodes and free memory
-      for (node_id_t i = 0; i < num_nodes; i++) {
-        if (supernodes[i] != nullptr) free(supernodes[i]);
+      for (node_id_t i : backed_up) {
+        if (supernodes[i] != nullptr) 
+          free(supernodes[i]);
         supernodes[i] = copy_supernodes[i];
       }
       delete[] copy_supernodes;
