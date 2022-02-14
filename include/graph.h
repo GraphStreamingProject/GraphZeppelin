@@ -17,6 +17,20 @@ class GraphWorker;
 
 typedef std::pair<Edge, UpdateType> GraphUpdate;
 
+// Exceptions the Graph class may throw
+class UpdateLockedException : public std::exception {
+  virtual const char* what() const throw() {
+    return "The graph cannot be updated: Connected components algorithm has "
+           "already started";
+  }
+};
+
+class MultipleGraphsException : public std::exception {
+  virtual const char * what() const throw() {
+    return "Only one Graph may be open at one time. The other Graph must be deleted.";
+  }
+};
+
 /**
  * Undirected graph object with n nodes labelled 0 to n-1, no self-edges,
  * multiple edges, or weights.
@@ -35,8 +49,17 @@ class Graph {
   // Buffering system for batching updates
   BufferingSystem *bf;
 
-  Supernode** backup_supernodes();
-  void restore_supernodes(Supernode** supernodes);
+  void backup_to_disk(std::vector<node_id_t> ids_to_backup);
+  void restore_from_disk(std::vector<node_id_t> ids_to_restore);
+
+  /**
+   * Main parallel algorithm utilizing Boruvka and L_0 sampling.
+   * @return a vector of the connected components in the graph.
+   */
+  std::vector<std::set<node_id_t>> boruvka_emulation(bool make_copy);
+
+  std::string backup_file; // where to backup the supernodes
+  bool copy_in_mem = false; // should backups be made in memory or on disk
 
   FRIEND_TEST(GraphTestSuite, TestCorrectnessOfReheating);
   static bool open_graph;
@@ -45,7 +68,15 @@ public:
   explicit Graph(const std::string &input_file);
 
   ~Graph();
-  void update(GraphUpdate upd);
+
+  inline void update(GraphUpdate upd) {
+    if (update_locked) throw UpdateLockedException();
+    Edge &edge = upd.first;
+
+    bf->insert(edge);
+    std::swap(edge.first, edge.second);
+    bf->insert(edge);
+  }
 
   /**
    * Update all the sketches in supernode, given a batch of updates.
@@ -55,12 +86,6 @@ public:
    *                   supernode.
    */
   void batch_update(node_id_t src, const std::vector<size_t> &edges, Supernode *delta_loc);
-
-  /**
-   * Main parallel algorithm utilizing Boruvka and L_0 sampling.
-   * @return a vector of the connected components in the graph.
-   */
-  std::vector<std::set<node_id_t>> boruvka_emulation();
 
   /**
    * Main parallel algorithm utilizing Boruvka and L_0 sampling.
@@ -110,18 +135,5 @@ public:
   std::chrono::steady_clock::time_point create_backup_end;
   std::chrono::steady_clock::time_point restore_backup_start;
   std::chrono::steady_clock::time_point restore_backup_end;
-};
-
-class UpdateLockedException : public std::exception {
-  virtual const char* what() const throw() {
-    return "The graph cannot be updated: Connected components algorithm has "
-           "already started";
-  }
-};
-
-class MultipleGraphsException : public std::exception {
-  virtual const char * what() const throw() {
-    return "Only one Graph may be open at one time. The other Graph must be deleted.";
-  }
 };
 
