@@ -220,7 +220,8 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
 
     // loop over the to_merge vector and perform supernode merging
     #pragma omp parallel for default(none) shared(first_round, make_copy, copy_supernodes, new_reps, to_merge, except, err)
-    for (node_id_t a : new_reps) {
+    for (node_id_t i = 0; i < new_reps.size(); i++) {
+      node_id_t a = new_reps[i]; // fix for ubuntu18.04 ('for each' style in omp no good)
       try {
         if (make_copy && first_round && copy_in_mem) // make a copy of a
           copy_supernodes[a] = Supernode::makeSupernode(*supernodes[a]);
@@ -254,8 +255,7 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
     if(copy_in_mem) {
       // restore original supernodes and free memory
       for (node_id_t i : backed_up) {
-        if (supernodes[i] != nullptr) 
-          free(supernodes[i]);
+        if (supernodes[i] != nullptr) free(supernodes[i]);
         supernodes[i] = copy_supernodes[i];
       }
       delete[] copy_supernodes;

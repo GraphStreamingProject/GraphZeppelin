@@ -30,11 +30,11 @@ std::pair<ul, ul> inv_nondir_non_self_edge_pairing_fn(ull idx) {
 }
 
 std::tuple<bool, bool, std::string> configure_system() {
-  bool use_guttertree = true;
+  bool use_guttertree = false;
   std::string dir = "./";
   int num_groups = 1;
   int group_size = 1;
-  bool backup_in_mem = false;
+  bool backup_in_mem = true;
   std::string line;
   std::ifstream conf(config_file);
   if (conf.is_open()) {
@@ -46,7 +46,7 @@ std::tuple<bool, bool, std::string> configure_system() {
           use_guttertree = false;
         } else if (buf_str != "tree") {
           printf("WARNING: string %s is not a valid option for " 
-                "buffering. Defaulting to GutterTree.\n", buf_str.c_str());
+                "buffering. Defaulting to StandAloneGutters.\n", buf_str.c_str());
         }
       }
       if(line.substr(0, line.find('=')) == "disk_dir") {
@@ -60,7 +60,7 @@ std::tuple<bool, bool, std::string> configure_system() {
           backup_in_mem = false;
 	else
           printf("WARNING: string %s is not a valid option for backup_in_mem"
-                 "Defaulting to OFF.\n", flag.c_str());
+                 "Defaulting to ON.\n", flag.c_str());
       }
       if(line.substr(0, line.find('=')) == "num_groups") {
         num_groups = std::stoi(line.substr(line.find('=') + 1));
