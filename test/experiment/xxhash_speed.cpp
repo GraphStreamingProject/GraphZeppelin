@@ -9,8 +9,6 @@
 
 typedef uint32_t vec_hash_t;
 typedef uint64_t vec_t;
-//static const auto& hash32_func  = XXH32;
-//static const auto& hash64_func  = XXH3_64bits_withSeed;
 
 const uint64_t A1_1 = 10892479947228793040UL;
 const uint64_t A2_1 = 4032793241538373843UL;
@@ -37,34 +35,38 @@ uint64_t hash_64(uint64_t x, uint64_t seed) {
          | pms_hash(x, A1_2, seed, B_2);
 }
 
-static const auto& hash32_func  = hash_32;
-static const auto& hash64_func  = hash_64;
+static const auto& xxhash32_func  = XXH32;
+static const auto& xxhash64_func  = XXH3_64bits_withSeed;
+static const auto& mmphash32_func  = hash_32;
+static const auto& mmphash64_func  = hash_64;
 
-inline vec_hash_t get_hash32_direct(const vec_t& index, long seed) {
-//  return hash32_func(&index, sizeof(index), seed);
-  return hash32_func(index, seed);
+inline vec_hash_t get_xxhash32_direct(const vec_t& index, long seed) {
+  return xxhash32_func(&index, sizeof(index), seed);
 }
 
-inline vec_hash_t get_hash64_direct(const vec_t& index, long seed) {
-//  return hash64_func(&index, sizeof(index), seed);
-  return hash64_func(index, seed);
-
+inline vec_hash_t get_mmphash32_direct(const vec_t& index, long seed) {
+  return mmphash32_func(index, seed);
 }
 
-inline std::vector<vec_hash_t> get_hash32_vector(const vec_t& index, long seed, uint64_t nhash) {
+inline vec_hash_t get_xxhash64_direct(const vec_t& index, long seed) {
+  return xxhash64_func(&index, sizeof(index), seed);
+}
+
+inline vec_hash_t get_mmphash64_direct(const vec_t& index, long seed) {
+  return mmphash64_func(index, seed);
+}
+
+inline std::vector<vec_hash_t> get_xxhash32_vector(const vec_t& index, long seed, uint64_t nhash) {
   std::vector<vec_hash_t> ret(nhash);
   for (uint64_t i = 0; i < nhash; i++)
-//    ret[i] = hash32_func(&index, sizeof(index), seed++);
-    ret[i] = hash32_func(index, seed++);
-
+    ret[i] = xxhash32_func(&index, sizeof(index), seed++);
   return ret;
 }
 
-inline std::vector<vec_hash_t> get_hash64_vector(const vec_t& index, long seed, uint64_t nhash) {
+inline std::vector<vec_hash_t> get_xxhash64_vector(const vec_t& index, long seed, uint64_t nhash) {
   std::vector<vec_hash_t> ret(nhash);
   for (uint64_t i = 0; i < nhash; i+=2) {
-//    uint64_t hash = hash64_func(&index, sizeof(index), seed++);
-    uint64_t hash = hash64_func(index, seed++);
+    uint64_t hash = xxhash64_func(&index, sizeof(index), seed++);
     ret[i] = hash >> 32;
     if (i + 1 < nhash) ret[i + 1] = hash & 0xFFFFFFFF;
   }
@@ -77,12 +79,13 @@ void run_32bit_direct_test(uint64_t num_items, uint64_t num_hashes, int num_tria
   std::mt19937_64 rand(seed);
   vec_hash_t hash_xor = 0;
 
+  // xxhash
   auto start = std::chrono::steady_clock::now();
   for (int t = 0; t < num_trials; t++) {
     for (uint64_t i = 0; i < num_items; i++) {
       vec_t index = rand();
       for (uint64_t c = 0; c < num_hashes; c++) {
-        vec_hash_t hash = get_hash32_direct(index, seed + c);
+        vec_hash_t hash = get_xxhash32_direct(index, seed + c);
 	hash_xor ^= hash;
 
 #ifdef CHECK_QUALITY	
@@ -114,6 +117,48 @@ void run_32bit_direct_test(uint64_t num_items, uint64_t num_hashes, int num_tria
   }
   std::cout << std::endl;
 #endif
+
+  // mmp
+  std::fill(zeros.begin(), zeros.end(), 0 );
+  hash_xor = 0;
+
+  start = std::chrono::steady_clock::now();
+  for (int t = 0; t < num_trials; t++) {
+    for (uint64_t i = 0; i < num_items; i++) {
+      vec_t index = rand();
+      for (uint64_t c = 0; c < num_hashes; c++) {
+        vec_hash_t hash = get_mmphash32_direct(index, seed + c);
+        hash_xor ^= hash;
+
+#ifdef CHECK_QUALITY
+        int j = 1;
+        while(hash % (1 << j) == 0 && j <= 32) j++;
+        zeros[j-1]++;
+#endif
+      }
+    }
+  }
+  end = std::chrono::steady_clock::now();
+  time_taken = static_cast<std::chrono::duration<long double>>(end - start).count();
+  std::cout << "======  32 bit hash direct ======" << std::endl;
+  std::cout << "hash xor " << hash_xor << std::endl;
+
+  sum = 0;
+  for (int i = 31; i >= 0; i--) {
+    sum += zeros[i];
+    zeros[i] = sum;
+  }
+
+  std::cout << "Average time: " << time_taken / num_trials << std::endl;
+  std::cout << "Hash calls per second: " << num_items * num_hashes * num_trials / time_taken << std::endl;
+
+#ifdef CHECK_QUALITY
+  std::cout << "Col depth: ";
+  for (int i = 0; i < 32; i++) {
+    std::cout << (double)(zeros[i]) / (double)(num_items * num_hashes * num_trials) << ", ";
+  }
+  std::cout << std::endl;
+#endif
 }
 
 void run_64bit_direct_test(uint64_t num_items, uint64_t num_hashes, int num_trials) {
@@ -122,12 +167,13 @@ void run_64bit_direct_test(uint64_t num_items, uint64_t num_hashes, int num_tria
   std::mt19937_64 rand(seed);
   vec_hash_t hash_xor = 0;
 
+  // xxhash
   auto start = std::chrono::steady_clock::now();
   for (int t = 0; t < num_trials; t++) {
     for (uint64_t i = 0; i < num_items; i++) {
       vec_t index = rand();
       for (uint64_t c = 0; c < num_hashes; c++) {
-        vec_hash_t hash = get_hash64_direct(index, seed + c);
+        vec_hash_t hash = get_xxhash64_direct(index, seed + c);
 	hash_xor ^= hash;
       
 #ifdef CHECK_QUALITY	
@@ -159,6 +205,48 @@ void run_64bit_direct_test(uint64_t num_items, uint64_t num_hashes, int num_tria
   }
   std::cout << std::endl;
 #endif
+
+  // mmp
+  std::fill(zeros.begin(), zeros.end(), 0);
+  hash_xor = 0;
+
+  start = std::chrono::steady_clock::now();
+  for (int t = 0; t < num_trials; t++) {
+    for (uint64_t i = 0; i < num_items; i++) {
+      vec_t index = rand();
+      for (uint64_t c = 0; c < num_hashes; c++) {
+        vec_hash_t hash = get_mmphash64_direct(index, seed + c);
+        hash_xor ^= hash;
+
+#ifdef CHECK_QUALITY
+        int j = 1;
+        while(hash % (1 << j) == 0 && j <= 32) j++;
+        zeros[j-1]++;
+#endif
+      }
+    }
+  }
+  end = std::chrono::steady_clock::now();
+  time_taken = static_cast<std::chrono::duration<long double>>(end - start).count();
+  std::cout << "======  64 bit hash direct ======" << std::endl;
+  std::cout << "hash xor " << hash_xor << std::endl;
+
+  sum = 0;
+  for (int i = 31; i >= 0; i--) {
+    sum += zeros[i];
+    zeros[i] = sum;
+  }
+
+  std::cout << "Average time: " << time_taken / num_trials << std::endl;
+  std::cout << "Hash calls per second: " << num_items * num_hashes * num_trials / time_taken << std::endl;
+
+#ifdef CHECK_QUALITY
+  std::cout << "Col depth: ";
+  for (int i = 0; i < 32; i++) {
+    std::cout << (double)(zeros[i]) / (double)(num_items * num_hashes * num_trials) << ", ";
+  }
+  std::cout << std::endl;
+#endif
 }
 
 void run_32bit_vector_test(uint64_t num_items, uint64_t num_hashes, int num_trials) {
@@ -171,7 +259,8 @@ void run_32bit_vector_test(uint64_t num_items, uint64_t num_hashes, int num_tria
   for (int t = 0; t < num_trials; t++) {
     for (uint64_t i = 0; i < num_items; i++) {
       vec_t index = rand();
-      std::vector<vec_hash_t> hashes = get_hash32_vector(index, seed, num_hashes);
+      std::vector<vec_hash_t> hashes = get_xxhash32_vector(index, seed,
+                                                          num_hashes);
       for (vec_hash_t hash : hashes) {
 	hash_xor ^= hash;
 #ifdef CHECK_QUALITY	
@@ -216,7 +305,8 @@ void run_64bit_vector_test(uint64_t num_items, uint64_t num_hashes, int num_tria
   for (int t = 0; t < num_trials; t++) {
     for (uint64_t i = 0; i < num_items; i++) {
       vec_t index = rand();
-      std::vector<vec_hash_t> hashes = get_hash64_vector(index, seed, num_hashes);
+      std::vector<vec_hash_t> hashes = get_xxhash64_vector(index, seed,
+                                                          num_hashes);
       for (vec_hash_t hash : hashes) {
 	hash_xor ^= hash;
 #ifdef CHECK_QUALITY	

@@ -27,12 +27,11 @@ uint64_t hasher(uint64_t x) {
          | pms_hash(x, A1_2, A2_2, B_2);
 }
 
-uint32_t hash_32(uint64_t x, uint64_t seed) {
+uint32_t mmp_hash_32(uint64_t x, uint64_t seed) {
   return pms_hash(x, A1_1, seed, B_1);
 }
 
-uint64_t hash_64(uint64_t x, uint64_t seed) {
-  // TODO make the hashes independent
+uint64_t mmp_hash_64(uint64_t x, uint64_t seed) {
   return (((uint64_t) pms_hash(x, A1_1, seed, B_1)) << 32)
     | pms_hash(x, A1_2, seed, B_2);
 }
@@ -152,7 +151,7 @@ int main() {
 
 //  collision_expr(pms_hash, rng(), rng(), rng());
 //  zeroes_expr(hasher);
-  seed_expr(hash_64);
+  seed_expr(mmp_hash_64);
 }
 
 /*
