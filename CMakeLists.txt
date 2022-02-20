@@ -15,7 +15,7 @@ project(test)
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   message("Adding GNU compiler flags")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -W -Wall")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -W -Wall -pthread")
 elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
   message("Adding MSVC compiler flags")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Wall")
