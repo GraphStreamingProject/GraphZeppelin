@@ -60,7 +60,7 @@ void Sketch::update(const vec_t& update_idx) {
   Bucket_Boruvka::update(bucket_a[num_elems - 1], bucket_c[num_elems - 1], update_idx, update_hash);
   for (unsigned i = 0; i < num_buckets; ++i) {
     col_hash_t col_index_hash = Bucket_Boruvka::col_index_hash(update_idx,
-        seed + 125234087634212UL*i);
+        seed + i);
     for (unsigned j = 0; j < num_guesses; ++j) {
       unsigned bucket_id = i * num_guesses + j;
       if (Bucket_Boruvka::contains(col_index_hash, ((col_hash_t)1) << j)){

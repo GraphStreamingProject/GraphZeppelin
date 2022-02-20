@@ -74,6 +74,7 @@ add_library(GraphStreamingCC
   src/l0_sampling/sketch.cpp
   src/l0_sampling/update.cpp
   src/l0_sampling/pmshash.cpp
+  src/l0_sampling/fnv_1a.cpp
   src/util.cpp)
 add_dependencies(GraphStreamingCC GutterTree)
 target_link_libraries(GraphStreamingCC PUBLIC xxhash GutterTree)
@@ -89,6 +90,7 @@ add_library(GraphStreamingVerifyCC
   src/l0_sampling/sketch.cpp
   src/l0_sampling/update.cpp
   src/l0_sampling/pmshash.cpp
+  src/l0_sampling/fnv_1a.cpp
   src/util.cpp
   test/util/file_graph_verifier.cpp
   test/util/mat_graph_verifier.cpp)
@@ -126,7 +128,8 @@ add_executable(efficient_gen
 target_link_libraries(efficient_gen PRIVATE xxhash GraphZeppelinCommon)
 
 add_executable(xxhash_bench
-  test/experiment/xxhash_speed.cpp)
+  test/experiment/xxhash_speed.cpp
+  src/l0_sampling/fnv_1a.cpp)
 target_link_libraries(xxhash_bench PRIVATE xxhash)
 target_compile_definitions(xxhash_bench PRIVATE XXH_INLINE_ALL)
 

@@ -1,15 +1,17 @@
 #include <iostream>
 #include <random>
 #include <vector>
+#include <bitset>
 
 const uint64_t A1_1 = 10892479947228793040UL;
-const uint64_t A2_1 = 4032793241538373843UL;
+const uint64_t A2_1 = 5324285833102856563UL;
 const uint64_t B_1 = 15161517132367261381UL;
 
 const uint64_t A1_2 = 14826349932123903041UL;
 const uint64_t A2_2 = 15419701087670201850UL;
 const uint64_t B_2 = 11875562970292602379UL;
 
+const uint64_t ee = 0x49e3a9c184bd9173;
 
 std::mt19937_64 rng (std::random_device{}());
 
@@ -27,12 +29,12 @@ uint64_t hasher(uint64_t x) {
 }
 
 uint32_t mmp_hash_32(uint64_t x, uint64_t seed) {
-  return pms_hash(x, A1_1, seed, B_1);
+  return pms_hash(x, A1_1, seed^A2_1, B_1);
 }
 
 uint64_t mmp_hash_64(uint64_t x, uint64_t seed) {
-  return (((uint64_t) pms_hash(x, A1_1, seed, B_1)) << 32)
-    | pms_hash(x, A1_2, seed, B_2);
+  return (((uint64_t) pms_hash(x, A1_1, seed^A2_1, B_1)) << 32)
+    | pms_hash(x, A1_2, seed^A2_2, B_2);
 }
 
 // find number of bits that match between 2 32-bit hashes. a good hash should
@@ -141,6 +143,20 @@ void seed_expr(uint64_t (*hash_func)(uint64_t x, uint64_t seed)) {
   }
 }
 
+void plot_vals(int num_vals, uint64_t seed) {
+  for (int i = 0; i < num_vals; ++i) {
+    std::cout << std::dec << i << "\t";
+    std::cout << std::bitset<64>(mmp_hash_64(i, seed)) << "\n";
+  }
+}
+
+void plot_seeds(int num_vals, uint64_t x) {
+  for (int i = 0; i < num_vals; ++i) {
+    std::cout << std::dec << i << "\t";
+    std::cout << std::dec << (mmp_hash_32(x, i)) << "\n";
+  }
+}
+
 int main() {
   // initialization phase
   uint64_t temp {};
@@ -148,9 +164,10 @@ int main() {
     temp += rng();
   }
 
-  collision_expr(pms_hash, rng(), rng(), rng());
+//  collision_expr(pms_hash, rng(), rng(), rng());
 //  zeroes_expr(hasher);
 //  seed_expr(mmp_hash_64);
+  plot_seeds(200, 0);
 }
 
 /*

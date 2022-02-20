@@ -4,6 +4,8 @@
 #include <chrono>
 #include <random>
 
+#include "../../include/l0_sampling/fnv_1a.h"
+
 // Uncomment this to check the quality of the generated hash
 // #define CHECK_QUALITY
 
@@ -27,12 +29,12 @@ uint32_t pms_hash(uint64_t x, uint64_t a1, uint64_t a2, uint64_t b) {
 }
 
 uint32_t hash_32(uint64_t x, uint64_t seed) {
-  return pms_hash(x, A1_1, seed, B_1);
+  return pms_hash(x, A1_1, seed^A2_1, B_1);
 }
 
 uint64_t hash_64(uint64_t x, uint64_t seed) {
-  return (((uint64_t) pms_hash(x, A1_1, seed, B_1)) << 32)
-         | pms_hash(x, A1_2, seed, B_2);
+  return (((uint64_t) pms_hash(x, A1_1, seed^A2_1, B_1)) << 32)
+         | pms_hash(x, A1_2, seed^A2_2, B_2);
 }
 
 static const auto& xxhash32_func  = XXH32;

@@ -3,7 +3,6 @@
 #include "types.h"
 
 namespace Bucket_Boruvka {
-//  long _magic_even = 12524212;
   /**
    * Hashes the column index and the update index together.
    * This is used as a parameter to Bucket::contains.
@@ -88,7 +87,7 @@ inline bool Bucket_Boruvka::is_good(const vec_t& a, const vec_hash_t& c,
                                     guess_nonzero, const uint64_t&
                                     sketch_seed) {
   return c == index_hash(a, sketch_seed)
-    && contains(col_index_hash(a, sketch_seed + bucket_col*125234087634212UL),
+    && contains(col_index_hash(a, sketch_seed + bucket_col),
                 guess_nonzero);
 }
 
