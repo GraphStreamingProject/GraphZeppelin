@@ -36,7 +36,7 @@ private:
   static size_t num_guesses;       // Portion of array length, number of guesses
 
   // Seed used for hashing operations in this sketch.
-  const long seed;
+  uint64_t seed;
   // pointers to buckets
   vec_t*      bucket_a;
   vec_hash_t* bucket_c;
@@ -55,8 +55,8 @@ private:
   char buckets[1];
 
   // private constructors -- use makeSketch
-  Sketch(long seed);
-  Sketch(long seed, std::fstream &binary_in);
+  Sketch(uint64_t seed);
+  Sketch(uint64_t seed, std::fstream &binary_in);
   Sketch(const Sketch& s);
 
 public:

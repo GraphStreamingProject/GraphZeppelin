@@ -24,8 +24,8 @@ TEST(SketchTestSuite, TestExceptions) {
   /**
    * Find a vector that makes no good buckets
    */
-  Sketch::configure(100 * 100, fail_factor);
-  SketchUniquePtr sketch2 = makeSketch(0);
+  Sketch::configure(1000 * 1000, fail_factor);
+  SketchUniquePtr sketch2 = makeSketch(123514625);
   std::vector<bool> vec_idx(sketch2->n, true);
   unsigned long long num_buckets = bucket_gen(fail_factor);
   unsigned long long num_guesses = guess_gen(sketch2->n);
@@ -33,7 +33,8 @@ TEST(SketchTestSuite, TestExceptions) {
     for (unsigned long long j = 0; j < num_guesses;) {
       uint64_t index = 0;
       for (uint64_t k = 0; k < sketch2->n; ++k) {
-        if (vec_idx[k] && contains_inclusive(Bucket_Boruvka::col_index_hash(k, sketch2->seed + i), 1 << j)) {
+        if (vec_idx[k] && contains_inclusive(Bucket_Boruvka::col_index_hash
+        (k, sketch2->seed + 125234087634212UL*i), 1 << j)) {
           if (index == 0) {
             index = k + 1;
           } else {

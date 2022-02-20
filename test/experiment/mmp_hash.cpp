@@ -2,7 +2,6 @@
 #include <random>
 #include <vector>
 
-// TODO: set these
 const uint64_t A1_1 = 10892479947228793040UL;
 const uint64_t A2_1 = 4032793241538373843UL;
 const uint64_t B_1 = 15161517132367261381UL;
@@ -145,13 +144,13 @@ void seed_expr(uint64_t (*hash_func)(uint64_t x, uint64_t seed)) {
 int main() {
   // initialization phase
   uint64_t temp {};
-//  for (int i = 0; i < 700000; ++i) {
-//    temp += rng();
-//  }
+  for (int i = 0; i < 700000; ++i) {
+    temp += rng();
+  }
 
-//  collision_expr(pms_hash, rng(), rng(), rng());
+  collision_expr(pms_hash, rng(), rng(), rng());
 //  zeroes_expr(hasher);
-  seed_expr(mmp_hash_64);
+//  seed_expr(mmp_hash_64);
 }
 
 /*

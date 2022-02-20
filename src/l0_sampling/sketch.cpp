@@ -25,7 +25,8 @@ Sketch* Sketch::makeSketch(void* loc, const Sketch& s) {
   return new (loc) Sketch(s);
 }
 
-Sketch::Sketch(long seed): seed(seed) {
+Sketch::Sketch(uint64_t seed): seed(seed) {
+  if (seed % 2 == 0) ++seed;
   // establish the bucket_a and bucket_c locations
   bucket_a = reinterpret_cast<vec_t*>(buckets);
   bucket_c = reinterpret_cast<vec_hash_t*>(buckets + num_elems * sizeof(vec_t));
@@ -37,7 +38,7 @@ Sketch::Sketch(long seed): seed(seed) {
   }
 }
 
-Sketch::Sketch(long seed, std::fstream &binary_in): seed(seed) {
+Sketch::Sketch(uint64_t seed, std::fstream &binary_in): seed(seed) {
   // establish the bucket_a and bucket_c locations
   bucket_a = reinterpret_cast<vec_t*>(buckets);
   bucket_c = reinterpret_cast<vec_hash_t*>(buckets + num_elems * sizeof(vec_t));
@@ -58,7 +59,8 @@ void Sketch::update(const vec_t& update_idx) {
   vec_hash_t update_hash = Bucket_Boruvka::index_hash(update_idx, seed);
   Bucket_Boruvka::update(bucket_a[num_elems - 1], bucket_c[num_elems - 1], update_idx, update_hash);
   for (unsigned i = 0; i < num_buckets; ++i) {
-    col_hash_t col_index_hash = Bucket_Boruvka::col_index_hash(update_idx, seed + i);
+    col_hash_t col_index_hash = Bucket_Boruvka::col_index_hash(update_idx,
+        seed + 125234087634212UL*i);
     for (unsigned j = 0; j < num_guesses; ++j) {
       unsigned bucket_id = i * num_guesses + j;
       if (Bucket_Boruvka::contains(col_index_hash, ((col_hash_t)1) << j)){
@@ -89,7 +91,8 @@ std::pair<vec_t, SampleSketchRet> Sketch::query() {
   for (unsigned i = 0; i < num_buckets; ++i) {
     for (unsigned j = 0; j < num_guesses; ++j) {
       unsigned bucket_id = i * num_guesses + j;
-      if (Bucket_Boruvka::is_good(bucket_a[bucket_id], bucket_c[bucket_id], i, 1 << j, seed)) {
+      if (Bucket_Boruvka::is_good(bucket_a[bucket_id], bucket_c[bucket_id],
+                                  i, 1 << j, seed)) {
         return {bucket_a[bucket_id], GOOD};
       }
     }

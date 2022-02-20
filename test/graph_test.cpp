@@ -17,7 +17,7 @@
  * With 2 failures allowed per test our entire testing suite should fail 1/5000 runs.
  */
 
-// We create this class and instantiate a paramaterized test suite so that we
+// We create this class and instantiate a parameterized test suite so that we
 // can run these tests both with the GutterTree and with StandAloneGutters
 class GraphTest : public testing::TestWithParam<bool> {
 
