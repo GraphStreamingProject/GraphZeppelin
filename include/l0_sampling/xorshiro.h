@@ -66,9 +66,10 @@ static uint64_t xxxh3(const uint64_t input, uint64_t seed) {
   auto const bitflip2 = 0x3a5296093bbc56af - seed;
   auto const input_lo = input ^ bitflip1;
   auto const input_hi = input ^ bitflip2;
-  auto const acc = (XXXH_swap64(input_lo)+input)*(input_hi+(input>>32))
-  +1187556297029260237UL;
-return XXXH3_avalanche(acc);
+//  auto const acc = (XXXH_swap64(input_lo)+input)*(input_hi+(input>>32))+1187556297029260237UL;
+  auto const acc = (input_lo+input)*(input_hi+(input>>32))
+        +1187556297029260237UL;
+  return XXXH3_avalanche(acc);
 }
 
 static uint32_t xxxh3_32(uint64_t x, uint64_t seed) {
