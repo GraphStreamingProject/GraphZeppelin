@@ -152,5 +152,5 @@ if (BUILD_BENCH)
   add_executable(bench_cc
     bench/graphcc_bench.cpp)
   add_dependencies(bench_cc GraphStreamingCC benchmark)
-  target_link_libraries(bench_cc GraphStreamingCC benchmark::benchmark)
+  target_link_libraries(bench_cc GraphStreamingCC benchmark::benchmark xxhash)
 endif()
