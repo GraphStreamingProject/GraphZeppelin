@@ -57,6 +57,19 @@ FetchContent_Declare(
     -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
 )
 
+if (BUILD_BENCH)
+  # Get Google Benchmark
+  FetchContent_Declare(
+    benchmark
+
+    GIT_REPOSITORY "https://github.com/google/benchmark"
+    GIT_TAG        "v1.6.1"
+  )
+  set(BENCHMARK_ENABLE_GTEST_TESTS OFF)
+
+  FetchContent_MakeAvailable(benchmark)
+endif()
+
 FetchContent_MakeAvailable(xxHash GutterTree)
 #####
 # Some additional steps for xxHash as it is unofficial
@@ -133,4 +146,11 @@ if (BUILD_EXE)
     test/util/efficient_gen/edge_gen.cpp
     test/util/efficient_gen/efficient_gen.cpp)
   target_link_libraries(efficient_gen PRIVATE xxhash GraphZeppelinCommon)
+endif()
+
+if (BUILD_BENCH)
+  add_executable(bench_cc
+    bench/graphcc_bench.cpp)
+  add_dependencies(bench_cc GraphStreamingCC benchmark)
+  target_link_libraries(bench_cc GraphStreamingCC benchmark::benchmark)
 endif()
