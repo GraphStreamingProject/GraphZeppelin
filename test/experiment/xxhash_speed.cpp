@@ -5,6 +5,7 @@
 #include <random>
 
 #include "../../include/l0_sampling/fnv_1a.h"
+#include "../../include/l0_sampling/xorshiro.h"
 
 // Uncomment this to check the quality of the generated hash
 // #define CHECK_QUALITY
@@ -39,8 +40,8 @@ uint64_t hash_64(uint64_t x, uint64_t seed) {
 
 static const auto& xxhash32_func  = XXH32;
 static const auto& xxhash64_func  = XXH3_64bits_withSeed;
-static const auto& mmphash32_func  = hash_32;
-static const auto& mmphash64_func  = hash_64;
+static const auto& mmphash32_func  = xxxh3_32;
+static const auto& mmphash64_func  = xxxh3;
 
 inline vec_hash_t get_xxhash32_direct(const vec_t& index, long seed) {
   return xxhash32_func(&index, sizeof(index), seed);

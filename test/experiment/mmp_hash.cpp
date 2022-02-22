@@ -2,6 +2,7 @@
 #include <random>
 #include <vector>
 #include <bitset>
+#include "../../include/l0_sampling/xorshiro.h"
 
 const uint64_t A1_1 = 10892479947228793040UL;
 const uint64_t A2_1 = 5324285833102856563UL;
@@ -146,15 +147,33 @@ void seed_expr(uint64_t (*hash_func)(uint64_t x, uint64_t seed)) {
 void plot_vals(int num_vals, uint64_t seed) {
   for (int i = 0; i < num_vals; ++i) {
     std::cout << std::dec << i << "\t";
-    std::cout << std::bitset<64>(mmp_hash_64(i, seed)) << "\n";
-  }
+    auto val = xxxh3(i, seed);
+    std::cout << std::dec << (val >> 32) << "\t" << (uint32_t) val << "\n";  }
 }
 
 void plot_seeds(int num_vals, uint64_t x) {
   for (int i = 0; i < num_vals; ++i) {
     std::cout << std::dec << i << "\t";
-    std::cout << std::dec << (mmp_hash_32(x, i)) << "\n";
+    auto val = xxxh3(x,i);
+    std::cout << std::dec << (val >> 32) << "\t" << (uint32_t) val << "\n";
   }
+}
+
+void collision_counter(int num_vals) {
+  std::vector<uint32_t> vals(num_vals);
+  for (int i = 0; i < num_vals; ++i) {
+    vals[i] = xxxh3(14, i) & 0xffffffff;
+  }
+  int num_collisions = 0;
+  for (int i = 0; i < num_vals; ++i) {
+    for (int j = i + 1; j < num_vals; ++j) {
+      if (vals[i] == vals[j]) {
+        ++num_collisions;
+        std::cout << i << "," << j << "\n";
+      }
+    }
+  }
+  std::cout << "Collisions: " << num_collisions << std::endl;
 }
 
 int main() {
@@ -167,7 +186,8 @@ int main() {
 //  collision_expr(pms_hash, rng(), rng(), rng());
 //  zeroes_expr(hasher);
 //  seed_expr(mmp_hash_64);
-  plot_seeds(200, 0);
+//  plot_vals(200, 602439);
+  collision_counter(20000);
 }
 
 /*
