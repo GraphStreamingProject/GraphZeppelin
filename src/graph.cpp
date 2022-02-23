@@ -155,7 +155,6 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
     }
   };
 
-  int num_rounds = 0;
   bool except = false;
   std::exception_ptr err;
 
@@ -265,7 +264,6 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
     }
     
     first_round = false;
-    ++num_rounds;
     std::swap(reps, new_reps);
   } while (modified);
 
@@ -280,7 +278,6 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
   cleanup_copy();
 
   cc_alg_end = std::chrono::steady_clock::now();
-  printf("CC done in %d rounds\n", num_rounds);
   return retval;
 }
 
