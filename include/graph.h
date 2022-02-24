@@ -68,13 +68,9 @@ class Graph {
    * @param to_merge         an list of lists of supernodes to be merged
    *
    */
-  void merge_supernodes(
-    Supernode** copy_supernodes,
-    std::vector<node_id_t> new_reps,
-    std::vector<std::vector<node_id_t>> to_merge,
-    bool first_round,
-    bool make_copy
-  );
+  void merge_supernodes(Supernode** copy_supernodes, std::vector<node_id_t> new_reps,
+                        std::vector<std::vector<node_id_t>> to_merge, bool first_round,
+                        bool make_copy);
 
   /**
    * Run the disjoint set union to determine what supernodes
@@ -83,10 +79,8 @@ class Graph {
    * @param query  an array of supernode query results
    * @param reps   an array containing node indices for the representative of each supernode
    */
-  std::vector<std::vector<node_id_t>> supernodes_to_merge(
-    std::pair<Edge, SampleSketchRet> *query,
-    std::vector<node_id_t> &reps
-  );
+  std::vector<std::vector<node_id_t>> supernodes_to_merge(std::pair<Edge, SampleSketchRet> *query,
+                                                          std::vector<node_id_t> &reps);
 
   /**
    * Main parallel algorithm utilizing Boruvka and L_0 sampling.

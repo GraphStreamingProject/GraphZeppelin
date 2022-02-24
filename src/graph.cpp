@@ -118,10 +118,8 @@ void Graph::batch_update(node_id_t src, const std::vector<size_t> &edges, Supern
   supernodes[src]->apply_delta_update(delta_loc);
 }
 
-void Graph::sample_supernodes(
-  std::pair<Edge, SampleSketchRet> *query,
-  std::vector<node_id_t> &reps
-) {
+void Graph::sample_supernodes(std::pair<Edge, SampleSketchRet> *query,
+               std::vector<node_id_t> &reps) {
   bool except = false;
   std::exception_ptr err;
   #pragma omp parallel for default(none) shared(query, reps, except, err)
@@ -139,10 +137,8 @@ void Graph::sample_supernodes(
   if (except) std::rethrow_exception(err);
 }
 
-std::vector<std::vector<node_id_t>> Graph::supernodes_to_merge(
-  std::pair<Edge, SampleSketchRet> *query,
-  std::vector<node_id_t> &reps
-) {
+std::vector<std::vector<node_id_t>> Graph::supernodes_to_merge(std::pair<Edge, SampleSketchRet>
+               *query, std::vector<node_id_t> &reps) {
   node_id_t size[num_nodes];
   std::fill(size, size + num_nodes, 1);
   std::vector<std::vector<node_id_t>> to_merge(num_nodes);
@@ -201,13 +197,8 @@ std::vector<std::vector<node_id_t>> Graph::supernodes_to_merge(
   return to_merge;
 }
 
-void Graph::merge_supernodes(
-  Supernode** copy_supernodes,
-  std::vector<node_id_t> new_reps,
-  std::vector<std::vector<node_id_t>> to_merge,
-  bool make_copy,
-  bool first_round
-) {
+void Graph::merge_supernodes(Supernode** copy_supernodes, std::vector<node_id_t> new_reps,
+               std::vector<std::vector<node_id_t>> to_merge, bool make_copy, bool first_round) {
   bool except = false;
   std::exception_ptr err;
   // loop over the to_merge vector and perform supernode merging
@@ -254,10 +245,7 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
   do {
     modified = false;
     sample_supernodes(query, reps);
-    std::vector<std::vector<node_id_t>> to_merge = supernodes_to_merge(
-      query,
-      reps
-    );
+    std::vector<std::vector<node_id_t>> to_merge = supernodes_to_merge(query, reps);
 
     // make a copy if necessary
     if(make_copy && first_round) {
