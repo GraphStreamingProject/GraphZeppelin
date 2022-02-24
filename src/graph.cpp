@@ -202,7 +202,7 @@ void Graph::merge_supernodes(Supernode** copy_supernodes, std::vector<node_id_t>
   bool except = false;
   std::exception_ptr err;
   // loop over the to_merge vector and perform supernode merging
-  #pragma omp parallel for default(none) shared(first_round, make_copy, copy_supernodes, new_reps, to_merge, except, err)
+  #pragma omp parallel for default(shared)
   for (node_id_t i = 0; i < new_reps.size(); i++) {
     node_id_t a = new_reps[i]; // fix for ubuntu18.04 ('for each' style in omp no good)
     try {
