@@ -1,6 +1,8 @@
 #include <benchmark/benchmark.h>
 #include <xxhash.h>
 #include <iostream>
+#include <unistd.h>
+#include <fstream>
 
 #include "binary_graph_stream.h"
 #include "bucket.h"
@@ -9,6 +11,14 @@
 constexpr uint64_t KB   = 1024;
 constexpr uint64_t MB   = KB * KB;
 constexpr uint64_t seed = 374639;
+
+// Linux-only, flush the filesystem cache
+// requires root :(
+static void flush_filesystem_cache() {
+  sync();
+  std::ofstream drop("/proc/sys/vm/drop_caches");
+  drop << "3" << std::endl;
+}
 
 // Test the speed of reading all the data in the kron16 graph stream
 static void BM_FileIngest(benchmark::State &state) {
@@ -23,9 +33,10 @@ static void BM_FileIngest(benchmark::State &state) {
     }
     total_updates += stream.edges();
   }
+  flush_filesystem_cache();
   state.counters["Ingestion_Rate"] = benchmark::Counter(total_updates, benchmark::Counter::kIsRate);
 }
-BENCHMARK(BM_FileIngest)->MinTime(15)->RangeMultiplier(4)->Range(KB, MB);
+BENCHMARK(BM_FileIngest)->RangeMultiplier(4)->Range(KB, MB);
 
 // Test the speed of hashing using a variety of hash methods
 // The arguments to these benchmarks is the number of hashes to perform serially
