@@ -13,7 +13,7 @@ constexpr uint64_t MB   = KB * KB;
 constexpr uint64_t seed = 374639;
 
 // Linux-only, flush the filesystem cache
-// requires root :(
+// requires sudo privileges :(
 static void flush_filesystem_cache() {
   sync();
   std::ofstream drop("/proc/sys/vm/drop_caches");
@@ -24,7 +24,7 @@ static void flush_filesystem_cache() {
 static void BM_FileIngest(benchmark::State &state) {
   double total_updates = 0;
   for (auto _ : state) {
-    BinaryGraphStream stream("/mnt/ssd2/binary_streams/kron_15_stream_binary", state.range(0));
+    BinaryGraphStream stream("/mnt/ssd2/binary_streams/kron_16_stream_binary", state.range(0));
 
     uint64_t m = stream.edges();
     GraphUpdate upd;
