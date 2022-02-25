@@ -17,7 +17,13 @@ constexpr uint64_t seed = 374639;
 static void flush_filesystem_cache() {
   sync();
   std::ofstream drop("/proc/sys/vm/drop_caches");
-  drop << "3" << std::endl;
+  if (drop.is_open()) {
+    drop << "3" << std::endl;
+  }
+  else {
+    std::cout << "WARNING: could not drop filesystem cache. BM_FileIngest will be inaccurate. ";
+    std::cout << "Are you running as root?" << std::endl;
+  }
 }
 
 // Test the speed of reading all the data in the kron16 graph stream
