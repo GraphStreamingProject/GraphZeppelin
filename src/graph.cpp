@@ -197,8 +197,8 @@ inline std::vector<std::vector<node_id_t>> Graph::supernodes_to_merge(std::pair<
   return to_merge;
 }
 
-inline void Graph::merge_supernodes(Supernode** copy_supernodes, std::vector<node_id_t> new_reps,
-               std::vector<std::vector<node_id_t>> to_merge, bool make_copy, bool first_round) {
+inline void Graph::merge_supernodes(Supernode** copy_supernodes, std::vector<node_id_t> &new_reps,
+               std::vector<std::vector<node_id_t>> &to_merge, bool make_copy, bool first_round) {
   bool except = false;
   std::exception_ptr err;
   // loop over the to_merge vector and perform supernode merging
