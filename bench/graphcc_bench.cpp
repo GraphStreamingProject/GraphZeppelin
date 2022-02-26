@@ -158,10 +158,10 @@ static void BM_Sketch_Query(benchmark::State &state) {
     sketches[i] = makeSketch(seed + i);
   }
 
-  // perform updates
+  // perform updates (do at least 1)
   for (size_t i = 0; i < num_sketches; i++) {
     for (size_t j = 0; j < vec_size * density + 1; j++) {
-      sketches[i]->update(j);
+      sketches[i]->update(j + 1);
     }
   }
   std::pair<vec_t, SampleSketchRet> q_ret;
