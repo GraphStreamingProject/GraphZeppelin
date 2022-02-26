@@ -21,5 +21,14 @@ You can enable the symbol table and turn off compiler optimizations for debuggin
 To switch back to the optimized version of the code without the symbol table redo the two above steps except specify `Release` as the CMAKE_BUILD_TYPE.
 Other build types are available as well, but these should be the only two you need.
 
+## Benchmarking
+The `bench` directory provides a number of benchmarks that allow for fine tuned performance testing of various parts of the system. These benchmarks are not built by default and require a Linux system. Some optional benchmarks additionally require root access. More information can be found in the benchmark docs.
+
+To build the benchmarks perform the following steps.
+1. Initialize cmake with the BUILD_BENCH flag `cmake -DBUILD_BENCH:BOOL=ON ..` (recommended to use the Release build type)
+2. Re-build by running `cmake --build .` in the build dir.
+
+Turn off building the benchmarks by passing `-DBUILD_BENCH:BOOL=OFF` to cmake.
+
 ## Other Information
 https://github.com/GraphStreamingProject/GraphStreamingCC/wiki
