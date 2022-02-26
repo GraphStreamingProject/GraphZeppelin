@@ -22,13 +22,23 @@ static void flush_filesystem_cache() {
   }
   else {
     std::cout << "WARNING: could not drop filesystem cache. BM_FileIngest will be inaccurate. ";
-    std::cout << "Are you running as root?" << std::endl;
+    std::cout << "Running as root may be required." << std::endl;
   }
 }
 
 // Test the speed of reading all the data in the kron16 graph stream
 static void BM_FileIngest(benchmark::State &state) {
-  double total_updates = 0;
+  // determine the number of edges in the graph
+  uint64_t num_edges;
+  {
+    BinaryGraphStream stream("/mnt/ssd2/binary_streams/kron_16_stream_binary", 1024);
+    num_edges = stream.edges();
+  }
+
+  // flush fs cache
+  flush_filesystem_cache();
+  
+  // perform benchmark
   for (auto _ : state) {
     BinaryGraphStream stream("/mnt/ssd2/binary_streams/kron_16_stream_binary", state.range(0));
 
@@ -37,47 +47,63 @@ static void BM_FileIngest(benchmark::State &state) {
     while (m--) {
       benchmark::DoNotOptimize(upd = stream.get_edge());
     }
-    total_updates += stream.edges();
   }
-  flush_filesystem_cache();
-  state.counters["Ingestion_Rate"] = benchmark::Counter(total_updates, benchmark::Counter::kIsRate);
+  state.counters["Ingestion_Rate"] = benchmark::Counter(state.iterations() * num_edges, benchmark::Counter::kIsRate);
 }
-BENCHMARK(BM_FileIngest)->RangeMultiplier(4)->Range(KB, MB);
+BENCHMARK(BM_FileIngest)->RangeMultiplier(2)->Range(KB << 2, MB / 4);
 
-// Test the speed of hashing using a variety of hash methods
-// The arguments to these benchmarks is the number of hashes to perform serially
-static void BM_Hash_XXHash64(benchmark::State &state) {
-  double total_calls = 0;
+// Test the speed of hashing using a method that loops over seeds and a method that 
+// batches by seed
+// The argument to this benchmark is the number of hashes to batch
+static void BM_Hash_XXH64(benchmark::State &state) { 
+  uint64_t num_seeds = 8;
+  uint64_t num_hashes = state.range(0);
+  uint64_t output;
   for (auto _ : state) {
-    uint64_t num_hashes = state.range(0);
-    for (uint64_t i = 0; i < num_hashes; i++) {
-      benchmark::DoNotOptimize(XXH3_64bits_withSeed(&i, sizeof(uint64_t), seed));
+    for (uint64_t h = 0; h < num_seeds; h++) {
+      for (uint64_t i = 0; i < num_hashes; i++) {
+        benchmark::DoNotOptimize(output = XXH64(&i, sizeof(uint64_t), seed + h));
+      }
     }
-    total_calls += num_hashes;
   }
-  state.counters["Hashes"] = benchmark::Counter(total_calls, benchmark::Counter::kIsRate);
+  state.counters["Hashes"] = benchmark::Counter(state.iterations() * num_hashes, benchmark::Counter::kIsRate);
 }
-BENCHMARK(BM_Hash_XXHash64)->Arg(1)->Arg(100)->Arg(10000); 
+BENCHMARK(BM_Hash_XXH64)->Arg(1)->Arg(100)->Arg(10000);
+
+static void BM_Hash_XXH3_64(benchmark::State &state) { 
+  uint64_t num_seeds = 8;
+  uint64_t num_hashes = state.range(0);
+  uint64_t output;
+  for (auto _ : state) {
+    for (uint64_t h = 0; h < num_seeds; h++) {
+      for (uint64_t i = 0; i < num_hashes; i++) {
+        benchmark::DoNotOptimize(output = XXH3_64bits_withSeed(&i, sizeof(uint64_t), seed + h));
+      }
+    }
+  }
+  state.counters["Hashes"] = benchmark::Counter(state.iterations() * num_hashes, benchmark::Counter::kIsRate);
+}
+BENCHMARK(BM_Hash_XXH3_64)->Arg(1)->Arg(100)->Arg(10000);
 
 static void BM_Hash_bucket(benchmark::State &state) {
-  double total_calls = 0;
+  uint64_t num_seeds = 8;
+  uint64_t num_hashes = state.range(0);
+  uint64_t output;
   for (auto _ : state) {
-    uint64_t num_hashes = state.range(0);
-    for (uint64_t i = 0; i < num_hashes; i++) {
-      benchmark::DoNotOptimize(Bucket_Boruvka::col_index_hash(i, seed));
+    for (uint64_t h = 0; h < num_seeds; h++) {
+      for (uint64_t i = 0; i < num_hashes; i++) {
+        benchmark::DoNotOptimize(output = Bucket_Boruvka::col_index_hash(i, seed + h));
+      }
     }
-    total_calls += num_hashes;
   }
-  state.counters["Hashes"] = benchmark::Counter(total_calls, benchmark::Counter::kIsRate);
+  state.counters["Hashes"] = benchmark::Counter(state.iterations() * num_hashes, benchmark::Counter::kIsRate);
 }
 BENCHMARK(BM_Hash_bucket)->Arg(1)->Arg(100)->Arg(10000);
-
 
 // Benchmark the speed of updating sketches both serially and in batch mode
 static void BM_Sketch_Update(benchmark::State &state) {
   constexpr size_t upd_per_sketch = 10000;
   constexpr size_t num_sketches   = 1000;
-  double total_updates = 0;
   size_t vec_size = state.range(0);
   // initialize sketches
   Sketch::configure(vec_size, 100);
@@ -93,7 +119,7 @@ static void BM_Sketch_Update(benchmark::State &state) {
     updates.emplace_back();
     updates[i].reserve(upd_per_sketch);
     for (size_t j = 0; j < upd_per_sketch; j++) {
-      updates[i].push_back(rand() % vec_size);
+      updates[i].push_back(j % vec_size);
     }
   }
 
@@ -113,9 +139,9 @@ static void BM_Sketch_Update(benchmark::State &state) {
         sketches[i]->batch_update(updates[i]);
       }
     }
-    total_updates += num_sketches * upd_per_sketch;
   }
-  state.counters["Update_Rate"] = benchmark::Counter(total_updates, benchmark::Counter::kIsRate);
+  state.counters["Update_Rate"] = benchmark::Counter(state.iterations() * upd_per_sketch * num_sketches,
+                                                     benchmark::Counter::kIsRate);
 }
 BENCHMARK(BM_Sketch_Update)->RangeMultiplier(4)->Ranges({{KB << 4, MB << 4}, {false, true}});
 
@@ -123,7 +149,6 @@ BENCHMARK(BM_Sketch_Update)->RangeMultiplier(4)->Ranges({{KB << 4, MB << 4}, {fa
 static void BM_Sketch_Query(benchmark::State &state) {
   constexpr size_t vec_size     = KB << 5;
   constexpr size_t num_sketches = 100;
-  double total_queries = 0;
   double density = ((double)state.range(0)) / 100;
 
   // initialize sketches
@@ -135,8 +160,8 @@ static void BM_Sketch_Query(benchmark::State &state) {
 
   // perform updates
   for (size_t i = 0; i < num_sketches; i++) {
-    for (size_t j = 0; j < vec_size * density; j++) {
-      sketches[i]->update(rand() % vec_size);
+    for (size_t j = 0; j < vec_size * density + 1; j++) {
+      sketches[i]->update(j);
     }
   }
   std::pair<vec_t, SampleSketchRet> q_ret;
@@ -147,10 +172,9 @@ static void BM_Sketch_Query(benchmark::State &state) {
       benchmark::DoNotOptimize(q_ret = sketches[j]->query());
       sketches[j]->reset_queried();
     }
-    total_queries += num_sketches;
   }
-  state.counters["Query_Rate"] = benchmark::Counter(total_queries, benchmark::Counter::kIsRate);
+  state.counters["Query_Rate"] = benchmark::Counter(state.iterations() * num_sketches, benchmark::Counter::kIsRate);
 }
-BENCHMARK(BM_Sketch_Query)->DenseRange(10, 70, 10);
+BENCHMARK(BM_Sketch_Query)->DenseRange(0, 90, 10);
 
 BENCHMARK_MAIN();
