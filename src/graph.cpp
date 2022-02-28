@@ -50,11 +50,11 @@ Graph::Graph(node_id_t num_nodes): num_nodes(num_nodes) {
 Graph::Graph(const std::string& input_file) : num_updates(0) {
   if (open_graph) throw MultipleGraphsException();
   
-  int sketch_fail_factor;
+  vec_t sketch_fail_factor;
   auto binary_in = std::fstream(input_file, std::ios::in | std::ios::binary);
-  binary_in.read((char*)&seed, sizeof(long));
-  binary_in.read((char*)&num_nodes, sizeof(uint64_t));
-  binary_in.read((char*)&sketch_fail_factor, sizeof(int));
+  binary_in.read((char*)&seed, sizeof(seed));
+  binary_in.read((char*)&num_nodes, sizeof(num_nodes));
+  binary_in.read((char*)&sketch_fail_factor, sizeof(sketch_fail_factor));
   Supernode::configure(num_nodes, sketch_fail_factor);
 
 #ifdef VERIFY_SAMPLES_F
@@ -186,12 +186,12 @@ inline std::vector<std::vector<node_id_t>> Graph::supernodes_to_merge(std::pair<
   // did end up being able to merge after all
   std::vector<node_id_t> temp_vec;
   for (node_id_t a : new_reps)
-    if (to_merge[a].size() == 0) temp_vec.push_back(a);
+    if (to_merge[a].empty()) temp_vec.push_back(a);
   std::swap(new_reps, temp_vec);
 
   // add to new_reps all the nodes we will merge into
   for (node_id_t a = 0; a < num_nodes; a++)
-    if (to_merge[a].size() != 0) new_reps.push_back(a);
+    if (!to_merge[a].empty()) new_reps.push_back(a);
 
   reps = new_reps;
   return to_merge;
@@ -367,10 +367,10 @@ void Graph::write_binary(const std::string& filename) {
   // after this point all updates have been processed from the buffering system
 
   auto binary_out = std::fstream(filename, std::ios::out | std::ios::binary);
-  int fail_factor = Sketch::get_failure_factor();
-  binary_out.write((char*)&seed, sizeof(long));
-  binary_out.write((char*)&num_nodes, sizeof(uint64_t));
-  binary_out.write((char*)&fail_factor, sizeof(int));
+  auto fail_factor = Sketch::get_failure_factor();
+  binary_out.write((char*)&seed, sizeof(seed));
+  binary_out.write((char*)&num_nodes, sizeof(num_nodes));
+  binary_out.write((char*)&fail_factor, sizeof(fail_factor));
   for (node_id_t i = 0; i < num_nodes; ++i) {
     supernodes[i]->write_binary(binary_out);
   }
