@@ -44,7 +44,7 @@ class Graph {
   std::set<node_id_t>* representatives;
   Supernode** supernodes;
   // DSU representation of supernode relationship
-  node_id_t * parent;
+  node_id_t* parent;
   node_id_t get_parent(node_id_t node);
 
   // Buffering system for batching updates
@@ -66,8 +66,7 @@ class Graph {
    *
    */
   void merge_supernodes(Supernode** copy_supernodes, std::vector<node_id_t> &new_reps,
-                        std::vector<std::vector<node_id_t>> &to_merge, bool first_round,
-                        bool make_copy);
+                        std::vector<std::vector<node_id_t>> &to_merge, bool make_copy);
 
   /**
    * Run the disjoint set union to determine what supernodes

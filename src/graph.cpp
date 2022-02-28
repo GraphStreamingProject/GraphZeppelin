@@ -198,15 +198,16 @@ inline std::vector<std::vector<node_id_t>> Graph::supernodes_to_merge(std::pair<
 }
 
 inline void Graph::merge_supernodes(Supernode** copy_supernodes, std::vector<node_id_t> &new_reps,
-               std::vector<std::vector<node_id_t>> &to_merge, bool first_round, bool make_copy) {
+               std::vector<std::vector<node_id_t>> &to_merge, bool make_copy) {
   bool except = false;
   std::exception_ptr err;
   // loop over the to_merge vector and perform supernode merging
   #pragma omp parallel for default(shared)
   for (node_id_t i = 0; i < new_reps.size(); i++) { // NOLINT(modernize-loop-convert)
+    // OMP requires a traditional for-loop to work
     node_id_t a = new_reps[i];
     try {
-      if (make_copy && first_round && copy_in_mem) // make a copy of a
+      if (make_copy && copy_in_mem) // make a copy of a
         copy_supernodes[a] = Supernode::makeSupernode(*supernodes[a]);
 
       // perform merging of nodes b into node a
@@ -271,7 +272,7 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
         if (!copy_in_mem) backup_to_disk(backed_up);
       }
 
-      merge_supernodes(copy_supernodes, reps, to_merge, first_round, make_copy);
+      merge_supernodes(copy_supernodes, reps, to_merge, first_round && make_copy);
 
       first_round = false;
     } while (modified);
@@ -329,9 +330,8 @@ std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
   flush_end = std::chrono::steady_clock::now();
   // after this point all updates have been processed from the buffer tree
 
-  if (!cont) {
+  if (!cont)
     return boruvka_emulation(false); // merge in place
-  }
   
   // if backing up in memory then perform copying in boruvka
   bool except = false;
