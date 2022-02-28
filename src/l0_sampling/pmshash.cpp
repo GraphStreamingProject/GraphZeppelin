@@ -8,19 +8,27 @@ const uint64_t A1_2 = 14826349932123903041UL;
 const uint64_t A2_2 = 15419701087670201850UL;
 const uint64_t B_2 = 11875562970292602379UL;
 
-
-// https://arxiv.org/pdf/1504.06804.pdf 3.5: Strongly universal hash
-uint32_t pms_hash(uint64_t x, uint64_t a1, uint64_t a2, uint64_t b) {
-  // hashes 64-bit x strongly universally into l<=32 bits
-  // using the random seeds a1, a2, and b.
-  return ((a1+x)*(a2+(x>>32))+b) >> 32;
+static uint64_t rotl(const uint64_t x, int k) {
+  return (x << k) | (x >> (64 - k));
 }
 
-uint32_t mmp_hash_32(uint64_t x, uint64_t seed) {
-  return pms_hash(x, A1_1, seed^A2_1, B_1);
+static uint64_t XXH3_avalanche(uint64_t h64) {
+  h64 = rotl(h64, 37);
+  h64 *= 0x165667919E3779F9ULL;
+  h64 = rotl(h64, 32);
+  return h64;
 }
 
-uint64_t mmp_hash_64(uint64_t x, uint64_t seed) {
-  return (((uint64_t) pms_hash(x, A1_1, seed^A2_1, B_1)) << 32)
-         | pms_hash(x, A1_2, seed^A2_2, B_2);
+uint64_t XXPMS64(const uint64_t input, uint64_t seed) {
+  auto const bitflip1 = 0xb9e942ea7b738267 + seed;
+  auto const bitflip2 = 0x3a5296093bbc56af - seed;
+  auto const input_lo = input ^ bitflip1;
+  auto const input_hi = input ^ bitflip2;
+  // https://arxiv.org/pdf/1504.06804.pdf 3.5: Strongly universal hash
+  auto const acc = (input_lo+input)*(input_hi+(input>>32)) + 0x107b0c29033513cdUL;
+  return XXH3_avalanche(acc);
+}
+
+uint32_t XXPMS32(uint64_t x, uint64_t seed) {
+  return (uint32_t) XXPMS64(x, seed);
 }

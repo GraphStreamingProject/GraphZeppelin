@@ -4,8 +4,7 @@
 #include <chrono>
 #include <random>
 
-#include "../../include/l0_sampling/fnv_1a.h"
-#include "../../include/l0_sampling/xorshiro.h"
+#include "../../include/l0_sampling/pmshash.h"
 
 // Uncomment this to check the quality of the generated hash
 // #define CHECK_QUALITY
@@ -40,15 +39,15 @@ uint64_t hash_64(uint64_t x, uint64_t seed) {
 
 static const auto& xxhash32_func  = XXH32;
 static const auto& xxhash64_func  = XXH3_64bits_withSeed;
-static const auto& mmphash32_func  = xxxh3_32;
-static const auto& mmphash64_func  = xxxh3;
+static const auto& customhash32_func  = XXPMS32;
+static const auto& customhash64_func  = XXPMS64;
 
 inline vec_hash_t get_xxhash32_direct(const vec_t& index, long seed) {
   return xxhash32_func(&index, sizeof(index), seed);
 }
 
 inline vec_hash_t get_mmphash32_direct(const vec_t& index, long seed) {
-  return mmphash32_func(index, seed);
+  return customhash32_func(index, seed);
 }
 
 inline vec_hash_t get_xxhash64_direct(const vec_t& index, long seed) {
@@ -56,7 +55,7 @@ inline vec_hash_t get_xxhash64_direct(const vec_t& index, long seed) {
 }
 
 inline vec_hash_t get_mmphash64_direct(const vec_t& index, long seed) {
-  return mmphash64_func(index, seed);
+  return customhash64_func(index, seed);
 }
 
 inline std::vector<vec_hash_t> get_xxhash32_vector(const vec_t& index, long seed, uint64_t nhash) {

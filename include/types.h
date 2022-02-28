@@ -1,12 +1,10 @@
 #pragma once
 #include <graph_zeppelin_common.h>
-//#include "l0_sampling/pmshash.h"
-#include "l0_sampling/xorshiro.h"
+#include "l0_sampling/pmshash.h"
 
 typedef uint64_t col_hash_t;
-//static const auto& vec_hash = mmp_hash_32;
-static const auto& vec_hash = xxxh3_32;
-static const auto& col_hash = xxxh3;
+static const auto& vec_hash = XXPMS32;
+static const auto& col_hash = XXPMS64;
 
 enum UpdateType {
   INSERT = 0,
