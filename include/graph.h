@@ -44,14 +44,14 @@ class Graph {
   std::set<node_id_t>* representatives;
   Supernode** supernodes;
   // DSU representation of supernode relationship
-  node_id_t * parent;
+  node_id_t* parent;
   node_id_t get_parent(node_id_t node);
 
   // Buffering system for batching updates
   BufferingSystem *bf;
 
-  void backup_to_disk(std::vector<node_id_t> ids_to_backup);
-  void restore_from_disk(std::vector<node_id_t> ids_to_restore);
+  void backup_to_disk(const std::vector<node_id_t>& ids_to_backup);
+  void restore_from_disk(const std::vector<node_id_t>& ids_to_restore);
 
   /**
    * Update the query array with new samples
@@ -66,8 +66,7 @@ class Graph {
    *
    */
   void merge_supernodes(Supernode** copy_supernodes, std::vector<node_id_t> &new_reps,
-                        std::vector<std::vector<node_id_t>> &to_merge, bool first_round,
-                        bool make_copy);
+                        std::vector<std::vector<node_id_t>> &to_merge, bool make_copy);
 
   /**
    * Run the disjoint set union to determine what supernodes
@@ -84,6 +83,7 @@ class Graph {
    * @return a vector of the connected components in the graph.
    */
   std::vector<std::set<node_id_t>> boruvka_emulation(bool make_copy);
+
 
   std::string backup_file; // where to backup the supernodes
   bool copy_in_mem = false; // should backups be made in memory or on disk
@@ -153,13 +153,9 @@ public:
    */
   void write_binary(const std::string &filename);
 
-  std::chrono::steady_clock::time_point flush_call;
-  std::chrono::steady_clock::time_point flush_return;
+  // time hooks for experiments
+  std::chrono::steady_clock::time_point flush_start;
+  std::chrono::steady_clock::time_point flush_end;
   std::chrono::steady_clock::time_point cc_alg_start;
   std::chrono::steady_clock::time_point cc_alg_end;
-  std::chrono::steady_clock::time_point create_backup_start;
-  std::chrono::steady_clock::time_point create_backup_end;
-  std::chrono::steady_clock::time_point restore_backup_start;
-  std::chrono::steady_clock::time_point restore_backup_end;
 };
-
