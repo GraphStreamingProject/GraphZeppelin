@@ -27,6 +27,16 @@ else()
   message(STATUS "${CMAKE_CXX_COMPILER_ID} not recognized, no flags added")
 endif()
 
+# Check if this project is the top directory or build type is Debug
+# If so, build executables, otherwise, only build libraries
+get_directory_property(not_root PARENT_DIRECTORY)
+if (not_root AND "${CMAKE_BUILD_TYPE}" STREQUAL "Release")
+  set(BUILD_EXE OFF)
+else()
+  set(BUILD_EXE ON)
+  message (STATUS "GraphStreamingCC building executables")
+endif()
+
 # Get xxHash
 FetchContent_Declare(
   xxhash
@@ -97,28 +107,30 @@ target_compile_options(GraphStreamingVerifyCC PUBLIC -fopenmp)
 target_link_options(GraphStreamingVerifyCC PUBLIC -fopenmp)
 target_compile_definitions(GraphStreamingVerifyCC PUBLIC XXH_INLINE_ALL VERIFY_SAMPLES_F)
 
-add_executable(tests
-  test/test_runner.cpp
-  test/graph_test.cpp
-  test/sketch_test.cpp
-  test/supernode_test.cpp
-  test/util_test.cpp
-  test/util/file_graph_verifier.cpp
-  test/util/graph_gen.cpp
-  test/util/graph_gen_test.cpp
-  test/util/graph_verifier_test.cpp)
-add_dependencies(tests GraphStreamingVerifyCC)
-target_link_libraries(tests PRIVATE GraphStreamingVerifyCC)
+if (BUILD_EXE)
+  add_executable(tests
+    test/test_runner.cpp
+    test/graph_test.cpp
+    test/sketch_test.cpp
+    test/supernode_test.cpp
+    test/util_test.cpp
+    test/util/file_graph_verifier.cpp
+    test/util/graph_gen.cpp
+    test/util/graph_gen_test.cpp
+    test/util/graph_verifier_test.cpp)
+  add_dependencies(tests GraphStreamingVerifyCC)
+  target_link_libraries(tests PRIVATE GraphStreamingVerifyCC)
 
-add_executable(statistical_test
-  test/statistical_testing/graph_testing.cpp
-  test/util/file_graph_verifier.cpp
-  test/util/graph_gen.cpp)
-add_dependencies(statistical_test GraphStreamingVerifyCC)
-target_link_libraries(statistical_test PRIVATE GraphStreamingVerifyCC)
+  add_executable(statistical_test
+    test/statistical_testing/graph_testing.cpp
+    test/util/file_graph_verifier.cpp
+    test/util/graph_gen.cpp)
+  add_dependencies(statistical_test GraphStreamingVerifyCC)
+  target_link_libraries(statistical_test PRIVATE GraphStreamingVerifyCC)
 
-# executables for experiment/benchmarking
-add_executable(efficient_gen
-  test/util/efficient_gen/edge_gen.cpp
-  test/util/efficient_gen/efficient_gen.cpp)
-target_link_libraries(efficient_gen PRIVATE xxhash GraphZeppelinCommon)
+  # executables for experiment/benchmarking
+  add_executable(efficient_gen
+    test/util/efficient_gen/edge_gen.cpp
+    test/util/efficient_gen/efficient_gen.cpp)
+  target_link_libraries(efficient_gen PRIVATE xxhash GraphZeppelinCommon)
+endif()
