@@ -259,23 +259,26 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
     }
   };
 
-  bool except = false;
-  std::exception_ptr err;
+  try {
+    do {
+      modified = false;
+      sample_supernodes(query, reps);
+      std::vector<std::vector<node_id_t>> to_merge = supernodes_to_merge(query,
+                                                                         reps);
+      // make a copy if necessary
+      if (make_copy && first_round) {
+        backed_up = reps;
+        if (!copy_in_mem) backup_to_disk(backed_up);
+      }
 
-  do {
-    modified = false;
-    sample_supernodes(query, reps);
-    std::vector<std::vector<node_id_t>> to_merge = supernodes_to_merge(query, reps);
-    // make a copy if necessary
-    if(make_copy && first_round) {
-      backed_up = reps;
-      if (!copy_in_mem) backup_to_disk(backed_up);
-    }
+      merge_supernodes(copy_supernodes, reps, to_merge, first_round, make_copy);
 
-    merge_supernodes(copy_supernodes, reps, to_merge, first_round, make_copy);
-
-    first_round = false;
-  } while (modified);
+      first_round = false;
+    } while (modified);
+  } catch (...) {
+    cleanup_copy();
+    std::rethrow_exception(std::current_exception());
+  }
 
   // calculate connected components using DSU structure
   std::map<node_id_t, std::set<node_id_t>> temp;
