@@ -39,6 +39,7 @@ class Graph {
   node_id_t num_nodes;
   long seed;
   bool update_locked = false;
+  bool modified = false;
   // a set containing one "representative" from each supernode
   std::set<node_id_t>* representatives;
   Supernode** supernodes;
@@ -49,14 +50,41 @@ class Graph {
   // Buffering system for batching updates
   BufferingSystem *bf;
 
-  void backup_to_disk(std::vector<node_id_t> ids_to_backup);
-  void restore_from_disk(std::vector<node_id_t> ids_to_restore);
+  void backup_to_disk(const std::vector<node_id_t>& ids_to_backup);
+  void restore_from_disk(const std::vector<node_id_t>& ids_to_restore);
+
+  /**
+   * Update the query array with new samples
+   * @param query  an array of supernode query results
+   * @param reps   an array containing node indices for the representative of each supernode
+   */
+  void sample_supernodes(std::pair<Edge, SampleSketchRet> *query, std::vector<node_id_t> &reps);
+
+  /**
+   * @param copy_supernodes  an array to be filled with supernodes
+   * @param to_merge         an list of lists of supernodes to be merged
+   *
+   */
+  void merge_supernodes(Supernode** copy_supernodes, std::vector<node_id_t> &new_reps,
+                        std::vector<std::vector<node_id_t>> &to_merge, bool first_round,
+                        bool make_copy);
+
+  /**
+   * Run the disjoint set union to determine what supernodes
+   * Should be merged together.
+   * Map from nodes to a vector of nodes to merge with them
+   * @param query  an array of supernode query results
+   * @param reps   an array containing node indices for the representative of each supernode
+   */
+  std::vector<std::vector<node_id_t>> supernodes_to_merge(std::pair<Edge, SampleSketchRet> *query,
+                                                          std::vector<node_id_t> &reps);
 
   /**
    * Main parallel algorithm utilizing Boruvka and L_0 sampling.
    * @return a vector of the connected components in the graph.
    */
   std::vector<std::set<node_id_t>> boruvka_emulation(bool make_copy);
+
 
   std::string backup_file; // where to backup the supernodes
   bool copy_in_mem = false; // should backups be made in memory or on disk
@@ -131,9 +159,4 @@ public:
   std::chrono::steady_clock::time_point flush_end;
   std::chrono::steady_clock::time_point cc_alg_start;
   std::chrono::steady_clock::time_point cc_alg_end;
-  std::chrono::steady_clock::time_point create_backup_start;
-  std::chrono::steady_clock::time_point create_backup_end;
-  std::chrono::steady_clock::time_point restore_backup_start;
-  std::chrono::steady_clock::time_point restore_backup_end;
 };
-

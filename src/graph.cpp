@@ -118,13 +118,116 @@ void Graph::batch_update(node_id_t src, const std::vector<size_t> &edges, Supern
   supernodes[src]->apply_delta_update(delta_loc);
 }
 
+inline void Graph::sample_supernodes(std::pair<Edge, SampleSketchRet> *query,
+               std::vector<node_id_t> &reps) {
+  bool except = false;
+  std::exception_ptr err;
+  #pragma omp parallel for default(none) shared(query, reps, except, err)
+  for (node_id_t i = 0; i < reps.size(); ++i) { // NOLINT(modernize-loop-convert)
+    // wrap in a try/catch because exiting through exception is undefined behavior in OMP
+    try {
+      query[reps[i]] = supernodes[reps[i]]->sample();
+
+    } catch (...) {
+      except = true;
+      err = std::current_exception();
+    }
+  }
+  // Did one of our threads produce an exception?
+  if (except) std::rethrow_exception(err);
+}
+
+inline std::vector<std::vector<node_id_t>> Graph::supernodes_to_merge(std::pair<Edge, SampleSketchRet>
+               *query, std::vector<node_id_t> &reps) {
+  node_id_t size[num_nodes];
+  std::fill(size, size + num_nodes, 1);
+  std::vector<std::vector<node_id_t>> to_merge(num_nodes);
+  std::vector<node_id_t> new_reps;
+  for (auto i : reps) {
+    // unpack query result
+    Edge edge = query[i].first;
+    SampleSketchRet ret_code = query[i].second;
+
+    // try this query again next round as it failed this round
+    if (ret_code == FAIL) {
+      modified = true;
+      new_reps.push_back(i);
+      continue;
+    }
+    if (ret_code == ZERO) {
+#ifdef VERIFY_SAMPLES_F
+      verifier->verify_cc(i);
+#endif
+      continue;
+    }
+
+    // query dsu
+    node_id_t a = get_parent(edge.first);
+    node_id_t b = get_parent(edge.second);
+    if (a == b) continue;
+
+#ifdef VERIFY_SAMPLES_F
+    verifier->verify_edge(edge);
+#endif
+
+    // make a the parent of b
+    if (size[a] < size[b]) std::swap(a,b);
+    parent[b] = a;
+    size[a] += size[b];
+
+    // add b and any of the nodes to merge with it to a's vector
+    to_merge[a].push_back(b);
+    to_merge[a].insert(to_merge[a].end(), to_merge[b].begin(), to_merge[b].end());
+    to_merge[b].clear();
+    modified = true;
+  }
+
+  // remove nodes added to new_reps due to sketch failures that
+  // did end up being able to merge after all
+  std::vector<node_id_t> temp_vec;
+  for (node_id_t a : new_reps)
+    if (to_merge[a].size() == 0) temp_vec.push_back(a);
+  std::swap(new_reps, temp_vec);
+
+  // add to new_reps all the nodes we will merge into
+  for (node_id_t a = 0; a < num_nodes; a++)
+    if (to_merge[a].size() != 0) new_reps.push_back(a);
+
+  reps = new_reps;
+  return to_merge;
+}
+
+inline void Graph::merge_supernodes(Supernode** copy_supernodes, std::vector<node_id_t> &new_reps,
+               std::vector<std::vector<node_id_t>> &to_merge, bool first_round, bool make_copy) {
+  bool except = false;
+  std::exception_ptr err;
+  // loop over the to_merge vector and perform supernode merging
+  #pragma omp parallel for default(shared)
+  for (node_id_t i = 0; i < new_reps.size(); i++) { // NOLINT(modernize-loop-convert)
+    node_id_t a = new_reps[i];
+    try {
+      if (make_copy && first_round && copy_in_mem) // make a copy of a
+        copy_supernodes[a] = Supernode::makeSupernode(*supernodes[a]);
+
+      // perform merging of nodes b into node a
+      for (node_id_t b : to_merge[a]) {
+        supernodes[a]->merge(*supernodes[b]);
+      }
+    } catch (...) {
+      except = true;
+      err = std::current_exception();
+    }
+  }
+
+  // Did one of our threads produce an exception?
+  if (except) std::rethrow_exception(err);
+}
+
 std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
-  cc_alg_start = std::chrono::steady_clock::now();
   printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
   update_locked = true; // disallow updating the graph after we run the alg
 
   cc_alg_start = std::chrono::steady_clock::now();
-  bool modified;
   bool first_round = true;
   Supernode** copy_supernodes;
   if (make_copy && copy_in_mem) 
@@ -140,6 +243,7 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
       copy_supernodes[i] = nullptr;
   }
 
+  // function to restore supernodes after CC if make_copy is specified
   auto cleanup_copy = [&make_copy, this, &backed_up, &copy_supernodes]() {
     if (make_copy) {
       if(copy_in_mem) {
@@ -160,111 +264,17 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
 
   do {
     modified = false;
-
-    #pragma omp parallel for default(none) shared(query, reps, except, err, modified)
-    for (node_id_t i = 0; i < reps.size(); ++i) { // NOLINT(modernize-loop-convert)
-      // wrap in a try/catch because exiting through exception is undefined behavior in OMP
-      try {
-        query[reps[i]] = supernodes[reps[i]]->sample();
-
-      } catch (...) {
-        except = true;
-        err = std::current_exception();
-      }
-    }
-    // Did one of our threads produce an exception?
-    if (except) {
-      cleanup_copy();
-      std::rethrow_exception(err);
-    }
-
-    // Run the disjoint set union to determine what supernodes
-    // Should be merged together. 
-    // Map from nodes to a vector of nodes to merge with them
-    std::vector<std::vector<node_id_t>> to_merge(num_nodes);
-    std::vector<node_id_t> new_reps;
-    for (auto i : reps) {
-      // unpack query result
-      Edge edge = query[i].first;
-      SampleSketchRet ret_code = query[i].second;
-
-      // try this query again next round as it failed this round
-      if (ret_code == FAIL) {
-        modified = true; 
-        new_reps.push_back(i); 
-        continue;
-      } 
-      if (ret_code == ZERO) {
-#ifdef VERIFY_SAMPLES_F
-        verifier->verify_cc(i);
-#endif
-        continue;
-      }
-
-      // query dsu
-      node_id_t a = get_parent(edge.first);
-      node_id_t b = get_parent(edge.second);
-      if (a == b) continue;
-
-#ifdef VERIFY_SAMPLES_F
-      verifier->verify_edge(edge);
-#endif
-
-      // make a the parent of b
-      if (size[a] < size[b]) std::swap(a,b);
-      parent[b] = a;
-      size[a] += size[b];
-
-      // add b and any of the nodes to merge with it to a's vector
-      to_merge[a].push_back(b);
-      to_merge[a].insert(to_merge[a].end(), to_merge[b].begin(), to_merge[b].end());
-      to_merge[b].clear();
-      modified = true;
-    }
-
-    // remove nodes added to new_reps due to sketch failures that
-    // did end up being able to merge after all
-    std::vector<node_id_t> temp_vec;
-    for (node_id_t a : new_reps)
-      if (to_merge[a].size() == 0) temp_vec.push_back(a);
-    std::swap(new_reps, temp_vec);
-
-    // add to new_reps all the nodes we will merge into
-    for (node_id_t a = 0; a < num_nodes; a++)
-      if (to_merge[a].size() != 0) new_reps.push_back(a);
-
+    sample_supernodes(query, reps);
+    std::vector<std::vector<node_id_t>> to_merge = supernodes_to_merge(query, reps);
     // make a copy if necessary
     if(make_copy && first_round) {
-      backed_up = new_reps;
+      backed_up = reps;
       if (!copy_in_mem) backup_to_disk(backed_up);
     }
 
-    // loop over the to_merge vector and perform supernode merging
-    #pragma omp parallel for default(none) shared(first_round, make_copy, copy_supernodes, new_reps, to_merge, except, err)
-    for (node_id_t i = 0; i < new_reps.size(); i++) {
-      node_id_t a = new_reps[i]; // fix for ubuntu18.04 ('for each' style in omp no good)
-      try {
-        if (make_copy && first_round && copy_in_mem) // make a copy of a
-          copy_supernodes[a] = Supernode::makeSupernode(*supernodes[a]);
-        
-        // perform merging of nodes b into node a
-        for (node_id_t b : to_merge[a]) {
-          supernodes[a]->merge(*supernodes[b]);
-        }
-      } catch (...) {
-        except = true;
-        err = std::current_exception();
-      } 
-    }
+    merge_supernodes(copy_supernodes, reps, to_merge, first_round, make_copy);
 
-    // Did one of our threads produce an exception?
-    if (except) {
-      cleanup_copy();
-      std::rethrow_exception(err);
-    }
-    
     first_round = false;
-    std::swap(reps, new_reps);
   } while (modified);
 
   // calculate connected components using DSU structure
@@ -281,7 +291,7 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
   return retval;
 }
 
-void Graph::backup_to_disk(std::vector<node_id_t> ids_to_backup) {
+void Graph::backup_to_disk(const std::vector<node_id_t>& ids_to_backup) {
   // Make a copy on disk
   std::fstream binary_out(backup_file, std::ios::out | std::ios::binary);
   if (!binary_out.is_open()) {
@@ -296,7 +306,7 @@ void Graph::backup_to_disk(std::vector<node_id_t> ids_to_backup) {
 
 // given a list of ids restore those supernodes from disk
 // IMPORTANT: ids_to_restore must be the same as ids_to_backup
-void Graph::restore_from_disk(std::vector<node_id_t> ids_to_restore) {
+void Graph::restore_from_disk(const std::vector<node_id_t>& ids_to_restore) {
   // restore from disk
   std::fstream binary_in(backup_file, std::ios::in | std::ios::binary);
   if (!binary_in.is_open()) {
