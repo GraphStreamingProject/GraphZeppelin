@@ -139,10 +139,11 @@ if (BUILD_EXE)
 
   add_executable(xxhash_bench
     test/experiment/xxhash_speed.cpp
-      )
+    src/l0_sampling/pmshash.cpp)
   target_link_libraries(xxhash_bench PRIVATE xxhash)
   target_compile_definitions(xxhash_bench PRIVATE XXH_INLINE_ALL)
 
   add_executable(mmp_bench
-    test/experiment/mmp_hash.cpp)
+    test/experiment/mmp_hash.cpp
+    src/l0_sampling/pmshash.cpp)
 endif()
