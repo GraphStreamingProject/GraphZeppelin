@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
 #include <string>
-#include "../../include/graph.h"
-#include "../../include/binary_graph_stream.h"
-#include "../util/graph_verifier.h"
-#include "../util/graph_gen.h"
+#include "graph.h"
+#include "binary_graph_stream.h"
+#include "graph_verifier.h"
+#include "graph_gen.h"
 
 TEST(Benchmark, BCHMKGraph) {
   BinaryGraphStream stream("/mnt/ssd2/binary_streams/kron_13_stream_binary", 32 * 1024);

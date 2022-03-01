@@ -1,8 +1,8 @@
 #include <iostream>
-#include "../../include/graph.h"
-#include "../../include/test/graph_gen.h"
-#include "../../include/test/write_configuration.h"
-#include "../../include/test/file_graph_verifier.h"
+#include "graph.h"
+#include "graph_gen.h"
+#include "write_configuration.h"
+#include "file_graph_verifier.h"
 
 static inline int do_run() {
     std::ifstream in{"./sample.txt"};

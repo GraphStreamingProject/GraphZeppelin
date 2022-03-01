@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <fstream>
-#include "../../include/supernode.h"
-#include "../../include/graph.h"
+#include "supernode.h"
+#include "graph.h"
 
 TEST(Benchmark, BCHMKpostProcOnPaperclipGraph) {
   const std::string fname = __FILE__;

@@ -2,7 +2,7 @@
 #include <cmath>
 #include <chrono>
 #include <omp.h>
-#include "../../include/supernode.h"
+#include "supernode.h"
 
 void parallel_test(unsigned long vec_size, unsigned long num_updates) {
   srand(time(NULL));

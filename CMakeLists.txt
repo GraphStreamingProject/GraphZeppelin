@@ -135,7 +135,7 @@ if (BUILD_EXE)
   target_link_libraries(tests PRIVATE GraphStreamingVerifyCC)
 
   add_executable(statistical_test
-    test/statistical_testing/graph_testing.cpp
+    tools/statistical_testing/graph_testing.cpp
     test/util/file_graph_verifier.cpp
     test/util/graph_gen.cpp)
   add_dependencies(statistical_test GraphStreamingVerifyCC)
@@ -150,7 +150,7 @@ endif()
 
 if (BUILD_BENCH)
   add_executable(bench_cc
-    bench/graphcc_bench.cpp)
+    tools/benchmark/graphcc_bench.cpp)
   add_dependencies(bench_cc GraphStreamingCC benchmark)
   target_link_libraries(bench_cc GraphStreamingCC benchmark::benchmark xxhash)
 endif()
