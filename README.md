@@ -22,7 +22,7 @@ To switch back to the optimized version of the code without the symbol table red
 Other build types are available as well, but these should be the only two you need.
 
 ## Benchmarking
-The `bench` directory provides a number of benchmarks that allow for fine tuned performance testing of various parts of the system. These benchmarks are not built by default and require a Linux system. Some optional benchmarks additionally require root access. More information can be found in the benchmark docs.
+The `tools/benchmark` directory provides a number of benchmarks that allow for fine tuned performance testing of various parts of the system. These benchmarks are not built by default and require a Linux machine. Some optional benchmarks additionally require root access. More information can be found in the [benchmark documentation](/tools/benchmark/BENCH.md).
 
 To build the benchmarks perform the following steps.
 1. Initialize cmake with the BUILD_BENCH flag `cmake -DBUILD_BENCH:BOOL=ON ..` (recommended to use the Release build type)
