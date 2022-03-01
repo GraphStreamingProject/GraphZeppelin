@@ -3,12 +3,21 @@
 #include <cstring>
 #include "graph.h"
 
+class BadStreamException : public std::exception {
+  virtual const char* what() const throw() {
+    return "The stream file was not correctly opened. Does it exist?";
+  }
+};
+
 // A class for reading from a binary graph stream
 class BinaryGraphStream {
 public:
   BinaryGraphStream(std::string file_name, uint32_t _b) {
     bin_file.open(file_name.c_str(), std::ios_base::in | std::ios_base::binary);
 
+    if (!bin_file.is_open()) {
+      throw BadStreamException();
+    }
     // set the buffer size to be a multiple of an edge size and malloc memory
     buf_size = _b - (_b % edge_size);
     buf = (char *) malloc(buf_size * sizeof(char));
