@@ -6,6 +6,7 @@
 
 #include "binary_graph_stream.h"
 #include "bucket.h"
+#include "l0_sampling/pmshash.h"
 #include "test/sketch_constructors.h"
 
 constexpr uint64_t KB   = 1024;
@@ -84,6 +85,21 @@ static void BM_Hash_XXH3_64(benchmark::State &state) {
   state.counters["Hashes"] = benchmark::Counter(state.iterations() * num_hashes, benchmark::Counter::kIsRate);
 }
 BENCHMARK(BM_Hash_XXH3_64)->Arg(1)->Arg(100)->Arg(10000);
+
+static void BM_Hash_XXPMS64(benchmark::State &state) {
+  uint64_t num_seeds = 8;
+  uint64_t num_hashes = state.range(0);
+  uint64_t output;
+  for (auto _ : state) {
+    for (uint64_t h = 0; h < num_seeds; h++) {
+      for (uint64_t i = 0; i < num_hashes; i++) {
+        benchmark::DoNotOptimize(output = XXPMS64(i, seed + h));
+      }
+    }
+  }
+  state.counters["Hashes"] = benchmark::Counter(state.iterations() * num_hashes, benchmark::Counter::kIsRate);
+}
+BENCHMARK(BM_Hash_XXPMS64)->Arg(1)->Arg(100)->Arg(10000);
 
 static void BM_Hash_bucket(benchmark::State &state) {
   uint64_t num_seeds = 8;

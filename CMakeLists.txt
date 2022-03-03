@@ -37,14 +37,6 @@ else()
   message (STATUS "GraphStreamingCC building executables")
 endif()
 
-# Get xxHash
-FetchContent_Declare(
-  xxhash
-
-  GIT_REPOSITORY "https://github.com/Cyan4973/xxHash.git"
-  GIT_TAG        "v0.8.0"
-)
-
 # Get GutterTree Project
 FetchContent_Declare(
   GutterTree
@@ -60,30 +52,39 @@ FetchContent_Declare(
 if (BUILD_BENCH)
   # Get Google Benchmark
   FetchContent_Declare(
-    benchmark
+      benchmark
 
-    GIT_REPOSITORY "https://github.com/google/benchmark"
-    GIT_TAG        "v1.6.1"
+      GIT_REPOSITORY "https://github.com/google/benchmark"
+      GIT_TAG        "v1.6.1"
   )
   set(BENCHMARK_ENABLE_GTEST_TESTS OFF)
 
-  FetchContent_MakeAvailable(benchmark)
+  # Get xxHash
+  FetchContent_Declare(
+      xxhash
+
+      GIT_REPOSITORY "https://github.com/Cyan4973/xxHash.git"
+      GIT_TAG        "v0.8.0"
+  )
+
+  FetchContent_MakeAvailable(xxhash benchmark)
+
+  #####
+  # Some additional steps for xxHash as it is unofficial
+  #####
+  #xxHash messes with BUILD_SHARED_LIBS if it is empty
+  set(SAVED_BUILD_SHARED_LIBS "${BUILD_SHARED_LIBS}")
+
+  add_subdirectory(
+      "${xxhash_SOURCE_DIR}/cmake_unofficial"
+      "${xxhash_BINARY_DIR}"
+      EXCLUDE_FROM_ALL
+  )
+  #Restore BUILD_SHARED_LIBS
+  set(BUILD_SHARED_LIBS "${SAVED_BUILD_SHARED_LIBS}" CACHE BOOL "" FORCE)
 endif()
 
-FetchContent_MakeAvailable(xxHash GutterTree)
-#####
-# Some additional steps for xxHash as it is unofficial
-#####
-#xxHash messes with BUILD_SHARED_LIBS if it is empty
-set(SAVED_BUILD_SHARED_LIBS "${BUILD_SHARED_LIBS}")
-
-add_subdirectory(
-  "${xxhash_SOURCE_DIR}/cmake_unofficial"
-  "${xxhash_BINARY_DIR}"
-  EXCLUDE_FROM_ALL
-)
-#Restore BUILD_SHARED_LIBS
-set(BUILD_SHARED_LIBS "${SAVED_BUILD_SHARED_LIBS}" CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(GutterTree)
 
 
 # AVAILABLE COMPILATION DEFINITIONS:
@@ -99,7 +100,7 @@ add_library(GraphStreamingCC
   src/l0_sampling/pmshash.cpp
   src/util.cpp)
 add_dependencies(GraphStreamingCC GutterTree)
-target_link_libraries(GraphStreamingCC PUBLIC xxhash GutterTree)
+target_link_libraries(GraphStreamingCC PUBLIC GutterTree)
 target_include_directories(GraphStreamingCC PUBLIC include/ include/l0_sampling/)
 target_compile_options(GraphStreamingCC PUBLIC -fopenmp)
 target_link_options(GraphStreamingCC PUBLIC -fopenmp)
@@ -116,7 +117,7 @@ add_library(GraphStreamingVerifyCC
   test/util/file_graph_verifier.cpp
   test/util/mat_graph_verifier.cpp)
 add_dependencies(GraphStreamingVerifyCC GutterTree)
-target_link_libraries(GraphStreamingVerifyCC PUBLIC xxhash GutterTree)
+target_link_libraries(GraphStreamingVerifyCC PUBLIC GutterTree)
 target_include_directories(GraphStreamingVerifyCC PUBLIC include/ include/l0_sampling/ include/test/)
 target_compile_options(GraphStreamingVerifyCC PUBLIC -fopenmp)
 target_link_options(GraphStreamingVerifyCC PUBLIC -fopenmp)
@@ -146,19 +147,9 @@ if (BUILD_EXE)
   # executables for experiment/benchmarking
   add_executable(efficient_gen
     test/util/efficient_gen/edge_gen.cpp
-    test/util/efficient_gen/efficient_gen.cpp)
-  target_link_libraries(efficient_gen PRIVATE xxhash GraphZeppelinCommon)
-
-
-  add_executable(xxhash_bench
-    test/experiment/xxhash_speed.cpp
+    test/util/efficient_gen/efficient_gen.cpp
     src/l0_sampling/pmshash.cpp)
-  target_link_libraries(xxhash_bench PRIVATE xxhash)
-  target_compile_definitions(xxhash_bench PRIVATE XXH_INLINE_ALL)
-
-  add_executable(mmp_bench
-    test/experiment/mmp_hash.cpp
-    src/l0_sampling/pmshash.cpp)
+  target_link_libraries(efficient_gen PRIVATE GraphZeppelinCommon)
 endif()
 
 if (BUILD_BENCH)
