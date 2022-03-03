@@ -76,7 +76,7 @@ public:
 
   ~Supernode();
 
-  static inline void configure(uint64_t n, int sketch_fail_factor=100) {
+  static inline void configure(uint64_t n, vec_t sketch_fail_factor=100) {
     Sketch::configure(n*n, sketch_fail_factor);
     bytes_size = sizeof(Supernode) + log2(n)/(log2(3)-1) * Sketch::sketchSizeof() - sizeof(char);
   }

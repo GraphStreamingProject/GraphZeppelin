@@ -57,6 +57,19 @@ FetchContent_Declare(
     -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
 )
 
+if (BUILD_BENCH)
+  # Get Google Benchmark
+  FetchContent_Declare(
+    benchmark
+
+    GIT_REPOSITORY "https://github.com/google/benchmark"
+    GIT_TAG        "v1.6.1"
+  )
+  set(BENCHMARK_ENABLE_GTEST_TESTS OFF)
+
+  FetchContent_MakeAvailable(benchmark)
+endif()
+
 FetchContent_MakeAvailable(xxHash GutterTree)
 #####
 # Some additional steps for xxHash as it is unofficial
@@ -124,7 +137,7 @@ if (BUILD_EXE)
   target_link_libraries(tests PRIVATE GraphStreamingVerifyCC)
 
   add_executable(statistical_test
-    test/statistical_testing/graph_testing.cpp
+    tools/statistical_testing/graph_testing.cpp
     test/util/file_graph_verifier.cpp
     test/util/graph_gen.cpp)
   add_dependencies(statistical_test GraphStreamingVerifyCC)
@@ -146,4 +159,11 @@ if (BUILD_EXE)
   add_executable(mmp_bench
     test/experiment/mmp_hash.cpp
     src/l0_sampling/pmshash.cpp)
+endif()
+
+if (BUILD_BENCH)
+  add_executable(bench_cc
+    tools/benchmark/graphcc_bench.cpp)
+  add_dependencies(bench_cc GraphStreamingCC benchmark)
+  target_link_libraries(bench_cc GraphStreamingCC benchmark::benchmark xxhash)
 endif()
