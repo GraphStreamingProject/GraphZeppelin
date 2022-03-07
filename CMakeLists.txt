@@ -41,30 +41,26 @@ endif()
 FetchContent_Declare(
   GutterTree
 
-  GIT_REPOSITORY  "https://github.com/GraphStreamingProject/GutterTree.git"
-  GIT_TAG         "main"
-
-  UPDATE_DISCONNECTED OFF
-  CMAKE_CACHE_ARGS
-    -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+  GIT_REPOSITORY  https://github.com/GraphStreamingProject/GutterTree.git
+  GIT_TAG         main
 )
 
 if (BUILD_BENCH)
   # Get Google Benchmark
   FetchContent_Declare(
-      benchmark
+    benchmark
 
-      GIT_REPOSITORY "https://github.com/google/benchmark"
-      GIT_TAG        "v1.6.1"
+    GIT_REPOSITORY https://github.com/google/benchmark
+    GIT_TAG        v1.6.1
   )
   set(BENCHMARK_ENABLE_GTEST_TESTS OFF)
 
   # Get xxHash
   FetchContent_Declare(
-      xxhash
+    xxhash
 
-      GIT_REPOSITORY "https://github.com/Cyan4973/xxHash.git"
-      GIT_TAG        "v0.8.0"
+    GIT_REPOSITORY https://github.com/Cyan4973/xxHash.git
+    GIT_TAG        v0.8.0
   )
 
   FetchContent_MakeAvailable(xxhash benchmark)
