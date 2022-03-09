@@ -302,7 +302,6 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
 
 void Graph::backup_to_disk(const std::vector<node_id_t>& ids_to_backup) {
   // Make a copy on disk
-  std::cout << "Backing up to disk" << std::endl;
   std::fstream binary_out(backup_file, std::ios::out | std::ios::binary);
   if (!binary_out.is_open()) {
     std::cerr << "Failed to open file for writing backup!" << backup_file << std::endl;

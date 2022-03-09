@@ -23,7 +23,6 @@ class Supernode {
   FRIEND_TEST(SupernodeTestSuite, TestSerialization);
   FRIEND_TEST(GraphTestSuite, TestCorrectnessOfReheating);
   FRIEND_TEST(GraphTest, TestSupernodeRestoreAfterCCFailure);
-  FRIEND_TEST(GraphTest, TestWritingToDiskDoesntFuckThings);
   FRIEND_TEST(EXPR_Parallelism, N10kU100k);
 
 public:

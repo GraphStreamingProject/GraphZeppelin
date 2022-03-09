@@ -91,7 +91,6 @@ class Graph {
 
   FRIEND_TEST(GraphTestSuite, TestCorrectnessOfReheating);
   FRIEND_TEST(GraphTest, TestSupernodeRestoreAfterCCFailure);
-  FRIEND_TEST(GraphTest, TestWritingToDiskDoesntFuckThings);
 
   static bool open_graph;
 public:
