@@ -42,9 +42,9 @@ std::tuple<bool, bool, std::string> configure_system() {
       if (line[0] == '#' || line[0] == '\n') continue;
       if(line.substr(0, line.find('=')) == "buffering_system") {
         std::string buf_str = line.substr(line.find('=') + 1);
-        if (buf_str == "standalone") {
-          use_guttertree = false;
-        } else if (buf_str != "tree") {
+        if (buf_str == "tree") {
+          use_guttertree = true;
+        } else if (buf_str != "standalone") {
           printf("WARNING: string %s is not a valid option for " 
                 "buffering. Defaulting to StandAloneGutters.\n", buf_str.c_str());
         }
@@ -54,11 +54,11 @@ std::tuple<bool, bool, std::string> configure_system() {
       }
       if(line.substr(0, line.find('=')) == "backup_in_mem") {
         std::string flag = line.substr(line.find('=') + 1);
-	if (flag == "ON")
+        if (flag == "ON")
           backup_in_mem = true;
-	else if (flag == "OFF")
+        else if (flag == "OFF")
           backup_in_mem = false;
-	else
+        else
           printf("WARNING: string %s is not a valid option for backup_in_mem"
                  "Defaulting to ON.\n", flag.c_str());
       }
