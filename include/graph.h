@@ -45,6 +45,7 @@ class Graph {
   Supernode** supernodes;
   // DSU representation of supernode relationship
   node_id_t* parent;
+  node_id_t* size;
   node_id_t get_parent(node_id_t node);
 
   // Buffering system for batching updates
@@ -76,7 +77,7 @@ class Graph {
    * @param reps   an array containing node indices for the representative of each supernode
    */
   std::vector<std::vector<node_id_t>> supernodes_to_merge(std::pair<Edge, SampleSketchRet> *query,
-                                                          std::vector<node_id_t> &reps);
+                        std::vector<node_id_t> &reps);
 
   /**
    * Main parallel algorithm utilizing Boruvka and L_0 sampling.
@@ -89,6 +90,9 @@ class Graph {
   bool copy_in_mem = false; // should backups be made in memory or on disk
 
   FRIEND_TEST(GraphTestSuite, TestCorrectnessOfReheating);
+  FRIEND_TEST(GraphTest, TestSupernodeRestoreAfterCCFailure);
+  FRIEND_TEST(GraphTest, TestWritingToDiskDoesntFuckThings);
+
   static bool open_graph;
 public:
   explicit Graph(node_id_t num_nodes);
@@ -127,6 +131,10 @@ public:
   void set_verifier(std::unique_ptr<GraphVerifier> verifier) {
     this->verifier = std::move(verifier);
   }
+
+  // to induce a failure mid-CC
+  bool fail_round_2 = false;
+  void should_fail_CC() { fail_round_2 = true; }
 #endif
 
   // temp to verify number of updates -- REMOVE later

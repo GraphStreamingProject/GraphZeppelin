@@ -22,10 +22,12 @@ Graph::Graph(node_id_t num_nodes): num_nodes(num_nodes) {
   representatives = new std::set<node_id_t>();
   supernodes = new Supernode*[num_nodes];
   parent = new node_id_t[num_nodes];
+  size = new node_id_t[num_nodes];
   seed = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
   std::mt19937_64 r(seed);
   seed = r();
 
+  std::fill(size, size + num_nodes, 1);
   for (node_id_t i = 0; i < num_nodes; ++i) {
     representatives->insert(i);
     supernodes[i] = Supernode::makeSupernode(num_nodes,seed);
@@ -63,6 +65,8 @@ Graph::Graph(const std::string& input_file) : num_updates(0) {
   representatives = new std::set<node_id_t>();
   supernodes = new Supernode*[num_nodes];
   parent = new node_id_t[num_nodes];
+  size = new node_id_t[num_nodes];
+  std::fill(size, size+num_nodes, 1);
   for (node_id_t i = 0; i < num_nodes; ++i) {
     representatives->insert(i);
     supernodes[i] = Supernode::makeSupernode(num_nodes, seed, binary_in);
@@ -89,6 +93,7 @@ Graph::~Graph() {
     free(supernodes[i]); // free because memory is malloc'd in make_supernode
   delete[] supernodes;
   delete[] parent;
+  delete[] size;
   delete representatives;
   GraphWorker::stop_workers(); // join the worker threads
   delete bf;
@@ -139,8 +144,6 @@ inline void Graph::sample_supernodes(std::pair<Edge, SampleSketchRet> *query,
 
 inline std::vector<std::vector<node_id_t>> Graph::supernodes_to_merge(std::pair<Edge, SampleSketchRet>
                *query, std::vector<node_id_t> &reps) {
-  node_id_t size[num_nodes];
-  std::fill(size, size + num_nodes, 1);
   std::vector<std::vector<node_id_t>> to_merge(num_nodes);
   std::vector<node_id_t> new_reps;
   for (auto i : reps) {
@@ -207,8 +210,9 @@ inline void Graph::merge_supernodes(Supernode** copy_supernodes, std::vector<nod
     // OMP requires a traditional for-loop to work
     node_id_t a = new_reps[i];
     try {
-      if (make_copy && copy_in_mem) // make a copy of a
+      if (make_copy && copy_in_mem) { // make a copy of a
         copy_supernodes[a] = Supernode::makeSupernode(*supernodes[a]);
+      }
 
       // perform merging of nodes b into node a
       for (node_id_t b : to_merge[a]) {
@@ -234,7 +238,6 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
   if (make_copy && copy_in_mem) 
     copy_supernodes = new Supernode*[num_nodes];
   std::pair<Edge, SampleSketchRet> query[num_nodes];
-  node_id_t size[num_nodes];
   std::vector<node_id_t> reps(num_nodes);
   std::vector<node_id_t> backed_up;
   std::fill(size, size + num_nodes, 1);
@@ -264,8 +267,7 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
     do {
       modified = false;
       sample_supernodes(query, reps);
-      std::vector<std::vector<node_id_t>> to_merge = supernodes_to_merge(query,
-                                                                         reps);
+      std::vector<std::vector<node_id_t>> to_merge = supernodes_to_merge(query, reps);
       // make a copy if necessary
       if (make_copy && first_round) {
         backed_up = reps;
@@ -274,6 +276,9 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
 
       merge_supernodes(copy_supernodes, reps, to_merge, first_round && make_copy);
 
+#ifdef VERIFY_SAMPLES_F
+      if (!first_round && fail_round_2) throw OutOfQueriesException();
+#endif
       first_round = false;
     } while (modified);
   } catch (...) {
@@ -297,6 +302,7 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
 
 void Graph::backup_to_disk(const std::vector<node_id_t>& ids_to_backup) {
   // Make a copy on disk
+  std::cout << "Backing up to disk" << std::endl;
   std::fstream binary_out(backup_file, std::ios::out | std::ios::binary);
   if (!binary_out.is_open()) {
     std::cerr << "Failed to open file for writing backup!" << backup_file << std::endl;
@@ -349,6 +355,7 @@ std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
   for (node_id_t i = 0; i < num_nodes; i++) {
     supernodes[i]->reset_query_state();
     parent[i] = i;
+    size[i] = 1;
   }
   update_locked = false;
   GraphWorker::unpause_workers();
