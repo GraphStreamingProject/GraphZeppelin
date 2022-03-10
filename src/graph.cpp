@@ -95,7 +95,7 @@ Graph::~Graph() {
   open_graph = false;
 }
 
-void Graph::generate_delta_node(node_id_t node_n, long node_seed, node_id_t
+void Graph::generate_delta_node(node_id_t node_n, uint64_t node_seed, node_id_t
                src, const std::vector<size_t> &edges, Supernode *delta_loc) {
   std::vector<vec_t> updates;
   updates.reserve(edges.size());

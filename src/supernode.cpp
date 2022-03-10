@@ -5,7 +5,7 @@
 
 uint32_t Supernode::bytes_size;
 
-Supernode::Supernode(uint64_t n, long seed): idx(0), num_sketches(log2(n)/(log2(3)-1)),
+Supernode::Supernode(uint64_t n, uint64_t seed): idx(0), num_sketches(log2(n)/(log2(3)-1)),
                n(n), seed(seed), sketch_size(Sketch::sketchSizeof()) {
 
   uint32_t sketch_width = guess_gen(Sketch::get_failure_factor());
@@ -16,7 +16,7 @@ Supernode::Supernode(uint64_t n, long seed): idx(0), num_sketches(log2(n)/(log2(
   }
 }
 
-Supernode::Supernode(uint64_t n, long seed, std::istream &binary_in) :
+Supernode::Supernode(uint64_t n, uint64_t seed, std::istream &binary_in) :
   idx(0), num_sketches(log2(n)/(log2(3)-1)), n(n), seed(seed), sketch_size(Sketch::sketchSizeof()) {
 
   uint32_t sketch_width = guess_gen(Sketch::get_failure_factor());
@@ -34,17 +34,17 @@ Supernode::Supernode(const Supernode& s) : idx(s.idx), num_sketches(s.num_sketch
   }
 }
 
-Supernode* Supernode::makeSupernode(uint64_t n, long seed) {
+Supernode* Supernode::makeSupernode(uint64_t n, uint64_t seed) {
   void *loc = malloc(bytes_size);
   return new (loc) Supernode(n, seed);
 }
 
-Supernode* Supernode::makeSupernode(uint64_t n, long seed, std::istream &binary_in) {
+Supernode* Supernode::makeSupernode(uint64_t n, uint64_t seed, std::istream &binary_in) {
   void *loc = malloc(bytes_size);
   return new (loc) Supernode(n, seed, binary_in);
 }
 
-Supernode* Supernode::makeSupernode(void* loc, uint64_t n, long seed) {
+Supernode* Supernode::makeSupernode(void* loc, uint64_t n, uint64_t seed) {
   return new (loc) Supernode(n, seed);
 }
 
@@ -106,7 +106,7 @@ void Supernode::apply_delta_update(const Supernode* delta_node) {
  * Considered using spin-threads and parallelism within sketch::update, but
  * this was slow (at least on small graph inputs).
  */
-void Supernode::delta_supernode(uint64_t n, long seed,
+void Supernode::delta_supernode(uint64_t n, uint64_t seed,
                const std::vector<vec_t> &updates, void *loc) {
   auto delta_node = makeSupernode(loc, n, seed);
 #pragma omp parallel for num_threads(GraphWorker::get_group_size()) default(shared)

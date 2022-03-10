@@ -38,7 +38,7 @@ class MultipleGraphsException : public std::exception {
 class Graph {
 protected:
   node_id_t num_nodes;
-  long seed;
+  uint64_t seed;
   bool update_locked = false;
   bool modified = false;
   // a set containing one "representative" from each supernode
@@ -145,7 +145,7 @@ public:
    *                   calling thread.
    * @returns nothing (supernode delta is in delta_loc).
    */
-  static void generate_delta_node(node_id_t node_n, long node_seed, node_id_t src,
+  static void generate_delta_node(node_id_t node_n, uint64_t node_seed, node_id_t src,
                                   const std::vector<size_t> &edges, Supernode *delta_loc);
 
   /**

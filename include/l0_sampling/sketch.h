@@ -36,7 +36,7 @@ private:
   static size_t num_guesses;       // Portion of array length, number of guesses
 
   // Seed used for hashing operations in this sketch.
-  const long seed;
+  const uint64_t seed;
   // pointers to buckets
   vec_t*      bucket_a;
   vec_hash_t* bucket_c;
@@ -55,8 +55,8 @@ private:
   char buckets[1];
 
   // private constructors -- use makeSketch
-  Sketch(long seed);
-  Sketch(long seed, std::istream &binary_in);
+  Sketch(uint64_t seed);
+  Sketch(uint64_t seed, std::istream &binary_in);
   Sketch(const Sketch& s);
 
 public:
@@ -68,8 +68,8 @@ public:
    * @param binary_in  (Optional) A file which holds an encoding of a sketch
    * @return           A pointer to a newly constructed sketch 
    */
-  static Sketch* makeSketch(void* loc, long seed);
-  static Sketch* makeSketch(void* loc, long seed, std::istream &binary_in);
+  static Sketch* makeSketch(void* loc, uint64_t seed);
+  static Sketch* makeSketch(void* loc, uint64_t seed, std::istream &binary_in);
   
   /**
    * Copy constructor to create a sketch from another
