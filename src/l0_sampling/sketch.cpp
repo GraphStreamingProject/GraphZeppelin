@@ -17,7 +17,7 @@ Sketch* Sketch::makeSketch(void* loc, long seed) {
   return new (loc) Sketch(seed);
 }
 
-Sketch* Sketch::makeSketch(void* loc, long seed, std::fstream &binary_in) {
+Sketch* Sketch::makeSketch(void* loc, long seed, std::istream &binary_in) {
   return new (loc) Sketch(seed, binary_in);
 }
 
@@ -37,7 +37,7 @@ Sketch::Sketch(long seed): seed(seed) {
   }
 }
 
-Sketch::Sketch(long seed, std::fstream &binary_in): seed(seed) {
+Sketch::Sketch(long seed, std::istream &binary_in): seed(seed) {
   // establish the bucket_a and bucket_c locations
   bucket_a = reinterpret_cast<vec_t*>(buckets);
   bucket_c = reinterpret_cast<vec_hash_t*>(buckets + num_elems * sizeof(vec_t));
@@ -146,7 +146,7 @@ std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
   return os;
 }
 
-void Sketch::write_binary(std::fstream& binary_out) {
+void Sketch::write_binary(std::ostream& binary_out) {
   binary_out.write((char*)bucket_a, num_elems * sizeof(vec_t));
   binary_out.write((char*)bucket_c, num_elems * sizeof(vec_hash_t));
 }

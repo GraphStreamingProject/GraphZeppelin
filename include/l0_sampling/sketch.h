@@ -56,7 +56,7 @@ private:
 
   // private constructors -- use makeSketch
   Sketch(long seed);
-  Sketch(long seed, std::fstream &binary_in);
+  Sketch(long seed, std::istream &binary_in);
   Sketch(const Sketch& s);
 
 public:
@@ -69,7 +69,7 @@ public:
    * @return           A pointer to a newly constructed sketch 
    */
   static Sketch* makeSketch(void* loc, long seed);
-  static Sketch* makeSketch(void* loc, long seed, std::fstream &binary_in);
+  static Sketch* makeSketch(void* loc, long seed, std::istream &binary_in);
   
   /**
    * Copy constructor to create a sketch from another
@@ -135,7 +135,7 @@ public:
    * Serialize the sketch to a binary output stream.
    * @param out the stream to write to.
    */
-  void write_binary(std::fstream& binary_out);
+  void write_binary(std::ostream& binary_out);
 };
 
 class MultipleQueryException : public std::exception {

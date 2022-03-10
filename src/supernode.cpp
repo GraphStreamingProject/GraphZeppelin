@@ -16,7 +16,7 @@ Supernode::Supernode(uint64_t n, long seed): idx(0), num_sketches(log2(n)/(log2(
   }
 }
 
-Supernode::Supernode(uint64_t n, long seed, std::fstream &binary_in) :
+Supernode::Supernode(uint64_t n, long seed, std::istream &binary_in) :
   idx(0), num_sketches(log2(n)/(log2(3)-1)), n(n), seed(seed), sketch_size(Sketch::sketchSizeof()) {
 
   uint32_t sketch_width = guess_gen(Sketch::get_failure_factor());
@@ -39,7 +39,7 @@ Supernode* Supernode::makeSupernode(uint64_t n, long seed) {
   return new (loc) Supernode(n, seed);
 }
 
-Supernode* Supernode::makeSupernode(uint64_t n, long seed, std::fstream &binary_in) {
+Supernode* Supernode::makeSupernode(uint64_t n, long seed, std::istream &binary_in) {
   void *loc = malloc(bytes_size);
   return new (loc) Supernode(n, seed, binary_in);
 }
@@ -115,7 +115,7 @@ void Supernode::delta_supernode(uint64_t n, long seed,
   }
 }
 
-void Supernode::write_binary(std::fstream& binary_out) {
+void Supernode::write_binary(std::ostream& binary_out) {
   for (int i = 0; i < num_sketches; ++i) {
     get_sketch(i)->write_binary(binary_out);
   }

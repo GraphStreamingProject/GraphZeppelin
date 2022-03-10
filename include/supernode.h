@@ -45,9 +45,9 @@ private:
   /**
    * @param n         the total number of nodes in the graph.
    * @param seed      the (fixed) seed value passed to each supernode.
-   * @param binary_in A stream to read the file from.
+   * @param binary_in A stream to read the data from.
    */
-  Supernode(uint64_t n, long seed, std::fstream &binary_in);
+  Supernode(uint64_t n, long seed, std::istream &binary_in);
 
   // get the ith sketch in the sketch array
   inline Sketch* get_sketch(size_t i) {
@@ -62,7 +62,7 @@ private:
   Supernode(const Supernode& s);
 public:
   static Supernode* makeSupernode(uint64_t n, long seed);
-  static Supernode* makeSupernode(uint64_t n, long seed, std::fstream &binary_in);
+  static Supernode* makeSupernode(uint64_t n, long seed, std::istream &binary_in);
 
   /**
    * Makes a supernode at the provided location (and does no error checking).
@@ -135,7 +135,7 @@ public:
    * Serialize the supernode to a binary output stream.
    * @param out the stream to write to.
    */
-  void write_binary(std::fstream &binary_out);
+  void write_binary(std::ostream &binary_out);
 
   // return the number of sketches held in this supernode
   int get_num_sktch() { return num_sketches; };
