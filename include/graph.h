@@ -36,6 +36,7 @@ class MultipleGraphsException : public std::exception {
  * multiple edges, or weights.
  */
 class Graph {
+protected:
   node_id_t num_nodes;
   long seed;
   bool update_locked = false;
