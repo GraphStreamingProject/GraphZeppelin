@@ -5,7 +5,7 @@
 #include <fstream>
 #include <atomic>  // REMOVE LATER
 
-#include <buffering_system.h>
+#include <guttering_system.h>
 #include "supernode.h"
 
 #ifdef VERIFY_SAMPLES_F
@@ -48,8 +48,8 @@ protected:
   node_id_t* parent;
   node_id_t get_parent(node_id_t node);
 
-  // Buffering system for batching updates
-  BufferingSystem *bf;
+  // Guttering system for batching updates
+  GutteringSystem *gts;
 
   void backup_to_disk(const std::vector<node_id_t>& ids_to_backup);
   void restore_from_disk(const std::vector<node_id_t>& ids_to_restore);
@@ -101,9 +101,9 @@ public:
     if (update_locked) throw UpdateLockedException();
     Edge &edge = upd.first;
 
-    bf->insert(edge);
+    gts->insert(edge);
     std::swap(edge.first, edge.second);
-    bf->insert(edge);
+    gts->insert(edge);
   }
 
   /**

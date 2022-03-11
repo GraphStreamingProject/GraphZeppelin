@@ -22,14 +22,14 @@ std::mutex GraphWorker::pause_lock;
 /* These functions are used by the rest of the
  * code to manipulate the GraphWorkers as a whole
  */
-void GraphWorker::start_workers(Graph *_graph, BufferingSystem *_bf, long _supernode_size) {
+void GraphWorker::start_workers(Graph *_graph, GutteringSystem *_gts, long _supernode_size) {
   shutdown = false;
   paused   = false;
   supernode_size = _supernode_size;
 
   workers = (GraphWorker **) calloc(num_groups, sizeof(GraphWorker *));
   for (int i = 0; i < num_groups; i++) {
-    workers[i] = new GraphWorker(i, _graph, _bf);
+    workers[i] = new GraphWorker(i, _graph, _gts);
   }
 }
 
@@ -38,7 +38,7 @@ void GraphWorker::stop_workers() {
     return;
 
   shutdown = true;
-  workers[0]->bf->set_non_block(true); // make the GraphWorkers bypass waiting in queue
+  workers[0]->gts->set_non_block(true); // make the GraphWorkers bypass waiting in queue
   
   pause_condition.notify_all();      // tell any paused threads to continue and exit
   for (int i = 0; i < num_groups; i++) {
@@ -49,7 +49,7 @@ void GraphWorker::stop_workers() {
 
 void GraphWorker::pause_workers() {
   paused = true;
-  workers[0]->bf->set_non_block(true); // make the GraphWorkers bypass waiting in queue
+  workers[0]->gts->set_non_block(true); // make the GraphWorkers bypass waiting in queue
 
   // wait until all GraphWorkers are paused
   while (true) {
@@ -76,7 +76,7 @@ void GraphWorker::pause_workers() {
 }
 
 void GraphWorker::unpause_workers() {
-  workers[0]->bf->set_non_block(false); // buffer-tree operations should block when necessary
+  workers[0]->gts->set_non_block(false); // buffer-tree operations should block when necessary
   paused = false;
   pause_condition.notify_all();       // tell all paused workers to get back to work
 }
@@ -84,8 +84,8 @@ void GraphWorker::unpause_workers() {
 /***********************************************
  ************** GraphWorker class **************
  ***********************************************/
-GraphWorker::GraphWorker(int _id, Graph *_graph, BufferingSystem *_bf) :
- id(_id), graph(_graph), bf(_bf), thr(start_worker, this), thr_paused(false) {
+GraphWorker::GraphWorker(int _id, Graph *_graph, GutteringSystem *_gts) :
+ id(_id), graph(_graph), gts(_gts), thr(start_worker, this), thr_paused(false) {
   delta_node = (Supernode *) malloc(supernode_size);
 }
 
@@ -113,7 +113,7 @@ void GraphWorker::do_work() {
     while(true) {
       // call get_data which will handle waiting on the queue
       // and will enforce locking.
-      bool valid = bf->get_data(data);
+      bool valid = gts->get_data(data);
 
       if (valid)
         graph->batch_update(data.first, data.second, delta_node);
