@@ -1,7 +1,7 @@
 #include <fstream>
 
 static void write_configuration(bool use_tree, bool backup_in_mem = false, int
-groups = 1, int g_size = 1) {
+        groups = 1, int g_size = 1) {
 	// read previous configuration to get GutterTree prefix
 	// as this is system dependent and shouldn't be set by our code
 	std::ifstream in("streaming.conf");
