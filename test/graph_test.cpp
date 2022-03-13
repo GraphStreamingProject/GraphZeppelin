@@ -2,6 +2,7 @@
 #include <fstream>
 #include <algorithm>
 #include "../include/graph.h"
+#include "../graph_worker.h"
 #include "../include/test/file_graph_verifier.h"
 #include "../include/test/mat_graph_verifier.h"
 #include "../include/test/graph_gen.h"
@@ -44,8 +45,8 @@ TEST_P(GraphTest, SmallGraphConnectivity) {
   ASSERT_EQ(78, g.connected_components().size());
 }
 
-TEST_P(GraphTest, IFconnectedComponentsAlgRunTHENupdateLocked) {
-  write_configuration(GetParam());
+TEST(GraphTest, IFconnectedComponentsAlgRunTHENupdateLocked) {
+  write_configuration(false);
   const std::string fname = __FILE__;
   size_t pos = fname.find_last_of("\\/");
   const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
@@ -64,6 +65,42 @@ TEST_P(GraphTest, IFconnectedComponentsAlgRunTHENupdateLocked) {
   g.connected_components();
   ASSERT_THROW(g.update({{1,2}, INSERT}), UpdateLockedException);
   ASSERT_THROW(g.update({{1,2}, DELETE}), UpdateLockedException);
+}
+
+TEST_P(GraphTest, TestSupernodeRestoreAfterCCFailure) {
+  write_configuration(false, GetParam());
+  const std::string fname = __FILE__;
+  size_t pos = fname.find_last_of("\\/");
+  const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
+  std::ifstream in{curr_dir + "/res/multiples_graph_1024.txt"};
+  node_id_t num_nodes;
+  in >> num_nodes;
+  edge_id_t m;
+  in >> m;
+  node_id_t a, b;
+  Graph g{num_nodes};
+  while (m--) {
+    in >> a >> b;
+    g.update({{a, b}, INSERT});
+  }
+  g.set_verifier(std::make_unique<FileGraphVerifier>(curr_dir + "/res/multiples_graph_1024.txt"));
+  g.should_fail_CC();
+
+  // flush to make sure copy supernodes is consistent with graph supernodes
+  g.bf->force_flush();
+  GraphWorker::pause_workers();
+  Supernode* copy_supernodes[num_nodes];
+  for (int i = 0; i < num_nodes; ++i) {
+    copy_supernodes[i] = Supernode::makeSupernode(*g.supernodes[i]);
+  }
+
+  ASSERT_THROW(g.connected_components(true), OutOfQueriesException);
+  for (int i = 0; i < num_nodes; ++i) {
+    for (int j = 0; j < copy_supernodes[i]->get_num_sktch(); ++j) {
+      ASSERT_TRUE(*copy_supernodes[i]->get_sketch(j) ==
+                *g.supernodes[i]->get_sketch(j));
+    }
+  }
 }
 
 TEST_P(GraphTest, TestCorrectnessOnSmallRandomGraphs) {
