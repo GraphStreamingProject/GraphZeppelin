@@ -5,7 +5,7 @@
 #include <fstream>
 #include <atomic>  // REMOVE LATER
 
-#include <buffering_system.h>
+#include <guttering_system.h>
 #include "supernode.h"
 
 #ifdef VERIFY_SAMPLES_F
@@ -36,8 +36,9 @@ class MultipleGraphsException : public std::exception {
  * multiple edges, or weights.
  */
 class Graph {
+protected:
   node_id_t num_nodes;
-  long seed;
+  uint64_t seed;
   bool update_locked = false;
   bool modified = false;
   // a set containing one "representative" from each supernode
@@ -48,8 +49,8 @@ class Graph {
   node_id_t* size;
   node_id_t get_parent(node_id_t node);
 
-  // Buffering system for batching updates
-  BufferingSystem *bf;
+  // Guttering system for batching updates
+  GutteringSystem *gts;
 
   void backup_to_disk(const std::vector<node_id_t>& ids_to_backup);
   void restore_from_disk(const std::vector<node_id_t>& ids_to_restore);
@@ -103,9 +104,9 @@ public:
     if (update_locked) throw UpdateLockedException();
     Edge &edge = upd.first;
 
-    bf->insert(edge);
+    gts->insert(edge);
     std::swap(edge.first, edge.second);
-    bf->insert(edge);
+    gts->insert(edge);
   }
 
   /**
@@ -151,7 +152,7 @@ public:
    *                   calling thread.
    * @returns nothing (supernode delta is in delta_loc).
    */
-  static void generate_delta_node(node_id_t node_n, long node_seed, node_id_t src,
+  static void generate_delta_node(node_id_t node_n, uint64_t node_seed, node_id_t src,
                                   const std::vector<size_t> &edges, Supernode *delta_loc);
 
   /**
