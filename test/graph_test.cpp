@@ -87,7 +87,7 @@ TEST_P(GraphTest, TestSupernodeRestoreAfterCCFailure) {
   g.should_fail_CC();
 
   // flush to make sure copy supernodes is consistent with graph supernodes
-  g.bf->force_flush();
+  g.gts->force_flush();
   GraphWorker::pause_workers();
   Supernode* copy_supernodes[num_nodes];
   for (int i = 0; i < num_nodes; ++i) {
