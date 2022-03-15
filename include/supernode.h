@@ -62,18 +62,20 @@ private:
 
   Supernode(const Supernode& s);
 public:
-  static Supernode* makeSupernode(uint64_t n, long seed);
-  static Supernode* makeSupernode(uint64_t n, long seed, std::fstream &binary_in);
-
   /**
-   * Makes a supernode at the provided location (and does no error checking).
-   * @param loc     the memory location to put the supernode.
+   * Supernode construtors
    * @param n       the total number of nodes in the graph.
    * @param seed    the (fixed) seed value passed to each supernode.
-   * @return        a pointer to loc, the location of the supernode.
+   * @param loc     (Optional) the memory location to put the supernode.
+   * @return        a pointer to the newly created supernode object
    */
-  static Supernode* makeSupernode(void* loc, uint64_t n, long seed);
-  static Supernode* makeSupernode(const Supernode& s);
+  static Supernode* makeSupernode(uint64_t n, long seed, void *loc = malloc(bytes_size));
+  
+  // create supernode from file
+  static Supernode* makeSupernode(uint64_t n, long seed, std::fstream &binary_in, 
+                                  void *loc = malloc(bytes_size));
+  // copy 'constructor'
+  static Supernode* makeSupernode(const Supernode& s, void *loc = malloc(bytes_size));
 
   ~Supernode();
 

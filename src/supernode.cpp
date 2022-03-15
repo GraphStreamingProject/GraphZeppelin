@@ -34,22 +34,15 @@ Supernode::Supernode(const Supernode& s) : idx(s.idx), num_sketches(s.num_sketch
   }
 }
 
-Supernode* Supernode::makeSupernode(uint64_t n, long seed) {
-  void *loc = malloc(bytes_size);
+Supernode* Supernode::makeSupernode(uint64_t n, long seed, void *loc) {
   return new (loc) Supernode(n, seed);
 }
 
-Supernode* Supernode::makeSupernode(uint64_t n, long seed, std::fstream &binary_in) {
-  void *loc = malloc(bytes_size);
+Supernode* Supernode::makeSupernode(uint64_t n, long seed, std::fstream &binary_in, void *loc) {
   return new (loc) Supernode(n, seed, binary_in);
 }
 
-Supernode* Supernode::makeSupernode(void* loc, uint64_t n, long seed) {
-  return new (loc) Supernode(n, seed);
-}
-
-Supernode* Supernode::makeSupernode(const Supernode& s) {
-  void *loc = malloc(bytes_size);
+Supernode* Supernode::makeSupernode(const Supernode& s, void *loc) {
   return new (loc) Supernode(s);
 }
 
@@ -108,7 +101,7 @@ void Supernode::apply_delta_update(const Supernode* delta_node) {
  */
 void Supernode::delta_supernode(uint64_t n, long seed,
                const std::vector<vec_t> &updates, void *loc) {
-  auto delta_node = makeSupernode(loc, n, seed);
+  auto delta_node = makeSupernode(n, seed, loc);
 #pragma omp parallel for num_threads(GraphWorker::get_group_size()) default(shared)
   for (int i = 0; i < delta_node->num_sketches; ++i) {
     delta_node->get_sketch(i)->batch_update(updates);
