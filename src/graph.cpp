@@ -41,11 +41,11 @@ Graph::Graph(node_id_t num_nodes): num_nodes(num_nodes) {
   backup_file = disk_loc + "supernode_backup.data";
   // Create the buffering system and start the graphWorkers
   if (std::get<0>(conf))
-    bf = new GutterTree(disk_loc, num_nodes, GraphWorker::get_num_groups(), true);
+    gts = new GutterTree(disk_loc, num_nodes, GraphWorker::get_num_groups(), true);
   else
-    bf = new StandAloneGutters(num_nodes, GraphWorker::get_num_groups());
+    gts = new StandAloneGutters(num_nodes, GraphWorker::get_num_groups());
 
-  GraphWorker::start_workers(this, bf, Supernode::get_size());
+  GraphWorker::start_workers(this, gts, Supernode::get_size());
   open_graph = true;
 }
 
@@ -80,11 +80,11 @@ Graph::Graph(const std::string& input_file) : num_updates(0) {
   backup_file = disk_loc + "supernode_backup.data";
   // Create the buffering system and start the graphWorkers
   if (std::get<0>(conf))
-    bf = new GutterTree(disk_loc, num_nodes, GraphWorker::get_num_groups(), true);
+    gts = new GutterTree(disk_loc, num_nodes, GraphWorker::get_num_groups(), true);
   else
-    bf = new StandAloneGutters(num_nodes, GraphWorker::get_num_groups());
+    gts = new StandAloneGutters(num_nodes, GraphWorker::get_num_groups());
 
-  GraphWorker::start_workers(this, bf, Supernode::get_size());
+  GraphWorker::start_workers(this, gts, Supernode::get_size());
   open_graph = true;
 }
 
@@ -96,11 +96,11 @@ Graph::~Graph() {
   delete[] size;
   delete representatives;
   GraphWorker::stop_workers(); // join the worker threads
-  delete bf;
+  delete gts;
   open_graph = false;
 }
 
-void Graph::generate_delta_node(node_id_t node_n, long node_seed, node_id_t
+void Graph::generate_delta_node(node_id_t node_n, uint64_t node_seed, node_id_t
                src, const std::vector<size_t> &edges, Supernode *delta_loc) {
   std::vector<vec_t> updates;
   updates.reserve(edges.size());
@@ -330,7 +330,7 @@ void Graph::restore_from_disk(const std::vector<node_id_t>& ids_to_restore) {
 
 std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
   flush_start = std::chrono::steady_clock::now();
-  bf->force_flush(); // flush everything in buffering system to make final updates
+  gts->force_flush(); // flush everything in guttering system to make final updates
   GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
   flush_end = std::chrono::steady_clock::now();
   // after this point all updates have been processed from the buffer tree
@@ -371,7 +371,7 @@ node_id_t Graph::get_parent(node_id_t node) {
 }
 
 void Graph::write_binary(const std::string& filename) {
-  bf->force_flush(); // flush everything in buffering system to make final updates
+  gts->force_flush(); // flush everything in buffering system to make final updates
   GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
   // after this point all updates have been processed from the buffering system
 

@@ -2,11 +2,11 @@
 #include <mutex>
 #include <condition_variable>
 #include <thread>
-#include <buffering_system.h>
 
 // forward declarations
 class Graph;
 class Supernode;
+class GutteringSystem;
 
 class GraphWorker {
 public:
@@ -14,11 +14,11 @@ public:
    * start_workers creates the graph workers and sets them to query the
    * given buffering system.
    * @param _graph           the graph to update.
-   * @param _bf              the buffering system to query.
+   * @param _gts             the guttering system to query.
    * @param _supernode_size  the size of a supernode so that we can allocate
    *                         space for a delta_node.
    */
-  static void start_workers(Graph *_graph, BufferingSystem *_bf, long _supernode_size);
+  static void start_workers(Graph *_graph, GutteringSystem *_gts, long _supernode_size);
   static void stop_workers();    // shutdown and delete GraphWorkers
   static void pause_workers();   // pause the GraphWorkers before CC
   static void unpause_workers(); // unpause the GraphWorkers to resume updates
@@ -39,9 +39,9 @@ private:
    * Create a GraphWorker object by setting metadata and spinning up a thread.
    * @param _id     the id of the new GraphWorker.
    * @param _graph  the graph which this GraphWorker will be updating.
-   * @param _bf     the database data will be extracted from.
+   * @param _gts    the database data will be extracted from.
    */
-  GraphWorker(int _id, Graph *_graph, BufferingSystem *_bf);
+  GraphWorker(int _id, Graph *_graph, GutteringSystem *_gts);
   ~GraphWorker();
 
   /**
@@ -57,7 +57,7 @@ private:
   void do_work(); // function which runs the GraphWorker process
   int id;
   Graph *graph;
-  BufferingSystem *bf;
+  GutteringSystem *gts;
   std::thread thr;
   bool thr_paused; // indicates if this individual thread is paused
 
