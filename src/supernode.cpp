@@ -3,12 +3,12 @@
 #include "../include/supernode.h"
 #include "../include/graph_worker.h"
 
-uint32_t Supernode::bytes_size;
+size_t Supernode::bytes_size;
 
 Supernode::Supernode(uint64_t n, uint64_t seed): idx(0), num_sketches(log2(n)/(log2(3)-1)),
                n(n), seed(seed), sketch_size(Sketch::sketchSizeof()) {
 
-  uint32_t sketch_width = guess_gen(Sketch::get_failure_factor());
+  size_t sketch_width = guess_gen(Sketch::get_failure_factor());
   // generate num_sketches sketches for each supernode (read: node)
   for (int i = 0; i < num_sketches; ++i) {
     Sketch::makeSketch(get_sketch(i), seed);
@@ -19,7 +19,7 @@ Supernode::Supernode(uint64_t n, uint64_t seed): idx(0), num_sketches(log2(n)/(l
 Supernode::Supernode(uint64_t n, uint64_t seed, std::istream &binary_in) :
   idx(0), num_sketches(log2(n)/(log2(3)-1)), n(n), seed(seed), sketch_size(Sketch::sketchSizeof()) {
 
-  uint32_t sketch_width = guess_gen(Sketch::get_failure_factor());
+  size_t sketch_width = guess_gen(Sketch::get_failure_factor());
   // read num_sketches sketches from file for each supernode (read: node)
   for (int i = 0; i < num_sketches; ++i) {
     Sketch::makeSketch(get_sketch(i), seed, binary_in);

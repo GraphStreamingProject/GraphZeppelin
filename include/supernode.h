@@ -13,7 +13,7 @@ typedef std::pair<node_id_t, node_id_t> Edge;
  */
 class Supernode {
   // the size of a super-node in bytes including the all sketches off the end
-  static uint32_t bytes_size; 
+  static size_t bytes_size; 
   int idx;
   int num_sketches;
   std::mutex node_mt;
