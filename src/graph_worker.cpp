@@ -96,7 +96,7 @@ GraphWorker::~GraphWorker() {
 }
 
 void GraphWorker::do_work() {
-  data_ret_t data;
+  WorkQueue::DataNode *data;
   while(true) {
     if(shutdown)
       return;
@@ -115,8 +115,10 @@ void GraphWorker::do_work() {
       // and will enforce locking.
       bool valid = gts->get_data(data);
 
-      if (valid)
-        graph->batch_update(data.first, data.second, delta_node);
+      if (valid) {
+        graph->batch_update(data->get_node_idx(), data->get_data_vec(), delta_node);
+        gts->get_data_callback(data); // inform guttering system that we're done
+      }
       else if(shutdown)
         return;
       else if(paused)

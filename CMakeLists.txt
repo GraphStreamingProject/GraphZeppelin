@@ -50,7 +50,7 @@ FetchContent_Declare(
   GutterTree
 
   GIT_REPOSITORY  https://github.com/GraphStreamingProject/GutterTree.git
-  GIT_TAG         main
+  GIT_TAG         LL_work_queue_noptr
 )
 
 if (BUILD_BENCH)

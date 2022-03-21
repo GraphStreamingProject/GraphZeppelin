@@ -101,7 +101,7 @@ Graph::~Graph() {
 }
 
 void Graph::generate_delta_node(node_id_t node_n, uint64_t node_seed, node_id_t
-               src, const std::vector<size_t> &edges, Supernode *delta_loc) {
+               src, const std::vector<node_id_t> &edges, Supernode *delta_loc) {
   std::vector<vec_t> updates;
   updates.reserve(edges.size());
   for (const auto& edge : edges) {
@@ -115,7 +115,7 @@ void Graph::generate_delta_node(node_id_t node_n, uint64_t node_seed, node_id_t
   }
   Supernode::delta_supernode(node_n, node_seed, updates, delta_loc);
 }
-void Graph::batch_update(node_id_t src, const std::vector<size_t> &edges, Supernode *delta_loc) {
+void Graph::batch_update(node_id_t src, const std::vector<node_id_t> &edges, Supernode *delta_loc) {
   if (update_locked) throw UpdateLockedException();
 
   num_updates += edges.size();
