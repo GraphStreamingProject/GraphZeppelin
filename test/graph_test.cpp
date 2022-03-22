@@ -90,12 +90,12 @@ TEST_P(GraphTest, TestSupernodeRestoreAfterCCFailure) {
   g.gts->force_flush();
   GraphWorker::pause_workers();
   Supernode* copy_supernodes[num_nodes];
-  for (int i = 0; i < num_nodes; ++i) {
+  for (node_id_t i = 0; i < num_nodes; ++i) {
     copy_supernodes[i] = Supernode::makeSupernode(*g.supernodes[i]);
   }
 
   ASSERT_THROW(g.connected_components(true), OutOfQueriesException);
-  for (int i = 0; i < num_nodes; ++i) {
+  for (node_id_t i = 0; i < num_nodes; ++i) {
     for (int j = 0; j < copy_supernodes[i]->get_num_sktch(); ++j) {
       ASSERT_TRUE(*copy_supernodes[i]->get_sketch(j) ==
                 *g.supernodes[i]->get_sketch(j));

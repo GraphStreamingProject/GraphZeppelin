@@ -3,12 +3,12 @@
 #include "../include/supernode.h"
 #include "../include/graph_worker.h"
 
-uint32_t Supernode::bytes_size;
+size_t Supernode::bytes_size;
 
 Supernode::Supernode(uint64_t n, uint64_t seed): idx(0), num_sketches(log2(n)/(log2(3)-1)),
                n(n), seed(seed), sketch_size(Sketch::sketchSizeof()) {
 
-  uint32_t sketch_width = guess_gen(Sketch::get_failure_factor());
+  size_t sketch_width = guess_gen(Sketch::get_failure_factor());
   // generate num_sketches sketches for each supernode (read: node)
   for (int i = 0; i < num_sketches; ++i) {
     Sketch::makeSketch(get_sketch(i), seed);
@@ -19,7 +19,7 @@ Supernode::Supernode(uint64_t n, uint64_t seed): idx(0), num_sketches(log2(n)/(l
 Supernode::Supernode(uint64_t n, uint64_t seed, std::istream &binary_in) :
   idx(0), num_sketches(log2(n)/(log2(3)-1)), n(n), seed(seed), sketch_size(Sketch::sketchSizeof()) {
 
-  uint32_t sketch_width = guess_gen(Sketch::get_failure_factor());
+  size_t sketch_width = guess_gen(Sketch::get_failure_factor());
   // read num_sketches sketches from file for each supernode (read: node)
   for (int i = 0; i < num_sketches; ++i) {
     Sketch::makeSketch(get_sketch(i), seed, binary_in);
@@ -34,22 +34,15 @@ Supernode::Supernode(const Supernode& s) : idx(s.idx), num_sketches(s.num_sketch
   }
 }
 
-Supernode* Supernode::makeSupernode(uint64_t n, uint64_t seed) {
-  void *loc = malloc(bytes_size);
+Supernode* Supernode::makeSupernode(uint64_t n, long seed, void *loc) {
   return new (loc) Supernode(n, seed);
 }
 
-Supernode* Supernode::makeSupernode(uint64_t n, uint64_t seed, std::istream &binary_in) {
-  void *loc = malloc(bytes_size);
+Supernode* Supernode::makeSupernode(uint64_t n, long seed, std::istream &binary_in, void *loc) {
   return new (loc) Supernode(n, seed, binary_in);
 }
 
-Supernode* Supernode::makeSupernode(void* loc, uint64_t n, uint64_t seed) {
-  return new (loc) Supernode(n, seed);
-}
-
-Supernode* Supernode::makeSupernode(const Supernode& s) {
-  void *loc = malloc(bytes_size);
+Supernode* Supernode::makeSupernode(const Supernode& s, void *loc) {
   return new (loc) Supernode(s);
 }
 
@@ -108,7 +101,7 @@ void Supernode::apply_delta_update(const Supernode* delta_node) {
  */
 void Supernode::delta_supernode(uint64_t n, uint64_t seed,
                const std::vector<vec_t> &updates, void *loc) {
-  auto delta_node = makeSupernode(loc, n, seed);
+  auto delta_node = makeSupernode(n, seed, loc);
 #pragma omp parallel for num_threads(GraphWorker::get_group_size()) default(shared)
   for (int i = 0; i < delta_node->num_sketches; ++i) {
     delta_node->get_sketch(i)->batch_update(updates);

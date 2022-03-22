@@ -13,7 +13,7 @@ typedef std::pair<node_id_t, node_id_t> Edge;
  */
 class Supernode {
   // the size of a super-node in bytes including the all sketches off the end
-  static uint32_t bytes_size; 
+  static size_t bytes_size; 
   int idx;
   int num_sketches;
   std::mutex node_mt;
@@ -62,18 +62,20 @@ private:
 
   Supernode(const Supernode& s);
 public:
-  static Supernode* makeSupernode(uint64_t n, uint64_t seed);
-  static Supernode* makeSupernode(uint64_t n, uint64_t seed, std::istream &binary_in);
-
   /**
-   * Makes a supernode at the provided location (and does no error checking).
-   * @param loc     the memory location to put the supernode.
+   * Supernode construtors
    * @param n       the total number of nodes in the graph.
    * @param seed    the (fixed) seed value passed to each supernode.
-   * @return        a pointer to loc, the location of the supernode.
+   * @param loc     (Optional) the memory location to put the supernode.
+   * @return        a pointer to the newly created supernode object
    */
-  static Supernode* makeSupernode(void* loc, uint64_t n, uint64_t seed);
-  static Supernode* makeSupernode(const Supernode& s);
+  static Supernode* makeSupernode(uint64_t n, long seed, void *loc = malloc(bytes_size));
+  
+  // create supernode from file
+  static Supernode* makeSupernode(uint64_t n, long seed, std::istream &binary_in, 
+                                  void *loc = malloc(bytes_size));
+  // copy 'constructor'
+  static Supernode* makeSupernode(const Supernode& s, void *loc = malloc(bytes_size));
 
   ~Supernode();
 
