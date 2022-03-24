@@ -51,6 +51,13 @@ private:
   Supernode(uint64_t n, uint64_t seed, std::istream &binary_in);
 
   Supernode(const Supernode& s);
+
+
+  // get the ith sketch in the sketch array
+  inline Sketch* get_sketch(size_t i) {
+    return reinterpret_cast<Sketch*>(sketch_buffer + i * sketch_size);
+  }
+  
 public:
   /**
    * Supernode construtors
@@ -85,9 +92,8 @@ public:
   // return the number of sketches held in this supernode
   int get_num_sktch() { return num_sketches; };
 
-    // get the ith sketch in the sketch array
-  inline Sketch* get_sketch(size_t i) {
-    return reinterpret_cast<Sketch*>(sketch_buffer + i * sketch_size);
+  inline bool out_of_queries() {
+    return idx == num_sketches;
   }
 
   // get the ith sketch in the sketch array
