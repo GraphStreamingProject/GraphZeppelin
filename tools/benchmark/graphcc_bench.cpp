@@ -50,7 +50,7 @@ static void BM_FileIngest(benchmark::State &state) {
   }
   state.counters["Ingestion_Rate"] = benchmark::Counter(state.iterations() * num_edges, benchmark::Counter::kIsRate);
 }
-BENCHMARK(BM_FileIngest)->RangeMultiplier(2)->Range(KB << 2, MB / 4);
+BENCHMARK(BM_FileIngest)->RangeMultiplier(2)->Range(KB << 2, MB / 4)->UseRealTime();
 
 // Test the speed of hashing using a method that loops over seeds and a method that 
 // batches by seed
@@ -142,6 +142,8 @@ static void BM_Sketch_Update(benchmark::State &state) {
   }
   state.counters["Update_Rate"] = benchmark::Counter(state.iterations() * upd_per_sketch * num_sketches,
                                                      benchmark::Counter::kIsRate);
+  state.counters["Hashes"] = benchmark::Counter(state.iterations() * upd_per_sketch * num_sketches * 7,
+                                                benchmark::Counter::kIsRate);
 }
 BENCHMARK(BM_Sketch_Update)->RangeMultiplier(4)->Ranges({{KB << 4, MB << 4}, {false, true}});
 
