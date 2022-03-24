@@ -119,6 +119,10 @@ public:
    */
   std::pair<vec_t, SampleSketchRet> query();
 
+  inline uint64_t get_seed() {
+    return seed;
+  }
+
   /**
    * Operator to add a sketch to another one in-place. Guaranteed to be
    * thread-safe for the sketch being added to. It is up to the user to
