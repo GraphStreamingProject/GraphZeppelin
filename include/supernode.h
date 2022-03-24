@@ -52,12 +52,6 @@ private:
 
   Supernode(const Supernode& s);
 
-
-  // get the ith sketch in the sketch array
-  inline Sketch* get_sketch(size_t i) {
-    return reinterpret_cast<Sketch*>(sketch_buffer + i * sketch_size);
-  }
-  
 public:
   /**
    * Supernode construtors
@@ -96,7 +90,17 @@ public:
     return idx == num_sketches;
   }
 
+  inline int curr_idx() {
+    return idx;
+  }
+
+
   // get the ith sketch in the sketch array
+  inline Sketch* get_sketch(size_t i) {
+    return reinterpret_cast<Sketch*>(sketch_buffer + i * sketch_size);
+  }
+
+  // version of above for const supernode objects
   inline const Sketch* get_sketch(size_t i) const {
     return reinterpret_cast<const Sketch*>(sketch_buffer + i * sketch_size);
   }
