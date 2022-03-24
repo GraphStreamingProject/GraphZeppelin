@@ -50,16 +50,6 @@ private:
    */
   Supernode(uint64_t n, uint64_t seed, std::istream &binary_in);
 
-  // get the ith sketch in the sketch array
-  inline Sketch* get_sketch(size_t i) {
-    return reinterpret_cast<Sketch*>(sketch_buffer + i * sketch_size);
-  }
-
-  // get the ith sketch in the sketch array
-  inline const Sketch* get_sketch(size_t i) const {
-    return reinterpret_cast<const Sketch*>(sketch_buffer + i * sketch_size);
-  }
-
   Supernode(const Supernode& s);
 public:
   /**
@@ -84,8 +74,25 @@ public:
     bytes_size = sizeof(Supernode) + log2(n)/(log2(3)-1) * Sketch::sketchSizeof() - sizeof(char);
   }
 
-  static inline uint32_t get_size() {
+  static inline size_t get_size() {
     return bytes_size;
+  }
+
+  inline size_t get_sketch_size() {
+    return sketch_size;
+  }
+
+  // return the number of sketches held in this supernode
+  int get_num_sktch() { return num_sketches; };
+
+    // get the ith sketch in the sketch array
+  inline Sketch* get_sketch(size_t i) {
+    return reinterpret_cast<Sketch*>(sketch_buffer + i * sketch_size);
+  }
+
+  // get the ith sketch in the sketch array
+  inline const Sketch* get_sketch(size_t i) const {
+    return reinterpret_cast<const Sketch*>(sketch_buffer + i * sketch_size);
   }
 
   // reset the supernode query metadata
@@ -139,9 +146,6 @@ public:
    * @param out the stream to write to.
    */
   void write_binary(std::ostream &binary_out);
-
-  // return the number of sketches held in this supernode
-  int get_num_sktch() { return num_sketches; };
 };
 
 
