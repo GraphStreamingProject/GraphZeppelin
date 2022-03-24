@@ -95,6 +95,10 @@ public:
   }
 
 
+  inline void incr_idx() {
+    ++idx;
+  }
+
   // get the ith sketch in the sketch array
   inline Sketch* get_sketch(size_t i) {
     return reinterpret_cast<Sketch*>(sketch_buffer + i * sketch_size);
