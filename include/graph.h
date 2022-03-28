@@ -4,6 +4,7 @@
 #include <set>
 #include <fstream>
 #include <atomic>  // REMOVE LATER
+#include <unordered_set>
 
 #include <guttering_system.h>
 #include "supernode.h"
@@ -49,7 +50,7 @@ protected:
   node_id_t* size;
   node_id_t get_parent(node_id_t node);
   bool dsu_valid = true;
-  std::vector<std::set<node_id_t>> spanning_forest;
+  std::unordered_set<vec_t> spanning_forest;
 
   // Guttering system for batching updates
   GutteringSystem *gts;

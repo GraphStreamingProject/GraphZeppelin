@@ -47,6 +47,8 @@ Graph::Graph(node_id_t num_nodes): num_nodes(num_nodes) {
 
   GraphWorker::start_workers(this, gts, Supernode::get_size());
   open_graph = true;
+  spanning_forest.clear();
+  dsu_valid = false;
 }
 
 Graph::Graph(const std::string& input_file) : num_updates(0) {
@@ -86,6 +88,8 @@ Graph::Graph(const std::string& input_file) : num_updates(0) {
 
   GraphWorker::start_workers(this, gts, Supernode::get_size());
   open_graph = true;
+  spanning_forest.clear();
+  dsu_valid = false;
 }
 
 Graph::~Graph() {
@@ -117,6 +121,23 @@ void Graph::generate_delta_node(node_id_t node_n, uint64_t node_seed, node_id_t
 }
 void Graph::batch_update(node_id_t src, const std::vector<node_id_t> &edges, Supernode *delta_loc) {
   if (update_locked) throw UpdateLockedException();
+
+  for (auto it = edges.begin(); dsu_valid && it != edges.end(); ++it) {
+    const auto& dst = *it;
+    auto edge_id = nondirectional_non_self_edge_pairing_fn(src, dst);
+    node_id_t a, b;
+    if (spanning_forest.find(edge_id) != spanning_forest.end()) {
+      spanning_forest.clear();
+      dsu_valid = false;
+    } else if ((a = get_parent(src)) != (b = get_parent(dst))) {
+      spanning_forest.insert(edge_id);
+      if (size[a] < size[b]) {
+        std::swap(a, b);
+        parent[b] = a;
+        size[a] += size[b];
+      }
+    }
+  }
 
   num_updates += edges.size();
   generate_delta_node(supernodes[src]->n, supernodes[src]->seed, src, edges, delta_loc);
@@ -183,6 +204,9 @@ inline std::vector<std::vector<node_id_t>> Graph::supernodes_to_merge(std::pair<
     to_merge[a].insert(to_merge[a].end(), to_merge[b].begin(), to_merge[b].end());
     to_merge[b].clear();
     modified = true;
+
+    // Update spanning forest
+    spanning_forest.insert(nondirectional_non_self_edge_pairing_fn(edge.first, edge.second));
   }
 
   // remove nodes added to new_reps due to sketch failures that
@@ -263,27 +287,30 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
     }
   };
 
-  try {
-    do {
-      modified = false;
-      sample_supernodes(query, reps);
-      std::vector<std::vector<node_id_t>> to_merge = supernodes_to_merge(query, reps);
-      // make a copy if necessary
-      if (make_copy && first_round) {
-        backed_up = reps;
-        if (!copy_in_mem) backup_to_disk(backed_up);
-      }
+  if (!dsu_valid) {
+    try {
+      do {
+        modified = false;
+        sample_supernodes(query, reps);
+        std::vector<std::vector<node_id_t>> to_merge = supernodes_to_merge(query, reps);
+        // make a copy if necessary
+        if (make_copy && first_round) {
+          backed_up = reps;
+          if (!copy_in_mem) backup_to_disk(backed_up);
+        }
 
-      merge_supernodes(copy_supernodes, reps, to_merge, first_round && make_copy);
+        merge_supernodes(copy_supernodes, reps, to_merge, first_round && make_copy);
 
 #ifdef VERIFY_SAMPLES_F
-      if (!first_round && fail_round_2) throw OutOfQueriesException();
+        if (!first_round && fail_round_2) throw OutOfQueriesException();
 #endif
-      first_round = false;
-    } while (modified);
-  } catch (...) {
-    cleanup_copy();
-    std::rethrow_exception(std::current_exception());
+        first_round = false;
+      } while (modified);
+    } catch (...) {
+      cleanup_copy();
+      std::rethrow_exception(std::current_exception());
+    }
+    dsu_valid = true;
   }
 
   // calculate connected components using DSU structure
@@ -335,17 +362,15 @@ std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
   flush_end = std::chrono::steady_clock::now();
   // after this point all updates have been processed from the buffer tree
 
-  if (dsu_valid)
-    return spanning_forest;
-
   if (!cont)
     return boruvka_emulation(false); // merge in place
   
   // if backing up in memory then perform copying in boruvka
   bool except = false;
   std::exception_ptr err;
+  std::vector<std::set<node_id_t>> ret;
   try {
-    spanning_forest = boruvka_emulation(true);
+    ret = boruvka_emulation(true);
     dsu_valid = true;
   } catch (...) {
     except = true;
@@ -365,7 +390,7 @@ std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
   // check if boruvka errored
   if (except) std::rethrow_exception(err);
 
-  return spanning_forest;
+  return ret;
 }
 
 node_id_t Graph::get_parent(node_id_t node) {
