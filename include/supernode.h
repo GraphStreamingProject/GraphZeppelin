@@ -52,6 +52,16 @@ private:
 
   Supernode(const Supernode& s);
 
+  // get the ith sketch in the sketch array
+  inline Sketch* get_sketch(size_t i) {
+    return reinterpret_cast<Sketch*>(sketch_buffer + i * sketch_size);
+  }
+
+  // version of above for const supernode objects
+  inline const Sketch* get_sketch(size_t i) const {
+    return reinterpret_cast<const Sketch*>(sketch_buffer + i * sketch_size);
+  }
+
 public:
   /**
    * Supernode construtors
@@ -94,19 +104,8 @@ public:
     return idx;
   }
 
-
   inline void incr_idx() {
     ++idx;
-  }
-
-  // get the ith sketch in the sketch array
-  inline Sketch* get_sketch(size_t i) {
-    return reinterpret_cast<Sketch*>(sketch_buffer + i * sketch_size);
-  }
-
-  // version of above for const supernode objects
-  inline const Sketch* get_sketch(size_t i) const {
-    return reinterpret_cast<const Sketch*>(sketch_buffer + i * sketch_size);
   }
 
   // reset the supernode query metadata
@@ -116,6 +115,11 @@ public:
       get_sketch(i)->reset_queried();
     }
     idx = 0;
+  }
+
+  // get the ith sketch in the sketch array as a const object
+  inline const Sketch* get_const_sketch(size_t i) {
+    return reinterpret_cast<Sketch*>(sketch_buffer + i * sketch_size);
   }
 
   /**

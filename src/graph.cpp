@@ -23,8 +23,7 @@ Graph::Graph(node_id_t num_nodes): num_nodes(num_nodes) {
   supernodes = new Supernode*[num_nodes];
   parent = new node_id_t[num_nodes];
   size = new node_id_t[num_nodes];
-  seed = 69420;
-//  seed = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+  seed = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
   std::mt19937_64 r(seed);
   seed = r();
 
