@@ -147,6 +147,10 @@ std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
 }
 
 void Sketch::write_binary(std::ostream& binary_out) {
+  const_cast<const Sketch*>(this)->write_binary(binary_out);
+}
+
+void Sketch::write_binary(std::ostream &binary_out) const {
   binary_out.write((char*)bucket_a, num_elems * sizeof(vec_t));
   binary_out.write((char*)bucket_c, num_elems * sizeof(vec_hash_t));
 }

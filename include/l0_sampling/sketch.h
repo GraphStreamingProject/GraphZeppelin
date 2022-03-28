@@ -119,7 +119,7 @@ public:
    */
   std::pair<vec_t, SampleSketchRet> query();
 
-  inline uint64_t get_seed() {
+  inline uint64_t get_seed() const {
     return seed;
   }
 
@@ -140,6 +140,7 @@ public:
    * @param out the stream to write to.
    */
   void write_binary(std::ostream& binary_out);
+  void write_binary(std::ostream& binary_out) const;
 };
 
 class MultipleQueryException : public std::exception {
