@@ -48,6 +48,8 @@ protected:
   node_id_t* parent;
   node_id_t* size;
   node_id_t get_parent(node_id_t node);
+  bool dsu_valid = true;
+  std::vector<std::set<node_id_t>> spanning_forest;
 
   // Guttering system for batching updates
   GutteringSystem *gts;

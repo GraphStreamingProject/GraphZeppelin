@@ -335,15 +335,18 @@ std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
   flush_end = std::chrono::steady_clock::now();
   // after this point all updates have been processed from the buffer tree
 
+  if (dsu_valid)
+    return spanning_forest;
+
   if (!cont)
     return boruvka_emulation(false); // merge in place
   
   // if backing up in memory then perform copying in boruvka
   bool except = false;
   std::exception_ptr err;
-  std::vector<std::set<node_id_t>> ret;
   try {
-    ret = boruvka_emulation(true);
+    spanning_forest = boruvka_emulation(true);
+    dsu_valid = true;
   } catch (...) {
     except = true;
     err = std::current_exception();
@@ -362,7 +365,7 @@ std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
   // check if boruvka errored
   if (except) std::rethrow_exception(err);
 
-  return ret;
+  return spanning_forest;
 }
 
 node_id_t Graph::get_parent(node_id_t node) {
