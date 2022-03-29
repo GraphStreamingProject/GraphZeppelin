@@ -3,6 +3,8 @@
 #include <iostream>
 #include <unistd.h>
 #include <fstream>
+#include <vector>
+#include <thread>
 
 #include "binary_graph_stream.h"
 #include "bucket.h"
@@ -51,6 +53,40 @@ static void BM_FileIngest(benchmark::State &state) {
   state.counters["Ingestion_Rate"] = benchmark::Counter(state.iterations() * num_edges, benchmark::Counter::kIsRate);
 }
 BENCHMARK(BM_FileIngest)->RangeMultiplier(2)->Range(KB << 2, MB / 4)->UseRealTime();
+
+// Test the speed of reading all the data in the kron16 graph stream
+static void BM_MTFileIngest(benchmark::State &state) {
+  // determine the number of edges in the graph
+  uint64_t num_edges;
+  {
+    BinaryGraphStream_MT stream("/mnt/ssd2/binary_streams/kron_16_stream_binary", 1024);
+    num_edges = stream.edges();
+  }
+
+  // flush fs cache
+  flush_filesystem_cache();
+  
+  // perform benchmark
+  for (auto _ : state) {
+    std::vector<std::thread> threads;
+    threads.reserve(state.range(0));
+
+    BinaryGraphStream_MT stream("/mnt/ssd2/binary_streams/kron_16_stream_binary", 32 * 1024);
+
+    auto task = [&](){
+      MT_StreamReader reader(stream);
+      GraphUpdate upd;
+      while ((benchmark::DoNotOptimize(upd = reader.get_edge())), upd.second != END_OF_FILE) {}
+    };
+
+    for (int i = 0; i < state.range(0); i++)
+      threads.emplace_back(task);
+    for (int i = 0; i < state.range(0); i++)
+      threads[i].join();
+  }
+  state.counters["Ingestion_Rate"] = benchmark::Counter(state.iterations() * num_edges, benchmark::Counter::kIsRate);
+}
+BENCHMARK(BM_MTFileIngest)->RangeMultiplier(4)->Range(1, 20)->UseRealTime();
 
 // Test the speed of hashing using a method that loops over seeds and a method that 
 // batches by seed
