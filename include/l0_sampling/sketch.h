@@ -119,6 +119,10 @@ public:
    */
   std::pair<vec_t, SampleSketchRet> query();
 
+  inline uint64_t get_seed() const {
+    return seed;
+  }
+
   /**
    * Operator to add a sketch to another one in-place. Guaranteed to be
    * thread-safe for the sketch being added to. It is up to the user to
@@ -136,6 +140,7 @@ public:
    * @param out the stream to write to.
    */
   void write_binary(std::ostream& binary_out);
+  void write_binary(std::ostream& binary_out) const;
 };
 
 class MultipleQueryException : public std::exception {

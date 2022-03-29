@@ -60,7 +60,8 @@ protected:
    * @param query  an array of supernode query results
    * @param reps   an array containing node indices for the representative of each supernode
    */
-  void sample_supernodes(std::pair<Edge, SampleSketchRet> *query, std::vector<node_id_t> &reps);
+  virtual void sample_supernodes(std::pair<Edge, SampleSketchRet> *query,
+                          std::vector<node_id_t> &reps);
 
   /**
    * @param copy_supernodes  an array to be filled with supernodes
