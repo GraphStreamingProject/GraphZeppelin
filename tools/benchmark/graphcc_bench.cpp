@@ -76,7 +76,9 @@ static void BM_MTFileIngest(benchmark::State &state) {
     auto task = [&](){
       MT_StreamReader reader(stream);
       GraphUpdate upd;
-      while ((benchmark::DoNotOptimize(upd = reader.get_edge())), upd.second != END_OF_FILE) {}
+      do {
+	upd = reader.get_edge(); 
+      } while (upd.second != END_OF_FILE);
     };
 
     for (int i = 0; i < state.range(0); i++)

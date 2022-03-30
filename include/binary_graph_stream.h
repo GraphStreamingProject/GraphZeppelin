@@ -82,9 +82,12 @@ public:
     read(stream_fd, reinterpret_cast<char *>(&num_nodes), 4);
     read(stream_fd, reinterpret_cast<char *>(&num_edges), 8);
     end_of_file = (num_edges * edge_size) + 12;
+    stream_off = 12;
   }
   inline uint32_t nodes() {return num_nodes;}
   inline uint64_t edges() {return num_edges;}
+  BinaryGraphStream_MT(const BinaryGraphStream_MT &) = delete;
+  BinaryGraphStream_MT & operator=(const BinaryGraphStream_MT &) = delete;
   friend class MT_StreamReader;
 
 private:
@@ -113,6 +116,9 @@ public:
     // set the buffer size to be a multiple of an edge size and malloc memory
     buf = (char *) malloc(stream.buf_size * sizeof(char));
     start_buf = buf;
+
+    // initialize buffer by calling read_data
+    stream.read_data(start_buf);
   }
 
   inline GraphUpdate get_edge() {
