@@ -79,8 +79,10 @@ public:
     buf_size = _b - (_b % edge_size); // ensure buffer size is multiple of edge_size
 
     // read header from the input file
-    read(stream_fd, reinterpret_cast<char *>(&num_nodes), 4);
-    read(stream_fd, reinterpret_cast<char *>(&num_edges), 8);
+    if (read(stream_fd, reinterpret_cast<char *>(&num_nodes), 4) != 4)
+      throw BadStreamException();
+    if (read(stream_fd, reinterpret_cast<char *>(&num_edges), 8) != 8)
+      throw BadStreamException();
     end_of_file = (num_edges * edge_size) + 12;
     stream_off = 12;
   }
@@ -101,9 +103,12 @@ private:
   inline bool read_data(char *buf) {
     uint64_t read_off = stream_off.fetch_add(buf_size, std::memory_order_relaxed);
     if (read_off >= end_of_file) return false;
-    pread(stream_fd, buf, buf_size, read_off); // perform the read
-    // TODO: pread may return less data than we asked for because it feels like it
-    // we need to ensure that this does not happen unless we've reached the end of the file
+    
+    // perform read using pread
+    size_t data_read = 0;
+    while (data_read < buf_size && read_off + data_read < end_of_file) {
+      data_read += pread(stream_fd, buf, buf_size, read_off + data_read); // perform the read
+    }
     return true;
   }
 };
