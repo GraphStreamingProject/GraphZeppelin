@@ -9,4 +9,5 @@ static const auto& col_hash = XXH64;
 enum UpdateType {
   INSERT = 0,
   DELETE = 1,
-};
+  END_OF_FILE = 2
+}; // special type to indicate that there is no more data in the stream
