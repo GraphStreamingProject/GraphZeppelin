@@ -21,7 +21,7 @@ Graph::Graph(node_id_t num_nodes): num_nodes(num_nodes) {
   Supernode::configure(num_nodes);
   representatives = new std::set<node_id_t>();
   supernodes = new Supernode*[num_nodes];
-  parent = new node_id_t[num_nodes];
+  parent = new std::remove_reference<decltype(*parent)>::type[num_nodes];
   size = new node_id_t[num_nodes];
   seed = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
   std::mt19937_64 r(seed);
@@ -47,7 +47,8 @@ Graph::Graph(node_id_t num_nodes): num_nodes(num_nodes) {
 
   GraphWorker::start_workers(this, gts, Supernode::get_size());
   open_graph = true;
-  spanning_forest.clear();
+  spanning_forest = new std::unordered_set<node_id_t>[num_nodes];
+  spanning_forest_mtx = new std::mutex[num_nodes];
   dsu_valid = false;
 }
 
@@ -66,7 +67,7 @@ Graph::Graph(const std::string& input_file) : num_updates(0) {
 #endif
   representatives = new std::set<node_id_t>();
   supernodes = new Supernode*[num_nodes];
-  parent = new node_id_t[num_nodes];
+  parent = new std::remove_reference<decltype(*parent)>::type[num_nodes];
   size = new node_id_t[num_nodes];
   std::fill(size, size+num_nodes, 1);
   for (node_id_t i = 0; i < num_nodes; ++i) {
@@ -88,7 +89,8 @@ Graph::Graph(const std::string& input_file) : num_updates(0) {
 
   GraphWorker::start_workers(this, gts, Supernode::get_size());
   open_graph = true;
-  spanning_forest.clear();
+  spanning_forest = new std::unordered_set<node_id_t>[num_nodes];
+  spanning_forest_mtx = new std::mutex[num_nodes];
   dsu_valid = false;
 }
 
@@ -102,6 +104,8 @@ Graph::~Graph() {
   GraphWorker::stop_workers(); // join the worker threads
   delete gts;
   open_graph = false;
+  delete[] spanning_forest;
+  delete[] spanning_forest_mtx;
 }
 
 void Graph::generate_delta_node(node_id_t node_n, uint64_t node_seed, node_id_t
@@ -121,23 +125,6 @@ void Graph::generate_delta_node(node_id_t node_n, uint64_t node_seed, node_id_t
 }
 void Graph::batch_update(node_id_t src, const std::vector<node_id_t> &edges, Supernode *delta_loc) {
   if (update_locked) throw UpdateLockedException();
-
-  for (auto it = edges.begin(); dsu_valid && it != edges.end(); ++it) {
-    const auto& dst = *it;
-    auto edge_id = nondirectional_non_self_edge_pairing_fn(src, dst);
-    node_id_t a, b;
-    if (spanning_forest.find(edge_id) != spanning_forest.end()) {
-      spanning_forest.clear();
-      dsu_valid = false;
-    } else if ((a = get_parent(src)) != (b = get_parent(dst))) {
-      spanning_forest.insert(edge_id);
-      if (size[a] < size[b]) {
-        std::swap(a, b);
-        parent[b] = a;
-        size[a] += size[b];
-      }
-    }
-  }
 
   num_updates += edges.size();
   generate_delta_node(supernodes[src]->n, supernodes[src]->seed, src, edges, delta_loc);
@@ -206,7 +193,9 @@ inline std::vector<std::vector<node_id_t>> Graph::supernodes_to_merge(std::pair<
     modified = true;
 
     // Update spanning forest
-    spanning_forest.insert(nondirectional_non_self_edge_pairing_fn(edge.first, edge.second));
+    auto src = std::min(edge.first, edge.second);
+    auto dst = std::max(edge.first, edge.second);
+    spanning_forest[src].insert(dst);
   }
 
   // remove nodes added to new_reps due to sketch failures that
@@ -288,6 +277,9 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
   };
 
   if (!dsu_valid) {
+    for (node_id_t i = 0; i < num_nodes; ++i) {
+      spanning_forest[i].clear();
+    }
     try {
       do {
         modified = false;

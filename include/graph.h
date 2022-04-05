@@ -5,6 +5,7 @@
 #include <fstream>
 #include <atomic>  // REMOVE LATER
 #include <unordered_set>
+#include <mutex>
 
 #include <guttering_system.h>
 #include "supernode.h"
@@ -46,11 +47,13 @@ protected:
   std::set<node_id_t>* representatives;
   Supernode** supernodes;
   // DSU representation of supernode relationship
-  node_id_t* parent;
+  std::atomic<node_id_t>* parent;
   node_id_t* size;
   node_id_t get_parent(node_id_t node);
   bool dsu_valid = true;
-  std::unordered_set<vec_t> spanning_forest;
+
+  std::unordered_set<node_id_t>* spanning_forest;
+  std::mutex* spanning_forest_mtx;
 
   // Guttering system for batching updates
   GutteringSystem *gts;
@@ -110,6 +113,26 @@ public:
     gts->insert(edge);
     std::swap(edge.first, edge.second);
     gts->insert(edge);
+    if (dsu_valid) {
+      auto src = std::min(edge.first, edge.second);
+      auto dst = std::max(edge.first, edge.second);
+      std::lock_guard<std::mutex> sflock (spanning_forest_mtx[src]);
+      if (spanning_forest[src].find(dst) != spanning_forest[src].end()) {
+        dsu_valid = false;
+      } else {
+        node_id_t a = src, b = dst;
+        while ((a = get_parent(a)) != (b = get_parent(b))) {
+          if (size[a] < size[b]) {
+            std::swap(a, b);
+          }
+          if (std::atomic_compare_exchange_weak(&parent[b], &b, a)) {
+            size[a] += size[b];
+            spanning_forest[src].insert(dst);
+            break;
+          }
+        }
+      }
+    }
   }
 
   /**
