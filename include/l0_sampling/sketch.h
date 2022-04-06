@@ -114,6 +114,19 @@ public:
   void batch_update(const std::vector<vec_t>& updates);
 
   /**
+   * Function to refresh the pointers in the object. Only useful if you're
+   * doing illegal things. So don't use this.
+   *
+   * (please)
+   * @return
+   */
+  inline Sketch* fixed() {
+    bucket_a = reinterpret_cast<vec_t*>(buckets);
+    bucket_c = reinterpret_cast<vec_hash_t*>(buckets + num_elems * sizeof(vec_t));
+    return this;
+  }
+
+  /**
    * Function to query a sketch.
    * @return   A pair with the result index and a code indicating if the type of result.
    */
