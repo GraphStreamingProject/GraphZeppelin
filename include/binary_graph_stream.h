@@ -100,16 +100,16 @@ private:
   uint32_t buf_size;      // how big is the data buffer
   const uint32_t edge_size = sizeof(uint8_t) + 2 * sizeof(uint32_t); // size of a binary encoded edge
   uint64_t end_of_file;
-  inline bool read_data(char *buf) {
+  inline uint32_t read_data(char *buf) {
     uint64_t read_off = stream_off.fetch_add(buf_size, std::memory_order_relaxed);
-    if (read_off >= end_of_file) return false;
+    if (read_off >= end_of_file) return 0;
     
     // perform read using pread
     size_t data_read = 0;
     while (data_read < buf_size && read_off + data_read < end_of_file) {
       data_read += pread(stream_fd, buf, buf_size, read_off + data_read); // perform the read
     }
-    return true;
+    return data_read;
   }
 };
 
@@ -121,15 +121,12 @@ public:
     // set the buffer size to be a multiple of an edge size and malloc memory
     buf = (char *) malloc(stream.buf_size * sizeof(char));
     start_buf = buf;
-
-    // initialize buffer by calling read_data
-    stream.read_data(start_buf);
   }
 
   inline GraphUpdate get_edge() {
-    // if buffer is empty then read
-    if (buf - start_buf == stream.buf_size) {
-      if (!stream.read_data(start_buf)) {
+    // if we have read all the data in the buffer than refill it
+    if (buf - start_buf == data_in_buf) {
+      if ((data_in_buf = stream.read_data(start_buf)) == 0) {
         return {{-1, -1}, END_OF_FILE};
       }
       buf = start_buf; // point buf back to beginning of data buffer
@@ -150,5 +147,6 @@ public:
 private:
   char *buf;              // data buffer
   char *start_buf;        // the start of the data buffer
+  uint32_t data_in_buf = 0;
   BinaryGraphStream_MT &stream;
 };
