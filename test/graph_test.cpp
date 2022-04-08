@@ -282,3 +282,51 @@ TEST(GraphTest, TestQueryDuringStream) {
     g.connected_components();
   }
 }
+
+TEST(GraphTest, EagerDSUTest) {
+  node_id_t num_nodes = 100;
+  Graph g{num_nodes};
+  MatGraphVerifier verify(num_nodes);
+
+  // This should be a spanning forest edge
+  g.update({{1, 2}, INSERT});
+  verify.edge_update(1, 2);
+  verify.reset_cc_state();
+  g.set_verifier(std::make_unique<decltype(verify)>(verify));
+  g.connected_components(true);
+
+  // This should be a spanning forest edge
+  g.update({{2, 3}, INSERT});
+  verify.edge_update(2, 3);
+  verify.reset_cc_state();
+  g.set_verifier(std::make_unique<decltype(verify)>(verify));
+  g.connected_components(true);
+
+  // This should be an edge within a component
+  g.update({{1, 3}, INSERT});
+  verify.edge_update(1, 3);
+  verify.reset_cc_state();
+  g.set_verifier(std::make_unique<decltype(verify)>(verify));
+  g.connected_components(true);
+
+  // This should delete an edge within a component
+  g.update({{1, 3}, DELETE});
+  verify.edge_update(1, 3);
+  verify.reset_cc_state();
+  g.set_verifier(std::make_unique<decltype(verify)>(verify));
+  g.connected_components(true);
+
+  // This one should delete a spanning forest edge and cause a rebuild
+  g.update({{2, 3}, DELETE});
+  verify.edge_update(2, 3);
+  verify.reset_cc_state();
+  g.set_verifier(std::make_unique<decltype(verify)>(verify));
+  g.connected_components(true);
+
+  // This one should be a normal edge
+  g.update({{2, 3}, INSERT});
+  verify.edge_update(2, 3);
+  verify.reset_cc_state();
+  g.set_verifier(std::make_unique<decltype(verify)>(verify));
+  g.connected_components(true);
+}

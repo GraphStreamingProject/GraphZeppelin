@@ -49,7 +49,7 @@ Graph::Graph(node_id_t num_nodes): num_nodes(num_nodes) {
   open_graph = true;
   spanning_forest = new std::unordered_set<node_id_t>[num_nodes];
   spanning_forest_mtx = new std::mutex[num_nodes];
-  dsu_valid = false;
+  dsu_valid = true;
 }
 
 Graph::Graph(const std::string& input_file) : num_updates(0) {
@@ -276,8 +276,13 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
     }
   };
 
-  if (!dsu_valid) {
+  if (!dsu_valid
+#ifdef VERIFY_SAMPLES_F
+      || fail_round_2
+#endif
+      ) {
     for (node_id_t i = 0; i < num_nodes; ++i) {
+      parent[i] = i;
       spanning_forest[i].clear();
     }
     try {
@@ -373,8 +378,6 @@ std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
   // reset dsu and resume graph workers
   for (node_id_t i = 0; i < num_nodes; i++) {
     supernodes[i]->reset_query_state();
-    parent[i] = i;
-    size[i] = 1;
   }
   update_locked = false;
   GraphWorker::unpause_workers();
