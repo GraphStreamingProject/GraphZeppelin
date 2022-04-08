@@ -14,6 +14,8 @@
 #include "test/graph_verifier.h"
 #endif
 
+#include <iostream>
+
 // forward declarations
 class GraphWorker;
 

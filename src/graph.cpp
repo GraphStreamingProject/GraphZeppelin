@@ -281,6 +281,7 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
       || fail_round_2
 #endif
       ) {
+    std::cout << "~ Reconstructing DSU" << std::endl;
     for (node_id_t i = 0; i < num_nodes; ++i) {
       parent[i] = i;
       spanning_forest[i].clear();
@@ -308,6 +309,8 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
       std::rethrow_exception(std::current_exception());
     }
     dsu_valid = true;
+  } else {
+    std::cout << "~ Used existing DSU" << std::endl;
   }
 
   // calculate connected components using DSU structure
