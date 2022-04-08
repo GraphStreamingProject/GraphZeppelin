@@ -101,13 +101,13 @@ public:
 
   ~Graph();
 
-  inline void update(GraphUpdate upd) {
+  inline void update(GraphUpdate upd, int thr_id = 0) {
     if (update_locked) throw UpdateLockedException();
     Edge &edge = upd.first;
 
-    gts->insert(edge);
+    gts->insert(edge, thr_id);
     std::swap(edge.first, edge.second);
-    gts->insert(edge);
+    gts->insert(edge, thr_id);
   }
 
   /**
