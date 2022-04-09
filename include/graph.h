@@ -96,8 +96,8 @@ protected:
 
   static bool open_graph;
 public:
-  explicit Graph(node_id_t num_nodes, int ninserters=1);
-  explicit Graph(const std::string &input_file, int ninserters=1);
+  explicit Graph(node_id_t num_nodes, int num_inserters=1);
+  explicit Graph(const std::string &input_file, int num_inserters=1);
 
   virtual ~Graph();
 

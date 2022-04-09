@@ -12,7 +12,7 @@
 // static variable for enforcing that only one graph is open at a time
 bool Graph::open_graph = false;
 
-Graph::Graph(node_id_t num_nodes, int ninserters): num_nodes(num_nodes) {
+Graph::Graph(node_id_t num_nodes, int num_inserters): num_nodes(num_nodes) {
   if (open_graph) throw MultipleGraphsException();
 
 #ifdef VERIFY_SAMPLES_F
@@ -43,13 +43,13 @@ Graph::Graph(node_id_t num_nodes, int ninserters): num_nodes(num_nodes) {
   if (std::get<0>(conf))
     gts = new GutterTree(disk_loc, num_nodes, GraphWorker::get_num_groups(), true);
   else
-    gts = new StandAloneGutters(num_nodes, GraphWorker::get_num_groups(), ninserters);
+    gts = new StandAloneGutters(num_nodes, GraphWorker::get_num_groups(), num_inserters);
 
   GraphWorker::start_workers(this, gts, Supernode::get_size());
   open_graph = true;
 }
 
-Graph::Graph(const std::string& input_file, int ninserters) : num_updates(0) {
+Graph::Graph(const std::string& input_file, int num_inserters) : num_updates(0) {
   if (open_graph) throw MultipleGraphsException();
   
   vec_t sketch_fail_factor;
@@ -82,7 +82,7 @@ Graph::Graph(const std::string& input_file, int ninserters) : num_updates(0) {
   if (std::get<0>(conf))
     gts = new GutterTree(disk_loc, num_nodes, GraphWorker::get_num_groups(), true);
   else
-    gts = new StandAloneGutters(num_nodes, GraphWorker::get_num_groups(), ninserters);
+    gts = new StandAloneGutters(num_nodes, GraphWorker::get_num_groups(), num_inserters);
 
   GraphWorker::start_workers(this, gts, Supernode::get_size());
   open_graph = true;
