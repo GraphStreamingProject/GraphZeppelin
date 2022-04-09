@@ -96,10 +96,10 @@ protected:
 
   static bool open_graph;
 public:
-  explicit Graph(node_id_t num_nodes);
-  explicit Graph(const std::string &input_file);
+  explicit Graph(node_id_t num_nodes, int num_inserters=1);
+  explicit Graph(const std::string &input_file, int num_inserters=1);
 
-  ~Graph();
+  virtual ~Graph();
 
   inline void update(GraphUpdate upd, int thr_id = 0) {
     if (update_locked) throw UpdateLockedException();
