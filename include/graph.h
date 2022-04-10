@@ -99,7 +99,7 @@ public:
   explicit Graph(node_id_t num_nodes);
   explicit Graph(const std::string &input_file);
 
-  ~Graph();
+  virtual ~Graph();
 
   inline void update(GraphUpdate upd, int thr_id = 0) {
     if (update_locked) throw UpdateLockedException();
