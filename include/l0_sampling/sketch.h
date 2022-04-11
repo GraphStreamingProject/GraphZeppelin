@@ -7,7 +7,7 @@
 #include <memory>
 #include <mutex>
 #include <utility>
-#include "../bucket.h"
+#include "bucket.h"
 #include "../types.h"
 #include "../util.h"
 #include <gtest/gtest_prod.h>
@@ -37,9 +37,9 @@ private:
 
   // Seed used for hashing operations in this sketch.
   const uint64_t seed;
-  // pointers to buckets
-  vec_t*      bucket_a;
-  vec_hash_t* bucket_c;
+  const ubucket_t large_prime;
+
+  Bucket_Boruvka* buckets;
 
   // Flag to keep track if this sketch has already been queried.
   bool already_queried = false;
@@ -52,7 +52,7 @@ private:
   // Length is bucket_gen(failure_factor) * guess_gen(n).
   // For buckets[i * guess_gen(n) + j], the bucket has a 1/2^j probability
   // of containing an index. The first two are pointers into the buckets array.
-  char buckets[1];
+  char _bucket_data[1];
 
   // private constructors -- use makeSketch
   Sketch(uint64_t seed);
@@ -93,7 +93,7 @@ public:
   }
 
   inline static size_t sketchSizeof()
-  { return sizeof(Sketch) + num_elems * (sizeof(vec_t) + sizeof(vec_hash_t)) - sizeof(char); }
+  { return sizeof(Sketch) + num_elems * sizeof(Bucket_Boruvka) - sizeof(char); }
   
   inline static vec_t get_failure_factor() 
   { return failure_factor; }
@@ -105,13 +105,14 @@ public:
    * Update a sketch based on information about one of its indices.
    * @param update the point update.
    */
-  void update(const vec_t& update_idx);
+  void update(const Update& update);
 
   /**
    * Update a sketch given a batch of updates.
    * @param updates A vector of updates
    */
-  void batch_update(const std::vector<vec_t>& updates);
+  void batch_update(const std::vector<Update>& updates);
+
 
   /**
    * Function to refresh the pointers in the object. Only useful if you're
@@ -121,8 +122,7 @@ public:
    * @return
    */
   inline Sketch* fixed() {
-    bucket_a = reinterpret_cast<vec_t*>(buckets);
-    bucket_c = reinterpret_cast<vec_hash_t*>(buckets + num_elems * sizeof(vec_t));
+    buckets = reinterpret_cast<Bucket_Boruvka *>(_bucket_data);
     return this;
   }
 

@@ -139,7 +139,7 @@ public:
    * Insert or delete an (encoded) edge into the supernode. Guaranteed to be
    * processed BEFORE Boruvka starts.
    */
-  void update(vec_t update);
+  void update(Update& update);
 
   /**
    * Update all the sketches in a supernode, given a batch of updates.
@@ -157,7 +157,7 @@ public:
    * @param loc     the location to place the delta in
    */
   static void delta_supernode(uint64_t n, uint64_t seed, const
-  std::vector<vec_t>& updates, void *loc);
+  std::vector<Update>& updates, void *loc);
 
   /**
    * Serialize the supernode to a binary output stream.

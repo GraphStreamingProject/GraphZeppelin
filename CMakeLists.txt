@@ -92,6 +92,8 @@ add_library(GraphStreamingCC
   src/graph_worker.cpp
   src/l0_sampling/sketch.cpp
   src/l0_sampling/update.cpp
+  src/l0_sampling/aks.cpp
+  src/l0_sampling/bucket.cpp
   src/util.cpp)
 add_dependencies(GraphStreamingCC GutterTree)
 target_link_libraries(GraphStreamingCC PUBLIC xxhash GutterTree)
@@ -106,6 +108,8 @@ add_library(GraphStreamingVerifyCC
   src/graph_worker.cpp
   src/l0_sampling/sketch.cpp
   src/l0_sampling/update.cpp
+  src/l0_sampling/aks.cpp
+  src/l0_sampling/bucket.cpp
   src/util.cpp
   test/util/file_graph_verifier.cpp
   test/util/mat_graph_verifier.cpp)

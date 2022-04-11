@@ -117,7 +117,7 @@ public:
    * @param delta_loc  Memory location where we should initialize the delta
    *                   supernode.
    */
-  void batch_update(node_id_t src, const std::vector<node_id_t> &edges, Supernode *delta_loc);
+  void batch_update(node_id_t src, const std::vector<std::pair<node_id_t, int>> &edges, Supernode *delta_loc);
 
   /**
    * Main parallel algorithm utilizing Boruvka and L_0 sampling.
@@ -147,14 +147,16 @@ public:
    * @param node_n     the total number of nodes in the graph.
    * @param node_seed  the seed of the supernode in question.
    * @param src        the src id.
-   * @param edges      a list of node ids to which src is connected.
+   * @param edges      a list of node ids to which src is connected and their
+   *                   respective deltas.
    * @param delta_loc  the preallocated memory where the delta_node should be
    *                   placed. this allows memory to be reused by the same
    *                   calling thread.
    * @returns nothing (supernode delta is in delta_loc).
    */
   static void generate_delta_node(node_id_t node_n, uint64_t node_seed, node_id_t src,
-                                  const std::vector<node_id_t> &edges, Supernode *delta_loc);
+                                  const std::vector<std::pair<node_id_t, int>> &edges, Supernode
+                                  *delta_loc);
 
   /**
    * Serialize the graph data to a binary file.

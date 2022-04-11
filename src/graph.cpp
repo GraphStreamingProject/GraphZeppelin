@@ -101,21 +101,26 @@ Graph::~Graph() {
 }
 
 void Graph::generate_delta_node(node_id_t node_n, uint64_t node_seed, node_id_t
-               src, const std::vector<node_id_t> &edges, Supernode *delta_loc) {
-  std::vector<vec_t> updates;
+               src, const std::vector<std::pair<node_id_t, int>> &edges,
+               Supernode *delta_loc) {
+  std::vector<Update> updates;
   updates.reserve(edges.size());
   for (const auto& edge : edges) {
-    if (src < edge) {
-      updates.push_back(static_cast<vec_t>(
-                            nondirectional_non_self_edge_pairing_fn(src, edge)));
+    if (src < edge.first) {
+      updates.push_back({static_cast<vec_t>(
+                            nondirectional_non_self_edge_pairing_fn(src,
+                                                                    edge.first))
+                        , edge.second});
     } else {
-      updates.push_back(static_cast<vec_t>(
-                            nondirectional_non_self_edge_pairing_fn(edge, src)));
+      updates.push_back({static_cast<vec_t>(
+                            nondirectional_non_self_edge_pairing_fn(edge.first,
+                                                                    src))
+                         , edge.second});
     }
   }
   Supernode::delta_supernode(node_n, node_seed, updates, delta_loc);
 }
-void Graph::batch_update(node_id_t src, const std::vector<node_id_t> &edges, Supernode *delta_loc) {
+void Graph::batch_update(node_id_t src, const std::vector<std::pair<node_id_t, int>> &edges, Supernode *delta_loc) {
   if (update_locked) throw UpdateLockedException();
 
   num_updates += edges.size();

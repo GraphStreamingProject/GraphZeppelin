@@ -1,4 +1,5 @@
 #include "../../include/l0_sampling/sketch.h"
+#include "prime_generator.h"
 #include <cassert>
 #include <cstring>
 #include <iostream>
@@ -25,52 +26,43 @@ Sketch* Sketch::makeSketch(void* loc, const Sketch& s) {
   return new (loc) Sketch(s);
 }
 
-Sketch::Sketch(uint64_t seed): seed(seed) {
-  // establish the bucket_a and bucket_c locations
-  bucket_a = reinterpret_cast<vec_t*>(buckets);
-  bucket_c = reinterpret_cast<vec_hash_t*>(buckets + num_elems * sizeof(vec_t));
+Sketch::Sketch(uint64_t seed): seed(seed), large_prime(PrimeGenerator::generate_prime(static_cast<ubucket_t>(n) * n)) {
+  // zero buckets
+  std::memset(_bucket_data, 0, num_elems * sizeof(Bucket_Boruvka));
 
-  // initialize bucket values
-  for (size_t i = 0; i < num_elems; ++i) {
-    bucket_a[i] = 0;
-    bucket_c[i] = 0;
-  }
+  buckets = reinterpret_cast<Bucket_Boruvka *>(_bucket_data);
 }
 
-Sketch::Sketch(uint64_t seed, std::istream &binary_in): seed(seed) {
-  // establish the bucket_a and bucket_c locations
-  bucket_a = reinterpret_cast<vec_t*>(buckets);
-  bucket_c = reinterpret_cast<vec_hash_t*>(buckets + num_elems * sizeof(vec_t));
-
-  binary_in.read((char*)bucket_a, num_elems * sizeof(vec_t));
-  binary_in.read((char*)bucket_c, num_elems * sizeof(vec_hash_t));
+Sketch::Sketch(uint64_t seed, std::istream &binary_in): seed(seed), large_prime(PrimeGenerator::generate_prime(static_cast<ubucket_t>(n) * n)) {
+  binary_in.read(_bucket_data, num_elems * sizeof(Bucket_Boruvka));
+  buckets = reinterpret_cast<Bucket_Boruvka *>(_bucket_data);
 }
 
-Sketch::Sketch(const Sketch& s) : seed(s.seed) {
-  bucket_a = reinterpret_cast<vec_t*>(buckets);
-  bucket_c = reinterpret_cast<vec_hash_t*>(buckets + num_elems * sizeof(vec_t));
-
-  std::memcpy(bucket_a, s.bucket_a, num_elems * sizeof(vec_t));
-  std::memcpy(bucket_c, s.bucket_c, num_elems * sizeof(vec_hash_t));
+Sketch::Sketch(const Sketch& s) : seed(s.seed), large_prime(s.large_prime) {
+  std::memcpy(_bucket_data, s._bucket_data, num_elems * sizeof(Bucket_Boruvka));
 }
 
-void Sketch::update(const vec_t& update_idx) {
-  vec_hash_t update_hash = Bucket_Boruvka::index_hash(update_idx, seed);
-  Bucket_Boruvka::update(bucket_a[num_elems - 1], bucket_c[num_elems - 1], update_idx, update_hash);
+void Sketch::update(const Update& update) {
+  auto cbucket_seed = Bucket_Boruvka::gen_bucket_seed(num_elems - 1, seed);
+  auto cr = Bucket_Boruvka::gen_r(cbucket_seed, large_prime);
+  buckets[num_elems - 1].update(update, large_prime, cr);
+
   for (unsigned i = 0; i < num_buckets; ++i) {
-    col_hash_t col_index_hash = Bucket_Boruvka::col_index_hash(update_idx, seed + i);
     for (unsigned j = 0; j < num_guesses; ++j) {
       unsigned bucket_id = i * num_guesses + j;
-      if (Bucket_Boruvka::contains(col_index_hash, ((col_hash_t)1) << j)){
-        Bucket_Boruvka::update(bucket_a[bucket_id], bucket_c[bucket_id], update_idx, update_hash);
-      } else break;
+      auto bucket_seed = Bucket_Boruvka::gen_bucket_seed(bucket_id, seed);
+      auto r = Bucket_Boruvka::gen_r(bucket_seed, large_prime);
+      auto& bucket = buckets[bucket_id];
+      if (bucket.contains(update.index, bucket_seed, 2 << j)) {
+        bucket.update(update, large_prime, r);
+      }
     }
   }
 }
 
-void Sketch::batch_update(const std::vector<vec_t>& updates) {
-  for (const auto& update_idx : updates) {
-    update(update_idx);
+void Sketch::batch_update(const std::vector<Update>& updates) {
+  for (const auto& upd : updates) {
+    update(upd);
   }
 }
 
@@ -80,17 +72,24 @@ std::pair<vec_t, SampleSketchRet> Sketch::query() {
   }
   already_queried = true;
 
-  if (bucket_a[num_elems - 1] == 0 && bucket_c[num_elems - 1] == 0) {
+  auto& determ_bucket = buckets[num_elems - 1];
+  if (determ_bucket == BUCKET_ZERO) {
     return {0, ZERO}; // the "first" bucket is deterministic so if it is all zero then there are no edges to return
   }
-  if (Bucket_Boruvka::is_good(bucket_a[num_elems - 1], bucket_c[num_elems - 1], seed)) {
-    return {bucket_a[num_elems - 1], GOOD};
+
+  auto cbucket_seed = Bucket_Boruvka::gen_bucket_seed(num_elems - 1, seed);
+  auto cr = Bucket_Boruvka::gen_r(num_elems - 1, large_prime);
+  if (determ_bucket.is_good(n, large_prime, cbucket_seed, cr, 1)) {
+    return {determ_bucket.a, GOOD};
   }
   for (unsigned i = 0; i < num_buckets; ++i) {
     for (unsigned j = 0; j < num_guesses; ++j) {
       unsigned bucket_id = i * num_guesses + j;
-      if (Bucket_Boruvka::is_good(bucket_a[bucket_id], bucket_c[bucket_id], i, 1 << j, seed)) {
-        return {bucket_a[bucket_id], GOOD};
+      auto bucket_seed = Bucket_Boruvka::gen_bucket_seed(bucket_id, seed);
+      auto r = Bucket_Boruvka::gen_r(bucket_seed, large_prime);
+      auto& bucket = buckets[bucket_id];
+      if (bucket.is_good(n, large_prime, bucket_seed, r, 2 << j)) {
+        return {bucket.a, GOOD};
       }
     }
   }
@@ -99,9 +98,14 @@ std::pair<vec_t, SampleSketchRet> Sketch::query() {
 
 Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2) {
   assert (sketch1.seed == sketch2.seed);
+  assert (sketch1.large_prime == sketch2.large_prime);
   for (unsigned i = 0; i < Sketch::num_elems; i++) {
-    sketch1.bucket_a[i] ^= sketch2.bucket_a[i];
-    sketch1.bucket_c[i] ^= sketch2.bucket_c[i];
+    auto& bucket1 = sketch1.buckets[i];
+    const auto& bucket2 = sketch2.buckets[i];
+    bucket1.a += bucket2.a;
+    bucket1.b += bucket2.b;
+    bucket1.c += bucket2.c;
+    bucket1.c %= sketch1.large_prime;
   }
   sketch1.already_queried = sketch1.already_queried || sketch2.already_queried;
   return sketch1;
@@ -122,35 +126,10 @@ bool operator== (const Sketch &sketch1, const Sketch &sketch2) {
   return true;
 }
 
-std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
-  for (unsigned k = 0; k < Sketch::n; k++) {
-    os << '1';
-  }
-  os << std::endl
-     << "a:" << sketch.bucket_a[Sketch::num_buckets * Sketch::num_guesses] << std::endl
-     << "c:" << sketch.bucket_c[Sketch::num_buckets * Sketch::num_guesses] << std::endl
-     << (Bucket_Boruvka::is_good(sketch.bucket_a[Sketch::num_buckets * Sketch::num_guesses], sketch.bucket_c[Sketch::num_buckets * Sketch::num_guesses], sketch.seed) ? "good" : "bad") << std::endl;
-
-  for (unsigned i = 0; i < Sketch::num_buckets; ++i) {
-    for (unsigned j = 0; j < Sketch::num_guesses; ++j) {
-      unsigned bucket_id = i * Sketch::num_guesses + j;
-      for (unsigned k = 0; k < Sketch::n; k++) {
-        os << (Bucket_Boruvka::contains(Bucket_Boruvka::col_index_hash(k, sketch.seed + 1), 1 << j) ? '1' : '0');
-      }
-      os << std::endl
-         << "a:" << sketch.bucket_a[bucket_id] << std::endl
-         << "c:" << sketch.bucket_c[bucket_id] << std::endl
-         << (Bucket_Boruvka::is_good(sketch.bucket_a[bucket_id], sketch.bucket_c[bucket_id], i, 1 << j, sketch.seed) ? "good" : "bad") << std::endl;
-    }
-  }
-  return os;
-}
-
 void Sketch::write_binary(std::ostream& binary_out) {
   const_cast<const Sketch*>(this)->write_binary(binary_out);
 }
 
 void Sketch::write_binary(std::ostream &binary_out) const {
-  binary_out.write((char*)bucket_a, num_elems * sizeof(vec_t));
-  binary_out.write((char*)bucket_c, num_elems * sizeof(vec_hash_t));
+  binary_out.write(_bucket_data, num_elems * sizeof(Bucket_Boruvka));
 }
