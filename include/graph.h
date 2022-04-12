@@ -68,7 +68,8 @@ protected:
    * @param query  an array of supernode query results
    * @param reps   an array containing node indices for the representative of each supernode
    */
-  void sample_supernodes(std::pair<Edge, SampleSketchRet> *query, std::vector<node_id_t> &reps);
+  virtual void sample_supernodes(std::pair<Edge, SampleSketchRet> *query,
+                          std::vector<node_id_t> &reps);
 
   /**
    * @param copy_supernodes  an array to be filled with supernodes
@@ -103,18 +104,18 @@ protected:
 
   static bool open_graph;
 public:
-  explicit Graph(node_id_t num_nodes);
-  explicit Graph(const std::string &input_file);
+  explicit Graph(node_id_t num_nodes, int num_inserters=1);
+  explicit Graph(const std::string &input_file, int num_inserters=1);
 
-  ~Graph();
+  virtual ~Graph();
 
-  inline void update(GraphUpdate upd) {
+  inline void update(GraphUpdate upd, int thr_id = 0) {
     if (update_locked) throw UpdateLockedException();
     Edge &edge = upd.first;
 
-    gts->insert(edge);
+    gts->insert(edge, thr_id);
     std::swap(edge.first, edge.second);
-    gts->insert(edge);
+    gts->insert(edge, thr_id);
     if (dsu_valid) {
       auto src = std::min(edge.first, edge.second);
       auto dst = std::max(edge.first, edge.second);
