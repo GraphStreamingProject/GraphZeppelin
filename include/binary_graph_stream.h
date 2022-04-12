@@ -85,6 +85,7 @@ public:
     if (read(stream_fd, reinterpret_cast<char *>(&num_edges), 8) != 8)
       throw BadStreamException();
     end_of_file = (num_edges * edge_size) + 12;
+    query_index = end_of_file;
     stream_off = 12;
     query_block = false;
   }
@@ -113,7 +114,7 @@ public:
 
   // call this function to tell stream its okay to keep going
   // call once per query performed regardless if registered query or on-demand query
-  void post_query_resume() { query_block = false; }
+  void post_query_resume() { query_block = false; query_index = end_of_file; }
 
   inline uint32_t nodes() {return num_nodes;}
   inline uint64_t edges() {return num_edges;}
@@ -134,10 +135,14 @@ private:
   inline uint32_t read_data(char *buf) {
     if (query_block) return 0; // we are blocking on a query so don't fetch_add or read
     uint64_t read_off = stream_off.fetch_add(buf_size, std::memory_order_relaxed);
-    if (read_off >= end_of_file) return 0;
+    if (read_off >= end_of_file || read_off >= query_index) return 0;
     
     // perform read using pread
     size_t data_read = 0;
+    size_t data_to_read = buf_size;
+    if (query_index < read_off + buf_size) {
+
+    }
     while (data_read < buf_size && read_off + data_read < end_of_file) {
       data_read += pread(stream_fd, buf, buf_size, read_off + data_read); // perform the read
     }
