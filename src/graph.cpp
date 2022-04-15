@@ -308,6 +308,7 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
       cleanup_copy();
       std::rethrow_exception(std::current_exception());
     }
+    cleanup_copy();
     dsu_valid = true;
   } else {
     std::cout << "~ Used existing DSU" << std::endl;
@@ -320,8 +321,6 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
   std::vector<std::set<node_id_t>> retval;
   retval.reserve(temp.size());
   for (const auto& it : temp) retval.push_back(it.second);
-
-  cleanup_copy();
 
   cc_alg_end = std::chrono::steady_clock::now();
   return retval;
