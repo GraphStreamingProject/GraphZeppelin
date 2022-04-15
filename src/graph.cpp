@@ -312,6 +312,13 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
     dsu_valid = true;
   } else {
     std::cout << "~ Used existing DSU" << std::endl;
+#ifdef VERIFY_SAMPLES_F
+    for (node_id_t src = 0; src < num_nodes; ++src) {
+      for (const auto& dst : spanning_forest[src]) {
+        verifier->verify_edge({src, dst});
+      }
+    }
+#endif
   }
 
   // calculate connected components using DSU structure
@@ -323,6 +330,9 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
   for (const auto& it : temp) retval.push_back(it.second);
 
   cc_alg_end = std::chrono::steady_clock::now();
+#ifdef VERIFY_SAMPLES_F
+  verifier->verify_soln(retval);
+#endif
   return retval;
 }
 
