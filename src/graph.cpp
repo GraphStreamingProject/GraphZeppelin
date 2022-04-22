@@ -365,8 +365,15 @@ void Graph::restore_from_disk(const std::vector<node_id_t>& ids_to_restore) {
 }
 
 std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
-  // TODO: eventually we'll want the DSU check to take place before calling force_flush()
-  // instead of after
+  // DSU check before calling force_flush()
+  if (dsu_valid) {
+    std::vector<std::set<node_id_t>> ret = boruvka_emulation(true);
+    if (cont) {
+      update_locked = false;
+    }
+    return ret;
+  }
+
   flush_start = std::chrono::steady_clock::now();
   gts->force_flush(); // flush everything in guttering system to make final updates
   GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
