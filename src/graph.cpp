@@ -243,7 +243,13 @@ inline void Graph::merge_supernodes(Supernode** copy_supernodes, std::vector<nod
 
 std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
   printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
-  update_locked = true; // disallow updating the graph after we run the alg
+  if (!dsu_valid
+#ifdef VERIFY_SAMPLES_F
+      || fail_round_2
+#endif
+      ) {
+    update_locked = true; // disallow updating the graph after we run the alg
+  }
 
   cc_alg_start = std::chrono::steady_clock::now();
   bool first_round = true;
@@ -367,11 +373,7 @@ void Graph::restore_from_disk(const std::vector<node_id_t>& ids_to_restore) {
 std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
   // DSU check before calling force_flush()
   if (dsu_valid) {
-    std::vector<std::set<node_id_t>> ret = boruvka_emulation(true);
-    if (cont) {
-      update_locked = false;
-    }
-    return ret;
+    return boruvka_emulation(true);
   }
 
   flush_start = std::chrono::steady_clock::now();
