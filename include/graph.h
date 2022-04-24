@@ -7,6 +7,7 @@
 
 #include <guttering_system.h>
 #include "supernode.h"
+#include "graph_configuration.h"
 
 #ifdef VERIFY_SAMPLES_F
 #include "test/graph_verifier.h"
@@ -89,15 +90,20 @@ protected:
 
 
   std::string backup_file; // where to backup the supernodes
-  bool copy_in_mem = false; // should backups be made in memory or on disk
 
   FRIEND_TEST(GraphTestSuite, TestCorrectnessOfReheating);
   FRIEND_TEST(GraphTest, TestSupernodeRestoreAfterCCFailure);
 
+  GraphConfiguration config;
+
   static bool open_graph;
+
+  // Called from constructors to perform basic initialization
+  void initialize_graph(int num_inserters, bool read_config);
 public:
   explicit Graph(node_id_t num_nodes, int num_inserters=1);
   explicit Graph(const std::string &input_file, int num_inserters=1);
+  explicit Graph(node_id_t num_nodes, GraphConfiguration config, int num_inserters=1);
 
   virtual ~Graph();
 
@@ -120,7 +126,7 @@ public:
   void batch_update(node_id_t src, const std::vector<node_id_t> &edges, Supernode *delta_loc);
 
   /**
-   * Main parallel algorithm utilizing Boruvka and L_0 sampling.
+   * Main parallel query algorithm utilizing Boruvka and L_0 sampling.
    * If cont is true, allow for additional updates when done.
    * @param cont
    * @return a vector of the connected components in the graph.
@@ -138,7 +144,7 @@ public:
   void should_fail_CC() { fail_round_2 = true; }
 #endif
 
-  // temp to verify number of updates -- REMOVE later
+  // number of updates
   std::atomic<uint64_t> num_updates;
 
   /**
