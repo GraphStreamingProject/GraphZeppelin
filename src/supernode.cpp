@@ -2,6 +2,7 @@
 #include <cmath>
 #include "../include/supernode.h"
 #include "../include/graph_worker.h"
+#include "types.h"
 
 size_t Supernode::bytes_size;
 
@@ -49,13 +50,26 @@ Supernode* Supernode::makeSupernode(const Supernode& s, void *loc) {
 Supernode::~Supernode() {
 }
 
-std::pair<Edge, SampleSketchRet> Supernode::sample() {
+inline void Supernode::inv_concat_tuple_fn(uint128_t catted, Edge* edge_buf) {
+  edge_buf[1] = catted % n;
+  catted /= n;
+  int i = 2;
+  while (catted > 0) {
+    edge_buf[i] = catted % n;
+    if (edge_buf[i] == edge_buf[i-1]) break;
+    catted /= n;
+    ++i;
+  }
+  edge_buf[0] = i - 1;
+}
+
+
+void Supernode::sample(Edge *edge_buf, SampleSketchRet *ret_buf) {
   if (idx == num_sketches) throw OutOfQueriesException();
 
-  std::pair<vec_t, SampleSketchRet> query_ret = get_sketch(idx++)->query();
-  vec_t idx = query_ret.first;
-  SampleSketchRet ret_code = query_ret.second;
-  return {inv_nondir_non_self_edge_pairing_fn(idx), ret_code};
+  auto query_ret = get_sketch(idx++)->query();
+  inv_concat_tuple_fn(query_ret.first, edge_buf);
+  *ret_buf = query_ret.second;
 }
 
 void Supernode::merge(Supernode &other) {

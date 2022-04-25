@@ -75,6 +75,7 @@ struct Bucket_Boruvka {
   void cached_update(const Update& update, const ubucket_t& large_prime, const std::vector<ubucket_t>& r_sq_cache);
 
   friend bool operator== (const Bucket_Boruvka &bucket1, const Bucket_Boruvka &bucket2);
+  friend bool operator!= (const Bucket_Boruvka &bucket1, const Bucket_Boruvka &bucket2);
 };
 
 const Bucket_Boruvka BUCKET_ZERO = {0,0,0};

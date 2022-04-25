@@ -18,7 +18,7 @@ class FileGraphVerifier : public GraphVerifier {
 public:
   FileGraphVerifier(const std::string& input_file = "./cumul_sample.txt");
 
-  void verify_edge(Edge edge);
+  void verify_edge(Edge* edge);
   void verify_cc(node_id_t node);
   void verify_soln(std::vector<std::set<node_id_t>>& retval);
 

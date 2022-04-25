@@ -9,9 +9,10 @@ public:
   DisjointSetUnion();
   DisjointSetUnion(T n);
 
-  void link(T i, T j);
+  // return the parent of the resultant
+  T link(std::vector<T>& ts);
   T find_set(T i);
-  void union_set(T i, T j);
+  void union_sets(std::vector<T>& ts);
 };
 
 template <class T>
@@ -24,11 +25,25 @@ DisjointSetUnion<T>::DisjointSetUnion(T n) : parent(n), size(n, 1) {
   }
 }
 
-template <class T>
-void DisjointSetUnion<T>::link(T i, T j) {
-  if (size[i] < size[j]) std::swap(i,j);
-  parent[j] = i;
-  size[i] += size[j];
+template<class T>
+T DisjointSetUnion<T>::link(std::vector<T>& ts) {
+  auto n = ts.size();
+  // find largest
+  decltype(n) max_idx;
+  T max_size = 0;
+
+  for (int i = 0; i < n; ++i) {
+    if (size[ts[i]] > max_size) {
+      max_size = size[ts[i]];
+      max_idx = i;
+    }
+  }
+  for (int i = 0; i < n; ++i) {
+    if (i == max_idx) continue;
+    parent[ts[i]] = max_idx;
+    size[ts[max_idx]] += size[ts[i]];
+  }
+  return ts[max_idx];
 }
 
 template <class T>
@@ -38,6 +53,10 @@ T DisjointSetUnion<T>::find_set(T i) {
 }
 
 template <class T>
-void DisjointSetUnion<T>::union_set(T i, T j) {
-  link(find_set(i), find_set(j));
+void DisjointSetUnion<T>::union_sets(std::vector<T>& ts) {
+  std::vector<T> ts_parent;
+  for (auto& t : ts) {
+    ts_parent.push_back(find_set(t));
+  }
+  link(ts_parent);
 }

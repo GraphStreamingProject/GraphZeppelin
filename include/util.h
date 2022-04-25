@@ -12,14 +12,14 @@ unsigned long long int double_to_ull(double d, double epsilon = 0.00000001);
  * Concatenates two node ids to form an edge ids
  * @return i + j*(j-1)/2
  */
-uint64_t nondirectional_non_self_edge_pairing_fn(uint32_t i, uint32_t j);
+//uint64_t nondirectional_non_self_edge_pairing_fn(uint32_t i, uint32_t j);
 
 /**
  * Inverts the nondirectional non-SE pairing function.
  * @param idx
  * @return the pair, with left and right ordered lexicographically.
  */
-std::pair<uint32_t , uint32_t> inv_nondir_non_self_edge_pairing_fn(uint64_t idx);
+//std::pair<uint32_t , uint32_t> inv_nondir_non_self_edge_pairing_fn(uint64_t idx);
 
 /**
  * Configures the system using the configuration file streaming.conf

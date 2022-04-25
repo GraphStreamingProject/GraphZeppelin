@@ -15,7 +15,7 @@
 // forward declarations
 class GraphWorker;
 
-typedef std::pair<Edge, UpdateType> GraphUpdate;
+typedef std::pair<Edge*, UpdateType> GraphUpdate;
 
 // Exceptions the Graph class may throw
 class UpdateLockedException : public std::exception {
@@ -55,13 +55,17 @@ protected:
   void backup_to_disk(const std::vector<node_id_t>& ids_to_backup);
   void restore_from_disk(const std::vector<node_id_t>& ids_to_restore);
 
+  uint128_t concat_tuple_fn(const uint32_t* edge_buf) const;
+
   /**
    * Update the query array with new samples
-   * @param query  an array of supernode query results
-   * @param reps   an array containing node indices for the representative of each supernode
+   * @param edge_query      an array of supernode query results
+   * @param retcode_query   an array of corresponding query return codes
+   * @param reps            an array containing node indices for the
+   *                        representative of each supernode
    */
-  virtual void sample_supernodes(std::pair<Edge, SampleSketchRet> *query,
-                          std::vector<node_id_t> &reps);
+  virtual void sample_supernodes(Edge *edge_query, SampleSketchRet *retcode_query,
+                    std::vector<node_id_t> &reps);
 
   /**
    * @param copy_supernodes  an array to be filled with supernodes
@@ -75,11 +79,13 @@ protected:
    * Run the disjoint set union to determine what supernodes
    * Should be merged together.
    * Map from nodes to a vector of nodes to merge with them
-   * @param query  an array of supernode query results
-   * @param reps   an array containing node indices for the representative of each supernode
+   * @param edge_query      an array of supernode query results
+   * @param retcode_query   an array of corresponding query retcodes
+   * @param reps            an array containing node indices for the
+   *                        representative of each supernode
    */
-  std::vector<std::vector<node_id_t>> supernodes_to_merge(std::pair<Edge, SampleSketchRet> *query,
-                        std::vector<node_id_t> &reps);
+  std::vector<std::vector<node_id_t>> supernodes_to_merge(Edge *edge_query,
+                      SampleSketchRet *retcode_query, std::vector<node_id_t> &reps);
 
   /**
    * Main parallel algorithm utilizing Boruvka and L_0 sampling.
@@ -96,19 +102,19 @@ protected:
 
   static bool open_graph;
 public:
-  explicit Graph(node_id_t num_nodes);
+  explicit Graph(node_id_t num_nodes, int edge_connectivity);
   explicit Graph(const std::string &input_file);
 
   ~Graph();
 
-  inline void update(GraphUpdate upd) {
-    if (update_locked) throw UpdateLockedException();
-    Edge &edge = upd.first;
-
-    gts->insert(edge);
-    std::swap(edge.first, edge.second);
-    gts->insert(edge);
-  }
+  /**
+   * Update a graph with a hyperedge
+   * @param upd a "hyperedge buffer":
+   *                a buffer that contains the number of hyperedge vertices
+   *                in index 0, and fills the remaining buffer values with
+   *                vertices, starting at index 1.
+   */
+  void update(GraphUpdate& upd);
 
   /**
    * Update all the sketches in supernode, given a batch of updates.
@@ -117,7 +123,7 @@ public:
    * @param delta_loc  Memory location where we should initialize the delta
    *                   supernode.
    */
-  void batch_update(node_id_t src, const std::vector<std::pair<node_id_t, int>> &edges, Supernode *delta_loc);
+  void batch_update(node_id_t src, const std::vector<delta_update_t> &edges, Supernode *delta_loc);
 
   /**
    * Main parallel algorithm utilizing Boruvka and L_0 sampling.
@@ -147,15 +153,15 @@ public:
    * @param node_n     the total number of nodes in the graph.
    * @param node_seed  the seed of the supernode in question.
    * @param src        the src id.
-   * @param edges      a list of node ids to which src is connected and their
-   *                   respective deltas.
-   * @param delta_loc  the preallocated memory where the delta_node should be
+   * @param edges      a list of edge indices to which src is connected and
+   *                   their respective deltas.
+   * @param delta_loc  the pre-allocated memory where the delta_node should be
    *                   placed. this allows memory to be reused by the same
    *                   calling thread.
    * @returns nothing (supernode delta is in delta_loc).
    */
   static void generate_delta_node(node_id_t node_n, uint64_t node_seed, node_id_t src,
-                                  const std::vector<std::pair<node_id_t, int>> &edges, Supernode
+                                  const std::vector<delta_update_t> &edges, Supernode
                                   *delta_loc);
 
   /**

@@ -5,7 +5,8 @@
 
 #include "l0_sampling/sketch.h"
 
-typedef std::pair<node_id_t, node_id_t> Edge;
+// implicit declaration of an vector-like array, where edge[0] is size
+typedef node_id_t Edge;
 
 /**
  * This interface implements the "supernode" so Boruvka can use it as a black
@@ -13,11 +14,13 @@ typedef std::pair<node_id_t, node_id_t> Edge;
  */
 class Supernode {
   // the size of a super-node in bytes including the all sketches off the end
-  static size_t bytes_size; 
+  static size_t bytes_size;
+  static int edge_connectivity;
   int idx;
   int num_sketches;
   std::mutex node_mt;
 
+  FRIEND_TEST(SupernodeTestSuite, TestConcatPairingFn);
   FRIEND_TEST(SupernodeTestSuite, TestBatchUpdate);
   FRIEND_TEST(SupernodeTestSuite, TestConcurrency);
   FRIEND_TEST(SupernodeTestSuite, TestSerialization);
@@ -62,6 +65,8 @@ private:
     return reinterpret_cast<const Sketch*>(sketch_buffer + i * sketch_size);
   }
 
+  inline void inv_concat_tuple_fn(uint128_t catted, Edge* edge_buf);
+
 public:
   /**
    * Supernode construtors
@@ -80,13 +85,18 @@ public:
 
   ~Supernode();
 
-  static inline void configure(uint64_t n, vec_t sketch_fail_factor=100) {
+  static inline void configure(uint64_t n, int edge_conn, vec_t sketch_fail_factor=100) {
     Sketch::configure(n*n, sketch_fail_factor);
     bytes_size = sizeof(Supernode) + log2(n)/(log2(3)-1) * Sketch::sketchSizeof() - sizeof(char);
+    edge_connectivity = edge_conn;
   }
 
   static inline size_t get_size() {
     return bytes_size;
+  }
+
+  static inline int get_edge_connectivity() {
+    return edge_connectivity;
   }
 
   inline size_t get_sketch_size() {
@@ -128,7 +138,7 @@ public:
    *           if one exists. Additionally, returns a code representing the
    *           sample result (good, zero, or fail)
    */
-  std::pair<Edge, SampleSketchRet> sample();
+  void sample(Edge* edge_buf, SampleSketchRet* ret_buf);
 
   /**
    * In-place merge function. Guaranteed to update the caller Supernode.

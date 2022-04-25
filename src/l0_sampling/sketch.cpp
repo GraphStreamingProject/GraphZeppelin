@@ -66,7 +66,7 @@ void Sketch::batch_update(const std::vector<Update>& updates) {
   }
 }
 
-std::pair<vec_t, SampleSketchRet> Sketch::query() {
+std::pair<bucket_t , SampleSketchRet> Sketch::query() {
   if (already_queried) {
     throw MultipleQueryException();
   }
@@ -116,11 +116,7 @@ bool operator== (const Sketch &sketch1, const Sketch &sketch2) {
     return false;
 
   for (size_t i = 0; i < Sketch::num_elems; ++i) {
-    if (sketch1.bucket_a[i] != sketch2.bucket_a[i]) return false;
-  }
-
-  for (size_t i = 0; i < Sketch::num_elems; ++i) {
-    if (sketch1.bucket_c[i] != sketch2.bucket_c[i]) return false;
+    if (sketch1.buckets[i] != sketch2.buckets[i]) return false;
   }
 
   return true;

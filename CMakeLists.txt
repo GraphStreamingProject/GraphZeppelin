@@ -49,7 +49,7 @@ FetchContent_Declare(
 FetchContent_Declare(
   GutterTree
 
-  GIT_REPOSITORY  https://github.com/GraphStreamingProject/GutterTree.git
+  GIT_REPOSITORY  https://github.com/Victor-C-Zhang/HyperGutterTree.git
   GIT_TAG         main
 )
 
@@ -111,8 +111,7 @@ add_library(GraphStreamingVerifyCC
   src/l0_sampling/aks.cpp
   src/l0_sampling/bucket.cpp
   src/util.cpp
-  test/util/file_graph_verifier.cpp
-  test/util/mat_graph_verifier.cpp)
+  test/util/file_graph_verifier.cpp)
 add_dependencies(GraphStreamingVerifyCC GutterTree)
 target_link_libraries(GraphStreamingVerifyCC PUBLIC xxhash GutterTree)
 target_include_directories(GraphStreamingVerifyCC PUBLIC include/ include/l0_sampling/ include/test/)

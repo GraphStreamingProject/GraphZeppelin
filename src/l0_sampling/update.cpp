@@ -1,7 +1,9 @@
 #include "../../include/l0_sampling/update.h"
 
 std::ostream& operator<< (std::ostream &out, const Update &update){
-  out << "Index: " << update.index << " Value: " << update.delta;
+  const uint64_t hi = update.index >> 64;
+  const uint64_t lo = update.index;
+  out << "Index: " << std::hex << hi << lo << " Value: " << std::dec << update.delta;
   return out;
 }
 

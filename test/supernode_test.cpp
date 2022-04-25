@@ -47,18 +47,58 @@ std::vector<Edge>* SupernodeTestSuite::graph_edges;
 std::vector<Edge>* SupernodeTestSuite::odd_graph_edges;
 bool* SupernodeTestSuite::prime;
 
+TEST_F(SupernodeTestSuite, TestConcatPairingFn) {
+  uint32_t buf[5];
+  const int n = 1000;
+  Supernode s = Supernode(n, 12345);
+  Supernode::edge_connectivity = 4;
+
+  // right-pad with the last value if necessary
+  auto pairing_fn = [](int x1, int x2, int x3, int x4) {
+    uint128_t e = x1 + x2 * n + x3 * n * n + x4 * n * n * n;
+    return e;
+  };
+
+  for (int i = 0; i < 100; ++i) {
+    for (int j = i + 1; j < 100; ++j) {
+      for (int k = j + 1; k < 100; ++k) {
+        for (int l = k + 1; l < n; ++l) {
+          s.inv_concat_tuple_fn(pairing_fn(i,j,k,l), buf);
+          ASSERT_EQ(buf[0], 4);
+          ASSERT_EQ(buf[1], i);
+          ASSERT_EQ(buf[2], j);
+          ASSERT_EQ(buf[3], k);
+          ASSERT_EQ(buf[4], l);
+        }
+      }
+    }
+  }
+
+  for (int i = 0; i < 100; ++i) {
+    for (int j = i + 1; j < 100; ++j) {
+      for (int k = j + 1; k < n; ++k) {
+          s.inv_concat_tuple_fn(pairing_fn(i,j,k,k), buf);
+          ASSERT_EQ(buf[0], 3);
+          ASSERT_EQ(buf[1], i);
+          ASSERT_EQ(buf[2], j);
+          ASSERT_EQ(buf[3], k);
+      }
+    }
+  }
+}
+
 TEST_F(SupernodeTestSuite, GIVENnoEdgeUpdatesIFsampledTHENnoEdgeIsReturned) {
   Supernode* s = Supernode::makeSupernode(num_nodes, seed);
-  SampleSketchRet ret_code = s->sample().second;
+  SampleSketchRet ret_code = s->sample(nullptr, nullptr, 0).second;
   ASSERT_EQ(ret_code, ZERO) << "Did not get ZERO when sampling empty vector";
 }
 
 TEST_F(SupernodeTestSuite, IFsampledTooManyTimesTHENthrowOutOfQueries) {
   Supernode* s = Supernode::makeSupernode(num_nodes, seed);
   for (int i = 0; i < s->get_num_sktch(); ++i) {
-    s->sample();
+    s->sample(nullptr, nullptr, 0);
   }
-  ASSERT_THROW(s->sample(), OutOfQueriesException);
+  ASSERT_THROW(s->sample(nullptr, nullptr, 0), OutOfQueriesException);
 }
 
 TEST_F(SupernodeTestSuite, TestSampleInsertGrinder) {
@@ -81,7 +121,9 @@ TEST_F(SupernodeTestSuite, TestSampleInsertGrinder) {
   Edge sampled;
   for (unsigned i = 2; i < num_nodes; ++i) {
     for (int j = 0; j < (int) snodes[i]->get_num_sktch(); ++j) {
-      std::pair<Edge, SampleSketchRet> sample_ret = snodes[i]->sample();
+      std::pair<Edge, SampleSketchRet> sample_ret = snodes[i]->sample(nullptr,
+                                                                      nullptr,
+                                                                      0);
       sampled = sample_ret.first;
       SampleSketchRet ret_code = sample_ret.second;
       if (ret_code == FAIL) continue;
@@ -131,7 +173,9 @@ TEST_F(SupernodeTestSuite, TestSampleDeleteGrinder) {
   Edge sampled;
   for (unsigned i = 2; i < num_nodes; ++i) {
     for (int j = 0; j < (int) snodes[i]->get_num_sktch(); ++j) {
-      std::pair<Edge, SampleSketchRet> sample_ret = snodes[i]->sample();
+      std::pair<Edge, SampleSketchRet> sample_ret = snodes[i]->sample(nullptr,
+                                                                      nullptr,
+                                                                      0);
       sampled = sample_ret.first;
       SampleSketchRet ret_code = sample_ret.second;
       if (ret_code == FAIL) continue;

@@ -130,7 +130,7 @@ public:
    * Function to query a sketch.
    * @return   A pair with the result index and a code indicating if the type of result.
    */
-  std::pair<vec_t, SampleSketchRet> query();
+  std::pair<bucket_t , SampleSketchRet> query();
 
   inline uint64_t get_seed() const {
     return seed;
