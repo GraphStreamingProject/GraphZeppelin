@@ -373,6 +373,7 @@ void Graph::restore_from_disk(const std::vector<node_id_t>& ids_to_restore) {
 std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
   // DSU check before calling force_flush()
   if (dsu_valid) {
+    flush_start = flush_end = std::chrono::steady_clock::now();
     return boruvka_emulation(true);
   }
 
