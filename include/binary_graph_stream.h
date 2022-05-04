@@ -95,8 +95,8 @@ public:
    * Only one query may be registered at a time and query index must within a 32 KiB boundary not
    * yet touched by the MT_StreamReader threads.
    * To register first query, call before processing any updates from the stream
-   * When registering second (or later) query, call register_query before post_query_resume to 
-   * ensure the call succeeds
+   * When registering second (or later) query, call register_query after post_query_resume but 
+   * before calls to get_edge() to ensure the registration and query succeed
    * @param query_idx   the stream update index directly after which the query will be performed
    * @return            true if the query is successfully registered and false if not
   */
@@ -133,17 +133,19 @@ private:
   const uint32_t edge_size = sizeof(uint8_t) + 2 * sizeof(uint32_t); // size of binary encoded edge
 
   inline uint32_t read_data(char *buf) {
-    if (query_block) return 0; // we are blocking on a query so don't fetch_add or read
+    // we are blocking on a query or the stream is done so don't fetch_add or read
+    if (query_block || stream_off >= end_of_file || stream_off >= query_index) return 0;
     uint64_t read_off = stream_off.fetch_add(buf_size, std::memory_order_relaxed);
-    if (read_off >= end_of_file || read_off >= query_index) return 0;
     
     // perform read using pread
     size_t data_read = 0;
     size_t data_to_read = buf_size;
-    if (query_index < read_off + buf_size) {
+    if (query_index >= read_off && query_index < read_off + buf_size)
+      data_to_read = query_index - read_off; // query truncates the read
+    if (read_off + buf_size > end_of_file)
+      data_to_read = end_of_file - read_off; // EOF truncates the read
 
-    }
-    while (data_read < buf_size && read_off + data_read < end_of_file) {
+    while (data_read < data_to_read) {
       data_read += pread(stream_fd, buf, buf_size, read_off + data_read); // perform the read
     }
     return data_read;
@@ -161,9 +163,9 @@ public:
     // if we have read all the data in the buffer than refill it
     if (buf - start_buf == data_in_buf) {
       if ((data_in_buf = stream.read_data(start_buf)) == 0) {
-        if (stream.query_block)
-          return {{-1, -1}, NXT_QUERY}; // return that a query should be processed before continuing
-        return {{-1, -1}, END_OF_FILE}; // return that the stream is over
+        if (stream.end_of_file == stream.stream_off)
+          return {{-1, -1}, END_OF_FILE}; // return that the stream is over
+        return {{-1, -1}, NXT_QUERY}; // return that a query should be processed before continuing
       }
       buf = start_buf; // point buf back to beginning of data buffer
     }

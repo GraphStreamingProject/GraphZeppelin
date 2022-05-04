@@ -43,7 +43,7 @@ Graph::Graph(node_id_t num_nodes): num_nodes(num_nodes) {
   if (std::get<0>(conf))
     gts = new GutterTree(disk_loc, num_nodes, GraphWorker::get_num_groups(), true);
   else
-    gts = new StandAloneGutters(num_nodes, GraphWorker::get_num_groups());
+    gts = new StandAloneGutters(num_nodes, GraphWorker::get_num_groups(), 4);
 
   GraphWorker::start_workers(this, gts, Supernode::get_size());
   open_graph = true;
@@ -82,7 +82,7 @@ Graph::Graph(const std::string& input_file) : num_updates(0) {
   if (std::get<0>(conf))
     gts = new GutterTree(disk_loc, num_nodes, GraphWorker::get_num_groups(), true);
   else
-    gts = new StandAloneGutters(num_nodes, GraphWorker::get_num_groups());
+    gts = new StandAloneGutters(num_nodes, GraphWorker::get_num_groups(), 4);
 
   GraphWorker::start_workers(this, gts, Supernode::get_size());
   open_graph = true;
