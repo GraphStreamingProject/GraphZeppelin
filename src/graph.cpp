@@ -309,6 +309,7 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
 #endif // USE_EAGER_DSU
 
   auto retval = cc_from_dsu();
+  cc_alg_end = std::chrono::steady_clock::now();
   return retval;
 }
 
@@ -348,7 +349,7 @@ std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
       && !fail_round_2
 #endif // VERIFY_SAMPLES_F
       ) {
-    flush_start = flush_end = std::chrono::steady_clock::now();
+    cc_alg_start = flush_start = flush_end = std::chrono::steady_clock::now();
     std::cout << "~ Used existing DSU" << std::endl;
 #ifdef VERIFY_SAMPLES_F
     for (node_id_t src = 0; src < num_nodes; ++src) {
@@ -357,7 +358,9 @@ std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
       }
     }
 #endif
-    return cc_from_dsu();
+    auto retval = cc_from_dsu();
+    cc_alg_end = std::chrono::steady_clock::now();
+    return retval;
   }
 #endif // USE_EAGER_DSU
 
@@ -406,7 +409,6 @@ std::vector<std::set<node_id_t>> Graph::cc_from_dsu() {
 #ifdef VERIFY_SAMPLES_F
   verifier->verify_soln(retval);
 #endif
-  cc_alg_end = std::chrono::steady_clock::now();
   return retval;
 }
 
