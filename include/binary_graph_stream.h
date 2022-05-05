@@ -86,6 +86,7 @@ public:
     end_of_file = (num_edges * edge_size) + 12;
     stream_off = 12;
   }
+  inline void stream_reset() {stream_off = 12;}
   inline uint32_t nodes() {return num_nodes;}
   inline uint64_t edges() {return num_edges;}
   BinaryGraphStream_MT(const BinaryGraphStream_MT &) = delete;

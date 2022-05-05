@@ -1,8 +1,9 @@
 #include <iostream>
 #include "graph.h"
 #include "graph_gen.h"
-#include "write_configuration.h"
 #include "file_graph_verifier.h"
+
+static GraphConfiguration config;
 
 static inline int do_run() {
     std::ifstream in{"./sample.txt"};
@@ -55,7 +56,8 @@ int main() {
         bool use_tree = (bool) i;
 
         // setup configuration file per buffering
-        write_configuration(use_tree, 4);
+        config.gutter_sys = use_tree? GUTTERTREE : STANDALONE;
+        config.num_groups = 4;
         std::string prefix = use_tree? "tree" : "gutters";
         std::string test_name;
 
