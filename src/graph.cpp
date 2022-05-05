@@ -243,13 +243,7 @@ inline void Graph::merge_supernodes(Supernode** copy_supernodes, std::vector<nod
 
 std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
   printf("Total number of updates to sketches before CC %lu\n", num_updates.load()); // REMOVE this later
-  if (!dsu_valid
-#ifdef VERIFY_SAMPLES_F
-      || fail_round_2
-#endif
-      ) {
-    update_locked = true; // disallow updating the graph after we run the alg
-  }
+  update_locked = true; // disallow updating the graph after we run the alg
 
   cc_alg_start = std::chrono::steady_clock::now();
   bool first_round = true;
@@ -282,59 +276,39 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
     }
   };
 
-  if (!dsu_valid
-#ifdef VERIFY_SAMPLES_F
-      || fail_round_2
-#endif
-      ) {
-    std::cout << "~ Reconstructing DSU" << std::endl;
-    for (node_id_t i = 0; i < num_nodes; ++i) {
-      parent[i] = i;
-      spanning_forest[i].clear();
-    }
-    try {
-      do {
-        modified = false;
-        sample_supernodes(query, reps);
-        std::vector<std::vector<node_id_t>> to_merge = supernodes_to_merge(query, reps);
-        // make a copy if necessary
-        if (make_copy && first_round) {
-          backed_up = reps;
-          if (!copy_in_mem) backup_to_disk(backed_up);
-        }
-
-        merge_supernodes(copy_supernodes, reps, to_merge, first_round && make_copy);
-
-#ifdef VERIFY_SAMPLES_F
-        if (!first_round && fail_round_2) throw OutOfQueriesException();
-#endif
-        first_round = false;
-      } while (modified);
-    } catch (...) {
-      cleanup_copy();
-      std::rethrow_exception(std::current_exception());
-    }
-    cleanup_copy();
-    dsu_valid = true;
-  } else {
-    std::cout << "~ Used existing DSU" << std::endl;
-#ifdef VERIFY_SAMPLES_F
-    for (node_id_t src = 0; src < num_nodes; ++src) {
-      for (const auto& dst : spanning_forest[src]) {
-        verifier->verify_edge({src, dst});
-      }
-    }
-#endif
+  std::cout << "~ Reconstructing DSU" << std::endl;
+  for (node_id_t i = 0; i < num_nodes; ++i) {
+    parent[i] = i;
+    spanning_forest[i].clear();
   }
+  try {
+    do {
+      modified = false;
+      sample_supernodes(query, reps);
+      std::vector<std::vector<node_id_t>> to_merge = supernodes_to_merge(query, reps);
+      // make a copy if necessary
+      if (make_copy && first_round) {
+        backed_up = reps;
+        if (!copy_in_mem) backup_to_disk(backed_up);
+      }
 
-  // calculate connected components using DSU structure
-  std::map<node_id_t, std::set<node_id_t>> temp;
-  for (node_id_t i = 0; i < num_nodes; ++i)
-    temp[get_parent(i)].insert(i);
-  std::vector<std::set<node_id_t>> retval;
-  retval.reserve(temp.size());
-  for (const auto& it : temp) retval.push_back(it.second);
+      merge_supernodes(copy_supernodes, reps, to_merge, first_round && make_copy);
 
+#ifdef VERIFY_SAMPLES_F
+      if (!first_round && fail_round_2) throw OutOfQueriesException();
+#endif
+      first_round = false;
+    } while (modified);
+  } catch (...) {
+    cleanup_copy();
+    std::rethrow_exception(std::current_exception());
+  }
+  cleanup_copy();
+#ifdef USE_EAGER_DSU
+  dsu_valid = true;
+#endif // USE_EAGER_DSU
+
+  auto retval = cc_from_dsu();
   cc_alg_end = std::chrono::steady_clock::now();
 #ifdef VERIFY_SAMPLES_F
   verifier->verify_soln(retval);
@@ -371,11 +345,25 @@ void Graph::restore_from_disk(const std::vector<node_id_t>& ids_to_restore) {
 }
 
 std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
+#ifdef USE_EAGER_DSU
   // DSU check before calling force_flush()
-  if (dsu_valid) {
+  if (dsu_valid
+#ifdef VERIFY_SAMPLES_F
+      && !fail_round_2
+#endif // VERIFY_SAMPLES_F
+      ) {
     flush_start = flush_end = std::chrono::steady_clock::now();
-    return boruvka_emulation(true);
+    std::cout << "~ Used existing DSU" << std::endl;
+#ifdef VERIFY_SAMPLES_F
+    for (node_id_t src = 0; src < num_nodes; ++src) {
+      for (const auto& dst : spanning_forest[src]) {
+        verifier->verify_edge({src, dst});
+      }
+    }
+#endif
+    return cc_from_dsu();
   }
+#endif // USE_EAGER_DSU
 
   flush_start = std::chrono::steady_clock::now();
   gts->force_flush(); // flush everything in guttering system to make final updates
@@ -410,6 +398,17 @@ std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
   if (except) std::rethrow_exception(err);
 
   return ret;
+}
+
+std::vector<std::set<node_id_t>> Graph::cc_from_dsu() {
+  // calculate connected components using DSU structure
+  std::map<node_id_t, std::set<node_id_t>> temp;
+  for (node_id_t i = 0; i < num_nodes; ++i)
+    temp[get_parent(i)].insert(i);
+  std::vector<std::set<node_id_t>> retval;
+  retval.reserve(temp.size());
+  for (const auto& it : temp) retval.push_back(it.second);
+  return retval;
 }
 
 node_id_t Graph::get_parent(node_id_t node) {

@@ -98,7 +98,7 @@ target_link_libraries(GraphStreamingCC PUBLIC xxhash GutterTree)
 target_include_directories(GraphStreamingCC PUBLIC include/ include/l0_sampling/)
 target_compile_options(GraphStreamingCC PUBLIC -fopenmp)
 target_link_options(GraphStreamingCC PUBLIC -fopenmp)
-target_compile_definitions(GraphStreamingCC PUBLIC XXH_INLINE_ALL)
+target_compile_definitions(GraphStreamingCC PUBLIC XXH_INLINE_ALL USE_EAGER_DSU)
 
 add_library(GraphStreamingVerifyCC
   src/graph.cpp
@@ -114,7 +114,7 @@ target_link_libraries(GraphStreamingVerifyCC PUBLIC xxhash GutterTree)
 target_include_directories(GraphStreamingVerifyCC PUBLIC include/ include/l0_sampling/ include/test/)
 target_compile_options(GraphStreamingVerifyCC PUBLIC -fopenmp)
 target_link_options(GraphStreamingVerifyCC PUBLIC -fopenmp)
-target_compile_definitions(GraphStreamingVerifyCC PUBLIC XXH_INLINE_ALL VERIFY_SAMPLES_F)
+target_compile_definitions(GraphStreamingVerifyCC PUBLIC XXH_INLINE_ALL VERIFY_SAMPLES_F USE_EAGER_DSU)
 
 if (BUILD_EXE)
   add_executable(tests

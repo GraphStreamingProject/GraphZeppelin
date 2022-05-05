@@ -49,7 +49,11 @@ protected:
   std::set<node_id_t>* representatives;
   Supernode** supernodes;
   // DSU representation of supernode relationship
+#ifdef USE_EAGER_DSU
   std::atomic<node_id_t>* parent;
+#else
+  node_id_t* parent;
+#endif
   node_id_t* size;
   node_id_t get_parent(node_id_t node);
   bool dsu_valid = true;
@@ -95,6 +99,11 @@ protected:
    */
   std::vector<std::set<node_id_t>> boruvka_emulation(bool make_copy);
 
+  /**
+   * Generates connected components from this graph's dsu
+   * @return a vector of the connected components in the graph.
+   */
+  std::vector<std::set<node_id_t>> cc_from_dsu();
 
   std::string backup_file; // where to backup the supernodes
   bool copy_in_mem = false; // should backups be made in memory or on disk
@@ -116,6 +125,7 @@ public:
     gts->insert(edge, thr_id);
     std::swap(edge.first, edge.second);
     gts->insert(edge, thr_id);
+#ifdef USE_EAGER_DSU
     if (dsu_valid) {
       auto src = std::min(edge.first, edge.second);
       auto dst = std::max(edge.first, edge.second);
@@ -136,6 +146,7 @@ public:
         }
       }
     }
+#endif // USE_EAGER_DSU
   }
 
   /**
