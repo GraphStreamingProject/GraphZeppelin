@@ -309,10 +309,6 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
 #endif // USE_EAGER_DSU
 
   auto retval = cc_from_dsu();
-  cc_alg_end = std::chrono::steady_clock::now();
-#ifdef VERIFY_SAMPLES_F
-  verifier->verify_soln(retval);
-#endif
   return retval;
 }
 
@@ -347,7 +343,7 @@ void Graph::restore_from_disk(const std::vector<node_id_t>& ids_to_restore) {
 std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
 #ifdef USE_EAGER_DSU
   // DSU check before calling force_flush()
-  if (dsu_valid
+  if (dsu_valid && cont
 #ifdef VERIFY_SAMPLES_F
       && !fail_round_2
 #endif // VERIFY_SAMPLES_F
@@ -380,7 +376,6 @@ std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
   std::vector<std::set<node_id_t>> ret;
   try {
     ret = boruvka_emulation(true);
-    dsu_valid = true;
   } catch (...) {
     except = true;
     err = std::current_exception();
@@ -408,6 +403,10 @@ std::vector<std::set<node_id_t>> Graph::cc_from_dsu() {
   std::vector<std::set<node_id_t>> retval;
   retval.reserve(temp.size());
   for (const auto& it : temp) retval.push_back(it.second);
+#ifdef VERIFY_SAMPLES_F
+  verifier->verify_soln(retval);
+#endif
+  cc_alg_end = std::chrono::steady_clock::now();
   return retval;
 }
 
