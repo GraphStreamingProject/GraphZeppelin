@@ -37,7 +37,8 @@ public:
           std::string buf_str = line.substr(line.find('=') + 1);
           if (buf_str == "tree") gutter_sys = GUTTERTREE;
           else if (buf_str == "cachetree") gutter_sys = CACHETREE;
-          else if (buf_str != "standalone") {
+          else if (buf_str == "standalone") gutter_sys = STANDALONE;
+          else {
             std::cout << "WARNING: string " << buf_str << " is not a valid option for " 
                   "buffering. Defaulting to StandAloneGutters." << std::endl;
           }
