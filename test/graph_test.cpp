@@ -6,7 +6,6 @@
 #include "../include/test/file_graph_verifier.h"
 #include "../include/test/mat_graph_verifier.h"
 #include "../include/test/graph_gen.h"
-#include "../include/test/write_configuration.h"
 
 /**
  * For many of these tests (especially for those upon very sparse and small graphs)
@@ -20,13 +19,14 @@
 
 // We create this class and instantiate a paramaterized test suite so that we
 // can run these tests both with the GutterTree and with StandAloneGutters
-class GraphTest : public testing::TestWithParam<bool> {
+class GraphTest : public testing::TestWithParam<GutterSystem> {
 
 };
-INSTANTIATE_TEST_SUITE_P(GraphTestSuite, GraphTest, testing::Values(true, false));
+INSTANTIATE_TEST_SUITE_P(GraphTestSuite, GraphTest, testing::Values(GUTTERTREE, STANDALONE, CACHETREE));
 
 TEST_P(GraphTest, SmallGraphConnectivity) {
-  write_configuration(GetParam());
+  GraphConfiguration config;
+  config.gutter_sys = GetParam();
   const std::string fname = __FILE__;
   size_t pos = fname.find_last_of("\\/");
   const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
@@ -36,7 +36,7 @@ TEST_P(GraphTest, SmallGraphConnectivity) {
   edge_id_t m;
   in >> m;
   node_id_t a, b;
-  Graph g{num_nodes};
+  Graph g{num_nodes, config};
   while (m--) {
     in >> a >> b;
     g.update({{a, b}, INSERT});
@@ -46,7 +46,8 @@ TEST_P(GraphTest, SmallGraphConnectivity) {
 }
 
 TEST(GraphTest, IFconnectedComponentsAlgRunTHENupdateLocked) {
-  write_configuration(false);
+  GraphConfiguration config;
+  config.gutter_sys = STANDALONE;
   const std::string fname = __FILE__;
   size_t pos = fname.find_last_of("\\/");
   const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
@@ -56,7 +57,7 @@ TEST(GraphTest, IFconnectedComponentsAlgRunTHENupdateLocked) {
   edge_id_t m;
   in >> m;
   node_id_t a, b;
-  Graph g{num_nodes};
+  Graph g{num_nodes, config};
   while (m--) {
     in >> a >> b;
     g.update({{a, b}, INSERT});
@@ -67,44 +68,48 @@ TEST(GraphTest, IFconnectedComponentsAlgRunTHENupdateLocked) {
   ASSERT_THROW(g.update({{1,2}, DELETE}), UpdateLockedException);
 }
 
-TEST_P(GraphTest, TestSupernodeRestoreAfterCCFailure) {
-  write_configuration(false, GetParam());
-  const std::string fname = __FILE__;
-  size_t pos = fname.find_last_of("\\/");
-  const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
-  std::ifstream in{curr_dir + "/res/multiples_graph_1024.txt"};
-  node_id_t num_nodes;
-  in >> num_nodes;
-  edge_id_t m;
-  in >> m;
-  node_id_t a, b;
-  Graph g{num_nodes};
-  while (m--) {
-    in >> a >> b;
-    g.update({{a, b}, INSERT});
-  }
-  g.set_verifier(std::make_unique<FileGraphVerifier>(curr_dir + "/res/multiples_graph_1024.txt"));
-  g.should_fail_CC();
+TEST(GraphTest, TestSupernodeRestoreAfterCCFailure) {
+  for (int s = 0; s < 2; s++) {
+    GraphConfiguration config;
+    config.backup_in_mem = s == 0;
+    const std::string fname = __FILE__;
+    size_t pos = fname.find_last_of("\\/");
+    const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
+    std::ifstream in{curr_dir + "/res/multiples_graph_1024.txt"};
+    node_id_t num_nodes;
+    in >> num_nodes;
+    edge_id_t m;
+    in >> m;
+    node_id_t a, b;
+    Graph g{num_nodes, config};
+    while (m--) {
+      in >> a >> b;
+      g.update({{a, b}, INSERT});
+    }
+    g.set_verifier(std::make_unique<FileGraphVerifier>(curr_dir + "/res/multiples_graph_1024.txt"));
+    g.should_fail_CC();
 
-  // flush to make sure copy supernodes is consistent with graph supernodes
-  g.gts->force_flush();
-  GraphWorker::pause_workers();
-  Supernode* copy_supernodes[num_nodes];
-  for (node_id_t i = 0; i < num_nodes; ++i) {
-    copy_supernodes[i] = Supernode::makeSupernode(*g.supernodes[i]);
-  }
+    // flush to make sure copy supernodes is consistent with graph supernodes
+    g.gts->force_flush();
+    GraphWorker::pause_workers();
+    Supernode* copy_supernodes[num_nodes];
+    for (node_id_t i = 0; i < num_nodes; ++i) {
+      copy_supernodes[i] = Supernode::makeSupernode(*g.supernodes[i]);
+    }
 
-  ASSERT_THROW(g.connected_components(true), OutOfQueriesException);
-  for (node_id_t i = 0; i < num_nodes; ++i) {
-    for (int j = 0; j < copy_supernodes[i]->get_num_sktch(); ++j) {
-      ASSERT_TRUE(*copy_supernodes[i]->get_sketch(j) ==
-                *g.supernodes[i]->get_sketch(j));
+    ASSERT_THROW(g.connected_components(true), OutOfQueriesException);
+    for (node_id_t i = 0; i < num_nodes; ++i) {
+      for (int j = 0; j < copy_supernodes[i]->get_num_sktch(); ++j) {
+        ASSERT_TRUE(*copy_supernodes[i]->get_sketch(j) ==
+                  *g.supernodes[i]->get_sketch(j));
+      }
     }
   }
 }
 
 TEST_P(GraphTest, TestCorrectnessOnSmallRandomGraphs) {
-  write_configuration(GetParam());
+  GraphConfiguration config;
+  config.gutter_sys = GetParam();
   int num_trials = 5;
   while (num_trials--) {
     generate_stream();
@@ -112,7 +117,7 @@ TEST_P(GraphTest, TestCorrectnessOnSmallRandomGraphs) {
     node_id_t n;
     edge_id_t m;
     in >> n >> m;
-    Graph g{n};
+    Graph g{n, config};
     int type, a, b;
     while (m--) {
       in >> type >> a >> b;
@@ -127,7 +132,8 @@ TEST_P(GraphTest, TestCorrectnessOnSmallRandomGraphs) {
 }
 
 TEST_P(GraphTest, TestCorrectnessOnSmallSparseGraphs) {
-  write_configuration(GetParam());
+  GraphConfiguration config;
+  config.gutter_sys = GetParam();
   int num_trials = 5;
   while(num_trials--) {
     generate_stream({1024,0.002,0.5,0,"./sample.txt","./cumul_sample.txt"});
@@ -135,7 +141,7 @@ TEST_P(GraphTest, TestCorrectnessOnSmallSparseGraphs) {
     node_id_t n;
     edge_id_t m;
     in >> n >> m;
-    Graph g{n};
+    Graph g{n, config};
     int type, a, b;
     while (m--) {
       in >> type >> a >> b;
@@ -150,7 +156,8 @@ TEST_P(GraphTest, TestCorrectnessOnSmallSparseGraphs) {
 }
 
 TEST_P(GraphTest, TestCorrectnessOfReheating) {
-  write_configuration(GetParam());
+  GraphConfiguration config;
+  config.gutter_sys = GetParam();
   int num_trials = 5;
   while (num_trials--) {
     generate_stream({1024,0.002,0.5,0,"./sample.txt","./cumul_sample.txt"});
@@ -158,7 +165,7 @@ TEST_P(GraphTest, TestCorrectnessOfReheating) {
     node_id_t n;
     edge_id_t m;
     in >> n >> m;
-    Graph *g = new Graph (n);
+    Graph *g = new Graph (n, config);
     int type, a, b;
     printf("number of updates = %lu\n", m);
     while (m--) {
@@ -191,7 +198,10 @@ TEST_P(GraphTest, TestCorrectnessOfReheating) {
 // Test the multithreaded system by specifiying multiple
 // Graph Workers of size 2. Ingest a stream and run CC algorithm.
 TEST_P(GraphTest, MultipleInserters) {
-  write_configuration(GetParam(), false, 4, 2);
+  GraphConfiguration config;
+  config.gutter_sys = GetParam();
+  config.num_groups = 4;
+  config.group_size = 2;
   int num_trials = 5;
   while(num_trials--) {
     generate_stream({1024,0.002,0.5,0,"./sample.txt","./cumul_sample.txt"});
@@ -199,7 +209,7 @@ TEST_P(GraphTest, MultipleInserters) {
     node_id_t n;
     edge_id_t m;
     in >> n >> m;
-    Graph g{n};
+    Graph g{n, config};
     int type, a, b;
     while (m--) {
       in >> type >> a >> b;
@@ -214,14 +224,16 @@ TEST_P(GraphTest, MultipleInserters) {
 }
 
 TEST(GraphTest, TestQueryDuringStream) {
-  write_configuration(false, false);
+  GraphConfiguration config;
+  config.gutter_sys = STANDALONE;
+  config.backup_in_mem = false;
   { // test copying to disk
     generate_stream({1024, 0.002, 0.5, 0, "./sample.txt", "./cumul_sample.txt"});
     std::ifstream in{"./sample.txt"};
     node_id_t n;
     edge_id_t m;
     in >> n >> m;
-    Graph g(n);
+    Graph g(n, config);
     MatGraphVerifier verify(n);
 
     int type;
@@ -248,14 +260,14 @@ TEST(GraphTest, TestQueryDuringStream) {
     g.connected_components();
   }
 
-  write_configuration(false, true);
+  config.backup_in_mem = true;
   { // test copying in memory
     generate_stream({1024, 0.002, 0.5, 0, "./sample.txt", "./cumul_sample.txt"});
     std::ifstream in{"./sample.txt"};
     node_id_t n;
     edge_id_t m;
     in >> n >> m;
-    Graph g(n);
+    Graph g(n, config);
     MatGraphVerifier verify(n);
 
     int type;
