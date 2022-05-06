@@ -139,6 +139,7 @@ if (BUILD_EXE)
 
   # executables for experiment/benchmarking
   add_executable(efficient_gen
+    src/util.cpp
     test/util/efficient_gen/edge_gen.cpp
     test/util/efficient_gen/efficient_gen.cpp)
   target_link_libraries(efficient_gen PRIVATE xxhash GraphZeppelinCommon)
