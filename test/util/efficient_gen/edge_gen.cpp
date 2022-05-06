@@ -1,37 +1,22 @@
 #include <fstream>
 #include <algorithm>
 #include <cmath>
+#include <random>
 #include <vector>
 #include <iostream>
 #include "../../../include/test/efficient_gen.h"
 #include "../../../include/types.h"
+#include "../../../include/util.h"
 
 typedef uint32_t ul;
 typedef uint64_t ull;
-
-const ull ULLMAX = std::numeric_limits<ull>::max();
-const uint8_t num_bits = sizeof(node_id_t) * 8;
-
-ull concat_pairing_fn(ul i, ul j) {
-  // swap i,j if necessary
-  if (i > j) {
-    std::swap(i,j);
-  }
-  return ((ull)i << num_bits) | j;
-}
-
-std::pair<ul, ul> inv_concat_pairing_fn(ull idx) {
-  ul j = idx & 0xFFFFFFFF;
-  ul i = idx >> num_bits;
-  return {i, j};
-}
 
 std::ofstream& operator<< (std::ofstream &os, const std::pair<ull,ull> p) {
   os << p.first << " " << p.second;
   return os;
 }
 
-void write_edges(ul n, double p, std::string out_f) {
+void write_edges(ul n, double p, const std::string& out_f) {
   ull num_edges = ((ull)n*(n-1))/2;
   ull* arr = (ull*) malloc(num_edges*sizeof(ull));
   ul idx = 0;
@@ -44,7 +29,7 @@ void write_edges(ul n, double p, std::string out_f) {
   }
 
   std::cout << "Permuting edges" << std::endl;  
-  std::random_shuffle(arr,arr+num_edges);
+  std::shuffle(arr,arr+num_edges, std::mt19937(std::random_device()()));
   std::ofstream out(out_f);
   ull m = (ull) (num_edges*p);
   out << n << " " << m << std::endl;
@@ -58,7 +43,7 @@ void write_edges(ul n, double p, std::string out_f) {
   free(arr);
 }
 
-void insert_delete(double p, std::string in_file, std::string out_file) {
+void insert_delete(double p, const std::string& in_file, const std::string& out_file) {
   std::cout << "Deleting and reinserting some edges" << std::endl;
   std::ifstream in(in_file);
   std::ofstream out(out_file);
