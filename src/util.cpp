@@ -1,7 +1,8 @@
-#include <stdexcept>
+//#include <stdexcept>
+#include <limits>
+#include <cmath>
+#include <graph_zeppelin_common.h>
 #include "../include/util.h"
-#include "../include/graph_worker.h"
-#include "../include/graph.h"
 
 typedef uint32_t ul;
 typedef uint64_t ull;
