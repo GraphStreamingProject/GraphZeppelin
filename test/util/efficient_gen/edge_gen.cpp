@@ -12,7 +12,7 @@ typedef uint64_t ull;
 const ull ULLMAX = std::numeric_limits<ull>::max();
 const uint8_t num_bits = sizeof(node_id_t) * 8;
 
-ull nondirectional_non_self_edge_pairing_fn(ul i, ul j) {
+ull concat_pairing_fn(ul i, ul j) {
   // swap i,j if necessary
   if (i > j) {
     std::swap(i,j);
@@ -20,7 +20,7 @@ ull nondirectional_non_self_edge_pairing_fn(ul i, ul j) {
   return ((ull)i << num_bits) | j;
 }
 
-std::pair<ul, ul> inv_nondir_non_self_edge_pairing_fn(ull idx) {
+std::pair<ul, ul> inv_concat_pairing_fn(ull idx) {
   ul j = idx & 0xFFFFFFFF;
   ul i = idx >> num_bits;
   return {i, j};
@@ -39,7 +39,7 @@ void write_edges(ul n, double p, std::string out_f) {
   std::cout << "Generating possible edges" << std::endl;
   for (unsigned i=0; i < n; ++i) {
     for (unsigned j=i+1;j < n; ++j) {
-      arr[idx++] = nondirectional_non_self_edge_pairing_fn(i, j);
+      arr[idx++] = concat_pairing_fn(i, j);
     }
   }
 
@@ -51,7 +51,7 @@ void write_edges(ul n, double p, std::string out_f) {
 
   std::cout << "Writing edges to file" << std::endl;
   while (m--) {
-    out << inv_nondir_non_self_edge_pairing_fn(arr[m]) << std::endl;
+    out << inv_concat_pairing_fn(arr[m]) << std::endl;
   }
 
   out.close();
@@ -81,7 +81,7 @@ void insert_delete(double p, std::string in_file, std::string out_file) {
   for (unsigned i=0;i<ins_del_arr[1];++i) {
     in >> a >> b;
     out << "0 " << a << " " << b << std::endl;
-    memoized[i] = nondirectional_non_self_edge_pairing_fn(a, b);
+    memoized[i] = concat_pairing_fn(a, b);
   }
 
   for (unsigned i=ins_del_arr[1];i<m;++i) {
@@ -93,7 +93,7 @@ void insert_delete(double p, std::string in_file, std::string out_file) {
     int temp = i%2;
     for (unsigned j=0;j<ins_del_arr[i];++j) {
       out << temp << " ";
-      out << inv_nondir_non_self_edge_pairing_fn(memoized[j]) << std::endl;
+      out << inv_concat_pairing_fn(memoized[j]) << std::endl;
     }
   }
   free(memoized);

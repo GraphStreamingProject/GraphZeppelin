@@ -69,8 +69,8 @@ TEST_F(SupernodeTestSuite, TestSampleInsertGrinder) {
 
   // insert all edges
   for (auto edge : *graph_edges) {
-    vec_t encoded = nondirectional_non_self_edge_pairing_fn(edge.first, edge
-    .second);
+    vec_t encoded = concat_pairing_fn(edge.first, edge
+          .second);
     snodes[edge.first]->update(encoded);
     snodes[edge.second]->update(encoded);
   }
@@ -112,15 +112,15 @@ TEST_F(SupernodeTestSuite, TestSampleDeleteGrinder) {
 
   // insert all edges
   for (auto edge : *graph_edges) {
-    vec_t encoded = nondirectional_non_self_edge_pairing_fn(edge.first, edge
-    .second);
+    vec_t encoded = concat_pairing_fn(edge.first, edge
+          .second);
     snodes[edge.first]->update(encoded);
     snodes[edge.second]->update(encoded);
   }
   // then remove half of them (odds)
   for (auto edge : *odd_graph_edges) {
-    vec_t encoded = nondirectional_non_self_edge_pairing_fn(edge.first, edge
-    .second);
+    vec_t encoded = concat_pairing_fn(edge.first, edge
+          .second);
     snodes[edge.first]->update(encoded);
     snodes[edge.second]->update(encoded);
   }
@@ -242,7 +242,7 @@ TEST_F(SupernodeTestSuite, TestSerialization) {
 
   // insert all edges
   for (auto edge : *graph_edges) {
-    vec_t encoded = nondirectional_non_self_edge_pairing_fn(edge.first, edge
+    vec_t encoded = concat_pairing_fn(edge.first, edge
           .second);
     snodes[edge.first]->update(encoded);
     snodes[edge.second]->update(encoded);

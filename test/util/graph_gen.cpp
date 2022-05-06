@@ -24,7 +24,7 @@ void write_edges(long n, double p, const std::string& out_f) {
   ul e = 0;
   for (unsigned i = 0; i < n; ++i) {
     for (unsigned j = i+1; j < n; ++j) {
-      arr[e++] = nondirectional_non_self_edge_pairing_fn(i,j);
+      arr[e++] = concat_pairing_fn(i, j);
     }
   }
   std::shuffle(arr,arr+num_edges, std::mt19937(std::random_device()()));
@@ -33,7 +33,7 @@ void write_edges(long n, double p, const std::string& out_f) {
   out << n << " " << m << endl;
 
   while (m--) {
-    out << inv_nondir_non_self_edge_pairing_fn(arr[m]) << endl;
+    out << inv_concat_pairing_fn(arr[m]) << endl;
   }
   out.flush();
   out.close();
@@ -69,7 +69,7 @@ void insert_delete(double p, int max_appearances, const std::string& in_file,
   for (unsigned i=0;i<ins_del_arr[1];++i) {
     in >> a >> b;
     out << "0 " << a << " " << b << endl;
-    memoized[i] = nondirectional_non_self_edge_pairing_fn(a, b);
+    memoized[i] = concat_pairing_fn(a, b);
   }
 
   for (unsigned i=ins_del_arr[1];i<m;++i) {
@@ -89,7 +89,7 @@ void insert_delete(double p, int max_appearances, const std::string& in_file,
     int temp = i % 2;
     for (unsigned j = 0; j < ins_del_arr[i]; ++j) {
       out << temp << " ";
-      out << inv_nondir_non_self_edge_pairing_fn(memoized[j]) << endl;
+      out << inv_concat_pairing_fn(memoized[j]) << endl;
     }
   }
   out.flush();
