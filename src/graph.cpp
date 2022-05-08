@@ -123,10 +123,10 @@ void Graph::generate_delta_node(node_id_t node_n, uint64_t node_seed, node_id_t
   for (const auto& edge : edges) {
     if (src < edge) {
       updates.push_back(static_cast<vec_t>(
-                            nondirectional_non_self_edge_pairing_fn(src, edge)));
+                              concat_pairing_fn(src, edge)));
     } else {
       updates.push_back(static_cast<vec_t>(
-                            nondirectional_non_self_edge_pairing_fn(edge, src)));
+                              concat_pairing_fn(edge, src)));
     }
   }
   Supernode::delta_supernode(node_n, node_seed, updates, delta_loc);

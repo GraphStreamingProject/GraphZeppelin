@@ -55,7 +55,7 @@ std::pair<Edge, SampleSketchRet> Supernode::sample() {
   std::pair<vec_t, SampleSketchRet> query_ret = get_sketch(idx++)->query();
   vec_t idx = query_ret.first;
   SampleSketchRet ret_code = query_ret.second;
-  return {inv_nondir_non_self_edge_pairing_fn(idx), ret_code};
+  return {inv_concat_pairing_fn(idx), ret_code};
 }
 
 void Supernode::merge(Supernode &other) {
