@@ -50,7 +50,7 @@ FetchContent_Declare(
   GutterTree
 
   GIT_REPOSITORY  https://github.com/GraphStreamingProject/GutterTree.git
-  GIT_TAG         cache_tree_improve_2.1
+  GIT_TAG         main
 )
 
 if (BUILD_BENCH)
