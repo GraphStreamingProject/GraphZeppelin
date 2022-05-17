@@ -97,12 +97,12 @@ protected:
   GraphConfiguration config;
 
   static bool open_graph;
-
-  // Called from constructors to perform basic initialization
-  void initialize_graph(int num_inserters, bool read_config);
 public:
-  explicit Graph(node_id_t num_nodes, int num_inserters=1);
-  explicit Graph(const std::string &input_file, int num_inserters=1);
+  explicit Graph(node_id_t num_nodes, int num_inserters=1) : 
+    Graph(num_nodes, GraphConfiguration(), num_inserters) {};
+  explicit Graph(const std::string &input_file, int num_inserters=1) :
+    Graph(input_file, GraphConfiguration(), num_inserters) {};
+  explicit Graph(const std::string &input_file, GraphConfiguration config, int num_inserters=1);
   explicit Graph(node_id_t num_nodes, GraphConfiguration config, int num_inserters=1);
 
   virtual ~Graph();

@@ -127,7 +127,9 @@ void GraphWorker::do_work() {
     bool valid = gts->get_data(data);
 
     if (valid) {
-      graph->batch_update(data->get_node_idx(), data->get_data_vec(), delta_node);
+      const std::vector<update_batch> &batches = data->get_batches();
+      for (auto &batch : batches)
+        graph->batch_update(batch.node_idx, batch.upd_vec, delta_node);
       gts->get_data_callback(data); // inform guttering system that we're done
     }
     else if(shutdown)

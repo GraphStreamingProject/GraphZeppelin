@@ -13,7 +13,8 @@
 // static variable for enforcing that only one graph is open at a time
 bool Graph::open_graph = false;
 
-void Graph::initialize_graph(int num_inserters, bool read_config) {
+Graph::Graph(node_id_t num_nodes, GraphConfiguration config, int num_inserters) : 
+ num_nodes(num_nodes), config(config), num_updates(0) {
   if (open_graph) throw MultipleGraphsException();
 
 #ifdef VERIFY_SAMPLES_F
@@ -34,19 +35,15 @@ void Graph::initialize_graph(int num_inserters, bool read_config) {
     supernodes[i] = Supernode::makeSupernode(num_nodes,seed);
     parent[i] = i;
   }
-  num_updates = 0;
-  
-  if (read_config)
-    config.read_configuration(); // read the configuration file to configure the system
   
   backup_file = config.disk_dir + "supernode_backup.data";
   // Create the guttering system
   if (config.gutter_sys == GUTTERTREE)
-    gts = new GutterTree(config.disk_dir, num_nodes, config.num_groups, true);
+    gts = new GutterTree(config.disk_dir, num_nodes, config.num_groups, config.gutter_conf, true);
   else if (config.gutter_sys == STANDALONE)
-    gts = new StandAloneGutters(num_nodes, config.num_groups, num_inserters);
+    gts = new StandAloneGutters(num_nodes, config.num_groups, num_inserters, config.gutter_conf);
   else
-    gts = new CacheGuttering(num_nodes, config.num_groups, num_inserters);
+    gts = new CacheGuttering(num_nodes, config.num_groups, num_inserters, config.gutter_conf);
 
   GraphWorker::set_config(config.num_groups, config.group_size);
   GraphWorker::start_workers(this, gts, Supernode::get_size());
@@ -54,16 +51,8 @@ void Graph::initialize_graph(int num_inserters, bool read_config) {
   config.print(); // print the graph configuration
 }
 
-Graph::Graph(node_id_t num_nodes, int num_inserters): num_nodes(num_nodes) {
-  initialize_graph(num_inserters, true);
-}
-
-Graph::Graph(node_id_t num_nodes, GraphConfiguration config, int num_inserters) : 
- num_nodes(num_nodes), config(config) {
-  initialize_graph(num_inserters, false);
-}
-
-Graph::Graph(const std::string& input_file, int num_inserters) : num_updates(0) {
+Graph::Graph(const std::string& input_file, GraphConfiguration config, int num_inserters) : 
+ config(config), num_updates(0) {
   if (open_graph) throw MultipleGraphsException();
   
   vec_t sketch_fail_factor;
@@ -88,15 +77,14 @@ Graph::Graph(const std::string& input_file, int num_inserters) : num_updates(0) 
   }
   binary_in.close();
 
-  config.read_configuration(); // read the configuration file to configure the system
   backup_file = config.disk_dir + "supernode_backup.data";
   // Create the guttering system
   if (config.gutter_sys == GUTTERTREE)
-    gts = new GutterTree(config.disk_dir, num_nodes, config.num_groups, true);
+    gts = new GutterTree(config.disk_dir, num_nodes, config.num_groups, config.gutter_conf, true);
   else if (config.gutter_sys == STANDALONE)
-    gts = new StandAloneGutters(num_nodes, config.num_groups, num_inserters);
+    gts = new StandAloneGutters(num_nodes, config.num_groups, num_inserters, config.gutter_conf);
   else
-    gts = new CacheGuttering(num_nodes, config.num_groups, num_inserters);
+    gts = new CacheGuttering(num_nodes, config.num_groups, num_inserters, config.gutter_conf);
 
   GraphWorker::set_config(config.num_groups, config.group_size);
   GraphWorker::start_workers(this, gts, Supernode::get_size());
