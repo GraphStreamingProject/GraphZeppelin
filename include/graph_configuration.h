@@ -1,5 +1,5 @@
-
 #include <iostream>
+#include <guttering_configuration.h>
 static constexpr char config_loc[] = "streaming.conf";
 
 // TODO: Replace this with an enum defined by GutterTree repo
@@ -27,7 +27,15 @@ public:
   // How many OMP threads each graph worker uses
   size_t group_size = 1;
 
-  void read_configuration() {
+  // Configuration for the guttering system
+  const GutteringConfiguration gutter_conf;
+
+  GraphConfiguration(GutterSystem gut_sys, std::string dir, bool mem_back, size_t num_group, 
+   size_t group_size, const GutteringConfiguration &gutter_conf) : 
+   gutter_sys(gut_sys), disk_dir(dir), backup_in_mem(mem_back), num_groups(num_group), 
+   group_size(group_size), gutter_conf(gutter_conf) {};
+
+  GraphConfiguration() {
     std::ifstream config_file(config_loc);
     std::string line;
     if (config_file.is_open()) {
@@ -79,16 +87,24 @@ public:
   }
 
   void print() {
-    std::cout << "Configuration:" << std::endl;
+    std::cout << "GraphStreaming Configuration:" << std::endl;
     std::string gutter_system = "StandAloneGutters";
     if (gutter_sys == GUTTERTREE)
       gutter_system = "GutterTree";
     else if (gutter_sys == CACHETREE)
       gutter_system = "CacheTree";
-    std::cout << "Guttering system = " << gutter_system << std::endl;
-    std::cout << "Number of groups = " << num_groups << std::endl;
-    std::cout << "Size of groups = " << group_size << std::endl;
-    std::cout << "Directory for on disk data = " << disk_dir << std::endl;
-    std::cout << "Query backups in memory = " << (backup_in_mem? "ON" : "OFF") << std::endl;
+    std::cout << " Guttering system      = " << gutter_system << std::endl;
+    std::cout << " Number of groups      = " << num_groups << std::endl;
+    std::cout << " Size of groups        = " << group_size << std::endl;
+    std::cout << " On disk data location = " << disk_dir << std::endl;
+    std::cout << " Backup sketch to RAM  = " << (backup_in_mem? "ON" : "OFF") << std::endl;
   }
+
+  // no use of equal operator
+  GraphConfiguration &operator=(const GraphConfiguration &) = delete;
+
+  // moving and copying allowed
+  GraphConfiguration(const GraphConfiguration &oth) = default;
+  GraphConfiguration (GraphConfiguration &&) = default;
+
 };

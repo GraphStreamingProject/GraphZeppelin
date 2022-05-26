@@ -197,7 +197,7 @@ TEST_P(GraphTest, TestCorrectnessOfReheating) {
 
 // Test the multithreaded system by specifiying multiple
 // Graph Workers of size 2. Ingest a stream and run CC algorithm.
-TEST_P(GraphTest, MultipleInserters) {
+TEST_P(GraphTest, MultipleWorkers) {
   GraphConfiguration config;
   config.gutter_sys = GetParam();
   config.num_groups = 4;
@@ -341,4 +341,51 @@ TEST(GraphTest, EagerDSUTest) {
   verify.reset_cc_state();
   g.set_verifier(std::make_unique<decltype(verify)>(verify));
   g.connected_components(true);
+}
+
+TEST(GraphTest, MultipleInsertThreads) {
+  GraphConfiguration config;
+  config.gutter_sys = STANDALONE;
+  int num_threads = 4;
+
+  generate_stream({1024, 0.2, 0.5, 0, "./sample.txt", "./cumul_sample.txt"});
+  std::ifstream in{"./sample.txt"};
+  node_id_t n;
+  edge_id_t m;
+  in >> n >> m;
+  int per_thread = m / num_threads;
+  Graph g(n, config, num_threads);
+  std::vector<std::vector<GraphUpdate>> updates(num_threads,
+          std::vector<GraphUpdate>(per_thread));
+
+  int type;
+  node_id_t a, b;
+  for (int i = 0; i < num_threads; ++i) {
+    for (int j = 0; j < per_thread; ++j) {
+      in >> type >> a >> b;
+      updates[i][j] = {{a,b}, (UpdateType)type};
+    }
+  }
+  for (edge_id_t i = per_thread * num_threads; i < m; ++i) {
+    in >> type >> a >> b;
+    g.update({{a,b}, (UpdateType)type});
+  }
+
+  auto task = [&updates, &g](int id) {
+      for (auto upd : updates[id]) {
+        g.update(upd, id);
+      }
+    return;
+  };
+
+  std::thread threads[num_threads];
+  for (int i = 0; i < num_threads; ++i) {
+    threads[i] = std::thread(task, i);
+  }
+  for (int i = 0; i < num_threads; ++i) {
+    threads[i].join();
+  }
+
+  g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
+  g.connected_components();
 }
