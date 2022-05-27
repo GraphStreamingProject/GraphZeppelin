@@ -128,8 +128,10 @@ void GraphWorker::do_work() {
 
     if (valid) {
       const std::vector<update_batch> &batches = data->get_batches();
-      for (auto &batch : batches)
-        graph->batch_update(batch.node_idx, batch.upd_vec, delta_node);
+      for (auto &batch : batches) {
+        if (batch.upd_vec.size() > 0)
+          graph->batch_update(batch.node_idx, batch.upd_vec, delta_node);
+      }
       gts->get_data_callback(data); // inform guttering system that we're done
     }
     else if(shutdown)
