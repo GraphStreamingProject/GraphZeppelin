@@ -20,15 +20,15 @@ This library can easily be included with other cmake projects using FetchContent
 std::string file_name = "/path/to/binary/stream";
 
 int main() {
-  BinaryGraphStream stream(file_name);   // Create a stream object for parsing a binary graph stream 'file_name'
-  node_id_t num_nodes = stream.nodes();  // Extract the number of nodes from the stream 
-  size_t    num_edges = stream.edges();  // Extract the number of edges from the stream
-  Graph g{num_nodes};                    // Create a empty graph with 'num_nodes' vertices
+  BinaryGraphStream stream(file_name, 1024*32);  // Create a stream object for parsing a stream 'file_name' with 32 KiB buffer
+  node_id_t num_nodes = stream.nodes();          // Extract the number of nodes from the stream 
+  size_t    num_edges = stream.edges();          // Extract the number of edges from the stream
+  Graph g{num_nodes};                            // Create a empty graph with 'num_nodes' vertices
 
-  for (size_t e = 0; e < num_edges; e++) // Loop through all the edges in the graph
-    g.update(stream.get_edge());         // Update the graph by applying the next update in the stream
+  for (size_t e = 0; e < num_edges; e++)         // Loop through all the edges in the graph
+    g.update(stream.get_edge());                 // Update the graph by applying the next update in the stream
 
-  auto CC = g.connected_components()     // Extract the connected components in the graph defined by the stream
+  auto CC = g.connected_components();            // Extract the connected components in the graph defined by the stream
 }
 ```
 
