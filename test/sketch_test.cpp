@@ -223,6 +223,12 @@ TEST(SketchTestSuite, TestSketchAddition){
 void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
   Sketch::configure(vec_size, fail_factor);
 
+  // TEMPORARY FIX
+  // we use an optimization in our sketching that is valid when solving CC
+  // we assume that max number of non-zeroes in vector is vec_size / 4
+  // therefore we need to ensure that in this test that we don't do more than that
+  num_updates = std::min(num_updates, vec_size / 4);
+
   srand(time(nullptr));
   SketchUniquePtr sketch = makeSketch(rand());
   //Keep seed for replaying update stream later
