@@ -341,3 +341,146 @@ TEST(GraphTest, MultipleInsertThreads) {
   g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
   g.connected_components();
 }
+
+std::string execCommand(const std::string cmd, int& out_exitStatus)
+{
+  out_exitStatus = 0;
+  auto pPipe = ::popen(cmd.c_str(), "r");
+  if(pPipe == nullptr)
+  {
+    throw std::runtime_error("Cannot open pipe");
+  }
+
+  std::array<char, 256> buffer;
+
+  std::string result;
+
+  while(not std::feof(pPipe))
+  {
+    auto bytes = std::fread(buffer.data(), 1, buffer.size(), pPipe);
+    result.append(buffer.data(), bytes);
+  }
+
+  auto rc = ::pclose(pPipe);
+
+  if(WIFEXITED(rc))
+  {
+    out_exitStatus = WEXITSTATUS(rc);
+  }
+
+  return result;
+}
+
+TEST(GraphTest, TestCorrectnessOfKickstarter) {
+  GraphConfiguration config;
+  config.gutter_sys = STANDALONE;
+  int num_trials = 5;
+  int num_fails = 0;
+  while(num_trials--) {
+    generate_stream({1024,0.002,0.5,0,"./sample.txt","./cumul_sample.txt"});
+    std::ifstream in{"./sample.txt"};
+    node_id_t n;
+    edge_id_t m;
+    in >> n >> m;
+    Graph g{n, config};
+    int type, a, b;
+    while (m--) {
+      in >> type >> a >> b;
+      if (type == INSERT) {
+      g.update({{a, b}, INSERT});
+      } else g.update({{a, b}, DELETE});
+    }
+    in.close();
+
+    g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
+    auto res = g.connected_components();
+    std::set<std::set<node_id_t>> set_res;
+    for (auto& s : res) {
+      set_res.insert(s);
+    }
+
+    // get first insertions into snap format
+    std::ifstream snap_in { "./sample.txt" };
+    std::ofstream snap_out { "./TEMP_SNAP_F" };
+    snap_in >> n >> m;
+    while(m--) {
+      snap_in >> type >> a >> b;
+      if (type == DELETE) break;
+      snap_out << a << "\t" << b << "\n";
+    }
+    ++m;
+    snap_out.close();
+    int exitStatus = 0;
+    std::string convert_cmd = "/home/victor/CODE/graphbolt/tools/converters"
+                              "/SNAPtoAdjConverter -s"
+                              " ./TEMP_SNAP_F"
+                              " ./graph.adj";
+    std::string cmd = "/home/victor/CODE/graphbolt/apps/ConnectedComponents"
+                      " -s"
+                      " -numberOfUpdateBatches 1"
+                      " -nEdges " + std::to_string(m) +
+                      " -streamPath ./edge_ops.txt"
+                      " -outputFile ./KS_OUT_F"
+                      " ./graph.adj";
+    auto result = execCommand(convert_cmd, exitStatus);
+    std::cout << result << std::endl;
+
+    std::ofstream ops_out { "./edge_ops.txt" };
+    while(m--) {
+      snap_in >> type >> a >> b;
+      ops_out << (type == INSERT ? "a" : "d") << "\t" << a << "\t" << b << "\n";
+    }
+    ops_out.close();
+
+
+    result = execCommand(cmd, exitStatus);
+    std::cout << result << std::endl;
+
+    std::ifstream ks_in { "./KS_OUT_F1" };
+    std::vector<std::set<node_id_t>> ccs(n);
+    for (unsigned i = 0; i < n; ++i) {
+      ks_in >> a >> b >> b >> b;
+      ccs[b].insert(a);
+    }
+    std::set<std::set<node_id_t>> comparison;
+    for (unsigned i = 0; i < n; ++i) {
+      if (!ccs[i].empty()) {
+        comparison.insert(ccs[i]);
+      }
+    }
+    std::vector<std::set<node_id_t>> symdif(set_res.size() + comparison.size());
+    auto it = std::set_symmetric_difference(set_res.begin(), set_res.end(),
+                                            comparison.begin(), comparison
+                                            .end(),
+                                            symdif.begin());
+    symdif.resize(it - symdif.begin());
+    for (auto &s : symdif) {
+      std::cout << "{ ";
+      std::cerr << "{ ";
+      for (auto val : s) {
+        std::cout << val << ", ";
+        std::cerr << val << ", ";
+      }
+      std::cout << "},\n";
+      std::cerr << "},\n";
+    }
+    // special case where the graph contains no edges from last, or last few,
+    // vertices. if this happens, Kickstarter will have fewer vertices in its
+    // vertex set than we expect
+    bool in_desc = true;
+    for (unsigned i = 1; i <= symdif.size(); ++i) {
+      std::set<node_id_t> e = {n - i};
+      if (symdif[symdif.size() - i] != e) {
+        in_desc = false;
+        break;
+      }
+    }
+    if (!in_desc) {
+      std::cerr << "FAIL\n";
+      std::cout << "FAIL\n";
+      ++num_fails;
+    }
+  }
+  std::cout << "Failures: " << num_fails << "/" << num_trials << std::endl;
+//  ASSERT_EQ(num_fails, 0);
+}
