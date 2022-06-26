@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(GraphStreamingCC)
+project(GraphZeppelin)
 
 include (FetchContent)
 
@@ -15,7 +15,7 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release" CACHE
       STRING "Choose the type of build." FORCE)
 endif()
-message(STATUS "GraphStreamingCC Build Type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "GraphZeppelin Build Type: ${CMAKE_BUILD_TYPE}")
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   message(STATUS "Adding GNU compiler flags")
@@ -34,7 +34,7 @@ if (not_root AND "${CMAKE_BUILD_TYPE}" STREQUAL "Release")
   set(BUILD_EXE OFF)
 else()
   set(BUILD_EXE ON)
-  message (STATUS "GraphStreamingCC building executables")
+  message (STATUS "GraphZeppelin building executables")
 endif()
 
 # Get xxHash
@@ -86,21 +86,21 @@ set(BUILD_SHARED_LIBS "${SAVED_BUILD_SHARED_LIBS}" CACHE BOOL "" FORCE)
 # VERIFY_SAMPLES_F   Use a deterministic connected-components 
 #                    algorithm to verify post-processing.
 
-add_library(GraphStreamingCC
+add_library(GraphZeppelin
   src/graph.cpp
   src/supernode.cpp
   src/graph_worker.cpp
   src/l0_sampling/sketch.cpp
   src/l0_sampling/update.cpp
   src/util.cpp)
-add_dependencies(GraphStreamingCC GutterTree)
-target_link_libraries(GraphStreamingCC PUBLIC xxhash GutterTree)
-target_include_directories(GraphStreamingCC PUBLIC include/ include/l0_sampling/)
-target_compile_options(GraphStreamingCC PUBLIC -fopenmp)
-target_link_options(GraphStreamingCC PUBLIC -fopenmp)
-target_compile_definitions(GraphStreamingCC PUBLIC XXH_INLINE_ALL USE_EAGER_DSU)
+add_dependencies(GraphZeppelin GutterTree)
+target_link_libraries(GraphZeppelin PUBLIC xxhash GutterTree)
+target_include_directories(GraphZeppelin PUBLIC include/ include/l0_sampling/)
+target_compile_options(GraphZeppelin PUBLIC -fopenmp)
+target_link_options(GraphZeppelin PUBLIC -fopenmp)
+target_compile_definitions(GraphZeppelin PUBLIC XXH_INLINE_ALL USE_EAGER_DSU)
 
-add_library(GraphStreamingVerifyCC
+add_library(GraphZeppelinVerifyCC
   src/graph.cpp
   src/supernode.cpp
   src/graph_worker.cpp
@@ -109,12 +109,12 @@ add_library(GraphStreamingVerifyCC
   src/util.cpp
   test/util/file_graph_verifier.cpp
   test/util/mat_graph_verifier.cpp)
-add_dependencies(GraphStreamingVerifyCC GutterTree)
-target_link_libraries(GraphStreamingVerifyCC PUBLIC xxhash GutterTree)
-target_include_directories(GraphStreamingVerifyCC PUBLIC include/ include/l0_sampling/ include/test/)
-target_compile_options(GraphStreamingVerifyCC PUBLIC -fopenmp)
-target_link_options(GraphStreamingVerifyCC PUBLIC -fopenmp)
-target_compile_definitions(GraphStreamingVerifyCC PUBLIC XXH_INLINE_ALL VERIFY_SAMPLES_F USE_EAGER_DSU)
+add_dependencies(GraphZeppelinVerifyCC GutterTree)
+target_link_libraries(GraphZeppelinVerifyCC PUBLIC xxhash GutterTree)
+target_include_directories(GraphZeppelinVerifyCC PUBLIC include/ include/l0_sampling/ include/test/)
+target_compile_options(GraphZeppelinVerifyCC PUBLIC -fopenmp)
+target_link_options(GraphZeppelinVerifyCC PUBLIC -fopenmp)
+target_compile_definitions(GraphZeppelinVerifyCC PUBLIC XXH_INLINE_ALL VERIFY_SAMPLES_F USE_EAGER_DSU)
 
 if (BUILD_EXE)
   add_executable(tests
@@ -127,15 +127,15 @@ if (BUILD_EXE)
     test/util/graph_gen.cpp
     test/util/graph_gen_test.cpp
     test/util/graph_verifier_test.cpp)
-  add_dependencies(tests GraphStreamingVerifyCC)
-  target_link_libraries(tests PRIVATE GraphStreamingVerifyCC)
+  add_dependencies(tests GraphZeppelinVerifyCC)
+  target_link_libraries(tests PRIVATE GraphZeppelinVerifyCC)
 
   add_executable(statistical_test
     tools/statistical_testing/graph_testing.cpp
     test/util/file_graph_verifier.cpp
     test/util/graph_gen.cpp)
-  add_dependencies(statistical_test GraphStreamingVerifyCC)
-  target_link_libraries(statistical_test PRIVATE GraphStreamingVerifyCC)
+  add_dependencies(statistical_test GraphZeppelinVerifyCC)
+  target_link_libraries(statistical_test PRIVATE GraphZeppelinVerifyCC)
 
   # executables for experiment/benchmarking
   add_executable(efficient_gen
@@ -148,6 +148,6 @@ endif()
 if (BUILD_BENCH)
   add_executable(bench_cc
     tools/benchmark/graphcc_bench.cpp)
-  add_dependencies(bench_cc GraphStreamingCC benchmark)
-  target_link_libraries(bench_cc GraphStreamingCC benchmark::benchmark xxhash)
+  add_dependencies(bench_cc GraphZeppelin benchmark)
+  target_link_libraries(bench_cc GraphZeppelin benchmark::benchmark xxhash)
 endif()
