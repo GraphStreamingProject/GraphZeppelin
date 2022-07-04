@@ -372,12 +372,17 @@ std::string execCommand(const std::string cmd, int& out_exitStatus)
 }
 
 TEST(GraphTest, TestCorrectnessOfKickstarter) {
+  // specific to bigboy
   GraphConfiguration config;
   config.gutter_sys = STANDALONE;
+  config.num_groups = 46;
+  config.backup_in_mem = false;
+
   int num_trials = 5;
   int num_fails = 0;
   while(num_trials--) {
-    generate_stream({1024,0.002,0.5,0,"./sample.txt","./cumul_sample.txt"});
+    generate_stream({16384,0.001,0.5,0,"./sample.txt","./cumul_sample.txt"});
+    std::cout << "Generated stream" << std::endl;
     std::ifstream in{"./sample.txt"};
     node_id_t n;
     edge_id_t m;
@@ -479,6 +484,8 @@ TEST(GraphTest, TestCorrectnessOfKickstarter) {
       std::cerr << "FAIL\n";
       std::cout << "FAIL\n";
       ++num_fails;
+    } else {
+      std::cout << "OK. " << num_trials << " trials to go" << std::endl;
     }
   }
   std::cout << "Failures: " << num_fails << "/" << num_trials << std::endl;
