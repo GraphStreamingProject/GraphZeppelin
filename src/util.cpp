@@ -1,9 +1,8 @@
-#include <stdexcept>
+//#include <stdexcept>
+#include <limits>
+#include <cmath>
+#include <graph_zeppelin_common.h>
 #include "../include/util.h"
-#include "../include/graph_worker.h"
-#include "../include/graph.h"
-
-const char *config_file = "streaming.conf";
 
 typedef uint32_t ul;
 typedef uint64_t ull;
@@ -15,7 +14,34 @@ unsigned long long int double_to_ull(double d, double epsilon) {
   return (unsigned long long) (d + epsilon);
 }
 
-ull nondirectional_non_self_edge_pairing_fn(ul i, ul j) {
+uint64_t nondirectional_non_self_edge_pairing_fn(uint32_t i, uint32_t j) {
+  // swap i,j if necessary
+  if (i > j) {
+    std::swap(i,j);
+  }
+  ull jm = j-1ull;
+  if ((j & 1ull) == 0ull) j>>=1ull;
+  else jm>>=1ull;
+//  if (ULLMAX/j < jm)
+//    throw std::overflow_error("Computation would overflow unsigned long long max");
+  j*=jm;
+//  if (ULLMAX-j < i)
+//    throw std::overflow_error("Computation would overflow unsigned long long max");
+  return i+j;
+}
+
+std::pair<uint32_t , uint32_t> inv_nondir_non_self_edge_pairing_fn(uint64_t idx) {
+  // we ignore possible overflow
+  ull eidx = 8ull*idx + 1ull;
+  eidx = sqrt(eidx)+1ull;
+  eidx/=2ull;
+  ull i,j = (ull) eidx;
+  if ((j & 1ull) == 0ull) i = idx-(j>>1ull)*(j-1ull);
+  else i = idx-j*((j-1ull)>>1ull);
+  return {i, j};
+}
+
+ull concat_pairing_fn(ul i, ul j) {
   // swap i,j if necessary
   if (i > j) {
     std::swap(i,j);
@@ -23,70 +49,8 @@ ull nondirectional_non_self_edge_pairing_fn(ul i, ul j) {
   return ((ull)i << num_bits) | j;
 }
 
-std::pair<ul, ul> inv_nondir_non_self_edge_pairing_fn(ull idx) {
+std::pair<ul, ul> inv_concat_pairing_fn(ull idx) {
   ul j = idx & 0xFFFFFFFF;
   ul i = idx >> num_bits;
   return {i, j};
-}
-
-std::tuple<bool, bool, std::string> configure_system() {
-  bool use_guttertree = false;
-  std::string dir = "./";
-  int num_groups = 1;
-  int group_size = 1;
-  bool backup_in_mem = true;
-  std::string line;
-  std::ifstream conf(config_file);
-  if (conf.is_open()) {
-    while(getline(conf, line)) {
-      if (line[0] == '#' || line[0] == '\n') continue;
-      if(line.substr(0, line.find('=')) == "buffering_system") {
-        std::string buf_str = line.substr(line.find('=') + 1);
-        if (buf_str == "tree") {
-          use_guttertree = true;
-        } else if (buf_str != "standalone") {
-          printf("WARNING: string %s is not a valid option for " 
-                "buffering. Defaulting to StandAloneGutters.\n", buf_str.c_str());
-        }
-      }
-      if(line.substr(0, line.find('=')) == "disk_dir") {
-        dir = line.substr(line.find('=') + 1) + "/";
-      }
-      if(line.substr(0, line.find('=')) == "backup_in_mem") {
-        std::string flag = line.substr(line.find('=') + 1);
-        if (flag == "ON")
-          backup_in_mem = true;
-        else if (flag == "OFF")
-          backup_in_mem = false;
-        else
-          printf("WARNING: string %s is not a valid option for backup_in_mem"
-                 "Defaulting to ON.\n", flag.c_str());
-      }
-      if(line.substr(0, line.find('=')) == "num_groups") {
-        num_groups = std::stoi(line.substr(line.find('=') + 1));
-        if (num_groups < 1) { 
-          printf("num_groups=%i is out of bounds. Defaulting to 1.\n", num_groups);
-          num_groups = 1; 
-        }
-      }
-      if(line.substr(0, line.find('=')) == "group_size") {
-        group_size = std::stoi(line.substr(line.find('=') + 1));
-        if (group_size < 1) { 
-          printf("group_size=%i is out of bounds. Defaulting to 1.\n", group_size);
-          group_size = 1; 
-        }
-      }
-    }
-  } else {
-    printf("WARNING: Could not open thread configuration file! Using default values.\n");
-  }
-  
-  printf("Configuration:\n");
-  printf("Buffering system = %s\n", use_guttertree? "GutterTree" : "StandAloneGutters");
-  printf("Number of groups = %i\n", num_groups);
-  printf("Size of groups = %i\n", group_size);
-  printf("Directory for on disk data = %s\n", dir.c_str());
-  printf("Query backups in memory = %s\n", backup_in_mem? "ON" : "OFF");
-  GraphWorker::set_config(num_groups, group_size);
-  return {use_guttertree, backup_in_mem, dir};
 }

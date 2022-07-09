@@ -6,6 +6,7 @@
 #endif
 
 #include <string>
+#include <iostream>
 
 bool GraphWorker::shutdown = false;
 bool GraphWorker::paused   = false; // controls whether threads should pause or resume work
@@ -79,6 +80,29 @@ void GraphWorker::unpause_workers() {
   workers[0]->gts->set_non_block(false); // buffer-tree operations should block when necessary
   paused = false;
   pause_condition.notify_all();       // tell all paused workers to get back to work
+  
+  // wait until all GraphWorkers are unpaused
+  while (true) {
+    std::unique_lock<std::mutex> lk(pause_lock);
+    pause_condition.wait_for(lk, std::chrono::milliseconds(500), []{
+      for (int i = 0; i < num_groups; i++)
+        if (workers[i]->get_thr_paused()) return false;
+      return true;
+    });
+    
+
+    // double check that we didn't get a spurious wake-up
+    bool all_unpaused = true;
+    for (int i = 0; i < num_groups; i++) {
+      if (workers[i]->get_thr_paused()) {
+        all_unpaused = false; // a worker still working so don't stop
+        break;
+      }
+    }
+    lk.unlock();
+
+    if (all_unpaused) return; // all workers are done so exit
+  }
 }
 
 /***********************************************
@@ -98,31 +122,30 @@ GraphWorker::~GraphWorker() {
 void GraphWorker::do_work() {
   WorkQueue::DataNode *data;
   while(true) {
-    if(shutdown)
-      return;
-    std::unique_lock<std::mutex> lk(pause_lock);
-    thr_paused = true; // this thread is currently paused
-    lk.unlock();
-    pause_condition.notify_all(); // notify pause_workers()
+    // call get_data which will handle waiting on the queue
+    // and will enforce locking.
+    bool valid = gts->get_data(data);
 
-    // wait until we are unpaused
-    lk.lock();
-    pause_condition.wait(lk, []{return !paused || shutdown;});
-    thr_paused = false; // no longer paused
-    lk.unlock();
-    while(true) {
-      // call get_data which will handle waiting on the queue
-      // and will enforce locking.
-      bool valid = gts->get_data(data);
-
-      if (valid) {
-        graph->batch_update(data->get_node_idx(), data->get_data_vec(), delta_node);
-        gts->get_data_callback(data); // inform guttering system that we're done
+    if (valid) {
+      const std::vector<update_batch> &batches = data->get_batches();
+      for (auto &batch : batches) {
+        if (batch.upd_vec.size() > 0)
+          graph->batch_update(batch.node_idx, batch.upd_vec, delta_node);
       }
-      else if(shutdown)
-        return;
-      else if(paused)
-        break;
+      gts->get_data_callback(data); // inform guttering system that we're done
+    }
+    else if(shutdown)
+      return;
+    else if (paused) {
+      std::unique_lock<std::mutex> lk(pause_lock);
+      thr_paused = true; // this thread is currently paused
+      pause_condition.notify_all(); // notify pause_workers()
+
+      // wait until we are unpaused
+      pause_condition.wait(lk, []{return !paused || shutdown;});
+      thr_paused = false; // no longer paused
+      lk.unlock();
+      pause_condition.notify_all(); // notify unpause_workers()
     }
   }
 }

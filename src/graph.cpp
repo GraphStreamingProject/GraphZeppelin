@@ -6,13 +6,15 @@
 
 #include <gutter_tree.h>
 #include <standalone_gutters.h>
+#include <cache_guttering.h>
 #include "../include/graph.h"
 #include "../include/graph_worker.h"
 
 // static variable for enforcing that only one graph is open at a time
 bool Graph::open_graph = false;
 
-Graph::Graph(node_id_t num_nodes): num_nodes(num_nodes) {
+Graph::Graph(node_id_t num_nodes, GraphConfiguration config, int num_inserters) : 
+ num_nodes(num_nodes), config(config), num_updates(0) {
   if (open_graph) throw MultipleGraphsException();
 
 #ifdef VERIFY_SAMPLES_F
@@ -33,23 +35,28 @@ Graph::Graph(node_id_t num_nodes): num_nodes(num_nodes) {
     supernodes[i] = Supernode::makeSupernode(num_nodes,seed);
     parent[i] = i;
   }
-  num_updates = 0; // REMOVE this later
   
-  std::tuple<bool, bool, std::string> conf = configure_system(); // read the configuration file to configure the system
-  copy_in_mem = std::get<1>(conf);
-  std::string disk_loc = std::get<2>(conf);
-  backup_file = disk_loc + "supernode_backup.data";
-  // Create the buffering system and start the graphWorkers
-  if (std::get<0>(conf))
-    gts = new GutterTree(disk_loc, num_nodes, GraphWorker::get_num_groups(), true);
+  backup_file = config.disk_dir + "supernode_backup.data";
+  // Create the guttering system
+  if (config.gutter_sys == GUTTERTREE)
+    gts = new GutterTree(config.disk_dir, num_nodes, config.num_groups, config.gutter_conf, true);
+  else if (config.gutter_sys == STANDALONE)
+    gts = new StandAloneGutters(num_nodes, config.num_groups, num_inserters, config.gutter_conf);
   else
+<<<<<<< HEAD
     gts = new StandAloneGutters(num_nodes, GraphWorker::get_num_groups(), 4);
+=======
+    gts = new CacheGuttering(num_nodes, config.num_groups, num_inserters, config.gutter_conf);
+>>>>>>> main
 
+  GraphWorker::set_config(config.num_groups, config.group_size);
   GraphWorker::start_workers(this, gts, Supernode::get_size());
   open_graph = true;
+  config.print(); // print the graph configuration
 }
 
-Graph::Graph(const std::string& input_file) : num_updates(0) {
+Graph::Graph(const std::string& input_file, GraphConfiguration config, int num_inserters) : 
+ config(config), num_updates(0) {
   if (open_graph) throw MultipleGraphsException();
   
   vec_t sketch_fail_factor;
@@ -74,18 +81,23 @@ Graph::Graph(const std::string& input_file) : num_updates(0) {
   }
   binary_in.close();
 
-  std::tuple<bool, bool, std::string> conf = configure_system(); // read the configuration file to configure the system
-  copy_in_mem = std::get<1>(conf);
-  std::string disk_loc = std::get<2>(conf);
-  backup_file = disk_loc + "supernode_backup.data";
-  // Create the buffering system and start the graphWorkers
-  if (std::get<0>(conf))
-    gts = new GutterTree(disk_loc, num_nodes, GraphWorker::get_num_groups(), true);
+  backup_file = config.disk_dir + "supernode_backup.data";
+  // Create the guttering system
+  if (config.gutter_sys == GUTTERTREE)
+    gts = new GutterTree(config.disk_dir, num_nodes, config.num_groups, config.gutter_conf, true);
+  else if (config.gutter_sys == STANDALONE)
+    gts = new StandAloneGutters(num_nodes, config.num_groups, num_inserters, config.gutter_conf);
   else
+<<<<<<< HEAD
     gts = new StandAloneGutters(num_nodes, GraphWorker::get_num_groups(), 4);
+=======
+    gts = new CacheGuttering(num_nodes, config.num_groups, num_inserters, config.gutter_conf);
+>>>>>>> main
 
+  GraphWorker::set_config(config.num_groups, config.group_size);
   GraphWorker::start_workers(this, gts, Supernode::get_size());
   open_graph = true;
+  config.print(); // print the graph configuration
 }
 
 Graph::~Graph() {
@@ -107,10 +119,10 @@ void Graph::generate_delta_node(node_id_t node_n, uint64_t node_seed, node_id_t
   for (const auto& edge : edges) {
     if (src < edge) {
       updates.push_back(static_cast<vec_t>(
-                            nondirectional_non_self_edge_pairing_fn(src, edge)));
+                              concat_pairing_fn(src, edge)));
     } else {
       updates.push_back(static_cast<vec_t>(
-                            nondirectional_non_self_edge_pairing_fn(edge, src)));
+                              concat_pairing_fn(edge, src)));
     }
   }
   Supernode::delta_supernode(node_n, node_seed, updates, delta_loc);
@@ -210,7 +222,7 @@ inline void Graph::merge_supernodes(Supernode** copy_supernodes, std::vector<nod
     // OMP requires a traditional for-loop to work
     node_id_t a = new_reps[i];
     try {
-      if (make_copy && copy_in_mem) { // make a copy of a
+      if (make_copy && config.backup_in_mem) { // make a copy of a
         copy_supernodes[a] = Supernode::makeSupernode(*supernodes[a]);
       }
 
@@ -235,7 +247,7 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
   cc_alg_start = std::chrono::steady_clock::now();
   bool first_round = true;
   Supernode** copy_supernodes;
-  if (make_copy && copy_in_mem) 
+  if (make_copy && config.backup_in_mem) 
     copy_supernodes = new Supernode*[num_nodes];
   std::pair<Edge, SampleSketchRet> query[num_nodes];
   std::vector<node_id_t> reps(num_nodes);
@@ -243,14 +255,14 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
   std::fill(size, size + num_nodes, 1);
   for (node_id_t i = 0; i < num_nodes; ++i) {
     reps[i] = i;
-    if (make_copy && copy_in_mem) 
+    if (make_copy && config.backup_in_mem) 
       copy_supernodes[i] = nullptr;
   }
 
   // function to restore supernodes after CC if make_copy is specified
   auto cleanup_copy = [&make_copy, this, &backed_up, &copy_supernodes]() {
     if (make_copy) {
-      if(copy_in_mem) {
+      if(config.backup_in_mem) {
         // restore original supernodes and free memory
         for (node_id_t i : backed_up) {
           if (supernodes[i] != nullptr) free(supernodes[i]);
@@ -271,7 +283,7 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
       // make a copy if necessary
       if (make_copy && first_round) {
         backed_up = reps;
-        if (!copy_in_mem) backup_to_disk(backed_up);
+        if (!config.backup_in_mem) backup_to_disk(backed_up);
       }
 
       merge_supernodes(copy_supernodes, reps, to_merge, first_round && make_copy);
