@@ -43,11 +43,7 @@ Graph::Graph(node_id_t num_nodes, GraphConfiguration config, int num_inserters) 
   else if (config.gutter_sys == STANDALONE)
     gts = new StandAloneGutters(num_nodes, config.num_groups, num_inserters, config.gutter_conf);
   else
-<<<<<<< HEAD
-    gts = new StandAloneGutters(num_nodes, GraphWorker::get_num_groups(), 4);
-=======
     gts = new CacheGuttering(num_nodes, config.num_groups, num_inserters, config.gutter_conf);
->>>>>>> main
 
   GraphWorker::set_config(config.num_groups, config.group_size);
   GraphWorker::start_workers(this, gts, Supernode::get_size());
@@ -88,11 +84,7 @@ Graph::Graph(const std::string& input_file, GraphConfiguration config, int num_i
   else if (config.gutter_sys == STANDALONE)
     gts = new StandAloneGutters(num_nodes, config.num_groups, num_inserters, config.gutter_conf);
   else
-<<<<<<< HEAD
-    gts = new StandAloneGutters(num_nodes, GraphWorker::get_num_groups(), 4);
-=======
     gts = new CacheGuttering(num_nodes, config.num_groups, num_inserters, config.gutter_conf);
->>>>>>> main
 
   GraphWorker::set_config(config.num_groups, config.group_size);
   GraphWorker::start_workers(this, gts, Supernode::get_size());

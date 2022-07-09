@@ -89,7 +89,6 @@ public:
     stream_off = 12;
     query_block = false;
   }
-<<<<<<< HEAD
 
   /*
    * Call this function to register a query in advance to avoid contraint on 32 KiB boundary
@@ -117,9 +116,7 @@ public:
   // call once per query performed regardless if registered query or on-demand query
   void post_query_resume() { query_block = false; query_index = end_of_file; }
 
-=======
   inline void stream_reset() {stream_off = 12;}
->>>>>>> main
   inline uint32_t nodes() {return num_nodes;}
   inline uint64_t edges() {return num_edges;}
   BinaryGraphStream_MT(const BinaryGraphStream_MT &) = delete;
