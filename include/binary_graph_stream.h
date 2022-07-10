@@ -171,6 +171,8 @@ public:
   MT_StreamReader(BinaryGraphStream_MT &stream) :
     stream(stream), buf((char *) malloc(stream.buf_size * sizeof(char))), start_buf(buf) {}
 
+  ~MT_StreamReader() {free(start_buf);}
+
   inline GraphUpdate get_edge() {
     // if we have read all the data in the buffer than refill it
     if (buf - start_buf >= data_in_buf) {
