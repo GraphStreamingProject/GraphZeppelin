@@ -6,6 +6,7 @@
 #include "../include/test/file_graph_verifier.h"
 #include "../include/test/mat_graph_verifier.h"
 #include "../include/test/graph_gen.h"
+#include <binary_graph_stream.h>
 
 /**
  * For many of these tests (especially for those upon very sparse and small graphs)
@@ -340,4 +341,118 @@ TEST(GraphTest, MultipleInsertThreads) {
 
   g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
   g.connected_components();
+}
+
+TEST(GraphTest, MTStreamWithMultipleQueries) {
+  for(int i = 1; i <= 10; i++) {
+    GraphConfiguration config;
+    config.gutter_sys = STANDALONE;
+
+    const std::string fname = __FILE__;
+    size_t pos = fname.find_last_of("\\/");
+    const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
+    BinaryGraphStream_MT stream(curr_dir + "/res/multiples_graph_1024.data", 256);
+    BinaryGraphStream verify_stream(curr_dir + "/res/multiples_graph_1024.data", 256);
+    node_id_t num_nodes = verify_stream.nodes();
+    edge_id_t num_edges = verify_stream.edges();
+    MatGraphVerifier verify(num_nodes);
+
+    int inserter_threads = i;
+    std::vector<std::thread> threads;
+    Graph g(num_nodes, config, inserter_threads);
+
+    // variables for coordination between inserter_threads
+    bool query_done = false;
+    int num_query_ready = 0;
+    std::condition_variable q_ready_cond;
+    std::condition_variable q_done_cond;
+    std::mutex q_lock;
+
+    // prepare evenly spaced queries
+    int num_queries = 10;
+    int upd_per_query = num_edges / num_queries;
+    int query_idx = upd_per_query;
+    ASSERT_EQ(stream.register_query(query_idx), true); // register first query
+
+    // task for threads that insert to the graph and perform queries
+    auto task = [&](const int thr_id) {
+      MT_StreamReader reader(stream);
+      GraphUpdate upd;
+      while(true) {
+        upd = reader.get_edge();
+        if (upd.second == END_OF_FILE) return;
+        else if (upd.second == NXT_QUERY) {
+          query_done = false;
+          if (thr_id > 0) {
+            // pause this thread and wait for query to be done
+            std::unique_lock<std::mutex> lk(q_lock);
+            num_query_ready++;
+            lk.unlock();
+            q_ready_cond.notify_one();
+
+            // wait for query to finish
+            lk.lock();
+            q_done_cond.wait(lk, [&](){return query_done;});
+            num_query_ready--;
+            lk.unlock();
+          } else {
+            // this thread will actually perform the query
+            // wait for other threads to be done applying updates
+            std::unique_lock<std::mutex> lk(q_lock);
+            num_query_ready++;
+            q_ready_cond.wait(lk, [&](){
+              return num_query_ready >= inserter_threads;
+            });
+
+            // add updates to verifier and perform query
+            for (int j = 0; j < upd_per_query; j++) {
+              GraphUpdate upd = verify_stream.get_edge();
+              verify.edge_update(upd.first.first, upd.first.second);
+            }
+            verify.reset_cc_state();
+            g.set_verifier(std::make_unique<MatGraphVerifier>(verify));
+            g.connected_components(true);
+
+            // inform other threads that we're ready to continue processing queries
+            stream.post_query_resume();
+            if(num_queries > 1) {
+              // prepare next query
+              query_idx += upd_per_query;
+              ASSERT_EQ(stream.register_query(query_idx), true);
+              num_queries--;
+            }
+            num_query_ready--;
+            query_done = true;
+            lk.unlock();
+            q_done_cond.notify_all();
+          }
+        }
+        else if (upd.second == INSERT || upd.second == DELETE)
+          g.update(upd, thr_id);
+        else
+          throw std::invalid_argument("Did not recognize edge code!");
+      }
+    };
+
+    // start inserters
+    for (int t = 0; t < inserter_threads; t++) {
+      threads.emplace_back(task, t);
+    }
+    // wait for inserters to be done
+    for (int t = 0; t < inserter_threads; t++) {
+      threads[t].join();
+    }
+
+    // process the rest of the stream into the MatGraphVerifier
+    for(size_t i = query_idx; i < num_edges; i++) {
+      GraphUpdate upd = verify_stream.get_edge();
+      verify.edge_update(upd.first.first, upd.first.second);
+    }
+
+    // perform final query
+    std::cout << "Starting CC" << std::endl;
+    verify.reset_cc_state();
+    g.set_verifier(std::make_unique<MatGraphVerifier>(verify));
+    ASSERT_EQ(g.connected_components().size(), 78);
+  }
 }
