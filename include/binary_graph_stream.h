@@ -77,16 +77,16 @@ public:
     }
 
     // set the buffer size to be a multiple of an edge size
-    buf_size = _b - (_b % edge_size); // ensure buffer size is multiple of edge_size
+    buf_size = _b - (_b % edge_size);
 
     // read header from the input file
     if (read(stream_fd, reinterpret_cast<char *>(&num_nodes), 4) != 4)
       throw BadStreamException();
     if (read(stream_fd, reinterpret_cast<char *>(&num_edges), 8) != 8)
       throw BadStreamException();
-    end_of_file = (num_edges * edge_size) + 12;
+    end_of_file = (num_edges * edge_size) + header_size;
     query_index = -1;
-    stream_off = 12;
+    stream_off = header_size;
     query_block = false;
   }
 
@@ -100,7 +100,7 @@ public:
   void post_query_resume() { query_block = false; query_index = -1; }
 
   /*
-   * Call this function to register a query in advance to avoid contraint on 32 KiB boundary
+   * Call this function to register a query in advance to avoid constraint on 32 KiB boundary
    * Only one query may be registered at a time and query index must within a 32 KiB boundary not
    * yet touched by the MT_StreamReader threads.
    * To register first query, call before processing any updates from the stream
@@ -110,13 +110,13 @@ public:
    * @return            true if the query is successfully registered and false if not
   */
   bool register_query(uint64_t query_idx) {
-    uint64_t byte_index = 12 + query_idx * edge_size;
+    uint64_t byte_index = header_size + query_idx * edge_size;
     if (byte_index <= stream_off) return false;
     else query_index = byte_index;
     return true;
   }
 
-  inline void stream_reset() {stream_off = 12;}
+  inline void stream_reset() {stream_off = header_size;}
   inline uint32_t nodes() {return num_nodes;}
   inline uint64_t edges() {return num_edges;}
   BinaryGraphStream_MT(const BinaryGraphStream_MT &) = delete;
@@ -132,6 +132,7 @@ private:
   std::atomic<uint64_t> query_index; // what is the index of the next query in bytes
   std::atomic<bool> query_block;     // If true block read_data calls and have thr return NXT_QUERY
   const uint32_t edge_size = sizeof(uint8_t) + 2 * sizeof(uint32_t); // size of binary encoded edge
+  const size_t header_size = sizeof(node_id_t) + sizeof(edge_id_t); // size of num_nodes + num_upds
 
   inline uint32_t read_data(char *buf) {
     // we are blocking on a query or the stream is done so don't fetch_add or read

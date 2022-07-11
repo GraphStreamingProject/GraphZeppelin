@@ -325,9 +325,9 @@ TEST(GraphTest, MultipleInsertThreads) {
   }
 
   auto task = [&updates, &g](int id) {
-      for (auto upd : updates[id]) {
-        g.update(upd, id);
-      }
+    for (auto upd : updates[id]) {
+      g.update(upd, id);
+    }
     return;
   };
 
@@ -351,8 +351,8 @@ TEST(GraphTest, MTStreamWithMultipleQueries) {
     const std::string fname = __FILE__;
     size_t pos = fname.find_last_of("\\/");
     const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
-    BinaryGraphStream_MT stream(curr_dir + "/res/multiples_graph_1024.data", 256);
-    BinaryGraphStream verify_stream(curr_dir + "/res/multiples_graph_1024.data", 256);
+    BinaryGraphStream_MT stream(curr_dir + "/res/multiples_graph_1024_stream.data", 256);
+    BinaryGraphStream verify_stream(curr_dir + "/res/multiples_graph_1024_stream.data", 256);
     node_id_t num_nodes = verify_stream.nodes();
     edge_id_t num_edges = verify_stream.edges();
     MatGraphVerifier verify(num_nodes);
@@ -372,7 +372,7 @@ TEST(GraphTest, MTStreamWithMultipleQueries) {
     int num_queries = 10;
     int upd_per_query = num_edges / num_queries;
     int query_idx = upd_per_query;
-    ASSERT_EQ(stream.register_query(query_idx), true); // register first query
+    ASSERT_TRUE(stream.register_query(query_idx)); // register first query
 
     // task for threads that insert to the graph and perform queries
     auto task = [&](const int thr_id) {
@@ -418,7 +418,7 @@ TEST(GraphTest, MTStreamWithMultipleQueries) {
             if(num_queries > 1) {
               // prepare next query
               query_idx += upd_per_query;
-              ASSERT_EQ(stream.register_query(query_idx), true);
+              ASSERT_TRUE(stream.register_query(query_idx));
               num_queries--;
             }
             num_query_ready--;

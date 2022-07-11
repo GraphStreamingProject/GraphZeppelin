@@ -12,6 +12,6 @@ static const auto& col_hash = XXH64;
 enum UpdateType {
   INSERT = 0,
   DELETE = 1,
-  NXT_QUERY,
-  END_OF_FILE
+  NXT_QUERY = 2,
+  END_OF_FILE = 3
 }; 
