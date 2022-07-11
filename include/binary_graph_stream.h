@@ -90,9 +90,17 @@ public:
     query_block = false;
   }
 
-  // Call this function to ask stream to pause so we can perform a query
-  // This allows queries to be performed in the stream arbitrary at 32 KiB granularity
-  // without advance notice
+  /* Call this function to ask stream to pause so we can perform a query
+   * This allows queries to be performed in the stream arbitrary at 32 KiB granularity
+   * without advance notice
+   *
+   * IMPORTANT: When perfoming queries it is the responsibility of the user to ensure that 
+   * all threads have finished processing their current work. This is indicated by all threads 
+   * pulling data from the stream returning NXT_QUERY.
+   * If all threads do not return NXT_QUERY then not all updates have been applied to the graph.
+   * Threads must not call get_edge while the query is in progress otherwise edge cases can occur.
+   * This is true for both on_demand and registered queries.
+   */
   void on_demand_query() { query_block = true; }
 
   // call this function to tell stream its okay to keep going
