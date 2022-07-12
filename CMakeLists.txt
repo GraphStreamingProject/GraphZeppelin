@@ -143,6 +143,11 @@ if (BUILD_EXE)
     test/util/efficient_gen/edge_gen.cpp
     test/util/efficient_gen/efficient_gen.cpp)
   target_link_libraries(efficient_gen PRIVATE xxhash GraphZeppelinCommon)
+
+  # executable for converting to stream format
+  add_executable(to_binary_format
+    tools/to_binary_format.cpp)
+  target_link_libraries(to_binary_format PRIVATE GraphZeppelinCommon)
 endif()
 
 if (BUILD_BENCH)
