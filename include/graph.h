@@ -133,6 +133,15 @@ public:
    */
   std::vector<std::set<node_id_t>> connected_components(bool cont=false);
 
+  /**
+   * Point query algorithm utilizing Boruvka and L_0 sampling.
+   * Allows for additional updates when done.
+   * @param a, b
+   * @return true if a and b are in the same connected component, false otherwise.
+   */
+  bool point_query(node_id_t a, node_id_t b);
+
+
 #ifdef VERIFY_SAMPLES_F
   std::unique_ptr<GraphVerifier> verifier;
   void set_verifier(std::unique_ptr<GraphVerifier> verifier) {
