@@ -4,6 +4,8 @@
 #include <set>
 #include <fstream>
 #include <atomic>  // REMOVE LATER
+#include <unordered_set>
+#include <mutex>
 
 #include <guttering_system.h>
 #include "supernode.h"
@@ -12,6 +14,8 @@
 #ifdef VERIFY_SAMPLES_F
 #include "test/graph_verifier.h"
 #endif
+
+#include <iostream>
 
 // forward declarations
 class GraphWorker;
@@ -46,9 +50,17 @@ protected:
   std::set<node_id_t>* representatives;
   Supernode** supernodes;
   // DSU representation of supernode relationship
+#ifdef USE_EAGER_DSU
+  std::atomic<node_id_t>* parent;
+#else
   node_id_t* parent;
+#endif
   node_id_t* size;
   node_id_t get_parent(node_id_t node);
+  bool dsu_valid = true;
+
+  std::unordered_set<node_id_t>* spanning_forest;
+  std::mutex* spanning_forest_mtx;
 
   // Guttering system for batching updates
   GutteringSystem *gts;
@@ -88,6 +100,11 @@ protected:
    */
   std::vector<std::set<node_id_t>> boruvka_emulation(bool make_copy);
 
+  /**
+   * Generates connected components from this graph's dsu
+   * @return a vector of the connected components in the graph.
+   */
+  std::vector<std::set<node_id_t>> cc_from_dsu();
 
   std::string backup_file; // where to backup the supernodes
 
@@ -114,6 +131,28 @@ public:
     gts->insert(edge, thr_id);
     std::swap(edge.first, edge.second);
     gts->insert(edge, thr_id);
+#ifdef USE_EAGER_DSU
+    if (dsu_valid) {
+      auto src = std::min(edge.first, edge.second);
+      auto dst = std::max(edge.first, edge.second);
+      std::lock_guard<std::mutex> sflock (spanning_forest_mtx[src]);
+      if (spanning_forest[src].find(dst) != spanning_forest[src].end()) {
+        dsu_valid = false;
+      } else {
+        node_id_t a = src, b = dst;
+        while ((a = get_parent(a)) != (b = get_parent(b))) {
+          if (size[a] < size[b]) {
+            std::swap(a, b);
+          }
+          if (std::atomic_compare_exchange_weak(&parent[b], &b, a)) {
+            size[a] += size[b];
+            spanning_forest[src].insert(dst);
+            break;
+          }
+        }
+      }
+    }
+#endif // USE_EAGER_DSU
   }
 
   /**
@@ -132,6 +171,15 @@ public:
    * @return a vector of the connected components in the graph.
    */
   std::vector<std::set<node_id_t>> connected_components(bool cont=false);
+
+  /**
+   * Point query algorithm utilizing Boruvka and L_0 sampling.
+   * Allows for additional updates when done.
+   * @param a, b
+   * @return true if a and b are in the same connected component, false otherwise.
+   */
+  bool point_query(node_id_t a, node_id_t b);
+
 
 #ifdef VERIFY_SAMPLES_F
   std::unique_ptr<GraphVerifier> verifier;

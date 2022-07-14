@@ -224,6 +224,39 @@ TEST_P(GraphTest, MultipleWorkers) {
   } 
 }
 
+TEST_P(GraphTest, TestPointQuery) {
+  GraphConfiguration config;
+  config.gutter_sys = GetParam();
+  const std::string fname = __FILE__;
+  size_t pos = fname.find_last_of("\\/");
+  const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
+  std::ifstream in{curr_dir + "/res/multiples_graph_1024.txt"};
+  node_id_t num_nodes;
+  in >> num_nodes;
+  edge_id_t m;
+  in >> m;
+  node_id_t a, b;
+  Graph g{num_nodes, config};
+  while (m--) {
+    in >> a >> b;
+    g.update({{a, b}, INSERT});
+  }
+  g.set_verifier(std::make_unique<FileGraphVerifier>(curr_dir + "/res/multiples_graph_1024.txt"));
+  std::vector<std::set<node_id_t>> ret = g.connected_components(true);
+  std::vector<node_id_t> ccid (num_nodes);
+  for (node_id_t i = 0; i < ret.size(); ++i) {
+    for (const node_id_t node : ret[i]) {
+      ccid[node] = i;
+    }
+  }
+  for (node_id_t i = 0; i < std::min(10u, num_nodes); ++i) {
+    for (node_id_t j = 0; j < std::min(10u, num_nodes); ++j) {
+      g.set_verifier(std::make_unique<FileGraphVerifier>(curr_dir + "/res/multiples_graph_1024.txt"));
+      ASSERT_EQ(g.point_query(i, j), ccid[i] == ccid[j]);
+    }
+  }
+}
+
 TEST(GraphTest, TestQueryDuringStream) {
   GraphConfiguration config;
   config.gutter_sys = STANDALONE;
@@ -294,6 +327,54 @@ TEST(GraphTest, TestQueryDuringStream) {
     g.set_verifier(std::make_unique<MatGraphVerifier>(verify));
     g.connected_components();
   }
+}
+
+TEST(GraphTest, EagerDSUTest) {
+  node_id_t num_nodes = 100;
+  Graph g{num_nodes};
+  MatGraphVerifier verify(num_nodes);
+
+  // This should be a spanning forest edge
+  g.update({{1, 2}, INSERT});
+  verify.edge_update(1, 2);
+  verify.reset_cc_state();
+  g.set_verifier(std::make_unique<decltype(verify)>(verify));
+  g.connected_components(true);
+
+  // This should be a spanning forest edge
+  g.update({{2, 3}, INSERT});
+  verify.edge_update(2, 3);
+  verify.reset_cc_state();
+  g.set_verifier(std::make_unique<decltype(verify)>(verify));
+  g.connected_components(true);
+
+  // This should be an edge within a component
+  g.update({{1, 3}, INSERT});
+  verify.edge_update(1, 3);
+  verify.reset_cc_state();
+  g.set_verifier(std::make_unique<decltype(verify)>(verify));
+  g.connected_components(true);
+
+  // This should delete an edge within a component
+  g.update({{1, 3}, DELETE});
+  verify.edge_update(1, 3);
+  verify.reset_cc_state();
+  g.set_verifier(std::make_unique<decltype(verify)>(verify));
+  g.connected_components(true);
+
+  // This one should delete a spanning forest edge and cause a rebuild
+  g.update({{2, 3}, DELETE});
+  verify.edge_update(2, 3);
+  verify.reset_cc_state();
+  g.set_verifier(std::make_unique<decltype(verify)>(verify));
+  g.connected_components(true);
+
+  // This one should be a normal edge
+  g.update({{2, 3}, INSERT});
+  verify.edge_update(2, 3);
+  verify.reset_cc_state();
+  g.set_verifier(std::make_unique<decltype(verify)>(verify));
+  g.connected_components(true);
 }
 
 TEST(GraphTest, MultipleInsertThreads) {

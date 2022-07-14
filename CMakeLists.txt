@@ -85,6 +85,7 @@ set(BUILD_SHARED_LIBS "${SAVED_BUILD_SHARED_LIBS}" CACHE BOOL "" FORCE)
 # AVAILABLE COMPILATION DEFINITIONS:
 # VERIFY_SAMPLES_F   Use a deterministic connected-components 
 #                    algorithm to verify post-processing.
+# USE_EAGER_DSU      Use the eager DSU query optimization if this flag is present.
 
 add_library(GraphZeppelin
   src/graph.cpp
@@ -98,7 +99,7 @@ target_link_libraries(GraphZeppelin PUBLIC xxhash GutterTree)
 target_include_directories(GraphZeppelin PUBLIC include/ include/l0_sampling/)
 target_compile_options(GraphZeppelin PUBLIC -fopenmp)
 target_link_options(GraphZeppelin PUBLIC -fopenmp)
-target_compile_definitions(GraphZeppelin PUBLIC XXH_INLINE_ALL)
+target_compile_definitions(GraphZeppelin PUBLIC XXH_INLINE_ALL USE_EAGER_DSU)
 
 add_library(GraphZeppelinVerifyCC
   src/graph.cpp
@@ -114,7 +115,7 @@ target_link_libraries(GraphZeppelinVerifyCC PUBLIC xxhash GutterTree)
 target_include_directories(GraphZeppelinVerifyCC PUBLIC include/ include/l0_sampling/ include/test/)
 target_compile_options(GraphZeppelinVerifyCC PUBLIC -fopenmp)
 target_link_options(GraphZeppelinVerifyCC PUBLIC -fopenmp)
-target_compile_definitions(GraphZeppelinVerifyCC PUBLIC XXH_INLINE_ALL VERIFY_SAMPLES_F)
+target_compile_definitions(GraphZeppelinVerifyCC PUBLIC XXH_INLINE_ALL VERIFY_SAMPLES_F USE_EAGER_DSU)
 
 if (BUILD_EXE)
   add_executable(tests
