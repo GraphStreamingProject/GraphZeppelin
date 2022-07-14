@@ -85,6 +85,7 @@ set(BUILD_SHARED_LIBS "${SAVED_BUILD_SHARED_LIBS}" CACHE BOOL "" FORCE)
 # AVAILABLE COMPILATION DEFINITIONS:
 # VERIFY_SAMPLES_F   Use a deterministic connected-components 
 #                    algorithm to verify post-processing.
+# USE_EAGER_DSU      Use the eager DSU query optimization if this flag is present.
 
 add_library(GraphZeppelin
   src/graph.cpp
