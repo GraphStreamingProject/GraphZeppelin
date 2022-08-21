@@ -56,8 +56,8 @@ int main() {
         bool use_tree = (bool) i;
 
         // setup configuration file per buffering
-        config.gutter_sys = use_tree? GUTTERTREE : STANDALONE;
-        config.num_groups = 4;
+        config.gutter_sys(use_tree ? GUTTERTREE : STANDALONE);
+        config.num_groups(4);
         std::string prefix = use_tree? "tree" : "gutters";
         std::string test_name;
 

@@ -36,22 +36,22 @@ Graph::Graph(node_id_t num_nodes, GraphConfiguration config, int num_inserters) 
     parent[i] = i;
   }
   
-  backup_file = config.disk_dir + "supernode_backup.data";
+  backup_file = config._disk_dir + "supernode_backup.data";
   // Create the guttering system
-  if (config.gutter_sys == GUTTERTREE)
-    gts = new GutterTree(config.disk_dir, num_nodes, config.num_groups, config.gutter_conf, true);
-  else if (config.gutter_sys == STANDALONE)
-    gts = new StandAloneGutters(num_nodes, config.num_groups, num_inserters, config.gutter_conf);
+  if (config._gutter_sys == GUTTERTREE)
+    gts = new GutterTree(config._disk_dir, num_nodes, config._num_groups, config._gutter_conf, true);
+  else if (config._gutter_sys == STANDALONE)
+    gts = new StandAloneGutters(num_nodes, config._num_groups, num_inserters, config._gutter_conf);
   else
-    gts = new CacheGuttering(num_nodes, config.num_groups, num_inserters, config.gutter_conf);
+    gts = new CacheGuttering(num_nodes, config._num_groups, num_inserters, config._gutter_conf);
 
-  GraphWorker::set_config(config.num_groups, config.group_size);
+  GraphWorker::set_config(config._num_groups, config._group_size);
   GraphWorker::start_workers(this, gts, Supernode::get_size());
   open_graph = true;
   spanning_forest = new std::unordered_set<node_id_t>[num_nodes];
   spanning_forest_mtx = new std::mutex[num_nodes];
   dsu_valid = true;
-  config.print(); // print the graph configuration
+  std::cout << config << std::endl; // print the graph configuration
 }
 
 Graph::Graph(const std::string& input_file, GraphConfiguration config, int num_inserters) : 
@@ -80,22 +80,22 @@ Graph::Graph(const std::string& input_file, GraphConfiguration config, int num_i
   }
   binary_in.close();
 
-  backup_file = config.disk_dir + "supernode_backup.data";
+  backup_file = config._disk_dir + "supernode_backup.data";
   // Create the guttering system
-  if (config.gutter_sys == GUTTERTREE)
-    gts = new GutterTree(config.disk_dir, num_nodes, config.num_groups, config.gutter_conf, true);
-  else if (config.gutter_sys == STANDALONE)
-    gts = new StandAloneGutters(num_nodes, config.num_groups, num_inserters, config.gutter_conf);
+  if (config._gutter_sys == GUTTERTREE)
+    gts = new GutterTree(config._disk_dir, num_nodes, config._num_groups, config._gutter_conf, true);
+  else if (config._gutter_sys == STANDALONE)
+    gts = new StandAloneGutters(num_nodes, config._num_groups, num_inserters, config._gutter_conf);
   else
-    gts = new CacheGuttering(num_nodes, config.num_groups, num_inserters, config.gutter_conf);
+    gts = new CacheGuttering(num_nodes, config._num_groups, num_inserters, config._gutter_conf);
 
-  GraphWorker::set_config(config.num_groups, config.group_size);
+  GraphWorker::set_config(config._num_groups, config._group_size);
   GraphWorker::start_workers(this, gts, Supernode::get_size());
   open_graph = true;
   spanning_forest = new std::unordered_set<node_id_t>[num_nodes];
   spanning_forest_mtx = new std::mutex[num_nodes];
   dsu_valid = false;
-  config.print(); // print the graph configuration
+  std::cout << config << std::endl; // print the graph configuration
 }
 
 Graph::~Graph() {
@@ -227,7 +227,7 @@ inline void Graph::merge_supernodes(Supernode** copy_supernodes, std::vector<nod
     // OMP requires a traditional for-loop to work
     node_id_t a = new_reps[i];
     try {
-      if (make_copy && config.backup_in_mem) { // make a copy of a
+      if (make_copy && config._backup_in_mem) { // make a copy of a
         copy_supernodes[a] = Supernode::makeSupernode(*supernodes[a]);
       }
 
@@ -252,7 +252,7 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
   cc_alg_start = std::chrono::steady_clock::now();
   bool first_round = true;
   Supernode** copy_supernodes;
-  if (make_copy && config.backup_in_mem) 
+  if (make_copy && config._backup_in_mem) 
     copy_supernodes = new Supernode*[num_nodes];
   std::pair<Edge, SampleSketchRet> query[num_nodes];
   std::vector<node_id_t> reps(num_nodes);
@@ -260,14 +260,14 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
   std::fill(size, size + num_nodes, 1);
   for (node_id_t i = 0; i < num_nodes; ++i) {
     reps[i] = i;
-    if (make_copy && config.backup_in_mem) 
+    if (make_copy && config._backup_in_mem) 
       copy_supernodes[i] = nullptr;
   }
 
   // function to restore supernodes after CC if make_copy is specified
   auto cleanup_copy = [&make_copy, this, &backed_up, &copy_supernodes]() {
     if (make_copy) {
-      if(config.backup_in_mem) {
+      if(config._backup_in_mem) {
         // restore original supernodes and free memory
         for (node_id_t i : backed_up) {
           if (supernodes[i] != nullptr) free(supernodes[i]);
@@ -293,7 +293,7 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
       // make a copy if necessary
       if (make_copy && first_round) {
         backed_up = reps;
-        if (!config.backup_in_mem) backup_to_disk(backed_up);
+        if (!config._backup_in_mem) backup_to_disk(backed_up);
       }
 
       merge_supernodes(copy_supernodes, reps, to_merge, first_round && make_copy);
