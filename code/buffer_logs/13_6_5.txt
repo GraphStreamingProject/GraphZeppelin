@@ -1,0 +1,3 @@
+Updates per second: 3.1885e+06
+Ingestion time: 6.88797
+Total runtime: 6.90586
