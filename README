@@ -2,6 +2,9 @@ Prior to building any executables, make sure the CILK flag environment
 variable is defined by running something like "export CILK=1" in the
 console you'll be building from.
 
+//////////////// DEPENDENCIES ////////////////
+
+GNU C++ compiler version 7
 
 //////////////// SPEED AND MEMORY TEST ////////////////
 
