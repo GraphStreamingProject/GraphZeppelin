@@ -1,3 +1,5 @@
+#pragma once
+
 #include <guttering_configuration.h>
 
 // forward declaration
