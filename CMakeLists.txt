@@ -89,6 +89,7 @@ set(BUILD_SHARED_LIBS "${SAVED_BUILD_SHARED_LIBS}" CACHE BOOL "" FORCE)
 
 add_library(GraphZeppelin
   src/graph.cpp
+  src/graph_configuration.cpp
   src/supernode.cpp
   src/graph_worker.cpp
   src/l0_sampling/sketch.cpp
@@ -103,6 +104,7 @@ target_compile_definitions(GraphZeppelin PUBLIC XXH_INLINE_ALL USE_EAGER_DSU)
 
 add_library(GraphZeppelinVerifyCC
   src/graph.cpp
+  src/graph_configuration.cpp
   src/supernode.cpp
   src/graph_worker.cpp
   src/l0_sampling/sketch.cpp

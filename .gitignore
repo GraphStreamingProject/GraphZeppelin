@@ -45,6 +45,9 @@
 /cmake-build-debug
 /cmake-build-debug-coverage
 
+# other IDEs
+/.vscode
+
 #Doxygen docs
 /docs/
 

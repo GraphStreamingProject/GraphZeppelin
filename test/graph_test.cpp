@@ -26,8 +26,7 @@ class GraphTest : public testing::TestWithParam<GutterSystem> {
 INSTANTIATE_TEST_SUITE_P(GraphTestSuite, GraphTest, testing::Values(GUTTERTREE, STANDALONE, CACHETREE));
 
 TEST_P(GraphTest, SmallGraphConnectivity) {
-  GraphConfiguration config;
-  config.gutter_sys = GetParam();
+  auto config = GraphConfiguration().gutter_sys(GetParam());
   const std::string fname = __FILE__;
   size_t pos = fname.find_last_of("\\/");
   const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
@@ -47,8 +46,7 @@ TEST_P(GraphTest, SmallGraphConnectivity) {
 }
 
 TEST(GraphTest, IFconnectedComponentsAlgRunTHENupdateLocked) {
-  GraphConfiguration config;
-  config.gutter_sys = STANDALONE;
+  auto config = GraphConfiguration().gutter_sys(STANDALONE);
   const std::string fname = __FILE__;
   size_t pos = fname.find_last_of("\\/");
   const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
@@ -71,8 +69,7 @@ TEST(GraphTest, IFconnectedComponentsAlgRunTHENupdateLocked) {
 
 TEST(GraphTest, TestSupernodeRestoreAfterCCFailure) {
   for (int s = 0; s < 2; s++) {
-    GraphConfiguration config;
-    config.backup_in_mem = s == 0;
+    auto config = GraphConfiguration().backup_in_mem(s == 0);
     const std::string fname = __FILE__;
     size_t pos = fname.find_last_of("\\/");
     const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
@@ -109,8 +106,7 @@ TEST(GraphTest, TestSupernodeRestoreAfterCCFailure) {
 }
 
 TEST_P(GraphTest, TestCorrectnessOnSmallRandomGraphs) {
-  GraphConfiguration config;
-  config.gutter_sys = GetParam();
+  auto config = GraphConfiguration().gutter_sys(GetParam());
   int num_trials = 5;
   while (num_trials--) {
     generate_stream();
@@ -133,8 +129,7 @@ TEST_P(GraphTest, TestCorrectnessOnSmallRandomGraphs) {
 }
 
 TEST_P(GraphTest, TestCorrectnessOnSmallSparseGraphs) {
-  GraphConfiguration config;
-  config.gutter_sys = GetParam();
+  auto config = GraphConfiguration().gutter_sys(GetParam());
   int num_trials = 5;
   while(num_trials--) {
     generate_stream({1024,0.002,0.5,0,"./sample.txt","./cumul_sample.txt"});
@@ -157,8 +152,7 @@ TEST_P(GraphTest, TestCorrectnessOnSmallSparseGraphs) {
 }
 
 TEST_P(GraphTest, TestCorrectnessOfReheating) {
-  GraphConfiguration config;
-  config.gutter_sys = GetParam();
+  auto config = GraphConfiguration().gutter_sys(GetParam());
   int num_trials = 5;
   while (num_trials--) {
     generate_stream({1024,0.002,0.5,0,"./sample.txt","./cumul_sample.txt"});
@@ -199,10 +193,10 @@ TEST_P(GraphTest, TestCorrectnessOfReheating) {
 // Test the multithreaded system by specifiying multiple
 // Graph Workers of size 2. Ingest a stream and run CC algorithm.
 TEST_P(GraphTest, MultipleWorkers) {
-  GraphConfiguration config;
-  config.gutter_sys = GetParam();
-  config.num_groups = 4;
-  config.group_size = 2;
+  auto config = GraphConfiguration()
+                .gutter_sys(GetParam())
+                .num_groups(4)
+                .group_size(2);
   int num_trials = 5;
   while(num_trials--) {
     generate_stream({1024,0.002,0.5,0,"./sample.txt","./cumul_sample.txt"});
@@ -225,8 +219,7 @@ TEST_P(GraphTest, MultipleWorkers) {
 }
 
 TEST_P(GraphTest, TestPointQuery) {
-  GraphConfiguration config;
-  config.gutter_sys = GetParam();
+  auto config = GraphConfiguration().gutter_sys(GetParam());
   const std::string fname = __FILE__;
   size_t pos = fname.find_last_of("\\/");
   const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
@@ -258,9 +251,9 @@ TEST_P(GraphTest, TestPointQuery) {
 }
 
 TEST(GraphTest, TestQueryDuringStream) {
-  GraphConfiguration config;
-  config.gutter_sys = STANDALONE;
-  config.backup_in_mem = false;
+  auto config = GraphConfiguration()
+                .gutter_sys(STANDALONE)
+                .backup_in_mem(false);
   { // test copying to disk
     generate_stream({1024, 0.002, 0.5, 0, "./sample.txt", "./cumul_sample.txt"});
     std::ifstream in{"./sample.txt"};
@@ -294,7 +287,7 @@ TEST(GraphTest, TestQueryDuringStream) {
     g.connected_components();
   }
 
-  config.backup_in_mem = true;
+  config.backup_in_mem(true);
   { // test copying in memory
     generate_stream({1024, 0.002, 0.5, 0, "./sample.txt", "./cumul_sample.txt"});
     std::ifstream in{"./sample.txt"};
@@ -378,8 +371,7 @@ TEST(GraphTest, EagerDSUTest) {
 }
 
 TEST(GraphTest, MultipleInsertThreads) {
-  GraphConfiguration config;
-  config.gutter_sys = STANDALONE;
+  auto config = GraphConfiguration().gutter_sys(STANDALONE);
   int num_threads = 4;
 
   generate_stream({1024, 0.2, 0.5, 0, "./sample.txt", "./cumul_sample.txt"});
@@ -426,8 +418,7 @@ TEST(GraphTest, MultipleInsertThreads) {
 
 TEST(GraphTest, MTStreamWithMultipleQueries) {
   for(int i = 1; i <= 10; i++) {
-    GraphConfiguration config;
-    config.gutter_sys = STANDALONE;
+    auto config = GraphConfiguration().gutter_sys(STANDALONE);
 
     const std::string fname = __FILE__;
     size_t pos = fname.find_last_of("\\/");
