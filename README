@@ -30,7 +30,7 @@ speed and memory consumtion test, you may find it in
 //////////////// CONTINUOUS QUERY TESTING ////////////////
 
 To build the executable for the continuous query testing experiment, run 
-"make cont_query"
+"make continuous_query_test"
 
 The command line arguments to the resulting "cont_query" executable are as
 follows:
