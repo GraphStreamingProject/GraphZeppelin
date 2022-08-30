@@ -1,0 +1,415 @@
+1% :
+Updates per second since last entry: 241245
+Time since last entry: 185.493
+Total runtime so far: 185.493
+
+2% :
+Updates per second since last entry: 234095
+Time since last entry: 191.159
+Total runtime so far: 376.652
+
+3% :
+Updates per second since last entry: 223617
+Time since last entry: 200.116
+Total runtime so far: 576.768
+
+4% :
+Updates per second since last entry: 227932
+Time since last entry: 196.328
+Total runtime so far: 773.095
+
+5% :
+Updates per second since last entry: 227333
+Time since last entry: 196.844
+Total runtime so far: 969.94
+
+6% :
+Updates per second since last entry: 202573
+Time since last entry: 220.905
+Total runtime so far: 1190.84
+
+7% :
+Updates per second since last entry: 221730
+Time since last entry: 201.819
+Total runtime so far: 1392.66
+
+8% :
+Updates per second since last entry: 217591
+Time since last entry: 205.658
+Total runtime so far: 1598.32
+
+9% :
+Updates per second since last entry: 214655
+Time since last entry: 208.471
+Total runtime so far: 1806.79
+
+10% :
+Updates per second since last entry: 172397
+Time since last entry: 259.571
+Total runtime so far: 2066.36
+
+11% :
+Updates per second since last entry: 206216
+Time since last entry: 217.002
+Total runtime so far: 2283.37
+
+12% :
+Updates per second since last entry: 202390
+Time since last entry: 221.105
+Total runtime so far: 2504.47
+
+13% :
+Updates per second since last entry: 198945
+Time since last entry: 224.933
+Total runtime so far: 2729.4
+
+14% :
+Updates per second since last entry: 194895
+Time since last entry: 229.607
+Total runtime so far: 2959.01
+
+15% :
+Updates per second since last entry: 192034
+Time since last entry: 233.028
+Total runtime so far: 3192.04
+
+16% :
+Updates per second since last entry: 188809
+Time since last entry: 237.009
+Total runtime so far: 3429.05
+
+17% :
+Updates per second since last entry: 185775
+Time since last entry: 240.88
+Total runtime so far: 3669.93
+
+18% :
+Updates per second since last entry: 183748
+Time since last entry: 243.537
+Total runtime so far: 3913.46
+
+19% :
+Updates per second since last entry: 182765
+Time since last entry: 244.847
+Total runtime so far: 4158.31
+
+20% :
+Updates per second since last entry: 178218
+Time since last entry: 251.093
+Total runtime so far: 4409.4
+
+21% :
+Updates per second since last entry: 131564
+Time since last entry: 340.135
+Total runtime so far: 4749.54
+
+22% :
+Updates per second since last entry: 174770
+Time since last entry: 256.047
+Total runtime so far: 5005.59
+
+23% :
+Updates per second since last entry: 172606
+Time since last entry: 259.258
+Total runtime so far: 5264.84
+
+24% :
+Updates per second since last entry: 170447
+Time since last entry: 262.541
+Total runtime so far: 5527.38
+
+25% :
+Updates per second since last entry: 169235
+Time since last entry: 264.421
+Total runtime so far: 5791.81
+
+26% :
+Updates per second since last entry: 169239
+Time since last entry: 264.415
+Total runtime so far: 6056.22
+
+27% :
+Updates per second since last entry: 165221
+Time since last entry: 270.846
+Total runtime so far: 6327.07
+
+28% :
+Updates per second since last entry: 164049
+Time since last entry: 272.78
+Total runtime so far: 6599.85
+
+29% :
+Updates per second since last entry: 162744
+Time since last entry: 274.967
+Total runtime so far: 6874.81
+
+30% :
+Updates per second since last entry: 163589
+Time since last entry: 273.548
+Total runtime so far: 7148.36
+
+31% :
+Updates per second since last entry: 160506
+Time since last entry: 278.802
+Total runtime so far: 7427.16
+
+32% :
+Updates per second since last entry: 159458
+Time since last entry: 280.635
+Total runtime so far: 7707.8
+
+33% :
+Updates per second since last entry: 158310
+Time since last entry: 282.67
+Total runtime so far: 7990.47
+
+34% :
+Updates per second since last entry: 158678
+Time since last entry: 282.013
+Total runtime so far: 8272.48
+
+35% :
+Updates per second since last entry: 155650
+Time since last entry: 287.501
+Total runtime so far: 8559.98
+
+36% :
+Updates per second since last entry: 154832
+Time since last entry: 289.018
+Total runtime so far: 8849
+
+37% :
+Updates per second since last entry: 155844
+Time since last entry: 287.142
+Total runtime so far: 9136.14
+
+38% :
+Updates per second since last entry: 152925
+Time since last entry: 292.622
+Total runtime so far: 9428.76
+
+39% :
+Updates per second since last entry: 151895
+Time since last entry: 294.607
+Total runtime so far: 9723.37
+
+40% :
+Updates per second since last entry: 152227
+Time since last entry: 293.965
+Total runtime so far: 10017.3
+
+41% :
+Updates per second since last entry: 94347.9
+Time since last entry: 474.301
+Total runtime so far: 10491.6
+
+42% :
+Updates per second since last entry: 149464
+Time since last entry: 299.399
+Total runtime so far: 10791
+
+43% :
+Updates per second since last entry: 150786
+Time since last entry: 296.774
+Total runtime so far: 11087.8
+
+44% :
+Updates per second since last entry: 148213
+Time since last entry: 301.926
+Total runtime so far: 11389.7
+
+45% :
+Updates per second since last entry: 150026
+Time since last entry: 298.277
+Total runtime so far: 11688
+
+46% :
+Updates per second since last entry: 148035
+Time since last entry: 302.288
+Total runtime so far: 11990.3
+
+47% :
+Updates per second since last entry: 148121
+Time since last entry: 302.113
+Total runtime so far: 12292.4
+
+48% :
+Updates per second since last entry: 148991
+Time since last entry: 300.35
+Total runtime so far: 12592.8
+
+49% :
+Updates per second since last entry: 146720
+Time since last entry: 304.998
+Total runtime so far: 12897.8
+
+50% :
+Updates per second since last entry: 148016
+Time since last entry: 302.327
+Total runtime so far: 13200.1
+
+51% :
+Updates per second since last entry: 146799
+Time since last entry: 304.834
+Total runtime so far: 13504.9
+
+52% :
+Updates per second since last entry: 146375
+Time since last entry: 305.717
+Total runtime so far: 13810.6
+
+53% :
+Updates per second since last entry: 147531
+Time since last entry: 303.322
+Total runtime so far: 14114
+
+54% :
+Updates per second since last entry: 145928
+Time since last entry: 306.654
+Total runtime so far: 14420.6
+
+55% :
+Updates per second since last entry: 147850
+Time since last entry: 302.667
+Total runtime so far: 14723.3
+
+56% :
+Updates per second since last entry: 146321
+Time since last entry: 305.829
+Total runtime so far: 15029.1
+
+57% :
+Updates per second since last entry: 146628
+Time since last entry: 305.189
+Total runtime so far: 15334.3
+
+58% :
+Updates per second since last entry: 148471
+Time since last entry: 301.401
+Total runtime so far: 15635.7
+
+59% :
+Updates per second since last entry: 146868
+Time since last entry: 304.691
+Total runtime so far: 15940.4
+
+60% :
+Updates per second since last entry: 149395
+Time since last entry: 299.537
+Total runtime so far: 16239.9
+
+61% :
+Updates per second since last entry: 147360
+Time since last entry: 303.673
+Total runtime so far: 16543.6
+
+62% :
+Updates per second since last entry: 147998
+Time since last entry: 302.364
+Total runtime so far: 16846
+
+63% :
+Updates per second since last entry: 150007
+Time since last entry: 298.315
+Total runtime so far: 17144.3
+
+64% :
+Updates per second since last entry: 148582
+Time since last entry: 301.175
+Total runtime so far: 17445.5
+
+65% :
+Updates per second since last entry: 149443
+Time since last entry: 299.441
+Total runtime so far: 17744.9
+
+66% :
+Updates per second since last entry: 151050
+Time since last entry: 296.255
+Total runtime so far: 18041.2
+
+67% :
+Updates per second since last entry: 150511
+Time since last entry: 297.316
+Total runtime so far: 18338.5
+
+68% :
+Updates per second since last entry: 150886
+Time since last entry: 296.576
+Total runtime so far: 18635
+
+69% :
+Updates per second since last entry: 153094
+Time since last entry: 292.3
+Total runtime so far: 18927.3
+
+70% :
+Updates per second since last entry: 151985
+Time since last entry: 294.432
+Total runtime so far: 19221.8
+
+71% :
+Updates per second since last entry: 153001
+Time since last entry: 292.478
+Total runtime so far: 19514.3
+
+72% :
+Updates per second since last entry: 156206
+Time since last entry: 286.476
+Total runtime so far: 19800.7
+
+73% :
+Updates per second since last entry: 155416
+Time since last entry: 287.932
+Total runtime so far: 20088.7
+
+74% :
+Updates per second since last entry: 156029
+Time since last entry: 286.801
+Total runtime so far: 20375.5
+
+75% :
+Updates per second since last entry: 158817
+Time since last entry: 281.766
+Total runtime so far: 20657.2
+
+76% :
+Updates per second since last entry: 158135
+Time since last entry: 282.982
+Total runtime so far: 20940.2
+
+77% :
+Updates per second since last entry: 159891
+Time since last entry: 279.875
+Total runtime so far: 21220.1
+
+78% :
+Updates per second since last entry: 160185
+Time since last entry: 279.361
+Total runtime so far: 21499.4
+
+79% :
+Updates per second since last entry: 163914
+Time since last entry: 273.005
+Total runtime so far: 21772.5
+
+80% :
+Updates per second since last entry: 163838
+Time since last entry: 273.131
+Total runtime so far: 22045.6
+
+81% :
+Updates per second since last entry: 164635
+Time since last entry: 271.81
+Total runtime so far: 22317.4
+
+82% :
+Updates per second since last entry: 166522
+Time since last entry: 268.729
+Total runtime so far: 22586.1
+
+83% :
+Updates per second since last entry: 168212
+Time since last entry: 266.03
+Total runtime so far: 22852.2
+
