@@ -13,6 +13,12 @@
 
 int main (int argc, char * argv[])
 {	
+	if (argc != 6)
+	{
+		std::cout << "Incorrect number of arguments!" << std::endl;
+		std::cout << "Arguments are: stream_file, batch_size, file_buffer_size, output_file, num_queries" << std::endl;
+		exit(EXIT_FAILURE);
+	}
 	unsigned long update_buffer_size;
 	sscanf(argv[3], "%lu", &update_buffer_size);
 
