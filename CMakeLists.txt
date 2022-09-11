@@ -151,6 +151,11 @@ if (BUILD_EXE)
   add_executable(to_binary_format
     tools/to_binary_format.cpp)
   target_link_libraries(to_binary_format PRIVATE GraphZeppelinCommon)
+
+  # executable for processing a binary graph stream
+  add_executable(process_stream
+    tools/process_stream.cpp)
+  target_link_libraries(process_stream PRIVATE GraphZeppelin)
 endif()
 
 if (BUILD_BENCH)

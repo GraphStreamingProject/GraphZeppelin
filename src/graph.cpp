@@ -51,6 +51,7 @@ Graph::Graph(node_id_t num_nodes, GraphConfiguration config, int num_inserters) 
   spanning_forest = new std::unordered_set<node_id_t>[num_nodes];
   spanning_forest_mtx = new std::mutex[num_nodes];
   dsu_valid = true;
+  std::cout << "config print" << std::endl;
   std::cout << config << std::endl; // print the graph configuration
 }
 

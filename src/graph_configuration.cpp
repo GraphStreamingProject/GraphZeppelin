@@ -53,6 +53,6 @@ std::ostream& operator<< (std::ostream &out, const GraphConfiguration &conf) {
     out << " Size of groups        = " << conf._group_size << std::endl;
     out << " On disk data location = " << conf._disk_dir << std::endl;
     out << " Backup sketch to RAM  = " << (conf._backup_in_mem? "ON" : "OFF") << std::endl;
-    out << conf._gutter_conf << std::endl;
+    out << conf._gutter_conf;
     return out;
   }
