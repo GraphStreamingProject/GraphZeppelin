@@ -11,31 +11,31 @@ int main(int argc, char **argv) {
                  "Expected [2-4] but got " << argc-1 << std::endl;
     std::cout << "Arguments are: ascii_stream out_file_name [--update_type] [--verbose]" << std::endl;
     std::cout << "ascii_stream:  The file to parse into binary format" << std::endl;
-		std::cout << "out_file_name: Where the binary stream will be written" << std::endl;
+    std::cout << "out_file_name: Where the binary stream will be written" << std::endl;
     std::cout << "--update_type: If present then ascii stream indicates insertions vs deletions" << std::endl;
-		std::cout << "--silent:      If present then no warnings are printed when stream corrections are made" << std::endl;
-		exit(EXIT_FAILURE);
+    std::cout << "--silent:      If present then no warnings are printed when stream corrections are made" << std::endl;
+    exit(EXIT_FAILURE);
   }
 
   std::ifstream txt_file(argv[1]);
-	if (!txt_file) {
-		std::cerr << "ERROR: could not open input file!" << std::endl;
-		exit(EXIT_FAILURE);
-	}
+  if (!txt_file) {
+    std::cerr << "ERROR: could not open input file!" << std::endl;
+    exit(EXIT_FAILURE);
+  }
   std::ofstream out_file(argv[2], std::ios_base::binary | std::ios_base::out);
-	if (!out_file) {
-		std::cerr << "ERROR: could not open output file! " << argv[2] << ": " << strerror(errno) << std::endl;
-		exit(EXIT_FAILURE);
-	}
+  if (!out_file) {
+    std::cerr << "ERROR: could not open output file! " << argv[2] << ": " << strerror(errno) << std::endl;
+    exit(EXIT_FAILURE);
+  }
 
   bool update_type = false;
-	bool silent = false;
+  bool silent = false;
   for (int i = 3; i < argc; i++) {
     if (std::string(argv[i]) == "--update_type")
       update_type = true;
-		else if (std::string(argv[i]) == "--silent") {
-			silent = true;
-		}
+    else if (std::string(argv[i]) == "--silent") {
+      silent = true;
+    }
     else {
       std::cerr << "Did not recognize argument: " << argv[i] << " Expected '--update_type' or '--silent'";
       return EXIT_FAILURE;
@@ -46,15 +46,15 @@ int main(int argc, char **argv) {
   edge_id_t num_edges;
 
   txt_file >> num_nodes >> num_edges;
-	
-	std::cout << "Parsed ascii stream header. . ." << std::endl;
-	std::cout << "Number of nodes:   " << num_nodes << std::endl;
-	std::cout << "Number of updates: " << num_edges << std::endl;	
-	if (update_type)
-		std::cout << "Assuming that update format is: upd_type src dst" << std::endl;
-	else
-		std::cout << "Assuming that update format is: src dst" << std::endl;
-	
+  
+  std::cout << "Parsed ascii stream header. . ." << std::endl;
+  std::cout << "Number of nodes:   " << num_nodes << std::endl;
+  std::cout << "Number of updates: " << num_edges << std::endl; 
+  if (update_type)
+    std::cout << "Assuming that update format is: upd_type src dst" << std::endl;
+  else
+    std::cout << "Assuming that update format is: src dst" << std::endl;
+  
 
   out_file.write((char *) &num_nodes, sizeof(num_nodes));
   out_file.write((char *) &num_edges, sizeof(num_edges));

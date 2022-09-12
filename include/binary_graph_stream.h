@@ -62,11 +62,11 @@ private:
     // set buf back to the beginning of the buffer read in data
     buf = start_buf;
     bin_file.read(buf, buf_size);
-	
-		if (bin_file.fail() && !bin_file.eof()) {
-			throw StreamFailedException();
-		}  
-	}
+  
+    if (bin_file.fail() && !bin_file.eof()) {
+      throw StreamFailedException();
+    }  
+  }
   const uint32_t edge_size = sizeof(uint8_t) + 2 * sizeof(uint32_t); // size of binary encoded edge
   std::ifstream bin_file; // file to read from
   char *buf;              // data buffer
@@ -178,9 +178,9 @@ private:
 
     while (data_read < data_to_read) {
       int ret = pread(stream_fd, buf, data_to_read, read_off + data_read); // perform the read
-			if (ret == -1) throw StreamFailedException();
-			data_read += ret;
-		}
+      if (ret == -1) throw StreamFailedException();
+      data_read += ret;
+    }
     return data_read;
   }
 };
