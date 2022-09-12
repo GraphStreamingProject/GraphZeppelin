@@ -11,6 +11,12 @@ class BadStreamException : public std::exception {
   }
 };
 
+class StreamFailedException : public std::exception {
+  virtual const char* what() const throw() {
+    return "ERROR: read_data() encountered failed stream. Is stream file corrupted?";
+  }
+};
+
 // A class for reading from a binary graph stream
 class BinaryGraphStream {
 public:
@@ -56,7 +62,11 @@ private:
     // set buf back to the beginning of the buffer read in data
     buf = start_buf;
     bin_file.read(buf, buf_size);
-  }
+	
+		if (bin_file.fail() && !bin_file.eof()) {
+			throw StreamFailedException();
+		}  
+	}
   const uint32_t edge_size = sizeof(uint8_t) + 2 * sizeof(uint32_t); // size of binary encoded edge
   std::ifstream bin_file; // file to read from
   char *buf;              // data buffer
@@ -72,7 +82,7 @@ class BinaryGraphStream_MT {
 public:
   BinaryGraphStream_MT(std::string file_name, uint32_t _b) {
     stream_fd = open(file_name.c_str(), O_RDONLY, S_IRUSR);
-    if (stream_fd == -1) {
+    if (!stream_fd) {
       throw BadStreamException();
     }
 
@@ -167,8 +177,10 @@ private:
       data_to_read = end_of_file - read_off; // EOF truncates the read
 
     while (data_read < data_to_read) {
-      data_read += pread(stream_fd, buf, data_to_read, read_off + data_read); // perform the read
-    }
+      int ret = pread(stream_fd, buf, data_to_read, read_off + data_read); // perform the read
+			if (ret == -1) throw StreamFailedException();
+			data_read += ret;
+		}
     return data_read;
   }
 };

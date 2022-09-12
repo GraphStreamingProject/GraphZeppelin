@@ -156,6 +156,12 @@ if (BUILD_EXE)
   add_executable(process_stream
     tools/process_stream.cpp)
   target_link_libraries(process_stream PRIVATE GraphZeppelin)
+
+	# tool for validating that a binary stream appears correct	
+	add_executable(validate_binary_stream
+		tools/validate_binary_stream.cpp
+	)
+	target_link_libraries(validate_binary_stream PRIVATE GraphZeppelin)
 endif()
 
 if (BUILD_BENCH)
