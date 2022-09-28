@@ -280,7 +280,6 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
     }
   };
 
-  std::cout << "~ Reconstructing DSU" << std::endl;
   for (node_id_t i = 0; i < num_nodes; ++i) {
     parent[i] = i;
     spanning_forest[i].clear();
@@ -354,7 +353,6 @@ std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
 #endif // VERIFY_SAMPLES_F
       ) {
     cc_alg_start = flush_start = flush_end = std::chrono::steady_clock::now();
-    std::cout << "~ Used existing DSU" << std::endl;
 #ifdef VERIFY_SAMPLES_F
     for (node_id_t src = 0; src < num_nodes; ++src) {
       for (const auto& dst : spanning_forest[src]) {
@@ -421,7 +419,6 @@ bool Graph::point_query(node_id_t a, node_id_t b) {
   // DSU check before calling force_flush()
   if (dsu_valid) {
     cc_alg_start = flush_start = flush_end = std::chrono::steady_clock::now();
-    std::cout << "~ Used existing DSU" << std::endl;
 #ifdef VERIFY_SAMPLES_F
     for (node_id_t src = 0; src < num_nodes; ++src) {
       for (const auto& dst : spanning_forest[src]) {

@@ -16,7 +16,7 @@ class FileGraphVerifier : public GraphVerifier {
   DisjointSetUnion<node_id_t> sets;
 
 public:
-  FileGraphVerifier(const std::string& input_file = "./cumul_sample.txt");
+  FileGraphVerifier(node_id_t n, const std::string& input_file);
 
   void verify_edge(Edge edge);
   void verify_cc(node_id_t node);

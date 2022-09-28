@@ -41,7 +41,7 @@ TEST_P(GraphTest, SmallGraphConnectivity) {
     in >> a >> b;
     g.update({{a, b}, INSERT});
   }
-  g.set_verifier(std::make_unique<FileGraphVerifier>(curr_dir + "/res/multiples_graph_1024.txt"));
+  g.set_verifier(std::make_unique<FileGraphVerifier>(1024, curr_dir + "/res/multiples_graph_1024.txt"));
   ASSERT_EQ(78, g.connected_components().size());
 }
 
@@ -61,7 +61,7 @@ TEST(GraphTest, IFconnectedComponentsAlgRunTHENupdateLocked) {
     in >> a >> b;
     g.update({{a, b}, INSERT});
   }
-  g.set_verifier(std::make_unique<FileGraphVerifier>(curr_dir + "/res/multiples_graph_1024.txt"));
+  g.set_verifier(std::make_unique<FileGraphVerifier>(1024, curr_dir + "/res/multiples_graph_1024.txt"));
   g.connected_components();
   ASSERT_THROW(g.update({{1,2}, INSERT}), UpdateLockedException);
   ASSERT_THROW(g.update({{1,2}, DELETE}), UpdateLockedException);
@@ -84,7 +84,7 @@ TEST(GraphTest, TestSupernodeRestoreAfterCCFailure) {
       in >> a >> b;
       g.update({{a, b}, INSERT});
     }
-    g.set_verifier(std::make_unique<FileGraphVerifier>(curr_dir + "/res/multiples_graph_1024.txt"));
+    g.set_verifier(std::make_unique<FileGraphVerifier>(1024, curr_dir + "/res/multiples_graph_1024.txt"));
     g.should_fail_CC();
 
     // flush to make sure copy supernodes is consistent with graph supernodes
@@ -123,7 +123,7 @@ TEST_P(GraphTest, TestCorrectnessOnSmallRandomGraphs) {
       } else g.update({{a, b}, DELETE});
     }
 
-    g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
+    g.set_verifier(std::make_unique<FileGraphVerifier>(n, "./cumul_sample.txt"));
     g.connected_components();
   }
 }
@@ -146,7 +146,7 @@ TEST_P(GraphTest, TestCorrectnessOnSmallSparseGraphs) {
       } else g.update({{a, b}, DELETE});
     }
 
-    g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
+    g.set_verifier(std::make_unique<FileGraphVerifier>(1024, "./cumul_sample.txt"));
     g.connected_components();
   } 
 }
@@ -169,14 +169,14 @@ TEST_P(GraphTest, TestCorrectnessOfReheating) {
       else g->update({{a, b}, DELETE});
     }
     g->write_binary("./out_temp.txt");
-    g->set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
+    g->set_verifier(std::make_unique<FileGraphVerifier>(1024, "./cumul_sample.txt"));
     std::vector<std::set<node_id_t>> g_res;
     g_res = g->connected_components();
     printf("number of CC = %lu\n", g_res.size());
     delete g; // delete g to avoid having multiple graphs open at once. Which is illegal.
 
     Graph reheated {"./out_temp.txt"};
-    reheated.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
+    reheated.set_verifier(std::make_unique<FileGraphVerifier>(1024, "./cumul_sample.txt"));
     auto reheated_res = reheated.connected_components();
     printf("number of reheated CC = %lu\n", reheated_res.size());
     ASSERT_EQ(g_res.size(), reheated_res.size());
@@ -213,7 +213,7 @@ TEST_P(GraphTest, MultipleWorkers) {
       } else g.update({{a, b}, DELETE});
     }
 
-    g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
+    g.set_verifier(std::make_unique<FileGraphVerifier>(1024, "./cumul_sample.txt"));
     g.connected_components();
   } 
 }
@@ -234,7 +234,7 @@ TEST_P(GraphTest, TestPointQuery) {
     in >> a >> b;
     g.update({{a, b}, INSERT});
   }
-  g.set_verifier(std::make_unique<FileGraphVerifier>(curr_dir + "/res/multiples_graph_1024.txt"));
+  g.set_verifier(std::make_unique<FileGraphVerifier>(1024, curr_dir + "/res/multiples_graph_1024.txt"));
   std::vector<std::set<node_id_t>> ret = g.connected_components(true);
   std::vector<node_id_t> ccid (num_nodes);
   for (node_id_t i = 0; i < ret.size(); ++i) {
@@ -244,7 +244,7 @@ TEST_P(GraphTest, TestPointQuery) {
   }
   for (node_id_t i = 0; i < std::min(10u, num_nodes); ++i) {
     for (node_id_t j = 0; j < std::min(10u, num_nodes); ++j) {
-      g.set_verifier(std::make_unique<FileGraphVerifier>(curr_dir + "/res/multiples_graph_1024.txt"));
+      g.set_verifier(std::make_unique<FileGraphVerifier>(1024, curr_dir + "/res/multiples_graph_1024.txt"));
       ASSERT_EQ(g.point_query(i, j), ccid[i] == ccid[j]);
     }
   }
@@ -412,7 +412,7 @@ TEST(GraphTest, MultipleInsertThreads) {
     threads[i].join();
   }
 
-  g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
+  g.set_verifier(std::make_unique<FileGraphVerifier>(1024, "./cumul_sample.txt"));
   g.connected_components();
 }
 
