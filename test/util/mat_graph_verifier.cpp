@@ -6,9 +6,9 @@
 #include <cassert>
 
 MatGraphVerifier::MatGraphVerifier(node_id_t n) : n(n), sets(n) {
-  adj_graph = std::vector<std::vector<bool>>(n);
+  adj_matrix = std::vector<std::vector<bool>>(n);
   for (node_id_t i = 0; i < n; ++i)
-    adj_graph[i] = std::vector<bool>(n - i);
+    adj_matrix[i] = std::vector<bool>(n - i);
 }
 
 void MatGraphVerifier::edge_update(node_id_t src, node_id_t dst) {
@@ -17,7 +17,7 @@ void MatGraphVerifier::edge_update(node_id_t src, node_id_t dst) {
   dst = dst - src;
   
   // update adj_matrix entry
-  adj_graph[src][dst] = !adj_graph[src][dst];
+  adj_matrix[src][dst] = !adj_matrix[src][dst];
 }
   
 
@@ -33,8 +33,8 @@ std::vector<std::set<node_id_t>> MatGraphVerifier::kruskal() {
   DisjointSetUnion<node_id_t> kruskal_dsu(n);
 
   for (node_id_t i = 0; i < n; i++) {
-    for (node_id_t j = 0; j < adj_graph[i].size(); j++) {
-      if (adj_graph[i][j]) kruskal_dsu.merge(i, i + j);
+    for (node_id_t j = 0; j < adj_matrix[i].size(); j++) {
+      if (adj_matrix[i][j]) kruskal_dsu.merge(i, i + j);
     }
   }
 
@@ -54,7 +54,7 @@ std::vector<std::set<node_id_t>> MatGraphVerifier::kruskal() {
 void MatGraphVerifier::verify_edge(Edge edge) {
   // verify that the edge in question actually exists
   if (edge.first > edge.second) std::swap(edge.first, edge.second);
-  if (!adj_graph[edge.first][edge.second - edge.first]) {
+  if (!adj_matrix[edge.first][edge.second - edge.first]) {
     printf("Got an error on edge (%u, %u): edge is not in adj_matrix\n", edge.first, edge.second);
     throw BadEdgeException();
   }

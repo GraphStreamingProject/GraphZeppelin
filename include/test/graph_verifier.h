@@ -8,6 +8,9 @@
  * generates.
  */
 class GraphVerifier {
+protected:
+  std::vector<std::vector<bool>> adj_matrix;
+
 public:
   /**
    * Verifies an edge exists in the graph. Verifies that the edge is in the cut
@@ -31,6 +34,8 @@ public:
    * retval against kruskal_ref.
    */
   virtual void verify_soln(std::vector<std::set<node_id_t>> &retval) = 0;
+
+  std::vector<std::vector<bool>> extract_adj_matrix() {return adj_matrix;}
 
   virtual ~GraphVerifier() {};
 };

@@ -16,12 +16,13 @@ FileGraphVerifier::FileGraphVerifier(node_id_t n, const std::string &input_file)
 
   for (unsigned i = 0; i < n; ++i) {
     boruvka_cc.push_back({i});
-    det_graph.emplace_back();
+    adj_matrix.emplace_back(n - i);
   }
   while (m--) {
     in >> a >> b;
-    det_graph[a].insert(b);
-    det_graph[b].insert(a);
+    if (a > b) std::swap(a, b);
+    b = b - a;
+    adj_matrix[a][b] = !adj_matrix[a][b];
   }
   in.close();
 }
@@ -53,11 +54,12 @@ std::vector<std::set<node_id_t>> FileGraphVerifier::kruskal(const std::string& i
 }
 
 void FileGraphVerifier::verify_edge(Edge edge) {
-  if (det_graph[edge.first].find(edge.second) == det_graph[edge.first].end()) {
+  if (edge.first > edge.second) std::swap(edge.first, edge.second);
+  if (!adj_matrix[edge.first][edge.second - edge.first]) {
     printf("Got an error on edge (%u, %u): edge is not in graph!\n", edge.first, edge.second);
     throw BadEdgeException();
   }
-  
+
   DSUMergeRet<node_id_t> ret = sets.merge(edge.first, edge.second);
   if (!ret.merged) {
     printf("Got an error of node (%u, %u): components already joined!\n", edge.first, edge.second);
