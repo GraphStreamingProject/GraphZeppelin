@@ -12,7 +12,6 @@
 class MatGraphVerifier : public GraphVerifier {
   std::vector<std::set<node_id_t>> kruskal_ref;
   std::vector<std::set<node_id_t>> boruvka_cc;
-  std::vector<std::vector<bool>> adj_graph;
 
   node_id_t n;
   DisjointSetUnion<node_id_t> sets;

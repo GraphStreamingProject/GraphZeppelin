@@ -12,7 +12,6 @@
 class FileGraphVerifier : public GraphVerifier {
   std::vector<std::set<node_id_t>> kruskal_ref;
   std::vector<std::set<node_id_t>> boruvka_cc;
-  std::vector<std::vector<bool>> adj_matrix;
   DisjointSetUnion<node_id_t> sets;
 
 public:
