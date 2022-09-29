@@ -24,8 +24,10 @@ class MatGraphVerifier : public GraphVerifier {
   std::vector<std::set<node_id_t>> kruskal();
 public:
   MatGraphVerifier(node_id_t n);
+
+  // When we want to build a MatGraphVerifier without iterative edge_updates
   MatGraphVerifier(node_id_t n, std::vector<std::vector<bool>> _adj)
-   : adj_graph(_adj), n(n), sets(n) {};
+   : GraphVerifier(_adj), n(n), sets(n) { reset_cc_state(); };
   
   void reset_cc_state();       // run this function before using as a verifier in CC
   void edge_update(node_id_t src, node_id_t dst);

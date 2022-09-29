@@ -37,6 +37,9 @@ public:
 
   std::vector<std::vector<bool>> extract_adj_matrix() {return adj_matrix;}
 
+  GraphVerifier() = default;
+  GraphVerifier(std::vector<std::vector<bool>> _adj) : adj_matrix(std::move(_adj)) {};
+
   virtual ~GraphVerifier() {};
 };
 
