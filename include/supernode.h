@@ -83,8 +83,8 @@ public:
 
   static inline void configure(uint64_t n, vec_t sketch_fail_factor=100) {
     Sketch::configure(n*n, sketch_fail_factor);
-    bytes_size = sizeof(Supernode) + log2(n)/(log2(3)-1) * Sketch::sketchSizeof() - sizeof(char);
-    serialized_size = log2(n)/(log2(3)-1) * Sketch::serialized_size();
+    bytes_size = sizeof(Supernode) + size_t(log2(n)/(log2(3)-1)) * Sketch::sketchSizeof() - sizeof(char);
+    serialized_size = size_t(log2(n)/(log2(3)-1)) * Sketch::serialized_size();
   }
 
   static inline size_t get_size() {
