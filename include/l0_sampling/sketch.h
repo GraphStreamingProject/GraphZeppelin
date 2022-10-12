@@ -94,6 +94,9 @@ public:
 
   inline static size_t sketchSizeof()
   { return sizeof(Sketch) + num_elems * (sizeof(vec_t) + sizeof(vec_hash_t)) - sizeof(char); }
+
+  inline static size_t serialized_size()
+  { return num_elems * (sizeof(vec_t) + sizeof(vec_hash_t)); }
   
   inline static vec_t get_failure_factor() 
   { return failure_factor; }
