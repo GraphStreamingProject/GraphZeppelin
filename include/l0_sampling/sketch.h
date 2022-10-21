@@ -7,6 +7,7 @@
 #include <memory>
 #include <mutex>
 #include <utility>
+#include "./cudaSketch.cuh"
 #include "../bucket.h"
 #include "../types.h"
 #include "../util.h"

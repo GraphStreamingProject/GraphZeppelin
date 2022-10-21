@@ -86,6 +86,9 @@ std::pair<vec_t, SampleSketchRet> Sketch::query() {
   if (Bucket_Boruvka::is_good(bucket_a[num_elems - 1], bucket_c[num_elems - 1], seed)) {
     return {bucket_a[num_elems - 1], GOOD};
   }
+  std::cout << "Calling CUDA\n";
+  CudaSketch::main();
+
   for (unsigned i = 0; i < num_buckets; ++i) {
     for (unsigned j = 0; j < num_guesses; ++j) {
       unsigned bucket_id = i * num_guesses + j;

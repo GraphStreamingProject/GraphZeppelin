@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(GraphZeppelin)
+project(GraphZeppelin LANGUAGES CXX CUDA)
 
 include (FetchContent)
 
@@ -36,6 +36,11 @@ else()
   set(BUILD_EXE ON)
   message (STATUS "GraphZeppelin building executables")
 endif()
+
+# Print out information of CUDA compiler
+message(STATUS "CMAKE_CUDA_COMPILER = ${CMAKE_CUDA_COMPILER}")
+message(STATUS "CMAKE_CUDA_COMPILER_ID = ${CMAKE_CUDA_COMPILER_ID}")
+message(STATUS "CMAKE_CUDA_COMPILER_VERSION = ${CMAKE_CUDA_COMPILER_VERSION}")
 
 # Get xxHash
 FetchContent_Declare(
@@ -78,14 +83,16 @@ add_subdirectory(
   "${xxhash_BINARY_DIR}"
   EXCLUDE_FROM_ALL
 )
+
 #Restore BUILD_SHARED_LIBS
 set(BUILD_SHARED_LIBS "${SAVED_BUILD_SHARED_LIBS}" CACHE BOOL "" FORCE)
-
 
 # AVAILABLE COMPILATION DEFINITIONS:
 # VERIFY_SAMPLES_F   Use a deterministic connected-components 
 #                    algorithm to verify post-processing.
 # USE_EAGER_DSU      Use the eager DSU query optimization if this flag is present.
+
+add_library(cudaSketch src/l0_sampling/cudaSketch.cu)
 
 add_library(GraphZeppelin
   src/graph.cpp
@@ -96,7 +103,7 @@ add_library(GraphZeppelin
   src/l0_sampling/update.cpp
   src/util.cpp)
 add_dependencies(GraphZeppelin GutterTree)
-target_link_libraries(GraphZeppelin PUBLIC xxhash GutterTree)
+target_link_libraries(GraphZeppelin PUBLIC xxhash GutterTree cudaSketch)
 target_include_directories(GraphZeppelin PUBLIC include/ include/l0_sampling/)
 target_compile_options(GraphZeppelin PUBLIC -fopenmp)
 target_link_options(GraphZeppelin PUBLIC -fopenmp)
@@ -104,7 +111,7 @@ target_compile_definitions(GraphZeppelin PUBLIC XXH_INLINE_ALL USE_EAGER_DSU)
 
 add_library(GraphZeppelinVerifyCC
   src/graph.cpp
-  src/graph_configuration.cpp
+  src/graph_configuration.cpp./
   src/supernode.cpp
   src/graph_worker.cpp
   src/l0_sampling/sketch.cpp
@@ -113,7 +120,7 @@ add_library(GraphZeppelinVerifyCC
   test/util/file_graph_verifier.cpp
   test/util/mat_graph_verifier.cpp)
 add_dependencies(GraphZeppelinVerifyCC GutterTree)
-target_link_libraries(GraphZeppelinVerifyCC PUBLIC xxhash GutterTree)
+target_link_libraries(GraphZeppelinVerifyCC PUBLIC xxhash GutterTree cudaSketch)
 target_include_directories(GraphZeppelinVerifyCC PUBLIC include/ include/l0_sampling/ include/test/)
 target_compile_options(GraphZeppelinVerifyCC PUBLIC -fopenmp)
 target_link_options(GraphZeppelinVerifyCC PUBLIC -fopenmp)
