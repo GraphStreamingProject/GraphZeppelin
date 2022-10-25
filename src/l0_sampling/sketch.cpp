@@ -86,10 +86,18 @@ std::pair<vec_t, SampleSketchRet> Sketch::query() {
   if (Bucket_Boruvka::is_good(bucket_a[num_elems - 1], bucket_c[num_elems - 1], seed)) {
     return {bucket_a[num_elems - 1], GOOD};
   }
-  std::cout << "Calling CUDA\n";
-  CudaSketch::main();
 
-  for (unsigned i = 0; i < num_buckets; ++i) {
+  CudaSketch* cudaSketch = new CudaSketch(num_elems, num_buckets, num_guesses, bucket_a, bucket_c, seed);
+  cudaSketch->query();
+
+  if(cudaSketch->result[0] != 0) {
+    return {cudaSketch->result[0], GOOD};
+  }
+  else {
+    return {0, FAIL};
+  }
+
+  /*for (unsigned i = 0; i < num_buckets; ++i) {
     for (unsigned j = 0; j < num_guesses; ++j) {
       unsigned bucket_id = i * num_guesses + j;
       if (Bucket_Boruvka::is_good(bucket_a[bucket_id], bucket_c[bucket_id], i, 1 << j, seed)) {
@@ -97,7 +105,7 @@ std::pair<vec_t, SampleSketchRet> Sketch::query() {
       }
     }
   }
-  return {0, FAIL};
+  return {0, FAIL};*/
 }
 
 Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2) {

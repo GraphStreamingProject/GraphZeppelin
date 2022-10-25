@@ -93,6 +93,9 @@ set(BUILD_SHARED_LIBS "${SAVED_BUILD_SHARED_LIBS}" CACHE BOOL "" FORCE)
 # USE_EAGER_DSU      Use the eager DSU query optimization if this flag is present.
 
 add_library(cudaSketch src/l0_sampling/cudaSketch.cu)
+add_dependencies(cudaSketch GutterTree)
+target_link_libraries(cudaSketch PUBLIC xxhash GutterTree)
+target_include_directories(cudaSketch PUBLIC include/ include/l0_sampling/)
 
 add_library(GraphZeppelin
   src/graph.cpp
@@ -111,7 +114,7 @@ target_compile_definitions(GraphZeppelin PUBLIC XXH_INLINE_ALL USE_EAGER_DSU)
 
 add_library(GraphZeppelinVerifyCC
   src/graph.cpp
-  src/graph_configuration.cpp./
+  src/graph_configuration.cpp
   src/supernode.cpp
   src/graph_worker.cpp
   src/l0_sampling/sketch.cpp
