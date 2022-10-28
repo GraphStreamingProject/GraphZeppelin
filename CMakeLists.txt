@@ -143,6 +143,12 @@ if (BUILD_EXE)
   add_dependencies(tests GraphZeppelinVerifyCC)
   target_link_libraries(tests PRIVATE GraphZeppelinVerifyCC)
 
+  add_executable(sketch_test
+    test/test_runner.cpp
+    test/sketch_test.cpp)
+  add_dependencies(sketch_test GraphZeppelinVerifyCC)
+  target_link_libraries(sketch_test PRIVATE GraphZeppelinVerifyCC)
+
   add_executable(statistical_test
     tools/statistical_testing/graph_testing.cpp
     test/util/file_graph_verifier.cpp
