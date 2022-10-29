@@ -48,6 +48,8 @@ private:
   FRIEND_TEST(SketchTestSuite, TestExceptions);
   FRIEND_TEST(EXPR_Parallelism, N10kU100k);
 
+  // For debugging buckets
+  int count = 0;
   
   // Buckets of this sketch.
   // Length is bucket_gen(failure_factor) * guess_gen(n).
