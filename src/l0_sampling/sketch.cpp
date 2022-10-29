@@ -55,29 +55,11 @@ Sketch::Sketch(const Sketch& s) : seed(s.seed) {
 }
 
 void Sketch::update(const vec_t& update_idx) {
-  /*if(count < 5) {
-    std::cout << "Count: " << count << "\n";
-    std::cout << "Before: ";
-    for(int i = 0; i < num_elems; i++) {
-      std::cout << bucket_a[i] << " ";
-    }
-    std::cout << "\n";
-  }*/
+  CudaSketch cudaSketch(num_elems, num_buckets, num_guesses, bucket_a, bucket_c, seed);
+  cudaSketch.update(update_idx, count);
 
-  //CudaSketch cudaSketch(num_elems, num_buckets, num_guesses, bucket_a, bucket_c, seed);
-  //cudaSketch.update(update_idx, count);
-
-  vec_hash_t update_hash = Bucket_Boruvka::index_hash(update_idx, seed);
+  /*vec_hash_t update_hash = Bucket_Boruvka::index_hash(update_idx, seed);
   Bucket_Boruvka::update(bucket_a[num_elems - 1], bucket_c[num_elems - 1], update_idx, update_hash);
-
-  /*if(count < 5) {
-    std::cout << "Launch: ";
-    for(int i = 0; i < num_elems; i++) {
-      std::cout << bucket_a[i] << " ";
-    }
-    std::cout << "\n";
-  }*/
-
 
   for (unsigned i = 0; i < num_buckets; ++i) {
     col_hash_t col_index_hash = Bucket_Boruvka::col_index_hash(update_idx, seed + i);
@@ -87,17 +69,7 @@ void Sketch::update(const vec_t& update_idx) {
         Bucket_Boruvka::update(bucket_a[bucket_id], bucket_c[bucket_id], update_idx, update_hash);
       } else break;
     }
-  }
-
-  /*if(count < 5) {
-    std::cout << "Finish from sketch: ";
-    for(int i = 0; i < num_elems; i++) {
-      std::cout << bucket_a[i] << " ";
-    }
-    std::cout << "\n";
-  }
-  count++;*/
-
+  }*/
 }
 
 void Sketch::batch_update(const std::vector<vec_t>& updates) {

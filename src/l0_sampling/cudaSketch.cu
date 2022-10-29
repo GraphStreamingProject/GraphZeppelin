@@ -72,14 +72,6 @@ void CudaSketch::update(const vec_t& update_idx, int count) {
     col_index_hashes[i] = Bucket_Boruvka::col_index_hash(update_idx, seed + i);
   }
 
-  /*if(count < 5) {
-    std::cout << "Launch: ";
-    for(int i = 0; i < num_elems; i++) {
-      std::cout << bucket_a[i] << " ";
-    }
-    std::cout << "\n";
-  }*/
-
   vec_t bucket_a_bytes = sizeof(vec_t) * num_elems;
   vec_hash_t bucket_c_bytes = sizeof(vec_hash_t) * num_elems;
 
