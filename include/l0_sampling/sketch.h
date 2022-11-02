@@ -39,8 +39,9 @@ private:
   // Seed used for hashing operations in this sketch.
   const uint64_t seed;
   // pointers to buckets
-  vec_t*      bucket_a;
-  vec_hash_t* bucket_c;
+  vec_t      *bucket_a, *d_bucket_a;
+  vec_hash_t *bucket_c, *d_bucket_c;
+  col_hash_t *d_col_index_hashes;
 
   // Flag to keep track if this sketch has already been queried.
   bool already_queried = false;
@@ -48,9 +49,6 @@ private:
   FRIEND_TEST(SketchTestSuite, TestExceptions);
   FRIEND_TEST(EXPR_Parallelism, N10kU100k);
 
-  // For debugging buckets
-  int count = 0;
-  
   // Buckets of this sketch.
   // Length is bucket_gen(failure_factor) * guess_gen(n).
   // For buckets[i * guess_gen(n) + j], the bucket has a 1/2^j probability
@@ -61,6 +59,8 @@ private:
   Sketch(uint64_t seed);
   Sketch(uint64_t seed, std::istream &binary_in);
   Sketch(const Sketch& s);
+
+  CudaSketch* cudaSketch;
 
 public:
   /**
