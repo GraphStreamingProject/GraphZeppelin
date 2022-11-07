@@ -36,6 +36,9 @@ Sketch::Sketch(uint64_t seed): seed(seed) {
     bucket_c[i] = 0;
   }
 
+  //cudaMallocHost(&combined_memory, (2 * (num_elems * sizeof(vec_t))) + (num_buckets * sizeof(col_hash_t)));
+  //cudaMalloc(&combined_device_memory, (2 * (num_elems * sizeof(vec_t))) + (num_buckets * sizeof(col_hash_t)));
+
   cudaMalloc(&d_bucket_a, sizeof(vec_t) * num_elems);
   cudaMalloc(&d_bucket_c, sizeof(vec_hash_t) * num_elems);
   cudaMalloc(&d_col_index_hashes, sizeof(col_hash_t) * num_buckets);
@@ -48,6 +51,9 @@ Sketch::Sketch(uint64_t seed, std::istream &binary_in): seed(seed) {
 
   binary_in.read((char*)bucket_a, num_elems * sizeof(vec_t));
   binary_in.read((char*)bucket_c, num_elems * sizeof(vec_hash_t));
+
+  //cudaMallocHost(&combined_memory, (2 * (num_elems * sizeof(vec_t))) + (num_buckets * sizeof(col_hash_t)));
+  //cudaMalloc(&combined_device_memory, (2 * (num_elems * sizeof(vec_t))) + (num_buckets * sizeof(col_hash_t)));
 
   cudaMalloc(&d_bucket_a, sizeof(vec_t) * num_elems);
   cudaMalloc(&d_bucket_c, sizeof(vec_hash_t) * num_elems);
@@ -62,14 +68,28 @@ Sketch::Sketch(const Sketch& s) : seed(s.seed) {
   std::memcpy(bucket_a, s.bucket_a, num_elems * sizeof(vec_t));
   std::memcpy(bucket_c, s.bucket_c, num_elems * sizeof(vec_hash_t));
 
+  //cudaMallocHost(&combined_memory, (2 * (num_elems * sizeof(vec_t))) + (num_buckets * sizeof(col_hash_t)));
+  //cudaMalloc(&combined_device_memory, (2 * (num_elems * sizeof(vec_t))) + (num_buckets * sizeof(col_hash_t)));
+
   cudaMalloc(&d_bucket_a, sizeof(vec_t) * num_elems);
   cudaMalloc(&d_bucket_c, sizeof(vec_hash_t) * num_elems);
   cudaMalloc(&d_col_index_hashes, sizeof(col_hash_t) * num_buckets);
 }
 
 void Sketch::update(const vec_t& update_idx) {
+  /*for(size_t i = 0; i < num_elems; i++) {
+    combined_memory[i] = bucket_a[i];
+    combined_memory[i + num_elems] = bucket_c[i];
+  }*/
+
   CudaSketch cudaSketch(num_elems, num_buckets, num_guesses, seed);
   cudaSketch.update(bucket_a, bucket_c, d_bucket_a, d_bucket_c, d_col_index_hashes, update_idx);
+  //cudaSketch.update(combined_memory, combined_device_memory, update_idx);
+
+  /*for(size_t i = 0; i < num_elems; i++) {
+    bucket_a[i] = combined_memory[i];
+    bucket_c[i] = combined_memory[i + num_elems];
+  }*/
 
   /*vec_hash_t update_hash = Bucket_Boruvka::index_hash(update_idx, seed);
   Bucket_Boruvka::update(bucket_a[num_elems - 1], bucket_c[num_elems - 1], update_idx, update_hash);

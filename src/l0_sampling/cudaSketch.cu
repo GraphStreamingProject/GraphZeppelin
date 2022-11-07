@@ -23,11 +23,10 @@ __host__ __device__  bool bucket_contains(const col_hash_t& col_index_hash, cons
     && bucket_contains(bucket_col_index_hash(a, sketch_seed + bucket_col), guess_nonzero);
 }*/
 
-
 __global__ void sketch_update(vec_t* bucket_a, vec_hash_t* bucket_c, const size_t num_buckets, const size_t num_guesses, const uint64_t seed, 
                               const col_hash_t* col_index_hashes, const vec_t update_idx, const vec_hash_t update_hash) {
 
-    /*int bucketIdx = blockIdx.y * blockDim.y + threadIdx.y;
+    int bucketIdx = blockIdx.y * blockDim.y + threadIdx.y;
     int guessIdx = blockIdx.x * blockDim.x + threadIdx.x;
 
     if(bucketIdx < num_buckets && guessIdx < num_guesses) {
@@ -40,7 +39,7 @@ __global__ void sketch_update(vec_t* bucket_a, vec_hash_t* bucket_c, const size_
         return;
       }
       
-    }*/
+    }
 
     int currentId = (blockIdx.x * blockDim.x) + threadIdx.x;
 
@@ -57,6 +56,25 @@ __global__ void sketch_update(vec_t* bucket_a, vec_hash_t* bucket_c, const size_
       }
     }
 }
+
+/*__global__ void sketch_update(vec_t* combined_memory, const size_t num_elems, const size_t num_buckets, const size_t num_guesses, const uint64_t seed, 
+                              const vec_t update_idx, const vec_hash_t update_hash) {
+
+    int currentId = (blockIdx.x * blockDim.x) + threadIdx.x;
+
+    if(currentId < num_buckets) {
+      for (int guessId = 0; guessId < num_guesses; guessId++) {
+        unsigned bucket_id = currentId * num_guesses + guessId;
+        if (bucket_contains(combined_memory[(2 * num_elems) + currentId], ((col_hash_t)1) << guessId)){
+          combined_memory[bucket_id] = combined_memory[bucket_id + num_elems] ^ update_idx;
+          combined_memory[bucket_id + num_elems] = combined_memory[bucket_id + (2 * num_elems)] ^ update_hash;
+        }
+        else {
+          return;
+        }
+      }
+    }
+}*/
 
 /*__global__ void sketch_query(const vec_t* bucket_a, const vec_hash_t* bucket_c, vec_t* result, size_t num_guesses, uint64_t seed) {
     int bucketId = blockIdx.x * blockDim.x + threadIdx.x;
@@ -75,14 +93,21 @@ CudaSketch::CudaSketch(size_t numElems, size_t numBuckets, size_t numGuesses, ui
 };
 
 void CudaSketch::update(vec_t* &bucket_a, vec_hash_t* &bucket_c, vec_t* &d_bucket_a, vec_hash_t* &d_bucket_c, col_hash_t* &d_col_index_hashes, const vec_t& update_idx) {
+//void CudaSketch::update(vec_t* &combined_memory, vec_t* &combined_device_memory, const vec_t& update_idx) {
 
   vec_hash_t update_hash = Bucket_Boruvka::index_hash(update_idx, seed);
   Bucket_Boruvka::update(bucket_a[num_elems - 1], bucket_c[num_elems - 1], update_idx, update_hash);
+
+  //combined_memory[num_elems - 1] ^= update_idx;
+  //combined_memory[(num_elems * 2) - 1] ^= update_hash;
 
   col_hash_t* col_index_hashes = new col_hash_t[num_buckets];
   for (unsigned i = 0; i < num_buckets; ++i) {
     col_index_hashes[i] = Bucket_Boruvka::col_index_hash(update_idx, seed + i);
   }
+  /*for (unsigned i = 0; i < num_buckets; ++i) {
+    combined_memory[i + (num_elems * 2)] = Bucket_Boruvka::col_index_hash(update_idx, seed + i);
+  }*/
 
   vec_t bucket_a_bytes = sizeof(vec_t) * num_elems;
   vec_hash_t bucket_c_bytes = sizeof(vec_hash_t) * num_elems;
@@ -91,6 +116,7 @@ void CudaSketch::update(vec_t* &bucket_a, vec_hash_t* &bucket_c, vec_t* &d_bucke
   cudaMemcpy(d_bucket_a, bucket_a, bucket_a_bytes, cudaMemcpyHostToDevice);
   cudaMemcpy(d_bucket_c, bucket_c, bucket_c_bytes, cudaMemcpyHostToDevice);
   cudaMemcpy(d_col_index_hashes, col_index_hashes, sizeof(col_hash_t) * num_buckets, cudaMemcpyHostToDevice);
+  //cudaMemcpy(combined_device_memory, combined_memory, (2 * (num_elems * sizeof(vec_t))) + (num_buckets * sizeof(col_hash_t)), cudaMemcpyHostToDevice);
 
   // Threads per CTA
   int num_threads = 1 << 10;
@@ -102,11 +128,12 @@ void CudaSketch::update(vec_t* &bucket_a, vec_hash_t* &bucket_c, vec_t* &d_bucke
   //dim3 blocks(num_blocks, num_blocks);
 
   // Launch kernel
-  //sketch_update<<<blocks, threads>>>(d_bucket_a, d_bucket_c, num_buckets, num_guesses, seed, d_col_index_hashes, update_idx, update_hash);
   sketch_update<<<num_blocks, num_threads>>>(d_bucket_a, d_bucket_c, num_buckets, num_guesses, seed, d_col_index_hashes, update_idx, update_hash);
+  //sketch_update<<<num_blocks, num_threads>>>(combined_device_memory, num_elems, num_buckets, num_guesses, seed, update_idx, update_hash);
 
   cudaMemcpy(bucket_a, d_bucket_a, bucket_a_bytes, cudaMemcpyDeviceToHost);
   cudaMemcpy(bucket_c, d_bucket_c, bucket_c_bytes, cudaMemcpyDeviceToHost);
+  //cudaMemcpy(combined_memory, combined_device_memory, (2 * (num_elems * sizeof(vec_t))) + (num_buckets * sizeof(col_hash_t)), cudaMemcpyDeviceToHost);
 }
 
 /*void CudaSketch::query() {
