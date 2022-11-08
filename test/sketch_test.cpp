@@ -282,12 +282,12 @@ TEST(SketchTestSuite, TestSketchLarge) {
   }
 }
 
-TEST(SketchTestSuite, SmallTest) {
+/*TEST(SketchTestSuite, SmallTest) {
   constexpr uint64_t upper_bound = 1e5;
   for (uint64_t i = 1e5; i <= upper_bound; i *= 10) {
     test_sketch_large(i, 100000);
   }
-}
+}*/
 
 TEST(SketchTestSuite, TestBatchUpdate) {
   unsigned long vec_size = 1000000000, num_updates = 10000;

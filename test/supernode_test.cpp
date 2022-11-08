@@ -20,9 +20,15 @@ protected:
     for (unsigned i=2;i<num_nodes;++i) {
       for (unsigned j = i*2; j < num_nodes; j+=i) {
         graph_edges->push_back({i,j});
-        if ((j/i)%2) odd_graph_edges->push_back({i,j});        Supernode* s = Supernode::makeSupernode(num_nodes, seed);
-        SampleSketchRet ret_code = s->sample().second;
-        ASSERT_EQ(ret_code, ZERO) << "Did not get ZERO when sampling empty vector";
+        if ((j/i)%2) odd_graph_edges->push_back({i,j});
+      }
+    }
+
+    // sieve
+    prime = (bool*) malloc(num_nodes*sizeof(bool));
+    std::fill(prime,prime+num_nodes,true);
+    for (unsigned i = 2; i < num_nodes; i++) {
+      if (prime[i]) {
         for (unsigned j = i * i; j < num_nodes; j += i) prime[j] = false;
       }
     }
