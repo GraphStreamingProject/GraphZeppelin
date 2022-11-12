@@ -39,8 +39,9 @@ private:
   // Seed used for hashing operations in this sketch.
   const uint64_t seed;
   // pointers to buckets
-  vec_t      *bucket_a, *combined_memory, *combined_device_memory;
-  vec_hash_t *bucket_c;
+  vec_t      *h_bucket_a, *d_bucket_a;
+  vec_hash_t *h_bucket_c, *d_bucket_c;
+  col_hash_t *d_col_index_hash;
 
   // Flag to keep track if this sketch has already been queried.
   bool already_queried = false;

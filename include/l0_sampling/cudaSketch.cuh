@@ -10,15 +10,14 @@
 
 class CudaSketch {
     private:
-
-
-    public:
         size_t num_elems;
         size_t num_buckets;
         size_t num_guesses;
+        vec_t *bucket_a;
+        vec_hash_t *bucket_c;
         uint64_t seed;
 
-        CudaSketch(size_t numElems, size_t numBuckets, size_t numGuesses, uint64_t currentSeed);
-        void update(vec_t* &combined_memory, vec_t* &combined_device_memory, const vec_t& update_idx);
-        void query();
+    public:
+        CudaSketch(size_t numElems, size_t numBuckets, size_t numGuesses, vec_t* &bucketA, vec_hash_t* &bucketC, uint64_t currentSeed);
+        void update(col_hash_t* d_col_index_hash, const vec_t& update_idx);
 };
