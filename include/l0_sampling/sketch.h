@@ -39,7 +39,7 @@ private:
   // Seed used for hashing operations in this sketch.
   const uint64_t seed;
   // pointers to buckets
-  vec_t      *h_bucket_a, *d_bucket_a;
+  vec_t      *h_bucket_a, *d_bucket_a, *h_bucket_debug, *d_bucket_debug;
   vec_hash_t *h_bucket_c, *d_bucket_c;
   col_hash_t *d_col_index_hash;
 
@@ -59,6 +59,8 @@ private:
   Sketch(uint64_t seed);
   Sketch(uint64_t seed, std::istream &binary_in);
   Sketch(const Sketch& s);
+
+  bool printed = false;
 
 public:
   /**

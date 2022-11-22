@@ -19,5 +19,5 @@ class CudaSketch {
 
     public:
         CudaSketch(size_t numElems, size_t numBuckets, size_t numGuesses, vec_t* &bucketA, vec_hash_t* &bucketC, uint64_t currentSeed);
-        void update(col_hash_t* d_col_index_hash, const vec_t& update_idx);
+        void update(col_hash_t* d_col_index_hash, const vec_t& update_idx, vec_t* &bucket_debug);
 };

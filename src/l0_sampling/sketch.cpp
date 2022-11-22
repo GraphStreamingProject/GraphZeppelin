@@ -29,19 +29,23 @@ Sketch::Sketch(uint64_t seed): seed(seed) {
   // establish the bucket_a and bucket_c locations
   h_bucket_a = reinterpret_cast<vec_t*>(buckets);
   h_bucket_c = reinterpret_cast<vec_hash_t*>(buckets + num_elems * sizeof(vec_t));
+  h_bucket_debug = reinterpret_cast<vec_t*>(buckets);
 
   // initialize bucket values
   for (size_t i = 0; i < num_elems; ++i) {
     h_bucket_a[i] = 0;
     h_bucket_c[i] = 0;
+    h_bucket_debug[i] = 0;
   }
 
   cudaMalloc(&d_bucket_a, num_elems * sizeof(vec_t));
   cudaMalloc(&d_bucket_c, num_elems * sizeof(vec_hash_t));
   cudaMalloc(&d_col_index_hash, num_buckets * sizeof(col_hash_t));
+  cudaMalloc(&d_bucket_debug, num_elems * sizeof(vec_t));
 
   cudaMemcpy(d_bucket_a, h_bucket_a, num_elems* sizeof(vec_t), cudaMemcpyHostToDevice);
   cudaMemcpy(d_bucket_c, h_bucket_c, num_elems* sizeof(vec_hash_t), cudaMemcpyHostToDevice);
+  cudaMemcpy(d_bucket_debug, h_bucket_debug, num_elems* sizeof(vec_t), cudaMemcpyHostToDevice);
 }
 
 Sketch::Sketch(uint64_t seed, std::istream &binary_in): seed(seed) {
@@ -76,8 +80,20 @@ Sketch::Sketch(const Sketch& s) : seed(s.seed) {
 }
 
 void Sketch::update(const vec_t& update_idx) {
+  //cudaMemcpy(d_bucket_debug, h_bucket_debug, num_elems* sizeof(vec_t), cudaMemcpyHostToDevice);
   CudaSketch cudaSketch(num_elems, num_buckets, num_guesses, d_bucket_a, d_bucket_c, seed);
-  cudaSketch.update(d_col_index_hash, update_idx);
+  cudaSketch.update(d_col_index_hash, update_idx, d_bucket_debug);
+
+  if(!printed) {
+    printed = true;
+    cudaMemcpy(h_bucket_debug, d_bucket_debug, num_elems* sizeof(vec_t), cudaMemcpyDeviceToHost);
+    //std::cout << num_guesses << " " << num_buckets << "\n";
+    for (int i = 0; i < num_elems; i++) {
+      std::cout << h_bucket_debug[i] << " ";
+      //h_bucket_debug[i] = 0;
+    }
+    
+  }
 }
 
 void Sketch::batch_update(const std::vector<vec_t>& updates) {
