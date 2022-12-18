@@ -362,6 +362,9 @@ std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
 #endif
     auto retval = cc_from_dsu();
     cc_alg_end = std::chrono::steady_clock::now();
+#ifdef VERIFY_SAMPLES_F
+    verifier->verify_soln(retval);
+#endif
     return retval;
   }
 #endif // USE_EAGER_DSU
@@ -372,15 +375,23 @@ std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
   flush_end = std::chrono::steady_clock::now();
   // after this point all updates have been processed from the buffer tree
 
-  if (!cont)
-    return boruvka_emulation(false); // merge in place
+  std::vector<std::set<node_id_t>> ret;
+  if (!cont) {
+    ret = boruvka_emulation(false); // merge in place
+#ifdef VERIFY_SAMPLES_F
+    verifier->verify_soln(ret);
+#endif
+    return ret;
+  }
   
   // if backing up in memory then perform copying in boruvka
   bool except = false;
   std::exception_ptr err;
-  std::vector<std::set<node_id_t>> ret;
   try {
     ret = boruvka_emulation(true);
+#ifdef VERIFY_SAMPLES_F
+    verifier->verify_soln(ret);
+#endif
   } catch (...) {
     except = true;
     err = std::current_exception();

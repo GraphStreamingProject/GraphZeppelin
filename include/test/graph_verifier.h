@@ -45,14 +45,18 @@ public:
 
 class BadEdgeException : public std::exception {
   virtual const char* what() const throw() {
-    return "The edge is not in the cut of the sample! (standard)";
+    return "The edge is not in the cut of the sample!";
   }
 };
 
-
 class NotCCException : public std::exception {
   virtual const char* what() const throw() {
-    return "The supernode is not a connected component. It has edges in its "
-           "cut!";
+    return "The supernode is not a connected component. It has edges in its cut!";
+  }
+};
+
+class IncorrectCCException : public std::exception {
+  virtual const char* what() const throw() {
+    return "The connected components are incorrect!";
   }
 };

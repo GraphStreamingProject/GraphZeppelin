@@ -82,6 +82,8 @@ void FileGraphVerifier::verify_soln(std::vector<std::set<node_id_t>> &retval) {
   auto temp {retval};
   std::sort(temp.begin(),temp.end());
   std::sort(kruskal_ref.begin(),kruskal_ref.end());
-  assert(kruskal_ref == temp);
+  if (kruskal_ref != temp)
+    throw IncorrectCCException();
+
   std::cout << "Solution ok: " << retval.size() << " CCs found." << std::endl;
 }
