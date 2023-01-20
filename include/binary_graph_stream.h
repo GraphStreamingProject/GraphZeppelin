@@ -106,8 +106,8 @@ public:
    *
    * IMPORTANT: When perfoming queries it is the responsibility of the user to ensure that 
    * all threads have finished processing their current work. This is indicated by all threads 
-   * pulling data from the stream returning NXT_QUERY.
-   * If all threads do not return NXT_QUERY then not all updates have been applied to the graph.
+   * pulling data from the stream returning BREAKPOINT.
+   * If all threads do not return BREAKPOINT then not all updates have been applied to the graph.
    * Threads must not call get_edge while the query is in progress otherwise edge cases can occur.
    * This is true for both on_demand and registered queries.
    */
@@ -148,7 +148,7 @@ private:
   uint64_t end_of_file;  // the index of the end of the file
   std::atomic<uint64_t> stream_off;  // where do threads read from in the stream
   std::atomic<uint64_t> query_index; // what is the index of the next query in bytes
-  std::atomic<bool> query_block;     // If true block read_data calls and have thr return NXT_QUERY
+  std::atomic<bool> query_block;     // If true block read_data calls and have thr return BREAKPOINT
   const uint32_t edge_size = sizeof(uint8_t) + 2 * sizeof(uint32_t); // size of binary encoded edge
   const size_t header_size = sizeof(node_id_t) + sizeof(edge_id_t); // size of num_nodes + num_upds
 
@@ -198,9 +198,7 @@ public:
     // if we have read all the data in the buffer than refill it
     if (buf - start_buf >= data_in_buf) {
       if ((data_in_buf = stream.read_data(start_buf)) == 0) {
-        if (stream.query_index <= stream.stream_off)
-          return {{-1, -1}, NXT_QUERY}; // return that a query should be processed now
-        return {{-1, -1}, END_OF_FILE}; // return that the stream is over
+        return {{0, 0}, BREAKPOINT}; // return that a break point has been reached
       }
       buf = start_buf; // point buf back to beginning of data buffer
     }

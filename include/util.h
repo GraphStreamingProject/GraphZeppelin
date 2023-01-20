@@ -2,6 +2,8 @@
 #include <string>
 #include <tuple>
 
+#include "types.h"
+
 /**
  * Cast a double to unsigned long long with epsilon adjustment.
  * @param d         the double to cast.
@@ -16,27 +18,27 @@ unsigned long long int double_to_ull(double d, double epsilon = 0.00000001);
  * identical inputs.
  * @return i + j*(j-1)/2
  */
-uint64_t nondirectional_non_self_edge_pairing_fn(uint32_t i, uint32_t j);
+edge_id_t nondirectional_non_self_edge_pairing_fn(node_id_t i, node_id_t j);
 
 /**
  * Inverts the nondirectional non-SE pairing function.
  * @param idx
  * @return the pair, with left and right ordered lexicographically.
  */
-std::pair<uint32_t , uint32_t> inv_nondir_non_self_edge_pairing_fn(uint64_t idx);
+Edge inv_nondir_non_self_edge_pairing_fn(edge_id_t idx);
 
 /**
  * Concatenates two node ids to form an edge ids
  * @return (i << 32) & j
  */
-uint64_t concat_pairing_fn(uint32_t i, uint32_t j);
+edge_id_t concat_pairing_fn(node_id_t i, node_id_t j);
 
 /**
  * Inverts the concat pairing function.
  * @param idx
  * @return the pair, with left and right ordered lexicographically.
  */
-std::pair<uint32_t , uint32_t> inv_concat_pairing_fn(uint64_t idx);
+Edge inv_concat_pairing_fn(edge_id_t idx);
 
 /**
  * Configures the system using the configuration file streaming.conf

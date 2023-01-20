@@ -54,15 +54,15 @@ std::vector<std::set<node_id_t>> FileGraphVerifier::kruskal(const std::string& i
 }
 
 void FileGraphVerifier::verify_edge(Edge edge) {
-  if (edge.first > edge.second) std::swap(edge.first, edge.second);
-  if (!adj_matrix[edge.first][edge.second - edge.first]) {
-    printf("Got an error on edge (%u, %u): edge is not in graph!\n", edge.first, edge.second);
+  if (edge.src > edge.dst) std::swap(edge.src, edge.dst);
+  if (!adj_matrix[edge.src][edge.dst - edge.src]) {
+    printf("Got an error on edge (%u, %u): edge is not in graph!\n", edge.src, edge.dst);
     throw BadEdgeException();
   }
 
-  DSUMergeRet<node_id_t> ret = sets.merge(edge.first, edge.second);
+  DSUMergeRet<node_id_t> ret = sets.merge(edge.src, edge.dst);
   if (!ret.merged) {
-    printf("Got an error of node (%u, %u): components already joined!\n", edge.first, edge.second);
+    printf("Got an error of node (%u, %u): components already joined!\n", edge.src, edge.dst);
     throw BadEdgeException();
   }
 

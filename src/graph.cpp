@@ -177,8 +177,8 @@ inline std::vector<std::vector<node_id_t>> Graph::supernodes_to_merge(std::pair<
     }
 
     // query dsu
-    node_id_t a = get_parent(edge.first);
-    node_id_t b = get_parent(edge.second);
+    node_id_t a = get_parent(edge.src);
+    node_id_t b = get_parent(edge.dst);
     if (a == b) continue;
 
 #ifdef VERIFY_SAMPLES_F
@@ -197,8 +197,8 @@ inline std::vector<std::vector<node_id_t>> Graph::supernodes_to_merge(std::pair<
     modified = true;
 
     // Update spanning forest
-    auto src = std::min(edge.first, edge.second);
-    auto dst = std::max(edge.first, edge.second);
+    auto src = std::min(edge.src, edge.dst);
+    auto dst = std::max(edge.src, edge.dst);
     spanning_forest[src].insert(dst);
   }
 
@@ -358,10 +358,10 @@ std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
     }
 #endif
     auto retval = cc_from_dsu();
-    cc_alg_end = std::chrono::steady_clock::now();
 #ifdef VERIFY_SAMPLES_F
     verifier->verify_soln(retval);
 #endif
+    cc_alg_end = std::chrono::steady_clock::now();
     return retval;
   }
 
@@ -415,9 +415,6 @@ std::vector<std::set<node_id_t>> Graph::cc_from_dsu() {
   std::vector<std::set<node_id_t>> retval;
   retval.reserve(temp.size());
   for (const auto& it : temp) retval.push_back(it.second);
-#ifdef VERIFY_SAMPLES_F
-  verifier->verify_soln(retval);
-#endif
   return retval;
 }
 
