@@ -53,15 +53,15 @@ std::vector<std::set<node_id_t>> MatGraphVerifier::kruskal() {
 
 void MatGraphVerifier::verify_edge(Edge edge) {
   // verify that the edge in question actually exists
-  if (edge.first > edge.second) std::swap(edge.first, edge.second);
-  if (!adj_matrix[edge.first][edge.second - edge.first]) {
-    printf("Got an error on edge (%u, %u): edge is not in adj_matrix\n", edge.first, edge.second);
+  if (edge.src > edge.dst) std::swap(edge.src, edge.dst);
+  if (!adj_matrix[edge.src][edge.dst - edge.src]) {
+    printf("Got an error on edge (%u, %u): edge is not in adj_matrix\n", edge.src, edge.dst);
     throw BadEdgeException();
   }
 
-  DSUMergeRet<node_id_t> ret = sets.merge(edge.first, edge.second); // perform the merge
+  DSUMergeRet<node_id_t> ret = sets.merge(edge.src, edge.dst); // perform the merge
   if (!ret.merged) {
-    printf("Got an error on edge (%u, %u): components already joined!\n", edge.first, edge.second);
+    printf("Got an error on edge (%u, %u): components already joined!\n", edge.src, edge.dst);
     throw BadEdgeException();
   }
 

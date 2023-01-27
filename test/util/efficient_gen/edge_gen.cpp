@@ -36,7 +36,8 @@ void write_edges(ul n, double p, const std::string& out_f) {
 
   std::cout << "Writing edges to file" << std::endl;
   while (m--) {
-    out << inv_concat_pairing_fn(arr[m]) << std::endl;
+    Edge e = inv_concat_pairing_fn(arr[m]);
+    out << e.src << " " << e.dst << std::endl;
   }
 
   out.close();
@@ -78,7 +79,8 @@ void insert_delete(double p, const std::string& in_file, const std::string& out_
     int temp = i%2;
     for (unsigned j=0;j<ins_del_arr[i];++j) {
       out << temp << " ";
-      out << inv_concat_pairing_fn(memoized[j]) << std::endl;
+      Edge e = inv_concat_pairing_fn(memoized[j]);
+      out << e.src << " " << e.dst << std::endl;
     }
   }
   free(memoized);

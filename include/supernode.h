@@ -5,8 +5,6 @@
 
 #include "l0_sampling/sketch.h"
 
-typedef std::pair<node_id_t, node_id_t> Edge;
-
 /**
  * This interface implements the "supernode" so Boruvka can use it as a black
  * box without needing to worry about implementing l_0.

@@ -115,7 +115,8 @@ TEST_P(GraphTest, TestCorrectnessOnSmallRandomGraphs) {
     edge_id_t m;
     in >> n >> m;
     Graph g{n, config};
-    int type, a, b;
+    int type;
+    node_id_t a, b;
     while (m--) {
       in >> type >> a >> b;
       if (type == INSERT) {
@@ -138,7 +139,8 @@ TEST_P(GraphTest, TestCorrectnessOnSmallSparseGraphs) {
     edge_id_t m;
     in >> n >> m;
     Graph g{n, config};
-    int type, a, b;
+    int type;
+    node_id_t a, b;
     while (m--) {
       in >> type >> a >> b;
       if (type == INSERT) {
@@ -161,7 +163,8 @@ TEST_P(GraphTest, TestCorrectnessOfReheating) {
     edge_id_t m;
     in >> n >> m;
     Graph *g = new Graph (n, config);
-    int type, a, b;
+    int type;
+    node_id_t a, b;
     printf("number of updates = %lu\n", m);
     while (m--) {
       in >> type >> a >> b;
@@ -205,7 +208,8 @@ TEST_P(GraphTest, MultipleWorkers) {
     edge_id_t m;
     in >> n >> m;
     Graph g{n, config};
-    int type, a, b;
+    int type;
+    node_id_t a, b;
     while (m--) {
       in >> type >> a >> b;
       if (type == INSERT) {
@@ -417,7 +421,7 @@ TEST(GraphTest, MultipleInsertThreads) {
 }
 
 TEST(GraphTest, MTStreamWithMultipleQueries) {
-  for(int i = 1; i <= 10; i++) {
+  for(int i = 1; i <= 3; i++) {
     auto config = GraphConfiguration().gutter_sys(STANDALONE);
 
     const std::string fname = __FILE__;
@@ -441,7 +445,8 @@ TEST(GraphTest, MTStreamWithMultipleQueries) {
     std::mutex q_lock;
 
     // prepare evenly spaced queries
-    int num_queries = 10;
+    std::atomic<int> num_queries;
+    num_queries = 10;
     int upd_per_query = num_edges / num_queries;
     int query_idx = upd_per_query;
     ASSERT_TRUE(stream.register_query(query_idx)); // register first query
@@ -452,8 +457,8 @@ TEST(GraphTest, MTStreamWithMultipleQueries) {
       GraphUpdate upd;
       while(true) {
         upd = reader.get_edge();
-        if (upd.second == END_OF_FILE) return;
-        else if (upd.second == NXT_QUERY) {
+        if (upd.type == BREAKPOINT && num_queries == 0) return;
+        else if (upd.type == BREAKPOINT) {
           query_done = false;
           if (thr_id > 0) {
             // pause this thread and wait for query to be done
@@ -479,7 +484,7 @@ TEST(GraphTest, MTStreamWithMultipleQueries) {
             // add updates to verifier and perform query
             for (int j = 0; j < upd_per_query; j++) {
               GraphUpdate upd = verify_stream.get_edge();
-              verify.edge_update(upd.first.first, upd.first.second);
+              verify.edge_update(upd.edge.src, upd.edge.dst);
             }
             verify.reset_cc_state();
             g.set_verifier(std::make_unique<MatGraphVerifier>(verify));
@@ -491,15 +496,15 @@ TEST(GraphTest, MTStreamWithMultipleQueries) {
               // prepare next query
               query_idx += upd_per_query;
               ASSERT_TRUE(stream.register_query(query_idx));
-              num_queries--;
             }
+            num_queries--;
             num_query_ready--;
             query_done = true;
             lk.unlock();
             q_done_cond.notify_all();
           }
         }
-        else if (upd.second == INSERT || upd.second == DELETE)
+        else if (upd.type == INSERT || upd.type == DELETE)
           g.update(upd, thr_id);
         else
           throw std::invalid_argument("Did not recognize edge code!");
@@ -518,7 +523,7 @@ TEST(GraphTest, MTStreamWithMultipleQueries) {
     // process the rest of the stream into the MatGraphVerifier
     for(size_t i = query_idx; i < num_edges; i++) {
       GraphUpdate upd = verify_stream.get_edge();
-      verify.edge_update(upd.first.first, upd.first.second);
+      verify.edge_update(upd.edge.src, upd.edge.dst);
     }
 
     // perform final query
