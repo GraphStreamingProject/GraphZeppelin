@@ -6,8 +6,12 @@
 #include <cassert>
 
 FileGraphVerifier::FileGraphVerifier(node_id_t n, const std::string &input_file) : sets(n) {
-  kruskal_ref = kruskal(input_file);
   std::ifstream in(input_file);
+  if (!in) {
+    throw std::invalid_argument("FileGraphVerifier: Could not open: " + input_file);
+  }
+
+  kruskal_ref = kruskal(input_file);
   node_id_t num_nodes;
   edge_id_t m;
   node_id_t a, b;
