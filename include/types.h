@@ -4,7 +4,7 @@
 
 typedef uint64_t col_hash_t;
 static const auto& vec_hash = XXH32;
-static const auto& col_hash = XXH64;
+static const auto& col_hash = XXH3_64bits_withSeed;
 
 // Is a stream update an insertion or a deletion
 // BREAKPOINT: special type that indicates that a break point has been reached

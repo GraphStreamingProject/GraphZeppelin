@@ -244,14 +244,13 @@ TEST_F(SupernodeTestSuite, TestSerialization) {
   for (auto edge : *graph_edges) {
     vec_t encoded = concat_pairing_fn(edge.src, edge.dst);
     snodes[edge.src]->update(encoded);
+    encoded = concat_pairing_fn(edge.dst, edge.src);
     snodes[edge.dst]->update(encoded);
   }
 
-  std::cout << "Finished inserting" << std::endl;
   auto file = std::fstream("./out_supernode.txt", std::ios::out | std::ios::binary);
   snodes[num_nodes / 2]->write_binary(file);
   file.close();
-  std::cout << "Finished writing" << std::endl;
 
   auto in_file = std::fstream("./out_supernode.txt", std::ios::in | std::ios::binary);
 
