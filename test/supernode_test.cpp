@@ -12,24 +12,23 @@ const long seed = 7000000001;
 const unsigned long long int num_nodes = 2000;
 
 class SupernodeTestSuite : public testing::Test {
- protected:
-  static std::vector<Edge>* graph_edges;
-  static std::vector<Edge>* odd_graph_edges;
-  static bool* prime;
+protected:
+  static std::vector<Edge> graph_edges;
+  static std::vector<Edge> odd_graph_edges;
+  static std::vector<bool> prime;
   static void SetUpTestSuite() {
     srand(1000000007);
-    graph_edges = new std::vector<Edge>();
-    odd_graph_edges = new std::vector<Edge>();
+    graph_edges = std::vector<Edge>();
+    odd_graph_edges = std::vector<Edge>();
     for (unsigned i = 2; i < num_nodes; ++i) {
       for (unsigned j = i * 2; j < num_nodes; j += i) {
-        graph_edges->push_back({i, j});
-        if ((j / i) % 2) odd_graph_edges->push_back({i, j});
+        graph_edges.push_back({i, j});
+        if ((j / i) % 2) odd_graph_edges.push_back({i, j});
       }
     }
 
     // sieve
-    prime = (bool*)malloc(num_nodes * sizeof(bool));
-    std::fill(prime, prime + num_nodes, true);
+    prime = std::vector<bool>(num_nodes, true);
     for (unsigned i = 2; i < num_nodes; i++) {
       if (prime[i]) {
         for (unsigned j = i * i; j < num_nodes; j += i) prime[j] = false;
@@ -37,18 +36,18 @@ class SupernodeTestSuite : public testing::Test {
     }
   }
   static void TearDownTestSuite() {
-    delete graph_edges;
-    delete odd_graph_edges;
-    free(prime);
+    graph_edges = std::vector<Edge>();
+    odd_graph_edges = std::vector<Edge>();
+    prime = std::vector<bool>();
   }
 
   void SetUp() override { Supernode::configure(num_nodes); }
   void TearDown() override {}
 };
 
-std::vector<Edge>* SupernodeTestSuite::graph_edges;
-std::vector<Edge>* SupernodeTestSuite::odd_graph_edges;
-bool* SupernodeTestSuite::prime;
+std::vector<Edge> SupernodeTestSuite::graph_edges;
+std::vector<Edge> SupernodeTestSuite::odd_graph_edges;
+std::vector<bool> SupernodeTestSuite::prime;
 
 TEST_F(SupernodeTestSuite, GIVENnoEdgeUpdatesIFsampledTHENnoEdgeIsReturned) {
   Supernode* s = Supernode::makeSupernode(num_nodes, seed);
@@ -70,7 +69,7 @@ TEST_F(SupernodeTestSuite, TestSampleInsertGrinder) {
   for (unsigned i = 0; i < num_nodes; ++i) snodes[i] = Supernode::makeSupernode(num_nodes, seed);
 
   // insert all edges
-  for (auto edge : *graph_edges) {
+  for (auto edge : graph_edges) {
     vec_t encoded = concat_pairing_fn(edge.src, edge.dst);
     snodes[edge.src]->update(encoded);
     snodes[edge.dst]->update(encoded);
@@ -109,13 +108,13 @@ TEST_F(SupernodeTestSuite, TestSampleDeleteGrinder) {
   for (unsigned i = 0; i < num_nodes; ++i) snodes[i] = Supernode::makeSupernode(num_nodes, seed);
 
   // insert all edges
-  for (auto edge : *graph_edges) {
+  for (auto edge : graph_edges) {
     vec_t encoded = concat_pairing_fn(edge.src, edge.dst);
     snodes[edge.src]->update(encoded);
     snodes[edge.dst]->update(encoded);
   }
   // then remove half of them (odds)
-  for (auto edge : *odd_graph_edges) {
+  for (auto edge : odd_graph_edges) {
     vec_t encoded = concat_pairing_fn(edge.src, edge.dst);
     snodes[edge.src]->update(encoded);
     snodes[edge.dst]->update(encoded);
@@ -241,7 +240,7 @@ TEST_F(SupernodeTestSuite, TestSerialization) {
   for (unsigned i = 0; i < num_nodes; ++i) snodes[i] = Supernode::makeSupernode(num_nodes, seed);
 
   // insert all edges
-  for (auto edge : *graph_edges) {
+  for (auto edge : graph_edges) {
     vec_t encoded = concat_pairing_fn(edge.src, edge.dst);
     snodes[edge.src]->update(encoded);
     encoded = concat_pairing_fn(edge.dst, edge.src);
