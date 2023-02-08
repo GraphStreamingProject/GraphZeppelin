@@ -31,6 +31,7 @@ int main() {
   auto CC = g.connected_components();            // Extract the connected components in the graph defined by the stream
 }
 ```
+A more detailed example can be found in `tools/process_stream.cpp`.
 
 ### Binary Stream Format
 GraphZeppelin uses a binary stream format for efficient file parsing. The format of these files is as follows.
@@ -53,9 +54,9 @@ Other file formats can be used by writing a simple file parser that passes graph
 If receiving edge updates over the network it is equally straightforward to define a stream format that will receive, parse, and provide those updates to the graph `update()` function.
 
 ## Configuration
-GraphZeppelin has a few parameters set via a configuration file. These include the number of CPU threads to use, and which datastructure to buffer updates in. The file `example_streaming.conf` gives an example of one such configuration and provides explanations of the various parameters.
+GraphZeppelin has a number of parameters. These can be defined with the `GraphConfiguration` object. Key parameters include the number of graph workers and the guttering system to use for buffering updates.
 
-To define your own configuration, copy `example_streaming.conf` into the `build` directory as `streaming.conf`. If using GraphZeppelin as an external library the process for defining the configuration is the same. Once you make changes to the configuration, you should see them reflected in the configuration displayed at the beginning of the program.
+See `include/graph_configuration.h` for more details.
 
 ## Debugging
 You can enable the symbol table and turn off compiler optimizations for debugging with tools like `gdb` or `valgrind` by performing the following steps

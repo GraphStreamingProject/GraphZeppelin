@@ -12,11 +12,10 @@
 class FileGraphVerifier : public GraphVerifier {
   std::vector<std::set<node_id_t>> kruskal_ref;
   std::vector<std::set<node_id_t>> boruvka_cc;
-  std::vector<std::set<node_id_t>> det_graph;
   DisjointSetUnion<node_id_t> sets;
 
 public:
-  FileGraphVerifier(const std::string& input_file = "./cumul_sample.txt");
+  FileGraphVerifier(node_id_t n, const std::string& input_file);
 
   void verify_edge(Edge edge);
   void verify_cc(node_id_t node);

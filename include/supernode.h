@@ -5,8 +5,6 @@
 
 #include "l0_sampling/sketch.h"
 
-typedef std::pair<node_id_t, node_id_t> Edge;
-
 /**
  * This interface implements the "supernode" so Boruvka can use it as a black
  * box without needing to worry about implementing l_0.
@@ -14,6 +12,7 @@ typedef std::pair<node_id_t, node_id_t> Edge;
 class Supernode {
   // the size of a super-node in bytes including the all sketches off the end
   static size_t bytes_size; 
+  static size_t serialized_size; // the size of a supernode that has been serialized
   int idx;
   int num_sketches;
   std::mutex node_mt;
@@ -82,11 +81,17 @@ public:
 
   static inline void configure(uint64_t n, vec_t sketch_fail_factor=100) {
     Sketch::configure(n*n, sketch_fail_factor);
-    bytes_size = sizeof(Supernode) + log2(n)/(log2(3)-1) * Sketch::sketchSizeof() - sizeof(char);
+    bytes_size = sizeof(Supernode) + size_t(log2(n)/(log2(3)-1)) * Sketch::sketchSizeof() - sizeof(char);
+    serialized_size = size_t(log2(n)/(log2(3)-1)) * Sketch::serialized_size();
   }
 
   static inline size_t get_size() {
     return bytes_size;
+  }
+
+  // return the size of a supernode that has been serialized using write_binary()
+  static inline size_t get_serialized_size() {
+    return serialized_size;
   }
 
   inline size_t get_sketch_size() {

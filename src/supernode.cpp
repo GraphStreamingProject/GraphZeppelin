@@ -4,6 +4,7 @@
 #include "../include/graph_worker.h"
 
 size_t Supernode::bytes_size;
+size_t Supernode::serialized_size;
 
 Supernode::Supernode(uint64_t n, uint64_t seed): idx(0), num_sketches(log2(n)/(log2(3)-1)),
                n(n), seed(seed), sketch_size(Sketch::sketchSizeof()) {

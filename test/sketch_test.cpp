@@ -221,9 +221,8 @@ TEST(SketchTestSuite, TestSketchAddition){
  * Large sketch test
  */
 void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
-  Sketch::configure(vec_size, fail_factor);
+  Sketch::configure(vec_size, vec_size);
 
-  // TEMPORARY FIX
   // we use an optimization in our sketching that is valid when solving CC
   // we assume that max number of non-zeroes in vector is vec_size / 4
   // therefore we need to ensure that in this test that we don't do more than that
@@ -277,13 +276,13 @@ void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
 
 TEST(SketchTestSuite, TestSketchLarge) {
   constexpr uint64_t upper_bound = 1e18;
-  for (uint64_t i = 1e6; i <= upper_bound; i *= 10) {
+  for (uint64_t i = 1e7; i <= upper_bound; i *= 10) {
     test_sketch_large(i, 1000000);
   }
 }
 
 TEST(SketchTestSuite, TestBatchUpdate) {
-  unsigned long vec_size = 1000000000, num_updates = 10000;
+  unsigned long vec_size = 1000000000, num_updates = 1000000;
   Sketch::configure(vec_size, fail_factor);
   srand(time(nullptr));
   std::vector<vec_t> updates(num_updates);

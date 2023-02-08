@@ -177,8 +177,8 @@ inline std::vector<std::vector<node_id_t>> Graph::supernodes_to_merge(std::pair<
     }
 
     // query dsu
-    node_id_t a = get_parent(edge.first);
-    node_id_t b = get_parent(edge.second);
+    node_id_t a = get_parent(edge.src);
+    node_id_t b = get_parent(edge.dst);
     if (a == b) continue;
 
 #ifdef VERIFY_SAMPLES_F
@@ -197,8 +197,8 @@ inline std::vector<std::vector<node_id_t>> Graph::supernodes_to_merge(std::pair<
     modified = true;
 
     // Update spanning forest
-    auto src = std::min(edge.first, edge.second);
-    auto dst = std::max(edge.first, edge.second);
+    auto src = std::min(edge.src, edge.dst);
+    auto dst = std::max(edge.src, edge.dst);
     spanning_forest[src].insert(dst);
   }
 
@@ -280,7 +280,6 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
     }
   };
 
-  std::cout << "~ Reconstructing DSU" << std::endl;
   for (node_id_t i = 0; i < num_nodes; ++i) {
     parent[i] = i;
     spanning_forest[i].clear();
@@ -308,9 +307,7 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
     std::rethrow_exception(std::current_exception());
   }
   cleanup_copy();
-#ifdef USE_EAGER_DSU
   dsu_valid = true;
-#endif // USE_EAGER_DSU
 
   auto retval = cc_from_dsu();
   cc_alg_end = std::chrono::steady_clock::now();
@@ -346,7 +343,6 @@ void Graph::restore_from_disk(const std::vector<node_id_t>& ids_to_restore) {
 }
 
 std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
-#ifdef USE_EAGER_DSU
   // DSU check before calling force_flush()
   if (dsu_valid && cont
 #ifdef VERIFY_SAMPLES_F
@@ -354,7 +350,6 @@ std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
 #endif // VERIFY_SAMPLES_F
       ) {
     cc_alg_start = flush_start = flush_end = std::chrono::steady_clock::now();
-    std::cout << "~ Used existing DSU" << std::endl;
 #ifdef VERIFY_SAMPLES_F
     for (node_id_t src = 0; src < num_nodes; ++src) {
       for (const auto& dst : spanning_forest[src]) {
@@ -363,10 +358,12 @@ std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
     }
 #endif
     auto retval = cc_from_dsu();
+#ifdef VERIFY_SAMPLES_F
+    verifier->verify_soln(retval);
+#endif
     cc_alg_end = std::chrono::steady_clock::now();
     return retval;
   }
-#endif // USE_EAGER_DSU
 
   flush_start = std::chrono::steady_clock::now();
   gts->force_flush(); // flush everything in guttering system to make final updates
@@ -374,15 +371,23 @@ std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
   flush_end = std::chrono::steady_clock::now();
   // after this point all updates have been processed from the buffer tree
 
-  if (!cont)
-    return boruvka_emulation(false); // merge in place
+  std::vector<std::set<node_id_t>> ret;
+  if (!cont) {
+    ret = boruvka_emulation(false); // merge in place
+#ifdef VERIFY_SAMPLES_F
+    verifier->verify_soln(ret);
+#endif
+    return ret;
+  }
   
   // if backing up in memory then perform copying in boruvka
   bool except = false;
   std::exception_ptr err;
-  std::vector<std::set<node_id_t>> ret;
   try {
     ret = boruvka_emulation(true);
+#ifdef VERIFY_SAMPLES_F
+    verifier->verify_soln(ret);
+#endif
   } catch (...) {
     except = true;
     err = std::current_exception();
@@ -410,18 +415,13 @@ std::vector<std::set<node_id_t>> Graph::cc_from_dsu() {
   std::vector<std::set<node_id_t>> retval;
   retval.reserve(temp.size());
   for (const auto& it : temp) retval.push_back(it.second);
-#ifdef VERIFY_SAMPLES_F
-  verifier->verify_soln(retval);
-#endif
   return retval;
 }
 
 bool Graph::point_query(node_id_t a, node_id_t b) {
-#ifdef USE_EAGER_DSU
   // DSU check before calling force_flush()
   if (dsu_valid) {
     cc_alg_start = flush_start = flush_end = std::chrono::steady_clock::now();
-    std::cout << "~ Used existing DSU" << std::endl;
 #ifdef VERIFY_SAMPLES_F
     for (node_id_t src = 0; src < num_nodes; ++src) {
       for (const auto& dst : spanning_forest[src]) {
@@ -433,7 +433,6 @@ bool Graph::point_query(node_id_t a, node_id_t b) {
     cc_alg_end = std::chrono::steady_clock::now();
     return retval;
   }
-#endif // USE_EAGER_DSU
 
 
   flush_start = std::chrono::steady_clock::now();
