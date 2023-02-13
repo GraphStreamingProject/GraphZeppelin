@@ -151,6 +151,8 @@ void Sketch::write_binary(std::ostream& binary_out) {
 }
 
 void Sketch::write_binary(std::ostream &binary_out) const {
+  // Write out the bucket values to the stream.
+  // Do not include the null bucket
   binary_out.write((char*)bucket_a, num_elems * sizeof(vec_t));
   binary_out.write((char*)bucket_c, num_elems * sizeof(vec_hash_t));
 }

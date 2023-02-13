@@ -43,6 +43,8 @@ class Sketch {
   vec_t* bucket_a;
   vec_hash_t* bucket_c;
 
+  static constexpr size_t begin_nonnull_buckets = 1; // offset at which non-null buckets occur
+
   // Flag to keep track if this sketch has already been queried.
   bool already_queried = false;
 

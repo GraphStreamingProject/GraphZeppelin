@@ -34,7 +34,7 @@ private:
   /* collection of logn sketches to query from, since we can't query from one
      sketch more than once */
   // The sketches, off the end.
-  alignas(Sketch) char sketch_buffer[1];
+  alignas(Sketch) char sketch_buffer[];
   
   /**
    * @param n     the total number of nodes in the graph.
@@ -81,7 +81,7 @@ public:
 
   static inline void configure(uint64_t n, vec_t sketch_fail_factor=100) {
     Sketch::configure(n*n, sketch_fail_factor);
-    bytes_size = sizeof(Supernode) + size_t(log2(n)/(log2(3)-1)) * Sketch::sketchSizeof() - sizeof(char);
+    bytes_size = sizeof(Supernode) + size_t(log2(n)/(log2(3)-1)) * Sketch::sketchSizeof();
     serialized_size = size_t(log2(n)/(log2(3)-1)) * Sketch::serialized_size();
   }
 

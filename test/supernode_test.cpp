@@ -99,7 +99,7 @@ TEST_F(SupernodeTestSuite, TestSampleInsertGrinder) {
     ASSERT_GE(successes, (int)log2(num_nodes))
         << "Fewer than logn successful queries: supernode " << i;
   }
-  for (unsigned i = 0; i < num_nodes; ++i) delete snodes[i];
+  for (unsigned i = 0; i < num_nodes; ++i) free(snodes[i]);
 }
 
 TEST_F(SupernodeTestSuite, TestSampleDeleteGrinder) {
