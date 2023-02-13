@@ -54,17 +54,20 @@ Sketch::Sketch(const Sketch& s) : seed(s.seed) {
   std::memcpy(bucket_c, s.bucket_c, num_elems * sizeof(vec_hash_t));
 }
 
-void Sketch::update(const vec_t& update_idx) {
-  vec_hash_t update_hash = Bucket_Boruvka::index_hash(update_idx, seed);
-  Bucket_Boruvka::update(bucket_a[num_elems - 1], bucket_c[num_elems - 1], update_idx, update_hash);
+void Sketch::update(const vec_t update_idx) {
+  vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update_idx, seed);
+  
+  // Update depth 0 bucket
+  Bucket_Boruvka::update(bucket_a[num_elems - 1], bucket_c[num_elems - 1], update_idx, checksum);
+
+  // Update higher depth buckets
   for (unsigned i = 0; i < num_buckets; ++i) {
-    col_hash_t col_index_hash = Bucket_Boruvka::col_index_hash(update_idx, seed + i);
-    for (unsigned j = 0; j < num_guesses; ++j) {
-      unsigned bucket_id = i * num_guesses + j;
-      if (Bucket_Boruvka::contains(col_index_hash, ((col_hash_t)1) << j)){
-        Bucket_Boruvka::update(bucket_a[bucket_id], bucket_c[bucket_id], update_idx, update_hash);
-      } else break;
-    }
+    col_hash_t depth = Bucket_Boruvka::get_index_depth(update_idx, seed + i, num_guesses);
+    size_t bucket_id = i * num_guesses + depth;
+    assert((bool)(depth!=0) < 2);
+    bucket_id *= (bool)(depth!=0); // if depth is 0 point at bucket_id 0
+
+    Bucket_Boruvka::update(bucket_a[bucket_id], bucket_c[bucket_id], update_idx, checksum);
   }
 }
 
@@ -88,8 +91,8 @@ std::pair<vec_t, SampleSketchRet> Sketch::query() {
   }
   for (unsigned i = 0; i < num_buckets; ++i) {
     for (unsigned j = 0; j < num_guesses; ++j) {
-      unsigned bucket_id = i * num_guesses + j;
-      if (Bucket_Boruvka::is_good(bucket_a[bucket_id], bucket_c[bucket_id], i, 1 << j, seed)) {
+      unsigned bucket_id = i * num_guesses + j + 1; // plus 1 because 0 bucket is null
+      if (Bucket_Boruvka::is_good(bucket_a[bucket_id], bucket_c[bucket_id], seed)) {
         return {bucket_a[bucket_id], GOOD};
       }
     }
@@ -123,25 +126,22 @@ bool operator== (const Sketch &sketch1, const Sketch &sketch2) {
 }
 
 std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
-  for (unsigned k = 0; k < Sketch::n; k++) {
-    os << '1';
-  }
-  os << std::endl
-     << "a:" << sketch.bucket_a[Sketch::num_buckets * Sketch::num_guesses] << std::endl
-     << "c:" << sketch.bucket_c[Sketch::num_buckets * Sketch::num_guesses] << std::endl
-     << (Bucket_Boruvka::is_good(sketch.bucket_a[Sketch::num_buckets * Sketch::num_guesses], sketch.bucket_c[Sketch::num_buckets * Sketch::num_guesses], sketch.seed) ? "good" : "bad") << std::endl;
+  vec_t a      = sketch.bucket_a[Sketch::num_elems - 1];
+  vec_hash_t c = sketch.bucket_c[Sketch::num_elems - 1];
+  bool good    = Bucket_Boruvka::is_good(a, c, sketch.seed);
+
+  os << " a:" << a << " c:" << c << (good ? " good" : " bad") << std::endl;
 
   for (unsigned i = 0; i < Sketch::num_buckets; ++i) {
     for (unsigned j = 0; j < Sketch::num_guesses; ++j) {
       unsigned bucket_id = i * Sketch::num_guesses + j;
-      for (unsigned k = 0; k < Sketch::n; k++) {
-        os << (Bucket_Boruvka::contains(Bucket_Boruvka::col_index_hash(k, sketch.seed + 1), 1 << j) ? '1' : '0');
-      }
-      os << std::endl
-         << "a:" << sketch.bucket_a[bucket_id] << std::endl
-         << "c:" << sketch.bucket_c[bucket_id] << std::endl
-         << (Bucket_Boruvka::is_good(sketch.bucket_a[bucket_id], sketch.bucket_c[bucket_id], i, 1 << j, sketch.seed) ? "good" : "bad") << std::endl;
+      vec_t a      = sketch.bucket_a[bucket_id];
+      vec_hash_t c = sketch.bucket_c[bucket_id];
+      bool good    = Bucket_Boruvka::is_good(a, c, sketch.seed);
+
+      os << " a:" << a << " c:" << c << (good ? " good" : " bad") << std::endl;
     }
+    os << std::endl;
   }
   return os;
 }
