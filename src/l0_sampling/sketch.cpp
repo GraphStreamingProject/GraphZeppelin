@@ -64,8 +64,7 @@ void Sketch::update(const vec_t update_idx) {
   for (unsigned i = 0; i < num_buckets; ++i) {
     col_hash_t depth = Bucket_Boruvka::get_index_depth(update_idx, seed + i, num_guesses);
     size_t bucket_id = i * num_guesses + depth;
-    assert((bool)(depth!=0) < 2);
-    bucket_id *= (bool)(depth!=0); // if depth is 0 point at bucket_id 0
+    bucket_id *= (bool)(depth!=0); // if depth is 0 then "update" null bucket -> bucket[0]
 
     Bucket_Boruvka::update(bucket_a[bucket_id], bucket_c[bucket_id], update_idx, checksum);
   }
@@ -90,8 +89,9 @@ std::pair<vec_t, SampleSketchRet> Sketch::query() {
     return {bucket_a[num_elems - 1], GOOD};
   }
   for (unsigned i = 0; i < num_buckets; ++i) {
-    for (unsigned j = 0; j < num_guesses; ++j) {
-      unsigned bucket_id = i * num_guesses + j + 1; // plus 1 because 0 bucket is null
+    // bucket[0] is null
+    for (unsigned j = begin_nonnull; j < num_guesses; ++j) {
+      unsigned bucket_id = i * num_guesses + j;
       if (Bucket_Boruvka::is_good(bucket_a[bucket_id], bucket_c[bucket_id], seed)) {
         return {bucket_a[bucket_id], GOOD};
       }
@@ -102,7 +102,7 @@ std::pair<vec_t, SampleSketchRet> Sketch::query() {
 
 Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2) {
   assert (sketch1.seed == sketch2.seed);
-  for (unsigned i = 0; i < Sketch::num_elems; i++) {
+  for (unsigned i = Sketch::begin_nonnull; i < Sketch::num_elems; i++) {
     sketch1.bucket_a[i] ^= sketch2.bucket_a[i];
     sketch1.bucket_c[i] ^= sketch2.bucket_c[i];
   }
@@ -114,11 +114,11 @@ bool operator== (const Sketch &sketch1, const Sketch &sketch2) {
   if (sketch1.seed != sketch2.seed || sketch1.already_queried != sketch2.already_queried) 
     return false;
 
-  for (size_t i = 0; i < Sketch::num_elems; ++i) {
+  for (size_t i = Sketch::begin_nonnull; i < Sketch::num_elems; ++i) {
     if (sketch1.bucket_a[i] != sketch2.bucket_a[i]) return false;
   }
 
-  for (size_t i = 0; i < Sketch::num_elems; ++i) {
+  for (size_t i = Sketch::begin_nonnull; i < Sketch::num_elems; ++i) {
     if (sketch1.bucket_c[i] != sketch2.bucket_c[i]) return false;
   }
 
@@ -133,7 +133,7 @@ std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
   os << " a:" << a << " c:" << c << (good ? " good" : " bad") << std::endl;
 
   for (unsigned i = 0; i < Sketch::num_buckets; ++i) {
-    for (unsigned j = 0; j < Sketch::num_guesses; ++j) {
+    for (unsigned j = Sketch::begin_nonnull; j < Sketch::num_guesses; ++j) {
       unsigned bucket_id = i * Sketch::num_guesses + j;
       vec_t a      = sketch.bucket_a[bucket_id];
       vec_hash_t c = sketch.bucket_c[bucket_id];
