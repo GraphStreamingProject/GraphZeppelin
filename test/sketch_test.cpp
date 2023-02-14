@@ -6,15 +6,6 @@
 
 static const int fail_factor = 100;
 
-bool contains_inclusive(col_hash_t hash, col_hash_t guess) {
-  for (col_hash_t i = 1; i <= guess; i<<=1) {
-    if (!Bucket_Boruvka::contains(hash, i)) {
-      return false;
-    }
-  }
-  return true;
-}
-
 TEST(SketchTestSuite, TestExceptions) {
   Sketch::configure(100, fail_factor);
   SketchUniquePtr sketch1 = makeSketch(rand());
@@ -29,30 +20,40 @@ TEST(SketchTestSuite, TestExceptions) {
   std::vector<bool> vec_idx(sketch2->n, true);
   unsigned long long num_buckets = bucket_gen(fail_factor);
   unsigned long long num_guesses = guess_gen(sketch2->n);
-  for (unsigned long long i = 0; i < num_buckets; ++i) {
-    for (unsigned long long j = 0; j < num_guesses;) {
-      uint64_t index = 0;
-      for (uint64_t k = 0; k < sketch2->n; ++k) {
-        if (vec_idx[k] && contains_inclusive(Bucket_Boruvka::col_index_hash(k, sketch2->seed + i), 1 << j)) {
-          if (index == 0) {
-            index = k + 1;
-          } else {
-            index = 0;
-            break;
-          }
-        }
+  size_t total_updates = 2;
+  for (unsigned long long i = 0; i < num_buckets;) {
+    size_t depth_1_updates = 0;
+    size_t k = 0;
+    size_t u = 0;
+    for (; u < total_updates || depth_1_updates < 2;) {
+      if (vec_idx[k] == false) {
+        ++k;
+        continue;
       }
-      if (index) {
-        vec_idx[index - 1] = false;
-        i = j = 0;
-      } else {
-        ++j;
+
+      col_hash_t depth = Bucket_Boruvka::get_index_depth(k, sketch2->seed + i, num_guesses);
+      if (depth >= 2) {
+        vec_idx[k] = false; // force all updates to only touch depths <= 1
+        i = 0;
+        break;
       }
+      else if (depth == 1) {
+        ++depth_1_updates;
+      }
+      ++u;
+      ++k;
     }
+    if (u > total_updates) {
+      total_updates = u;
+      i = 0;
+    }
+    else if (u == total_updates) ++i;
   }
+  size_t applied_updates = 0;
   for (uint64_t i = 0; i < sketch2->n; ++i) {
     if (vec_idx[i]) {
       sketch2->update(static_cast<vec_t>(i));
+      if (++applied_updates >= total_updates) break;
     }
   }
   ASSERT_EQ(sketch2->query().second, FAIL);
