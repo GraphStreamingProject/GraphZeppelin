@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
   std::cout << "num_updates = " << num_updates << std::endl;
   std::cout << std::endl;
 
-  auto config = GraphConfiguration().gutter_sys(CACHETREE).num_groups(num_threads);
+  auto config = GraphConfiguration().gutter_sys(STANDALONE).num_groups(num_threads);
   config.gutter_conf().gutter_factor(-4);
   Graph g{num_nodes, config};
 
