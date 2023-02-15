@@ -94,7 +94,7 @@ class Sketch {
     failure_factor = _factor;
     num_buckets = bucket_gen(failure_factor);
     num_guesses = guess_gen(n);
-    num_elems = num_buckets * num_guesses + 2;  // +2 for zero depth bucket and null bucket
+    num_elems = num_buckets * num_guesses + 1;  // +1 for zero bucket optimization
   }
 
   inline static size_t sketchSizeof() {
