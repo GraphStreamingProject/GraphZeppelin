@@ -64,7 +64,7 @@ void Sketch::update(const vec_t update_idx) {
   for (unsigned i = 0; i < num_buckets; ++i) {
     col_hash_t depth = Bucket_Boruvka::get_index_depth(update_idx, seed + i, num_guesses);
     size_t bucket_id = i * num_guesses + depth;
-    if (depth < num_guesses)
+    likely_if(depth < num_guesses)
       Bucket_Boruvka::update(bucket_a[bucket_id], bucket_c[bucket_id], update_idx, checksum);
   }
 }
