@@ -103,7 +103,7 @@ static void BM_builtin_ffsl(benchmark::State& state) {
   size_t j = -1;
   for (auto _ : state) {
     benchmark::DoNotOptimize(__builtin_ffsl(i++));
-    benchmark::DoNotOptimize(__builtin_ffsl(j++));
+    benchmark::DoNotOptimize(__builtin_ffsl(j--));
   }
 }
 BENCHMARK(BM_builtin_ffsl);
@@ -113,7 +113,7 @@ static void BM_builtin_ctzl(benchmark::State& state) {
   size_t j = -1;
   for (auto _ : state) {
     benchmark::DoNotOptimize(__builtin_ctzl(i++));
-    benchmark::DoNotOptimize(__builtin_ctzl(j++));
+    benchmark::DoNotOptimize(__builtin_ctzl(j--));
   }
 }
 BENCHMARK(BM_builtin_ctzl);
@@ -123,7 +123,7 @@ static void BM_builtin_clzl(benchmark::State& state) {
   size_t j = -1;
   for (auto _ : state) {
     benchmark::DoNotOptimize(__builtin_clzl(i++));
-    benchmark::DoNotOptimize(__builtin_clzl(j++));
+    benchmark::DoNotOptimize(__builtin_clzl(j--));
   }
 }
 BENCHMARK(BM_builtin_clzl);
@@ -190,7 +190,7 @@ BENCHMARK(BM_update_bucket);
 // Benchmark the speed of updating sketches both serially and in batch mode
 static void BM_Sketch_Update(benchmark::State& state) {
   size_t vec_size = state.range(0);
-  vec_t input = vec_size / 4;
+  vec_t input = vec_size / 3;
   // initialize sketches
   Sketch::configure(vec_size, 100);
   SketchUniquePtr skt = makeSketch(seed);
@@ -238,6 +238,27 @@ static void BM_Sketch_Query(benchmark::State& state) {
     state.iterations() * num_sketches, benchmark::Counter::kIsRate);
 }
 BENCHMARK(BM_Sketch_Query)->DenseRange(0, 90, 10);
+
+static void BM_Supernode_Merge(benchmark::State& state) {
+  size_t n = state.range(0);
+  size_t upds = n / 100;
+  Supernode::configure(n);
+  Supernode* s1 = Supernode::makeSupernode(n, seed);
+  Supernode* s2 = Supernode::makeSupernode(n, seed);
+
+  for (size_t i = 0; i < upds; i++) {
+    s1->update(static_cast<vec_t>(concat_pairing_fn(rand() % n, rand() % n)));
+    s2->update(static_cast<vec_t>(concat_pairing_fn(rand() % n, rand() % n)));
+  }
+
+  for (auto _ : state) {
+    s1->merge(*s2);
+  }
+
+  free(s1);
+  free(s2);
+}
+BENCHMARK(BM_Supernode_Merge)->RangeMultiplier(10)->Range(1e3, 1e6);
 
 // Benchmark speed of DSU merges when the sequence of merges is adversarial
 // This means we avoid joining roots wherever possible
