@@ -61,7 +61,6 @@ TEST(SketchTestSuite, TestExceptions) {
 
 TEST(SketchTestSuite, GIVENonlyIndexZeroUpdatedTHENitWorks) {
   // GIVEN only the index 0 is updated
-  srand(time(nullptr));
   Sketch::configure(1000, fail_factor);
   SketchUniquePtr sketch = makeSketch(rand());
   sketch->update(0);
@@ -85,7 +84,6 @@ void test_sketch_sample(unsigned long num_sketches,
     double max_sample_fail_prob, double max_bucket_fail_prob) {
   Sketch::configure(vec_size, fail_factor);
 
-  srand(time(nullptr));
   std::chrono::duration<long double> runtime(0);
   unsigned long all_bucket_failures = 0;
   unsigned long sample_incorrect_failures = 0;
@@ -143,7 +141,6 @@ void test_sketch_sample(unsigned long num_sketches,
 }
 
 TEST(SketchTestSuite, TestSketchSample) {
-  srand (time(nullptr));
   test_sketch_sample(10000, 1e3, 100, 0.005, 0.02);
   test_sketch_sample(1000, 1e4, 1000, 0.001, 0.02);
   test_sketch_sample(1000, 1e5, 10000, 0.001, 0.02);
@@ -157,7 +154,6 @@ void test_sketch_addition(unsigned long num_sketches,
     double max_sample_fail_prob, double max_bucket_fail_prob) {
   Sketch::configure(vec_size, fail_factor);
 
-  srand (time(NULL));
   unsigned long all_bucket_failures = 0;
   unsigned long sample_incorrect_failures = 0;
   for (unsigned long i = 0; i < num_sketches; i++){
@@ -229,7 +225,7 @@ void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
   // therefore we need to ensure that in this test that we don't do more than that
   num_updates = std::min(num_updates, vec_size / 4);
 
-  srand(time(nullptr));
+  
   SketchUniquePtr sketch = makeSketch(rand());
   //Keep seed for replaying update stream later
   unsigned long seed = rand();
@@ -285,7 +281,6 @@ TEST(SketchTestSuite, TestSketchLarge) {
 TEST(SketchTestSuite, TestBatchUpdate) {
   unsigned long vec_size = 1000000000, num_updates = 1000000;
   Sketch::configure(vec_size, fail_factor);
-  srand(time(nullptr));
   std::vector<vec_t> updates(num_updates);
   for (unsigned long i = 0; i < num_updates; i++) {
     updates[i] = static_cast<vec_t>(rand() % vec_size);
@@ -324,4 +319,40 @@ TEST(SketchTestSuite, TestSerialization) {
   SketchUniquePtr reheated = makeSketch(seed, in_file);
 
   ASSERT_EQ(*sketch, *reheated);
+}
+
+TEST(SketchTestSuite, TestExhaustiveQuery) {
+  size_t runs = 10;
+  size_t vec_size = 10;
+  Sketch::configure(vec_size, vec_size*vec_size);
+  for (size_t i = 0; i < runs; i++) {
+    SketchUniquePtr sketch = makeSketch(rand());
+
+    sketch->update(1);
+    sketch->update(2);
+    sketch->update(3);
+    sketch->update(4);
+    sketch->update(5);
+    sketch->update(6);
+    sketch->update(7);
+    sketch->update(8);
+    sketch->update(9);
+    sketch->update(10);
+
+    std::pair<std::vector<vec_t>, SampleSketchRet> query_ret = sketch->exhaustive_query();
+    if (query_ret.second != GOOD) {
+      ASSERT_EQ(query_ret.first.size(), 0) << query_ret.second;
+    }
+
+    // assert everything returned is valid and <= 10 things
+    ASSERT_LE(query_ret.first.size(), 10);
+    for (vec_t non_zero : query_ret.first) {
+      ASSERT_GT(non_zero, 0);
+      ASSERT_LE(non_zero, 10);
+    }
+
+    // assert everything returned is unique
+    std::set<vec_t> unique_elms(query_ret.first.begin(), query_ret.first.end());
+    ASSERT_EQ(unique_elms.size(), query_ret.first.size());
+  }
 }

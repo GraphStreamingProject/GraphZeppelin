@@ -17,7 +17,6 @@ protected:
   static std::vector<Edge> odd_graph_edges;
   static std::vector<bool> prime;
   static void SetUpTestSuite() {
-    srand(1000000007);
     graph_edges = std::vector<Edge>();
     odd_graph_edges = std::vector<Edge>();
     for (unsigned i = 2; i < num_nodes; ++i) {
@@ -146,7 +145,7 @@ TEST_F(SupernodeTestSuite, TestSampleDeleteGrinder) {
     ASSERT_GE(successes, (int)log2(num_nodes))
         << "Fewer than logn successful queries: supernode " << i;
   }
-  for (unsigned i = 0; i < num_nodes; ++i) delete snodes[i];
+  for (unsigned i = 0; i < num_nodes; ++i) free(snodes[i]);
 }
 
 void inline apply_delta_to_node(Supernode* node, const std::vector<vec_t>& updates) {
@@ -185,7 +184,7 @@ TEST_F(SupernodeTestSuite, TestBatchUpdate) {
             << std::endl;
 
   ASSERT_EQ(supernode->get_num_sktch(), supernode_batch->get_num_sktch());
-  ASSERT_EQ(supernode->idx, supernode_batch->idx);
+  ASSERT_EQ(supernode->sample_idx, supernode_batch->sample_idx);
   for (int i = 0; i < supernode->get_num_sktch(); ++i) {
     ASSERT_EQ(*supernode->get_sketch(i), *supernode_batch->get_sketch(i));
   }
@@ -258,4 +257,75 @@ TEST_F(SupernodeTestSuite, TestSerialization) {
   for (int i = 0; i < snodes[num_nodes / 2]->get_num_sktch(); ++i) {
     ASSERT_EQ(*snodes[num_nodes / 2]->get_sketch(i), *reheated->get_sketch(i));
   }
+}
+
+TEST_F(SupernodeTestSuite, ExhaustiveSample) {
+  size_t runs = 10;
+  size_t vertices = 11;
+  Supernode::configure(vertices);
+  for (size_t i = 0; i < runs; i++) {
+    Supernode* s_node = Supernode::makeSupernode(vertices, seed);
+
+    for (size_t s = 1; s < vertices; s++) {
+      for (size_t d = s+1; d < vertices; d++) {
+        s_node->update(concat_pairing_fn(s, d));
+      }
+    }
+
+    std::pair<std::vector<Edge>, SampleSketchRet> query_ret = s_node->exhaustive_sample();
+    if (query_ret.second != GOOD) {
+      ASSERT_EQ(query_ret.first.size(), 0);
+    }
+
+    // assert everything returned is valid
+    for (Edge e : query_ret.first) {
+      ASSERT_GT(e.src, 0);
+      ASSERT_LE(e.src, 10);
+      ASSERT_GT(e.dst, e.src);
+      ASSERT_LE(e.dst, 10);
+    }
+
+    // assert everything returned is unique
+    std::set<Edge> unique_elms(query_ret.first.begin(), query_ret.first.end());
+    ASSERT_EQ(unique_elms.size(), query_ret.first.size());
+
+    free(s_node);
+  }
+}
+
+TEST_F(SupernodeTestSuite, TestPartialSerialization) {
+  Supernode* s_node = Supernode::makeSupernode(num_nodes, seed);
+  Supernode* empty_node = Supernode::makeSupernode(*s_node);
+  for (size_t i = 0; i < 10000; i++) {
+    node_id_t src = rand() % (num_nodes-1);
+    node_id_t dst = rand() % num_nodes;
+    if (src == dst)
+      ++dst;
+    s_node->update(concat_pairing_fn(src, dst));
+  }
+  
+  for (int beg = 0; beg < s_node->get_num_sktch() / 4; beg++) {
+    for (int num = s_node->get_num_sktch() - beg; num > 3 * s_node->get_num_sktch() / 4; num--) {
+      auto file = std::fstream("./out_supernode.txt", std::ios::out | std::ios::binary);
+      s_node->write_binary_range(file, beg, num);
+      file.close();
+
+      auto in_file = std::fstream("./out_supernode.txt", std::ios::in | std::ios::binary);
+      Supernode* reheated = Supernode::makeSupernode(num_nodes, seed, in_file);
+      in_file.close();
+
+      for (int j = 0; j < beg; j++) {
+        ASSERT_EQ(*reheated->get_sketch(j), *empty_node->get_sketch(j));
+      }
+      for (int j = beg; j < beg + num; ++j) {
+        ASSERT_EQ(*reheated->get_sketch(j), *s_node->get_sketch(j));
+      }
+      for (int j = beg + num; j < s_node->get_num_sktch(); ++j) {
+        ASSERT_EQ(*reheated->get_sketch(j), *empty_node->get_sketch(j));
+      }
+      free(reheated);
+    }
+  }
+  free(s_node);
+  free(empty_node);
 }

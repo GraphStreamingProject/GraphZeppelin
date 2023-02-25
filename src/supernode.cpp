@@ -6,31 +6,50 @@
 size_t Supernode::bytes_size;
 size_t Supernode::serialized_size;
 
-Supernode::Supernode(uint64_t n, uint64_t seed): idx(0), num_sketches(log2(n)/(log2(3)-1)),
+Supernode::Supernode(uint64_t n, uint64_t seed): sample_idx(0), num_sketches(log2(n)/(log2(3)-1)),
                n(n), seed(seed), sketch_size(Sketch::sketchSizeof()) {
 
   size_t sketch_width = guess_gen(Sketch::get_failure_factor());
   // generate num_sketches sketches for each supernode (read: node)
-  for (int i = 0; i < num_sketches; ++i) {
+  for (size_t i = 0; i < num_sketches; ++i) {
     Sketch::makeSketch(get_sketch(i), seed);
     seed += sketch_width;
   }
 }
 
 Supernode::Supernode(uint64_t n, uint64_t seed, std::istream &binary_in) :
-  idx(0), num_sketches(log2(n)/(log2(3)-1)), n(n), seed(seed), sketch_size(Sketch::sketchSizeof()) {
+  sample_idx(0), num_sketches(log2(n)/(log2(3)-1)), n(n), seed(seed), sketch_size(Sketch::sketchSizeof()) {
 
   size_t sketch_width = guess_gen(Sketch::get_failure_factor());
+
+  SerialType type;
+  binary_in.read((char*) &type, sizeof(SerialType));
+
+  uint32_t beg = 0;
+  uint32_t num = num_sketches;
+
+  if (type == PARTIAL) {
+    binary_in.read((char*) &beg, sizeof(beg));
+    binary_in.read((char*) &num, sizeof(num));
+  }
   // read num_sketches sketches from file for each supernode (read: node)
-  for (int i = 0; i < num_sketches; ++i) {
+  for (size_t i = 0; i < beg; ++i) {
+    Sketch::makeSketch(get_sketch(i), seed);
+    seed += sketch_width;
+  }
+  for (size_t i = beg; i < beg + num; ++i) {
     Sketch::makeSketch(get_sketch(i), seed, binary_in);
+    seed += sketch_width;
+  }
+  for (size_t i = beg + num; i < num_sketches; ++i) {
+    Sketch::makeSketch(get_sketch(i), seed);
     seed += sketch_width;
   }
 }
 
-Supernode::Supernode(const Supernode& s) : idx(s.idx), num_sketches(s.num_sketches), n(s.n),
+Supernode::Supernode(const Supernode& s) : sample_idx(s.sample_idx), num_sketches(s.num_sketches), n(s.n),
     seed(s.seed), sketch_size(s.sketch_size) {
-  for (int i = 0; i < num_sketches; ++i) {
+  for (size_t i = 0; i < num_sketches; ++i) {
     Sketch::makeSketch(get_sketch(i), *s.get_sketch(i));
   }
 }
@@ -51,29 +70,41 @@ Supernode::~Supernode() {
 }
 
 std::pair<Edge, SampleSketchRet> Supernode::sample() {
-  if (idx == num_sketches) throw OutOfQueriesException();
+  if (sample_idx == num_sketches) throw OutOfQueriesException();
 
-  std::pair<vec_t, SampleSketchRet> query_ret = get_sketch(idx++)->query();
-  vec_t idx = query_ret.first;
+  std::pair<vec_t, SampleSketchRet> query_ret = get_sketch(sample_idx++)->query();
+  vec_t non_zero = query_ret.first;
   SampleSketchRet ret_code = query_ret.second;
-  return {inv_concat_pairing_fn(idx), ret_code};
+  return {inv_concat_pairing_fn(non_zero), ret_code};
+}
+
+std::pair<std::vector<Edge>, SampleSketchRet> Supernode::exhaustive_sample() {
+  if (sample_idx == num_sketches) throw OutOfQueriesException();
+
+  std::pair<std::vector<vec_t>, SampleSketchRet> query_ret = get_sketch(sample_idx++)->exhaustive_query();
+  std::vector<Edge> edges(query_ret.first.size());
+  for (size_t i = 0; i < edges.size(); i++)
+    edges[i] = inv_concat_pairing_fn(query_ret.first[i]);
+
+  SampleSketchRet ret_code = query_ret.second;
+  return {edges, ret_code};
 }
 
 void Supernode::merge(Supernode &other) {
-  idx = std::max(idx, other.idx);
-  for (int i=idx;i<num_sketches;++i) {
+  sample_idx = std::max(sample_idx, other.sample_idx);
+  for (size_t i=sample_idx;i<num_sketches;++i) {
     (*get_sketch(i))+=(*other.get_sketch(i));
   }
 }
 
 void Supernode::update(vec_t upd) {
-  for (int i = 0; i < num_sketches; ++i)
+  for (size_t i = 0; i < num_sketches; ++i)
     get_sketch(i)->update(upd);
 }
 
 void Supernode::apply_delta_update(const Supernode* delta_node) {
   std::unique_lock<std::mutex> lk(node_mt);
-  for (int i = 0; i < num_sketches; ++i) {
+  for (size_t i = 0; i < num_sketches; ++i) {
     *get_sketch(i) += *delta_node->get_sketch(i);
   }
   lk.unlock();
@@ -104,13 +135,28 @@ void Supernode::delta_supernode(uint64_t n, uint64_t seed,
                const std::vector<vec_t> &updates, void *loc) {
   auto delta_node = makeSupernode(n, seed, loc);
 #pragma omp parallel for num_threads(GraphWorker::get_group_size()) default(shared)
-  for (int i = 0; i < delta_node->num_sketches; ++i) {
+  for (size_t i = 0; i < delta_node->num_sketches; ++i) {
     delta_node->get_sketch(i)->batch_update(updates);
   }
 }
 
 void Supernode::write_binary(std::ostream& binary_out) {
-  for (int i = 0; i < num_sketches; ++i) {
+  SerialType type = FULL;
+  binary_out.write((char*) &type, sizeof(type));
+  for (size_t i = 0; i < num_sketches; ++i) {
     get_sketch(i)->write_binary(binary_out);
   }
+}
+
+void Supernode::write_binary_range(std::ostream&binary_out, uint32_t beg, uint32_t num) {
+  if (beg >= num_sketches) beg = num_sketches - 1;
+  if (beg + num > num_sketches) num = num_sketches - beg;
+  if (num == 0) num = 1;
+
+  SerialType type = PARTIAL;
+  binary_out.write((char*) &type, sizeof(type));
+  binary_out.write((char*) &beg, sizeof(beg));
+  binary_out.write((char*) &num, sizeof(num));
+  for (size_t i = beg; i < beg + num; ++i)
+    get_sketch(i)->write_binary(binary_out);
 }

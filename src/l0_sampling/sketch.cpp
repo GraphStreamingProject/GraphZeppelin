@@ -6,7 +6,7 @@
 vec_t Sketch::failure_factor = 100;
 vec_t Sketch::n;
 size_t Sketch::num_elems;
-size_t Sketch::num_buckets;
+size_t Sketch::num_columns;
 size_t Sketch::num_guesses;
 
 /*
@@ -61,7 +61,7 @@ void Sketch::update(const vec_t update_idx) {
   Bucket_Boruvka::update(bucket_a[num_elems - 1], bucket_c[num_elems - 1], update_idx, checksum);
 
   // Update higher depth buckets
-  for (unsigned i = 0; i < num_buckets; ++i) {
+  for (unsigned i = 0; i < num_columns; ++i) {
     col_hash_t depth = Bucket_Boruvka::get_index_depth(update_idx, seed + i, num_guesses);
     size_t bucket_id = i * num_guesses + depth;
     likely_if(depth < num_guesses)
@@ -81,21 +81,48 @@ std::pair<vec_t, SampleSketchRet> Sketch::query() {
   }
   already_queried = true;
 
-  if (bucket_a[num_elems - 1] == 0 && bucket_c[num_elems - 1] == 0) {
+  if (bucket_a[num_elems - 1] == 0 && bucket_c[num_elems - 1] == 0)
     return {0, ZERO}; // the "first" bucket is deterministic so if all zero then no edges to return
-  }
-  if (Bucket_Boruvka::is_good(bucket_a[num_elems - 1], bucket_c[num_elems - 1], seed)) {
+
+  if (Bucket_Boruvka::is_good(bucket_a[num_elems - 1], bucket_c[num_elems - 1], seed))
     return {bucket_a[num_elems - 1], GOOD};
-  }
-  for (unsigned i = 0; i < num_buckets; ++i) {
+
+  for (unsigned i = 0; i < num_columns; ++i) {
     for (unsigned j = 0; j < num_guesses; ++j) {
       unsigned bucket_id = i * num_guesses + j;
-      if (Bucket_Boruvka::is_good(bucket_a[bucket_id], bucket_c[bucket_id], seed)) {
+      if (Bucket_Boruvka::is_good(bucket_a[bucket_id], bucket_c[bucket_id], seed))
         return {bucket_a[bucket_id], GOOD};
-      }
     }
   }
   return {0, FAIL};
+}
+
+std::pair<std::vector<vec_t>, SampleSketchRet> Sketch::exhaustive_query() {
+  std::vector<vec_t> ret;
+
+  unlikely_if (bucket_a[num_elems - 1] == 0 && bucket_c[num_elems - 1] == 0)
+    return {ret, ZERO}; // the "first" bucket is deterministic so if zero then no edges to return
+
+  unlikely_if (Bucket_Boruvka::is_good(bucket_a[num_elems - 1], bucket_c[num_elems - 1], seed)) {
+    ret.push_back(bucket_a[num_elems - 1]);
+    return {ret, GOOD};
+  }
+  for (unsigned i = 0; i < num_columns; ++i) {
+    for (unsigned j = 0; j < num_guesses; ++j) {
+      unsigned bucket_id = i * num_guesses + j;
+      unlikely_if (Bucket_Boruvka::is_good(bucket_a[bucket_id], bucket_c[bucket_id], seed)) {
+        ret.push_back(bucket_a[bucket_id]);
+        update(bucket_a[bucket_id]);
+      }
+    }
+  }
+  unlikely_if (already_queried)
+    throw MultipleQueryException();
+  already_queried = true;
+
+  unlikely_if (ret.size() == 0)
+    return {ret, FAIL};
+  return {ret, GOOD};
 }
 
 Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2) {
@@ -130,7 +157,7 @@ std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
 
   os << " a:" << a << " c:" << c << (good ? " good" : " bad") << std::endl;
 
-  for (unsigned i = 0; i < Sketch::num_buckets; ++i) {
+  for (unsigned i = 0; i < Sketch::num_columns; ++i) {
     for (unsigned j = 0; j < Sketch::num_guesses; ++j) {
       unsigned bucket_id = i * Sketch::num_guesses + j;
       vec_t a      = sketch.bucket_a[bucket_id];

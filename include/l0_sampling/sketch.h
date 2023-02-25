@@ -34,7 +34,7 @@ class Sketch {
   static vec_t failure_factor;  // Pr(failure) = 1 / factor. Determines number of columns in sketch.
   static vec_t n;               // Length of the vector this is sketching.
   static size_t num_elems;      // length of our actual arrays in number of elements
-  static size_t num_buckets;    // Portion of array length, number of buckets
+  static size_t num_columns;    // Portion of array length, number of columns
   static size_t num_guesses;    // Portion of array length, number of guesses
 
   // Seed used for hashing operations in this sketch.
@@ -92,9 +92,9 @@ class Sketch {
   inline static void configure(vec_t _n, vec_t _factor) {
     n = _n;
     failure_factor = _factor;
-    num_buckets = bucket_gen(failure_factor);
+    num_columns = bucket_gen(failure_factor);
     num_guesses = guess_gen(n);
-    num_elems = num_buckets * num_guesses + 1;  // +1 for zero bucket optimization
+    num_elems = num_columns * num_guesses + 1;  // +1 for zero bucket optimization
   }
 
   inline static size_t sketchSizeof() {
@@ -124,9 +124,15 @@ class Sketch {
 
   /**
    * Function to query a sketch.
-   * @return   A pair with the result index and a code indicating if the type of result.
+   * @return   A pair with the result index and a code indicating the type of result.
    */
   std::pair<vec_t, SampleSketchRet> query();
+
+  /*
+   * Function to query all columns within a sketch to return 1 or more non-zero indices
+   * @return   A pair with the result indices and a code indicating the type of result.
+   */
+  std::pair<std::vector<vec_t>, SampleSketchRet> exhaustive_query();
 
   inline uint64_t get_seed() const { return seed; }
 
