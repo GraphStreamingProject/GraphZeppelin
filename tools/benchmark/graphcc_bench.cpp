@@ -98,35 +98,35 @@ static void BM_MTFileIngest(benchmark::State& state) {
 BENCHMARK(BM_MTFileIngest)->RangeMultiplier(4)->Range(1, 20)->UseRealTime();
 #endif // FILE_INGEST_F
 
-static void BM_builtin_ffsl(benchmark::State& state) {
+static void BM_builtin_ffsll(benchmark::State& state) {
   size_t i = 0;
   size_t j = -1;
   for (auto _ : state) {
-    benchmark::DoNotOptimize(__builtin_ffsl(i++));
-    benchmark::DoNotOptimize(__builtin_ffsl(j--));
+    benchmark::DoNotOptimize(__builtin_ffsll(i++));
+    benchmark::DoNotOptimize(__builtin_ffsll(j--));
   }
 }
-BENCHMARK(BM_builtin_ffsl);
+BENCHMARK(BM_builtin_ffsll);
 
-static void BM_builtin_ctzl(benchmark::State& state) {
+static void BM_builtin_ctzll(benchmark::State& state) {
   size_t i = 0;
   size_t j = -1;
   for (auto _ : state) {
-    benchmark::DoNotOptimize(__builtin_ctzl(i++));
-    benchmark::DoNotOptimize(__builtin_ctzl(j--));
+    benchmark::DoNotOptimize(__builtin_ctzll(i++));
+    benchmark::DoNotOptimize(__builtin_ctzll(j--));
   }
 }
-BENCHMARK(BM_builtin_ctzl);
+BENCHMARK(BM_builtin_ctzll);
 
-static void BM_builtin_clzl(benchmark::State& state) {
+static void BM_builtin_clzll(benchmark::State& state) {
   size_t i = 0;
   size_t j = -1;
   for (auto _ : state) {
-    benchmark::DoNotOptimize(__builtin_clzl(i++));
-    benchmark::DoNotOptimize(__builtin_clzl(j--));
+    benchmark::DoNotOptimize(__builtin_clzll(i++));
+    benchmark::DoNotOptimize(__builtin_clzll(j--));
   }
 }
-BENCHMARK(BM_builtin_clzl);
+BENCHMARK(BM_builtin_clzll);
 
 // Test the speed of hashing using a method that loops over seeds and a method that
 // batches by seed

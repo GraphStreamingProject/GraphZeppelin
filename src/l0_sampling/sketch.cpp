@@ -175,8 +175,27 @@ void Sketch::write_binary(std::ostream& binary_out) {
   const_cast<const Sketch*>(this)->write_binary(binary_out);
 }
 
-void Sketch::write_binary(std::ostream &binary_out) const {
+void Sketch::write_binary(std::ostream& binary_out) const {
   // Write out the bucket values to the stream.
   binary_out.write((char*)bucket_a, num_elems * sizeof(vec_t));
   binary_out.write((char*)bucket_c, num_elems * sizeof(vec_hash_t));
+}
+
+void Sketch::write_sparse_binary(std::ostream& binary_out) {
+  const_cast<const Sketch*>(this)->write_sparse_binary(binary_out);
+}
+
+void Sketch::write_sparse_binary(std::ostream& binary_out) const {
+  for (uint16_t i = 0; i < num_elems - 1; i++) {
+    if (bucket_a[i] == 0 && bucket_c[i] == 0)
+      continue;
+    binary_out.write((char*)&i, sizeof(i));
+    binary_out.write((char*)&bucket_a[i], sizeof(vec_t));
+    binary_out.write((char*)&bucket_c[i], sizeof(vec_hash_t));
+  }
+  // Always write down the deterministic bucket to mark the end of the Sketch
+  uint16_t index = num_elems - 1;
+  binary_out.write((char*)&index, sizeof(index));
+  binary_out.write((char*)&bucket_a[num_elems-1], sizeof(vec_t));
+  binary_out.write((char*)&bucket_c[num_elems-1], sizeof(vec_hash_t));
 }

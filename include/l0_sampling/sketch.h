@@ -150,10 +150,19 @@ class Sketch {
 
   /**
    * Serialize the sketch to a binary output stream.
-   * @param out the stream to write to.
+   * @param binary_out   the stream to write to.
    */
   void write_binary(std::ostream& binary_out);
   void write_binary(std::ostream& binary_out) const;
+
+  /**
+   * Serialize a sketch while optimizing for space
+   * This assumes that the sketch itself sparse
+   * Otherwise, this serialization will use more space
+   * @param binary_out   the stream to write to.
+   */
+  void write_sparse_binary(std::ostream& binary_out);
+  void write_sparse_binary(std::ostream& binary_out) const;
 };
 
 class MultipleQueryException : public std::exception {
