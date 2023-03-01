@@ -310,7 +310,7 @@ TEST(SketchTestSuite, TestSerialization) {
   for (unsigned long j = 0; j < num_updates; j++){
     sketch->update(test_vec.get_update(j));
   }
-  auto file = std::fstream("./out_sketch.txt", std::ios::out | std::ios::binary);
+  auto file = std::fstream("./out_sketch.txt", std::ios::out | std::ios::binary | std::ios::trunc);
   sketch->write_binary(file);
   file.close();
 
@@ -330,7 +330,7 @@ TEST(SketchTestSuite, TestSparseSerialization) {
   for (unsigned long j = 0; j < num_updates; j++){
     sketch->update(test_vec.get_update(j));
   }
-  auto file = std::fstream("./out_sketch.txt", std::ios::out | std::ios::binary);
+  auto file = std::fstream("./out_sketch.txt", std::ios::out | std::ios::binary | std::ios::trunc);
   sketch->write_sparse_binary(file);
   file.close();
 

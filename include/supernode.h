@@ -25,7 +25,7 @@ class Supernode {
   FRIEND_TEST(SupernodeTestSuite, TestBatchUpdate);
   FRIEND_TEST(SupernodeTestSuite, TestConcurrency);
   FRIEND_TEST(SupernodeTestSuite, TestSerialization);
-  FRIEND_TEST(SupernodeTestSuite, TestPartialSerialization);
+  FRIEND_TEST(SupernodeTestSuite, TestPartialSparseSerialization);
   FRIEND_TEST(GraphTestSuite, TestCorrectnessOfReheating);
   FRIEND_TEST(GraphTest, TestSupernodeRestoreAfterCCFailure);
   FRIEND_TEST(EXPR_Parallelism, N10kU100k);

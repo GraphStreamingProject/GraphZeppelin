@@ -46,6 +46,11 @@ Sketch::Sketch(uint64_t seed, std::istream &binary_in, bool sparse): seed(seed) 
     binary_in.read((char*)bucket_a, num_elems * sizeof(vec_t));
     binary_in.read((char*)bucket_c, num_elems * sizeof(vec_hash_t));
   } else {
+    for (size_t i = 0; i < num_elems; ++i) {
+      bucket_a[i] = 0;
+      bucket_c[i] = 0;
+    }
+
     uint16_t idx;
     binary_in.read((char*)&idx, sizeof(idx));
     while (idx < num_elems - 1) {
@@ -140,11 +145,13 @@ std::pair<std::vector<vec_t>, SampleSketchRet> Sketch::exhaustive_query() {
 
 Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2) {
   assert (sketch1.seed == sketch2.seed);
+  sketch1.already_queried = sketch1.already_queried || sketch2.already_queried;
+  if (sketch2.bucket_a[Sketch::num_elems-1] == 0 && sketch2.bucket_c[Sketch::num_elems-1] == 0)
+    return sketch1;
   for (unsigned i = 0; i < Sketch::num_elems; i++) {
     sketch1.bucket_a[i] ^= sketch2.bucket_a[i];
     sketch1.bucket_c[i] ^= sketch2.bucket_c[i];
   }
-  sketch1.already_queried = sketch1.already_queried || sketch2.already_queried;
   return sketch1;
 }
 

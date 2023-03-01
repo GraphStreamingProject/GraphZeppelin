@@ -293,7 +293,7 @@ TEST_F(SupernodeTestSuite, ExhaustiveSample) {
   }
 }
 
-TEST_F(SupernodeTestSuite, TestPartialSerialization) {
+TEST_F(SupernodeTestSuite, TestPartialSparseSerialization) {
   Supernode* s_node = Supernode::makeSupernode(num_nodes, seed);
   Supernode* empty_node = Supernode::makeSupernode(*s_node);
   for (size_t i = 0; i < 10000; i++) {
@@ -307,7 +307,7 @@ TEST_F(SupernodeTestSuite, TestPartialSerialization) {
   for (int beg = 0; beg < s_node->get_num_sktch() / 4; beg++) {
     for (int num = s_node->get_num_sktch() - beg; num > 3 * s_node->get_num_sktch() / 4; num--) {
       auto file = std::fstream("./out_supernode.txt", std::ios::out | std::ios::binary);
-      s_node->write_binary_range(file, beg, num);
+      s_node->write_binary_range(file, beg, num, true);
       file.close();
 
       auto in_file = std::fstream("./out_supernode.txt", std::ios::in | std::ios::binary);

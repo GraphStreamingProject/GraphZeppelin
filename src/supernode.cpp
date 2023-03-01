@@ -163,7 +163,7 @@ void Supernode::write_binary_range(std::ostream &binary_out, uint32_t beg, uint3
   if (beg + num > num_sketches) num = num_sketches - beg;
   if (num == 0) num = 1;
 
-  SerialType type = PARTIAL;
+  SerialType type = sparse ? SPARSE : PARTIAL;
   binary_out.write((char*) &type, sizeof(type));
   binary_out.write((char*) &beg, sizeof(beg));
   binary_out.write((char*) &num, sizeof(num));
