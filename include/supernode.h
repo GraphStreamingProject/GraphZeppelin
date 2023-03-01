@@ -8,7 +8,7 @@
 enum SerialType {
   FULL,
   PARTIAL,
-  // SPARSE,
+  SPARSE,
 };
 
 /**
@@ -16,11 +16,10 @@ enum SerialType {
  * box without needing to worry about implementing l_0.
  */
 class Supernode {
-  // the size of a super-node in bytes including the all sketches off the end
-  static size_t bytes_size; 
+  static size_t num_sketches;
+  static size_t bytes_size; // the size of a super-node in bytes including the sketches
   static size_t serialized_size; // the size of a supernode that has been serialized
   size_t sample_idx;
-  size_t num_sketches;
   std::mutex node_mt;
 
   FRIEND_TEST(SupernodeTestSuite, TestBatchUpdate);
@@ -88,8 +87,9 @@ public:
 
   static inline void configure(uint64_t n, vec_t sketch_fail_factor=100) {
     Sketch::configure(n*n, sketch_fail_factor);
-    bytes_size = sizeof(Supernode) + size_t(log2(n)/(log2(3)-1)) * Sketch::sketchSizeof();
-    serialized_size = size_t(log2(n)/(log2(3)-1)) * Sketch::serialized_size();
+    num_sketches = log2(n)/(log2(3)-1);
+    bytes_size = sizeof(Supernode) + num_sketches * Sketch::sketchSizeof();
+    serialized_size = num_sketches * Sketch::serialized_size();
   }
 
   static inline size_t get_size() {
@@ -105,8 +105,8 @@ public:
     return sketch_size;
   }
 
-  // return the number of sketches held in this supernode
-  int get_num_sktch() { return num_sketches; };
+  // return the number of sketches held in by a Supernode
+  static int get_num_sktch() { return num_sketches; };
 
   inline bool out_of_queries() {
     return sample_idx == num_sketches;
@@ -184,7 +184,7 @@ public:
    * Serialize the supernode to a binary output stream.
    * @param binary_out   the stream to write to.
    */
-  void write_binary(std::ostream &binary_out);
+  void write_binary(std::ostream &binary_out, bool sparse = false);
 
   /*
    * Serialize a portion of the supernode to a binary output stream.
@@ -192,7 +192,7 @@ public:
    * @param beg         the index of the first sketch to serialize
    * @param num         the number of sketches to serialize
    */
-  void write_binary_range(std::ostream&binary_out, uint32_t beg, uint32_t num);
+  void write_binary_range(std::ostream&binary_out, uint32_t beg, uint32_t num, bool sparse = false);
 
   // void write_sparse_binary_range(std::ostream&binary_out, uint32_t beg, uint32_t end);
 };

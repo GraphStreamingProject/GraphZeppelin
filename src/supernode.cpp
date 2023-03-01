@@ -3,10 +3,11 @@
 #include "../include/supernode.h"
 #include "../include/graph_worker.h"
 
+size_t Supernode::num_sketches;
 size_t Supernode::bytes_size;
 size_t Supernode::serialized_size;
 
-Supernode::Supernode(uint64_t n, uint64_t seed): sample_idx(0), num_sketches(log2(n)/(log2(3)-1)),
+Supernode::Supernode(uint64_t n, uint64_t seed): sample_idx(0),
                n(n), seed(seed), sketch_size(Sketch::sketchSizeof()) {
 
   size_t sketch_width = guess_gen(Sketch::get_failure_factor());
@@ -18,7 +19,7 @@ Supernode::Supernode(uint64_t n, uint64_t seed): sample_idx(0), num_sketches(log
 }
 
 Supernode::Supernode(uint64_t n, uint64_t seed, std::istream &binary_in) :
-  sample_idx(0), num_sketches(log2(n)/(log2(3)-1)), n(n), seed(seed), sketch_size(Sketch::sketchSizeof()) {
+  sample_idx(0), n(n), seed(seed), sketch_size(Sketch::sketchSizeof()) {
 
   size_t sketch_width = guess_gen(Sketch::get_failure_factor());
 
@@ -27,10 +28,15 @@ Supernode::Supernode(uint64_t n, uint64_t seed, std::istream &binary_in) :
 
   uint32_t beg = 0;
   uint32_t num = num_sketches;
-
+  bool sparse = false;
   if (type == PARTIAL) {
     binary_in.read((char*) &beg, sizeof(beg));
     binary_in.read((char*) &num, sizeof(num));
+  }
+  else if (type == SPARSE) {
+    binary_in.read((char*) &beg, sizeof(beg));
+    binary_in.read((char*) &num, sizeof(num));
+    sparse = true;
   }
   // read num_sketches sketches from file for each supernode (read: node)
   for (size_t i = 0; i < beg; ++i) {
@@ -38,7 +44,7 @@ Supernode::Supernode(uint64_t n, uint64_t seed, std::istream &binary_in) :
     seed += sketch_width;
   }
   for (size_t i = beg; i < beg + num; ++i) {
-    Sketch::makeSketch(get_sketch(i), seed, binary_in);
+    Sketch::makeSketch(get_sketch(i), seed, binary_in, sparse);
     seed += sketch_width;
   }
   for (size_t i = beg + num; i < num_sketches; ++i) {
@@ -47,7 +53,7 @@ Supernode::Supernode(uint64_t n, uint64_t seed, std::istream &binary_in) :
   }
 }
 
-Supernode::Supernode(const Supernode& s) : sample_idx(s.sample_idx), num_sketches(s.num_sketches), n(s.n),
+Supernode::Supernode(const Supernode& s) : sample_idx(s.sample_idx), n(s.n),
     seed(s.seed), sketch_size(s.sketch_size) {
   for (size_t i = 0; i < num_sketches; ++i) {
     Sketch::makeSketch(get_sketch(i), *s.get_sketch(i));
@@ -140,15 +146,19 @@ void Supernode::delta_supernode(uint64_t n, uint64_t seed,
   }
 }
 
-void Supernode::write_binary(std::ostream& binary_out) {
+void Supernode::write_binary(std::ostream& binary_out, bool sparse) {
   SerialType type = FULL;
   binary_out.write((char*) &type, sizeof(type));
   for (size_t i = 0; i < num_sketches; ++i) {
-    get_sketch(i)->write_binary(binary_out);
+    if (sparse)
+      get_sketch(i)->write_sparse_binary(binary_out);
+    else
+      get_sketch(i)->write_binary(binary_out);
   }
 }
 
-void Supernode::write_binary_range(std::ostream&binary_out, uint32_t beg, uint32_t num) {
+void Supernode::write_binary_range(std::ostream &binary_out, uint32_t beg, uint32_t num,
+                                   bool sparse) {
   if (beg >= num_sketches) beg = num_sketches - 1;
   if (beg + num > num_sketches) num = num_sketches - beg;
   if (num == 0) num = 1;
@@ -158,5 +168,8 @@ void Supernode::write_binary_range(std::ostream&binary_out, uint32_t beg, uint32
   binary_out.write((char*) &beg, sizeof(beg));
   binary_out.write((char*) &num, sizeof(num));
   for (size_t i = beg; i < beg + num; ++i)
-    get_sketch(i)->write_binary(binary_out);
+    if (sparse)
+      get_sketch(i)->write_sparse_binary(binary_out);
+    else
+      get_sketch(i)->write_binary(binary_out);
 }

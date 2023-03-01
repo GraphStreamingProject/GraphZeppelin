@@ -301,7 +301,6 @@ TEST(SketchTestSuite, TestBatchUpdate) {
 }
 
 TEST(SketchTestSuite, TestSerialization) {
-  printf("starting test!\n");
   unsigned long vec_size = 1 << 20;
   unsigned long num_updates = 10000;
   Sketch::configure(vec_size, fail_factor);
@@ -317,6 +316,26 @@ TEST(SketchTestSuite, TestSerialization) {
 
   auto in_file = std::fstream("./out_sketch.txt", std::ios::in | std::ios::binary);
   SketchUniquePtr reheated = makeSketch(seed, in_file);
+
+  ASSERT_EQ(*sketch, *reheated);
+}
+
+TEST(SketchTestSuite, TestSparseSerialization) {
+  unsigned long vec_size = 1 << 20;
+  unsigned long num_updates = 10000;
+  Sketch::configure(vec_size, fail_factor);
+  Testing_Vector test_vec = Testing_Vector(vec_size, num_updates);
+  auto seed = rand();
+  SketchUniquePtr sketch = makeSketch(seed);
+  for (unsigned long j = 0; j < num_updates; j++){
+    sketch->update(test_vec.get_update(j));
+  }
+  auto file = std::fstream("./out_sketch.txt", std::ios::out | std::ios::binary);
+  sketch->write_sparse_binary(file);
+  file.close();
+
+  auto in_file = std::fstream("./out_sketch.txt", std::ios::in | std::ios::binary);
+  SketchUniquePtr reheated = makeSketch(seed, in_file, true);
 
   ASSERT_EQ(*sketch, *reheated);
 }

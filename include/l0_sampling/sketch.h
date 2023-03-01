@@ -59,7 +59,7 @@ class Sketch {
 
   // private constructors -- use makeSketch
   Sketch(uint64_t seed);
-  Sketch(uint64_t seed, std::istream& binary_in);
+  Sketch(uint64_t seed, std::istream& binary_in, bool sparse);
   Sketch(const Sketch& s);
 
  public:
@@ -73,7 +73,7 @@ class Sketch {
    * @return           A pointer to a newly constructed sketch
    */
   static Sketch* makeSketch(void* loc, uint64_t seed);
-  static Sketch* makeSketch(void* loc, uint64_t seed, std::istream& binary_in);
+  static Sketch* makeSketch(void* loc, uint64_t seed, std::istream& binary_in, bool sparse=false);
 
   /**
    * Copy constructor to create a sketch from another

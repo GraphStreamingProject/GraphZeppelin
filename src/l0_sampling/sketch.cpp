@@ -17,8 +17,8 @@ Sketch* Sketch::makeSketch(void* loc, uint64_t seed) {
   return new (loc) Sketch(seed);
 }
 
-Sketch* Sketch::makeSketch(void* loc, uint64_t seed, std::istream &binary_in) {
-  return new (loc) Sketch(seed, binary_in);
+Sketch* Sketch::makeSketch(void* loc, uint64_t seed, std::istream &binary_in, bool sparse) {
+  return new (loc) Sketch(seed, binary_in, sparse);
 }
 
 Sketch* Sketch::makeSketch(void* loc, const Sketch& s) {
@@ -37,13 +37,26 @@ Sketch::Sketch(uint64_t seed): seed(seed) {
   }
 }
 
-Sketch::Sketch(uint64_t seed, std::istream &binary_in): seed(seed) {
+Sketch::Sketch(uint64_t seed, std::istream &binary_in, bool sparse): seed(seed) {
   // establish the bucket_a and bucket_c locations
   bucket_a = reinterpret_cast<vec_t*>(buckets);
   bucket_c = reinterpret_cast<vec_hash_t*>(buckets + num_elems * sizeof(vec_t));
 
-  binary_in.read((char*)bucket_a, num_elems * sizeof(vec_t));
-  binary_in.read((char*)bucket_c, num_elems * sizeof(vec_hash_t));
+  if (!sparse) {
+    binary_in.read((char*)bucket_a, num_elems * sizeof(vec_t));
+    binary_in.read((char*)bucket_c, num_elems * sizeof(vec_hash_t));
+  } else {
+    uint16_t idx;
+    binary_in.read((char*)&idx, sizeof(idx));
+    while (idx < num_elems - 1) {
+      binary_in.read((char*)&bucket_a[idx], sizeof(bucket_a[idx]));
+      binary_in.read((char*)&bucket_c[idx], sizeof(bucket_c[idx]));
+      binary_in.read((char*)&idx, sizeof(idx));
+    }
+    // finally handle the level 0 bucket (num_elems - 1)
+    binary_in.read((char*)&bucket_a[idx], sizeof(bucket_a[idx]));
+    binary_in.read((char*)&bucket_c[idx], sizeof(bucket_c[idx]));
+  }
 }
 
 Sketch::Sketch(const Sketch& s) : seed(s.seed) {
