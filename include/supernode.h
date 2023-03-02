@@ -16,7 +16,7 @@ enum SerialType {
  * box without needing to worry about implementing l_0.
  */
 class Supernode {
-  static size_t num_sketches;
+  static size_t max_sketches;
   static size_t bytes_size; // the size of a super-node in bytes including the sketches
   static size_t serialized_size; // the size of a supernode that has been serialized
   size_t sample_idx;
@@ -35,6 +35,7 @@ public:
   const uint64_t seed; // for creating a copy
   
 private:
+  size_t num_sketches;
   size_t sketch_size;
 
   /* collection of logn sketches to query from, since we can't query from one
@@ -87,9 +88,9 @@ public:
 
   static inline void configure(uint64_t n, vec_t sketch_fail_factor=100) {
     Sketch::configure(n*n, sketch_fail_factor);
-    num_sketches = log2(n)/(log2(3)-1);
-    bytes_size = sizeof(Supernode) + num_sketches * Sketch::sketchSizeof();
-    serialized_size = num_sketches * Sketch::serialized_size();
+    max_sketches = log2(n)/(log2(3)-1);
+    bytes_size = sizeof(Supernode) + max_sketches * Sketch::sketchSizeof();
+    serialized_size = max_sketches * Sketch::serialized_size();
   }
 
   static inline size_t get_size() {
@@ -105,11 +106,14 @@ public:
     return sketch_size;
   }
 
-  // return the number of sketches held in by a Supernode
-  static int get_num_sktch() { return num_sketches; };
+  // return the maximum number of sketches held in by a Supernode
+  // most Supernodes will hold this many sketches
+  static int get_max_sketches() { return max_sketches; };
+
+  int get_num_sketches() { return num_sketches; }
 
   inline bool out_of_queries() {
-    return sample_idx == num_sketches;
+    return sample_idx >= num_sketches;
   }
 
   inline int curr_idx() {

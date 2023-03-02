@@ -8,6 +8,7 @@
 #include <random>
 #include <thread>
 #include <vector>
+#include <sstream>
 
 #include "binary_graph_stream.h"
 #include "bucket.h"
@@ -259,6 +260,44 @@ static void BM_Supernode_Merge(benchmark::State& state) {
   free(s2);
 }
 BENCHMARK(BM_Supernode_Merge)->RangeMultiplier(10)->Range(1e3, 1e6);
+
+static void BM_Supernode_Serialize(benchmark::State& state) {
+  size_t n = state.range(0);
+  size_t upds = n / 100;
+  Supernode::configure(n);
+  Supernode* s1 = Supernode::makeSupernode(n, seed);
+
+  for (size_t i = 0; i < upds; i++) {
+    s1->update(static_cast<vec_t>(concat_pairing_fn(rand() % n, rand() % n)));
+  }
+
+  for (auto _ : state) {
+    std::stringstream stream;
+    s1->write_binary(stream);
+  }
+
+  free(s1);
+}
+BENCHMARK(BM_Supernode_Serialize)->RangeMultiplier(10)->Range(1e3, 1e6);
+
+static void BM_Supernode_Sparse_Serialize(benchmark::State& state) {
+  size_t n = state.range(0);
+  size_t upds = n / 100;
+  Supernode::configure(n);
+  Supernode* s1 = Supernode::makeSupernode(n, seed);
+
+  for (size_t i = 0; i < upds; i++) {
+    s1->update(static_cast<vec_t>(concat_pairing_fn(rand() % n, rand() % n)));
+  }
+
+  for (auto _ : state) {
+    std::stringstream stream;
+    s1->write_binary(stream, true);
+  }
+
+  free(s1);
+}
+BENCHMARK(BM_Supernode_Sparse_Serialize)->RangeMultiplier(10)->Range(1e3, 1e6);
 
 // Benchmark speed of DSU merges when the sequence of merges is adversarial
 // This means we avoid joining roots wherever possible

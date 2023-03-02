@@ -56,7 +56,7 @@ TEST_F(SupernodeTestSuite, GIVENnoEdgeUpdatesIFsampledTHENnoEdgeIsReturned) {
 
 TEST_F(SupernodeTestSuite, IFsampledTooManyTimesTHENthrowOutOfQueries) {
   Supernode* s = Supernode::makeSupernode(num_nodes, seed);
-  for (int i = 0; i < s->get_num_sktch(); ++i) {
+  for (int i = 0; i < Supernode::get_max_sketches(); ++i) {
     s->sample();
   }
   ASSERT_THROW(s->sample(), OutOfQueriesException);
@@ -79,7 +79,7 @@ TEST_F(SupernodeTestSuite, TestSampleInsertGrinder) {
 
   Edge sampled;
   for (unsigned i = 2; i < num_nodes; ++i) {
-    for (int j = 0; j < (int)snodes[i]->get_num_sktch(); ++j) {
+    for (int j = 0; j < (int)Supernode::get_max_sketches(); ++j) {
       std::pair<Edge, SampleSketchRet> sample_ret = snodes[i]->sample();
       sampled = sample_ret.first;
       SampleSketchRet ret_code = sample_ret.second;
@@ -124,7 +124,7 @@ TEST_F(SupernodeTestSuite, TestSampleDeleteGrinder) {
 
   Edge sampled;
   for (unsigned i = 2; i < num_nodes; ++i) {
-    for (int j = 0; j < (int)snodes[i]->get_num_sktch(); ++j) {
+    for (int j = 0; j < (int)Supernode::get_max_sketches(); ++j) {
       std::pair<Edge, SampleSketchRet> sample_ret = snodes[i]->sample();
       sampled = sample_ret.first;
       SampleSketchRet ret_code = sample_ret.second;
@@ -183,9 +183,9 @@ TEST_F(SupernodeTestSuite, TestBatchUpdate) {
                    .count()
             << std::endl;
 
-  ASSERT_EQ(supernode->get_num_sktch(), supernode_batch->get_num_sktch());
+  ASSERT_EQ(supernode->get_num_sketches(), supernode_batch->get_num_sketches());
   ASSERT_EQ(supernode->sample_idx, supernode_batch->sample_idx);
-  for (int i = 0; i < supernode->get_num_sktch(); ++i) {
+  for (int i = 0; i < supernode->get_num_sketches(); ++i) {
     ASSERT_EQ(*supernode->get_sketch(i), *supernode_batch->get_sketch(i));
   }
 }
@@ -228,7 +228,7 @@ TEST_F(SupernodeTestSuite, TestConcurrency) {
     thd[i].join();
   }
 
-  for (int i = 0; i < supernode->get_num_sktch(); ++i) {
+  for (int i = 0; i < Supernode::get_max_sketches(); ++i) {
     ASSERT_EQ(*supernode->get_sketch(i), *piecemeal->get_sketch(i));
   }
 }
@@ -254,7 +254,7 @@ TEST_F(SupernodeTestSuite, TestSerialization) {
 
   Supernode* reheated = Supernode::makeSupernode(num_nodes, seed, in_file);
 
-  for (int i = 0; i < snodes[num_nodes / 2]->get_num_sktch(); ++i) {
+  for (int i = 0; i < Supernode::get_max_sketches(); ++i) {
     ASSERT_EQ(*snodes[num_nodes / 2]->get_sketch(i), *reheated->get_sketch(i));
   }
 }
@@ -303,9 +303,9 @@ TEST_F(SupernodeTestSuite, TestPartialSparseSerialization) {
       ++dst;
     s_node->update(concat_pairing_fn(src, dst));
   }
-  
-  for (int beg = 0; beg < s_node->get_num_sktch() / 4; beg++) {
-    for (int num = s_node->get_num_sktch() - beg; num > 3 * s_node->get_num_sktch() / 4; num--) {
+  int sketches = Supernode::get_max_sketches();
+  for (int beg = 0; beg < sketches / 4; beg++) {
+    for (int num = sketches - beg; num > 3 * sketches / 4; num--) {
       auto file = std::fstream("./out_supernode.txt", std::ios::out | std::ios::binary);
       s_node->write_binary_range(file, beg, num, true);
       file.close();
@@ -320,7 +320,7 @@ TEST_F(SupernodeTestSuite, TestPartialSparseSerialization) {
       for (int j = beg; j < beg + num; ++j) {
         ASSERT_EQ(*reheated->get_sketch(j), *s_node->get_sketch(j));
       }
-      for (int j = beg + num; j < s_node->get_num_sktch(); ++j) {
+      for (int j = beg + num; j < sketches; ++j) {
         ASSERT_EQ(*reheated->get_sketch(j), *empty_node->get_sketch(j));
       }
       free(reheated);

@@ -3,12 +3,12 @@
 #include "../include/supernode.h"
 #include "../include/graph_worker.h"
 
-size_t Supernode::num_sketches;
+size_t Supernode::max_sketches;
 size_t Supernode::bytes_size;
 size_t Supernode::serialized_size;
 
 Supernode::Supernode(uint64_t n, uint64_t seed): sample_idx(0),
-               n(n), seed(seed), sketch_size(Sketch::sketchSizeof()) {
+               n(n), seed(seed), num_sketches(max_sketches), sketch_size(Sketch::sketchSizeof()) {
 
   size_t sketch_width = guess_gen(Sketch::get_failure_factor());
   // generate num_sketches sketches for each supernode (read: node)
@@ -27,7 +27,7 @@ Supernode::Supernode(uint64_t n, uint64_t seed, std::istream &binary_in) :
   binary_in.read((char*) &type, sizeof(SerialType));
 
   uint32_t beg = 0;
-  uint32_t num = num_sketches;
+  uint32_t num = max_sketches;
   bool sparse = false;
   if (type == PARTIAL) {
     binary_in.read((char*) &beg, sizeof(beg));
@@ -38,23 +38,28 @@ Supernode::Supernode(uint64_t n, uint64_t seed, std::istream &binary_in) :
     binary_in.read((char*) &num, sizeof(num));
     sparse = true;
   }
-  // read num_sketches sketches from file for each supernode (read: node)
+  num_sketches = num;
+  sample_idx = beg;
+
+  // create empty sketches, if any
   for (size_t i = 0; i < beg; ++i) {
     Sketch::makeSketch(get_sketch(i), seed);
     seed += sketch_width;
   }
+  // build sketches from serialized data
   for (size_t i = beg; i < beg + num; ++i) {
     Sketch::makeSketch(get_sketch(i), seed, binary_in, sparse);
     seed += sketch_width;
   }
-  for (size_t i = beg + num; i < num_sketches; ++i) {
+  // create empty sketches at end, if any
+  for (size_t i = beg + num; i < max_sketches; ++i) {
     Sketch::makeSketch(get_sketch(i), seed);
     seed += sketch_width;
   }
 }
 
 Supernode::Supernode(const Supernode& s) : sample_idx(s.sample_idx), n(s.n),
-    seed(s.seed), sketch_size(s.sketch_size) {
+    seed(s.seed), num_sketches(s.num_sketches), sketch_size(s.sketch_size) {
   for (size_t i = 0; i < num_sketches; ++i) {
     Sketch::makeSketch(get_sketch(i), *s.get_sketch(i));
   }
