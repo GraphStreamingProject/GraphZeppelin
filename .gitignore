@@ -62,3 +62,6 @@ test/statistical_testing/stat_config.txt
 # Python stuff for statistical testing
 *__pycache__/
 *test_env/
+
+# Dataset files
+/datasets

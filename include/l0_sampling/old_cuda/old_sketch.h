@@ -7,12 +7,11 @@
 #include <memory>
 #include <mutex>
 #include <utility>
+#include "./cudaSketch.cuh"
 #include "../bucket.h"
 #include "../types.h"
 #include "../util.h"
 #include <gtest/gtest_prod.h>
-
-#include "../../src/cuda_library.cu"
 
 // max number of non-zeroes in vector is n/2*n/2=n^2/4
 #define guess_gen(x) double_to_ull(log2(x) - 2)
@@ -40,17 +39,16 @@ private:
   // Seed used for hashing operations in this sketch.
   const uint64_t seed;
   // pointers to buckets
-  vec_t*      bucket_a;
-  vec_hash_t* bucket_c;
+  vec_t      *h_bucket_a, *d_bucket_a, *h_bucket_debug, *d_bucket_debug;
+  vec_hash_t *h_bucket_c, *d_bucket_c;
+  col_hash_t *d_col_index_hash;
 
   // Flag to keep track if this sketch has already been queried.
   bool already_queried = false;
 
   FRIEND_TEST(SketchTestSuite, TestExceptions);
-  FRIEND_TEST(CUDASketchTestSuite, TestExceptions);
   FRIEND_TEST(EXPR_Parallelism, N10kU100k);
 
-  
   // Buckets of this sketch.
   // Length is bucket_gen(failure_factor) * guess_gen(n).
   // For buckets[i * guess_gen(n) + j], the bucket has a 1/2^j probability
@@ -61,6 +59,8 @@ private:
   Sketch(uint64_t seed);
   Sketch(uint64_t seed, std::istream &binary_in);
   Sketch(const Sketch& s);
+
+  bool printed = false;
 
 public:
   /**
@@ -84,7 +84,8 @@ public:
   
   /* configure the static variables of sketches
    * @param n               Length of the vector to sketch. (static variable)
-   * @param failure_factor  The rate at which an uint64_t
+   * @param failure_factor  The rate at which an individual sketch is allowed to fail (determines column width)
+   * @return nothing
    */
   inline static void configure(vec_t _n, vec_t _factor) {
     n = _n;
@@ -100,29 +101,8 @@ public:
   inline static vec_t get_failure_factor() 
   { return failure_factor; }
 
-  inline static vec_t get_num_elems() 
-  { return num_elems; }
-
-  inline static size_t get_num_buckets() 
-  { return num_buckets; }
-
-  inline static size_t get_num_guesses() 
-  { return num_guesses; }
-
   inline void reset_queried() 
   { already_queried = false; }
-
-  inline uint64_t get_seed() {
-    return seed;
-  }
-
-  inline vec_t* get_bucket_a() {
-    return bucket_a;
-  }
-
-  inline vec_hash_t* get_bucket_c() {
-    return bucket_c;
-  }
 
   /**
    * Update a sketch based on information about one of its indices.

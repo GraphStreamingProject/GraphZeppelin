@@ -2,6 +2,7 @@
 #include <vector>
 #include <xxhash.h>
 #include "types.h"
+#include <iostream>
 
 namespace Bucket_Boruvka {
   /**

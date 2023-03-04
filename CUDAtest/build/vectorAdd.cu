@@ -6,6 +6,8 @@
 #include <iostream>
 #include <vector>
 
+__device__ int mutex = 0;
+
 // CUDA kernel for vector addition
 // __global__ means this is called from the CPU, and runs on the GPU
 __global__ void vectorAdd(const int *__restrict a, const int *__restrict b,
@@ -14,7 +16,18 @@ __global__ void vectorAdd(const int *__restrict a, const int *__restrict b,
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
 
   // Boundary check
-  if (tid < N) c[tid] = a[tid] + b[tid];
+  if (tid < N) {
+
+    bool blocked = true; 
+
+    while(blocked) {
+      if(0 == (atomicCAS(&mutex, 0, 1))) {
+        c[tid] = a[tid] + b[tid];
+        atomicExch(&mutex, 0);
+        break;
+      }
+    }
+  }
 }
 
 // Check vector add result
@@ -27,7 +40,7 @@ void verify_result(std::vector<int> &a, std::vector<int> &b,
 
 int main() {
   // Array size of 2^16 (65536 elements)
-  constexpr int N = 1 << 16;
+  constexpr int N = 10;
   constexpr size_t bytes = sizeof(int) * N;
 
   // Vectors for holding the host-side (CPU-side) data
@@ -40,19 +53,22 @@ int main() {
 
   // Initialize random numbers in each array
   for (int i = 0; i < N; i++) {
-    a.push_back(rand() % 100);
-    b.push_back(rand() % 100);
+    a.push_back(1);
+    b.push_back(2);
   }
 
   // Allocate memory on the device
   int *d_a, *d_b, *d_c;
+  //int *mutex;
   cudaMalloc(&d_a, bytes);
   cudaMalloc(&d_b, bytes);
   cudaMalloc(&d_c, bytes);
+  //cudaMallocManaged(&mutex, sizeof(int));
 
   // Copy data from the host to the device (CPU -> GPU)
   cudaMemcpy(d_a, a.data(), bytes, cudaMemcpyHostToDevice);
   cudaMemcpy(d_b, b.data(), bytes, cudaMemcpyHostToDevice);
+  //mutex[0] = 0;
 
   // Threads per CTA (1024)
   int NUM_THREADS = 1 << 10;

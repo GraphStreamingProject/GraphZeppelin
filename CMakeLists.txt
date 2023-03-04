@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 
+
 # Make the default build type Release. If user or another
 # project sets a different value than use that
 if(NOT CMAKE_BUILD_TYPE)
@@ -92,10 +93,7 @@ set(BUILD_SHARED_LIBS "${SAVED_BUILD_SHARED_LIBS}" CACHE BOOL "" FORCE)
 #                    algorithm to verify post-processing.
 # USE_EAGER_DSU      Use the eager DSU query optimization if this flag is present.
 
-add_library(cudaSketch src/l0_sampling/cudaSketch.cu)
-add_dependencies(cudaSketch GutterTree)
-target_link_libraries(cudaSketch PUBLIC xxhash GutterTree)
-target_include_directories(cudaSketch PUBLIC include/ include/l0_sampling/)
+add_library(CudaLibrary src/cuda_library.cu)
 
 add_library(GraphZeppelin
   src/graph.cpp
@@ -106,7 +104,7 @@ add_library(GraphZeppelin
   src/l0_sampling/update.cpp
   src/util.cpp)
 add_dependencies(GraphZeppelin GutterTree)
-target_link_libraries(GraphZeppelin PUBLIC xxhash GutterTree cudaSketch)
+target_link_libraries(GraphZeppelin PUBLIC xxhash GutterTree CudaLibrary)
 target_include_directories(GraphZeppelin PUBLIC include/ include/l0_sampling/)
 target_compile_options(GraphZeppelin PUBLIC -fopenmp)
 target_link_options(GraphZeppelin PUBLIC -fopenmp)
@@ -123,11 +121,42 @@ add_library(GraphZeppelinVerifyCC
   test/util/file_graph_verifier.cpp
   test/util/mat_graph_verifier.cpp)
 add_dependencies(GraphZeppelinVerifyCC GutterTree)
-target_link_libraries(GraphZeppelinVerifyCC PUBLIC xxhash GutterTree cudaSketch)
+target_link_libraries(GraphZeppelinVerifyCC PUBLIC xxhash GutterTree CudaLibrary)
 target_include_directories(GraphZeppelinVerifyCC PUBLIC include/ include/l0_sampling/ include/test/)
 target_compile_options(GraphZeppelinVerifyCC PUBLIC -fopenmp)
 target_link_options(GraphZeppelinVerifyCC PUBLIC -fopenmp)
 target_compile_definitions(GraphZeppelinVerifyCC PUBLIC XXH_INLINE_ALL VERIFY_SAMPLES_F USE_EAGER_DSU)
+
+add_library(GraphZeppelinCUDA
+  src/cuda_kernel.cu
+  src/graph.cpp
+  src/graph_configuration.cpp
+  src/supernode.cpp
+  src/graph_worker.cpp
+  src/l0_sampling/sketch.cpp
+  src/l0_sampling/update.cpp
+  src/util.cpp)
+add_dependencies(GraphZeppelinCUDA GutterTree)
+target_link_libraries(GraphZeppelinCUDA PUBLIC xxhash GutterTree CudaLibrary)
+target_include_directories(GraphZeppelinCUDA PUBLIC include/ include/l0_sampling/)
+target_compile_definitions(GraphZeppelinCUDA PUBLIC XH_INLINE_ALL USE_EAGER_DSU)
+
+add_library(GraphZeppelinVerifyCUDA
+  src/cuda_kernel.cu
+  src/graph.cpp
+  src/graph_configuration.cpp
+  src/supernode.cpp
+  src/graph_worker.cpp
+  src/l0_sampling/sketch.cpp
+  src/l0_sampling/update.cpp
+  src/util.cpp
+  test/util/file_graph_verifier.cpp
+  test/util/mat_graph_verifier.cpp)
+add_dependencies(GraphZeppelinVerifyCUDA GutterTree)
+target_link_libraries(GraphZeppelinVerifyCUDA PUBLIC xxhash GutterTree CudaLibrary)
+target_include_directories(GraphZeppelinVerifyCUDA PUBLIC include/ include/l0_sampling/ include/test/)
+target_compile_definitions(GraphZeppelinVerifyCUDA PUBLIC XH_INLINE_ALL USE_EAGER_DSU)
+
 
 if (BUILD_EXE)
   add_executable(tests
@@ -172,6 +201,20 @@ if (BUILD_EXE)
   add_executable(process_stream
     tools/process_stream.cpp)
   target_link_libraries(process_stream PRIVATE GraphZeppelin)
+
+  # executable for processing a binary graph stream for CUDA
+  add_executable(cuda_process_stream
+    tools/cuda_process_stream.cu)
+  target_link_libraries(cuda_process_stream PRIVATE GraphZeppelinCUDA)
+
+  add_executable(xxhash_test
+    test/xxhash_test.cu)
+  target_link_libraries(xxhash_test PRIVATE GraphZeppelinCUDA)
+
+  add_executable(cuda_sketch_test
+    test/cuda_sketch_test.cu)
+  add_dependencies(cuda_sketch_test GraphZeppelinVerifyCUDA)
+  target_link_libraries(cuda_sketch_test PRIVATE GraphZeppelinVerifyCUDA)
 
   # tool for validating that a binary stream appears correct  
   add_executable(validate_binary_stream

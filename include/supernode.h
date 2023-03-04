@@ -53,14 +53,14 @@ private:
   Supernode(const Supernode& s);
 
   // get the ith sketch in the sketch array
-  inline Sketch* get_sketch(size_t i) {
+  /*inline Sketch* get_sketch(size_t i) {
     return reinterpret_cast<Sketch*>(sketch_buffer + i * sketch_size);
   }
 
   // version of above for const supernode objects
   inline const Sketch* get_sketch(size_t i) const {
     return reinterpret_cast<const Sketch*>(sketch_buffer + i * sketch_size);
-  }
+  }*/
 
 public:
   /**
@@ -164,6 +164,19 @@ public:
    * @param out the stream to write to.
    */
   void write_binary(std::ostream &binary_out);
+
+  /*
+   * Made get_sketch() functions to be public for cuda_process_stream.cu
+  */
+  // get the ith sketch in the sketch array
+  inline Sketch* get_sketch(size_t i) {
+    return reinterpret_cast<Sketch*>(sketch_buffer + i * sketch_size);
+  }
+
+  // version of above for const supernode objects
+  inline const Sketch* get_sketch(size_t i) const {
+    return reinterpret_cast<const Sketch*>(sketch_buffer + i * sketch_size);
+  }
 };
 
 

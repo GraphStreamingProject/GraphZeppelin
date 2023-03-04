@@ -124,6 +124,10 @@ public:
 
   virtual ~Graph();
 
+  Supernode** getSupernodes() {
+    return supernodes;
+  }
+
   inline void update(GraphUpdate upd, int thr_id = 0) {
     if (update_locked) throw UpdateLockedException();
     Edge &edge = upd.first;
