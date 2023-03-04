@@ -62,6 +62,20 @@ TEST_F(SupernodeTestSuite, IFsampledTooManyTimesTHENthrowOutOfQueries) {
   ASSERT_THROW(s->sample(), OutOfQueriesException);
 }
 
+TEST_F(SupernodeTestSuite, SketchesHaveUniqueSeeds) {
+  Supernode* s = Supernode::makeSupernode(num_nodes, seed);
+  std::set<size_t> seeds;
+
+  for (int i = 0; i < Supernode::get_max_sketches(); ++i) {
+    Sketch* sketch = s->get_sketch(i);
+    for (size_t i = 0; i < sketch->get_columns(); i++) {
+      size_t seed = sketch->column_seed(i);
+      ASSERT_EQ(seeds.count(seed), 0);
+      seeds.insert(seed);
+    }
+  }
+}
+
 TEST_F(SupernodeTestSuite, TestSampleInsertGrinder) {
   std::vector<Supernode*> snodes;
   snodes.reserve(num_nodes);
@@ -183,9 +197,9 @@ TEST_F(SupernodeTestSuite, TestBatchUpdate) {
                    .count()
             << std::endl;
 
-  ASSERT_EQ(supernode->get_num_sketches(), supernode_batch->get_num_sketches());
+  ASSERT_EQ(supernode->samples_remaining(), supernode_batch->samples_remaining());
   ASSERT_EQ(supernode->sample_idx, supernode_batch->sample_idx);
-  for (int i = 0; i < supernode->get_num_sketches(); ++i) {
+  for (int i = 0; i < supernode->samples_remaining(); ++i) {
     ASSERT_EQ(*supernode->get_sketch(i), *supernode_batch->get_sketch(i));
   }
 }

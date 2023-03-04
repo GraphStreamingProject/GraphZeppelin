@@ -193,7 +193,7 @@ static void BM_Sketch_Update(benchmark::State& state) {
   size_t vec_size = state.range(0);
   vec_t input = vec_size / 3;
   // initialize sketches
-  Sketch::configure(vec_size, 100);
+  Sketch::configure(vec_size, Supernode::default_fail_factor);
   SketchUniquePtr skt = makeSketch(seed);
 
   // Test the speed of updating the sketches
@@ -203,7 +203,7 @@ static void BM_Sketch_Update(benchmark::State& state) {
   }
   state.counters["Updates"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
   state.counters["Hashes"] =
-      benchmark::Counter(state.iterations() * (bucket_gen(100) + 1), benchmark::Counter::kIsRate);
+      benchmark::Counter(state.iterations() * (Sketch::get_columns() + 1), benchmark::Counter::kIsRate);
 }
 BENCHMARK(BM_Sketch_Update)->RangeMultiplier(4)->Ranges({{KB << 4, MB << 4}});
 

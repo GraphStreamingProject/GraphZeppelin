@@ -14,10 +14,6 @@
 #include "../util.h"
 #include "bucket.h"
 
-// max number of non-zeroes in vector is n/2*n/2=n^2/4
-#define guess_gen(x) double_to_ull(log2(x) - 2)
-#define bucket_gen(d) double_to_ull((log2(d) + 1))
-
 enum SampleSketchRet {
   GOOD,  // querying this sketch returned a single non-zero value
   ZERO,  // querying this sketch returned that there are no non-zero values
@@ -52,7 +48,7 @@ class Sketch {
   FRIEND_TEST(EXPR_Parallelism, N10kU100k);
 
   // Buckets of this sketch.
-  // Length is bucket_gen(failure_factor) * guess_gen(n).
+  // Length is column_gen(failure_factor) * guess_gen(n).
   // For buckets[i * guess_gen(n) + j], the bucket has a 1/2^j probability
   // of containing an index. The first two are pointers into the buckets array.
   alignas(vec_t) char buckets[];
@@ -92,7 +88,7 @@ class Sketch {
   inline static void configure(vec_t _n, vec_t _factor) {
     n = _n;
     failure_factor = _factor;
-    num_columns = bucket_gen(failure_factor);
+    num_columns = column_gen(failure_factor);
     num_guesses = guess_gen(n);
     num_elems = num_columns * num_guesses + 1;  // +1 for zero bucket optimization
   }
@@ -109,6 +105,8 @@ class Sketch {
   inline static vec_t get_failure_factor() { return failure_factor; }
 
   inline void reset_queried() { already_queried = false; }
+
+  inline static size_t get_columns() { return num_columns; }
 
   /**
    * Update a sketch based on information about one of its indices.
@@ -135,6 +133,8 @@ class Sketch {
   std::pair<std::vector<vec_t>, SampleSketchRet> exhaustive_query();
 
   inline uint64_t get_seed() const { return seed; }
+  inline size_t column_seed(size_t column_idx) const { return seed + column_idx*5; }
+  inline size_t checksum_seed() const { return seed; }
 
   /**
    * Operator to add a sketch to another one in-place. Guaranteed to be
@@ -163,6 +163,11 @@ class Sketch {
    */
   void write_sparse_binary(std::ostream& binary_out);
   void write_sparse_binary(std::ostream& binary_out) const;
+
+
+  // max number of non-zeroes in vector is n/2*n/2=n^2/4
+  static size_t guess_gen(size_t x) { return double_to_ull(log2(x) - 2); }
+  static size_t column_gen(size_t d) { return double_to_ull((log2(d) + 1)); }
 };
 
 class MultipleQueryException : public std::exception {

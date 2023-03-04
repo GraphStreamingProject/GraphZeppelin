@@ -73,14 +73,14 @@ Sketch::Sketch(const Sketch& s) : seed(s.seed) {
 }
 
 void Sketch::update(const vec_t update_idx) {
-  vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update_idx, seed);
+  vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update_idx, checksum_seed());
   
   // Update depth 0 bucket
   Bucket_Boruvka::update(bucket_a[num_elems - 1], bucket_c[num_elems - 1], update_idx, checksum);
 
   // Update higher depth buckets
   for (unsigned i = 0; i < num_columns; ++i) {
-    col_hash_t depth = Bucket_Boruvka::get_index_depth(update_idx, seed + i, num_guesses);
+    col_hash_t depth = Bucket_Boruvka::get_index_depth(update_idx, column_seed(i), num_guesses);
     size_t bucket_id = i * num_guesses + depth;
     likely_if(depth < num_guesses)
       Bucket_Boruvka::update(bucket_a[bucket_id], bucket_c[bucket_id], update_idx, checksum);
@@ -102,13 +102,13 @@ std::pair<vec_t, SampleSketchRet> Sketch::query() {
   if (bucket_a[num_elems - 1] == 0 && bucket_c[num_elems - 1] == 0)
     return {0, ZERO}; // the "first" bucket is deterministic so if all zero then no edges to return
 
-  if (Bucket_Boruvka::is_good(bucket_a[num_elems - 1], bucket_c[num_elems - 1], seed))
+  if (Bucket_Boruvka::is_good(bucket_a[num_elems - 1], bucket_c[num_elems - 1], checksum_seed()))
     return {bucket_a[num_elems - 1], GOOD};
 
   for (unsigned i = 0; i < num_columns; ++i) {
     for (unsigned j = 0; j < num_guesses; ++j) {
       unsigned bucket_id = i * num_guesses + j;
-      if (Bucket_Boruvka::is_good(bucket_a[bucket_id], bucket_c[bucket_id], seed))
+      if (Bucket_Boruvka::is_good(bucket_a[bucket_id], bucket_c[bucket_id], checksum_seed()))
         return {bucket_a[bucket_id], GOOD};
     }
   }
@@ -121,14 +121,16 @@ std::pair<std::vector<vec_t>, SampleSketchRet> Sketch::exhaustive_query() {
   unlikely_if (bucket_a[num_elems - 1] == 0 && bucket_c[num_elems - 1] == 0)
     return {ret, ZERO}; // the "first" bucket is deterministic so if zero then no edges to return
 
-  unlikely_if (Bucket_Boruvka::is_good(bucket_a[num_elems - 1], bucket_c[num_elems - 1], seed)) {
+  unlikely_if (
+  Bucket_Boruvka::is_good(bucket_a[num_elems - 1], bucket_c[num_elems - 1], checksum_seed())) {
     ret.push_back(bucket_a[num_elems - 1]);
     return {ret, GOOD};
   }
   for (unsigned i = 0; i < num_columns; ++i) {
     for (unsigned j = 0; j < num_guesses; ++j) {
       unsigned bucket_id = i * num_guesses + j;
-      unlikely_if (Bucket_Boruvka::is_good(bucket_a[bucket_id], bucket_c[bucket_id], seed)) {
+      unlikely_if (
+      Bucket_Boruvka::is_good(bucket_a[bucket_id], bucket_c[bucket_id], checksum_seed())) {
         ret.push_back(bucket_a[bucket_id]);
         update(bucket_a[bucket_id]);
       }
@@ -173,7 +175,7 @@ bool operator== (const Sketch &sketch1, const Sketch &sketch2) {
 std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
   vec_t a      = sketch.bucket_a[Sketch::num_elems - 1];
   vec_hash_t c = sketch.bucket_c[Sketch::num_elems - 1];
-  bool good    = Bucket_Boruvka::is_good(a, c, sketch.seed);
+  bool good    = Bucket_Boruvka::is_good(a, c, sketch.checksum_seed());
 
   os << " a:" << a << " c:" << c << (good ? " good" : " bad") << std::endl;
 
@@ -182,7 +184,7 @@ std::ostream& operator<< (std::ostream &os, const Sketch &sketch) {
       unsigned bucket_id = i * Sketch::num_guesses + j;
       vec_t a      = sketch.bucket_a[bucket_id];
       vec_hash_t c = sketch.bucket_c[bucket_id];
-      bool good    = Bucket_Boruvka::is_good(a, c, sketch.seed);
+      bool good    = Bucket_Boruvka::is_good(a, c, sketch.checksum_seed());
 
       os << " a:" << a << " c:" << c << (good ? " good" : " bad") << std::endl;
     }

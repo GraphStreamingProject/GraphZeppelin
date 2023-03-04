@@ -18,10 +18,10 @@ TEST(SketchTestSuite, TestExceptions) {
   Sketch::configure(10000, fail_factor);
   SketchUniquePtr sketch2 = makeSketch(0);
   std::vector<bool> vec_idx(sketch2->n, true);
-  unsigned long long num_buckets = bucket_gen(fail_factor);
-  unsigned long long num_guesses = guess_gen(sketch2->n);
+  unsigned long long num_columns = Sketch::column_gen(fail_factor);
+  unsigned long long num_guesses = Sketch::guess_gen(sketch2->n);
   size_t total_updates = 2;
-  for (unsigned long long i = 0; i < num_buckets;) {
+  for (unsigned long long i = 0; i < num_columns;) {
     size_t depth_1_updates = 0;
     size_t k = 0;
     size_t u = 0;
@@ -31,7 +31,7 @@ TEST(SketchTestSuite, TestExceptions) {
         continue;
       }
 
-      col_hash_t depth = Bucket_Boruvka::get_index_depth(k, sketch2->seed + i, num_guesses);
+      col_hash_t depth = Bucket_Boruvka::get_index_depth(k, sketch2->column_seed(i), num_guesses);
       if (depth >= 2) {
         vec_idx[k] = false; // force all updates to only touch depths <= 1
         i = 0;

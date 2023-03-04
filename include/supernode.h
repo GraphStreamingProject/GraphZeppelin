@@ -26,6 +26,7 @@ class Supernode {
   FRIEND_TEST(SupernodeTestSuite, TestConcurrency);
   FRIEND_TEST(SupernodeTestSuite, TestSerialization);
   FRIEND_TEST(SupernodeTestSuite, TestPartialSparseSerialization);
+  FRIEND_TEST(SupernodeTestSuite, SketchesHaveUniqueSeeds);
   FRIEND_TEST(GraphTestSuite, TestCorrectnessOfReheating);
   FRIEND_TEST(GraphTest, TestSupernodeRestoreAfterCCFailure);
   FRIEND_TEST(EXPR_Parallelism, N10kU100k);
@@ -86,7 +87,7 @@ public:
 
   ~Supernode();
 
-  static inline void configure(uint64_t n, vec_t sketch_fail_factor=100) {
+  static inline void configure(uint64_t n, vec_t sketch_fail_factor=default_fail_factor) {
     Sketch::configure(n*n, sketch_fail_factor);
     max_sketches = log2(n)/(log2(3)-1);
     bytes_size = sizeof(Supernode) + max_sketches * Sketch::sketchSizeof();
@@ -110,7 +111,8 @@ public:
   // most Supernodes will hold this many sketches
   static int get_max_sketches() { return max_sketches; };
 
-  int get_num_sketches() { return num_sketches; }
+  // get number of samples remaining in the Supernode
+  int samples_remaining() { return num_sketches - sample_idx; }
 
   inline bool out_of_queries() {
     return sample_idx >= num_sketches;
@@ -199,6 +201,8 @@ public:
   void write_binary_range(std::ostream&binary_out, uint32_t beg, uint32_t num, bool sparse = false);
 
   // void write_sparse_binary_range(std::ostream&binary_out, uint32_t beg, uint32_t end);
+
+  static constexpr size_t default_fail_factor = 4;
 };
 
 
