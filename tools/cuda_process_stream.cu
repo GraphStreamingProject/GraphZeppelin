@@ -82,11 +82,6 @@ int main(int argc, char **argv) {
   // Update graph's num_updates value
   g.num_updates += num_updates * 2;
 
-  // Original updating implementation
-  /*for (size_t e = 0; e < num_updates; e++) {
-    g.update(stream.get_edge());
-  }*/
-
   auto cc_start = std::chrono::steady_clock::now();
   auto CC_num = g.connected_components().size();
   std::chrono::duration<double> insert_time = g.flush_end - ins_start;
