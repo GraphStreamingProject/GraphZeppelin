@@ -116,14 +116,57 @@ __global__ void sketch_update(int num_updates, vec_t* update_indexes, CudaSketch
 }
 
 // Kernel code of handling all the stream updates
-__global__ void stream_update(int* nodeUpdates, int num_updates, int num_nodes, vec_t* edgeUpdates, CudaSupernode* cudaSupernodes, int* debug) {
+__global__ void doubleStream_update(int* nodeUpdates, int num_updates, int num_nodes, vec_t* edgeUpdates, CudaSupernode* cudaSupernodes) {
 
   // Get thread id
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
 
-  // One thread will be responsible for one edge update = updating sketches on each endpoint nodes
+  // Two threads will be responsible for one edge update = one thread is only modifying one node's sketches.
+  if(tid < (num_updates * 2)) {
+
+    // Step 1: Get node based on tid.
+    const vec_t_cu node = nodeUpdates[tid];
+
+    // Step 2: Get number of sketches for current node.
+    int node_num_sketches = cudaSupernodes[node].num_sketches;
+
+    // Step 3: Update node's sketches
+    for (int i = 0; i < node_num_sketches; i++) {
+
+      CudaSketch curr_cudaSketch = cudaSupernodes[node].cudaSketches[i];
+      CudaSketch curr_deltaSketch = cudaSupernodes[node].deltaSketches[i];
+      size_t num_elems = curr_cudaSketch.num_elems;
+
+      // Get all the buckets from deltaSketch
+      vec_t_cu* deltaSketch_bucket_a = (vec_t_cu*)curr_deltaSketch.d_bucket_a;
+      vec_hash_t* deltaSketch_bucket_c = curr_deltaSketch.d_bucket_c;
+
+      vec_hash_t update_hash = bucket_index_hash(edgeUpdates[tid], curr_deltaSketch.seed);
+
+      bucket_update(deltaSketch_bucket_a[num_elems - 1], deltaSketch_bucket_c[num_elems - 1], edgeUpdates[tid], update_hash);
+
+      // Update node's deltaSketch
+      for (unsigned j = 0; j < curr_cudaSketch.num_buckets; ++j) {
+        col_hash_t col_index_hash = bucket_col_index_hash(edgeUpdates[tid], curr_deltaSketch.seed + j);
+        for (unsigned k = 0; k < curr_cudaSketch.num_guesses; ++k) {
+          unsigned bucket_id = j * curr_cudaSketch.num_guesses + k;
+          if (bucket_contains(col_index_hash, ((col_hash_t)1) << k)){
+            bucket_update(deltaSketch_bucket_a[bucket_id], deltaSketch_bucket_c[bucket_id], edgeUpdates[tid], update_hash);
+          } else break;
+        }
+      }
+    }
+  }
+}
+
+// Kernel code of handling all the stream updates
+__global__ void singleStream_update(int* nodeUpdates, int num_updates, int num_nodes, vec_t* edgeUpdates, CudaSupernode* cudaSupernodes) {
+
+  // Get thread id
+  int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
+
+  // One thread will be responsible for one edge update = one thread is updating sketches on each endpoint nodes (2).
   if(tid < num_updates) {
-    debug[tid] = 1;
     // Step 1: Get two endpoint nodes based on tid.
     const vec_t_cu node1 = nodeUpdates[tid * 2];
     const vec_t_cu node2 = nodeUpdates[(tid * 2) + 1];
@@ -191,34 +234,30 @@ __global__ void stream_update(int* nodeUpdates, int num_updates, int num_nodes, 
 }
 
 // Function that calls sketch update kernel code.
-// This function can be called from other files.
 void sketchUpdate(int num_threads, int num_blocks, int num_updates, vec_t* update_indexes, CudaSketch* cudaSketches) {
   // Call kernel code
   sketch_update<<<num_blocks, num_threads>>>(num_updates, update_indexes, cudaSketches);
   cudaDeviceSynchronize();
 }
 
-// Function that calls stream update kernel code.
-// This function can be called from other files.
-void streamUpdate(int num_threads, int num_blocks, int *nodeUpdates, size_t num_updates, node_id_t num_nodes, vec_t *edgeUpdates, CudaSupernode* cudaSupernodes) {
 
-  int*  debug;
-  cudaMallocManaged(&debug, sizeof(int) * num_updates);
-  for(int i = 0; i < num_updates; i++) {
-    debug[i] = 0;
+// Function that calls stream update kernel code.
+void streamUpdate(int num_threads, int num_blocks, int *nodeUpdates, size_t num_updates, node_id_t num_nodes, vec_t *edgeUpdates, CudaSupernode* cudaSupernodes, int num_threads_per_update) {
+
+  if(num_threads_per_update == 1) { // Updating sketches with one thread per edge update
+    singleStream_update<<<num_blocks, num_threads>>>(nodeUpdates, num_updates, num_nodes, edgeUpdates, cudaSupernodes);
+    cudaDeviceSynchronize();
+  }
+  else if(num_threads_per_update == 2) { // Updating sketches with two thread per edge update
+    doubleStream_update<<<num_blocks, num_threads>>>(nodeUpdates, num_updates, num_nodes, edgeUpdates, cudaSupernodes);
+    cudaDeviceSynchronize();
+  }
+  else {
+    std::cout << "(cuda_kernel.cu) ERROR: Invalid number of threads per edge update. Must be 1 or 2." << std::endl;
+    return;
   }
 
-  // Call kernel code
-  stream_update<<<num_blocks, num_threads>>>(nodeUpdates, num_updates, num_nodes, edgeUpdates, cudaSupernodes, debug);
-  cudaDeviceSynchronize();
-
-  /*for(int i = 0; i < num_updates; i++) {
-    if(debug[i] != 1) {
-      std::cout << i << " ";
-    }
-  }*/
-
-  // Add all the supernodes' deltaSketch back to cudaSketch
+  // Add all the supernodes' deltaSketch back to cudaSketch (Temporary, can be changed in the future)
   for(int i = 0; i < num_nodes; i++) {
     for(int j = 0; j < cudaSupernodes[i].num_sketches; j++) {
       CudaSketch curr_cudaSketch = cudaSupernodes[i].cudaSketches[j];

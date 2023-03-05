@@ -6,15 +6,26 @@
 typedef std::pair<Edge, UpdateType> GraphUpdate;
 
 int main(int argc, char **argv) {
-  if (argc != 3) {
+  if (argc != 4) {
     std::cout << "ERROR: Incorrect number of arguments!" << std::endl;
-    std::cout << "Arguments: stream_file, graph_workers" << std::endl;
+    std::cout << "Arguments: stream_file, graph_workers, number of threads per edge update" << std::endl;
   }
 
   std::string stream_file = argv[1];
   int num_threads = std::atoi(argv[2]);
   if (num_threads < 1) {
     std::cout << "ERROR: Invalid number of graph workers! Must be > 0." << std::endl;
+  }
+
+  int num_threads_per_update = std::atoi(argv[3]);
+  if (num_threads_per_update == 1) {
+    std::cout << "Running with one thread for each edge update" << std::endl;
+  }
+  else if (num_threads_per_update == 2) {
+    std::cout << "Running with two threads for each edge update" << std::endl;
+  }
+  else {
+    std::cout << "ERROR: Invalid number of threads per edge update. Must be 1 or 2." << std::endl;
   }
 
   BinaryGraphStream stream(stream_file, 1024*32);
@@ -72,12 +83,20 @@ int main(int argc, char **argv) {
   int num_device_threads = 1 << 10;
   
   // Number of blocks
-  int num_device_blocks = (num_updates + num_device_threads - 1) / num_device_threads;
+  int num_device_blocks = 1;
+
+  if(num_threads_per_update == 1) {
+    num_device_blocks = (num_updates + num_device_threads - 1) / num_device_threads;
+  }
+  else { // Need twice number of total threads in grid
+    num_device_blocks = ((num_updates * 2) + num_device_threads - 1) / num_device_threads;
+  }
+
 
   auto ins_start = std::chrono::steady_clock::now();
 
   // Call kernel code
-  streamUpdate(num_device_threads, num_device_blocks, nodeUpdates, num_updates, num_nodes, edgeUpdates, cudaSupernodes);
+  streamUpdate(num_device_threads, num_device_blocks, nodeUpdates, num_updates, num_nodes, edgeUpdates, cudaSupernodes, num_threads_per_update);
 
   // Update graph's num_updates value
   g.num_updates += num_updates * 2;
