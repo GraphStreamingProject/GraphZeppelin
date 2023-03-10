@@ -103,7 +103,8 @@ std::pair<std::vector<Edge>, SampleSketchRet> Supernode::exhaustive_sample() {
 }
 
 void Supernode::merge(Supernode &other) {
-  sample_idx = std::min(sample_idx, other.sample_idx);
+  sample_idx = std::max(sample_idx, other.sample_idx);
+  num_sketches = std::min(num_sketches, other.num_sketches);
   for (size_t i=sample_idx;i<num_sketches;++i) {
     (*get_sketch(i))+=(*other.get_sketch(i));
   }
