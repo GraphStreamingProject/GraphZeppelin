@@ -15,6 +15,13 @@ class MatGraphVerifier : public GraphVerifier {
 
   node_id_t n;
   DisjointSetUnion<node_id_t> sets;
+
+  /**
+   * Runs Kruskal's (deterministic) CC algo.
+   * @param input_file the file to read input from.
+   * @return an array of connected components.
+   */
+  std::vector<std::set<node_id_t>> kruskal();
 public:
   MatGraphVerifier(node_id_t n);
 
@@ -28,11 +35,4 @@ public:
   void verify_edge(Edge edge);
   void verify_cc(node_id_t node);
   void verify_soln(std::vector<std::set<node_id_t>> &retval);
-
-  /**
-   * Runs Kruskal's (deterministic) CC algo.
-   * @param input_file the file to read input from.
-   * @return an array of connected components.
-   */
-  std::vector<std::set<node_id_t>> kruskal();
 };

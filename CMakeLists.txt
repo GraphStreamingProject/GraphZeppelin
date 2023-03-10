@@ -165,16 +165,6 @@ if (BUILD_EXE)
     tools/validate_binary_stream.cpp
   )
   target_link_libraries(validate_binary_stream PRIVATE GraphZeppelin)
-
-  add_executable(adj_matrix_graph_stream
-    test_adj_cc.cpp
-  )
-  target_link_libraries(adj_matrix_graph_stream PRIVATE GraphZeppelinVerifyCC)
-
-  add_executable(illegal_queries_exp
-    tools/test_sketch_pr.cpp
-  )
-  target_link_libraries(illegal_queries_exp PRIVATE GraphZeppelin)
 endif()
 
 if (BUILD_BENCH)

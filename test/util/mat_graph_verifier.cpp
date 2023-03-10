@@ -19,7 +19,7 @@ void MatGraphVerifier::edge_update(node_id_t src, node_id_t dst) {
   // update adj_matrix entry
   adj_matrix[src][dst] = !adj_matrix[src][dst];
 }
-
+  
 
 void MatGraphVerifier::reset_cc_state() {
   kruskal_ref = kruskal();
