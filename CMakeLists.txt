@@ -55,7 +55,7 @@ FetchContent_Declare(
   GutterTree
 
   GIT_REPOSITORY  https://github.com/GraphStreamingProject/GutterTree.git
-  GIT_TAG         3_cols
+  GIT_TAG         main
 )
 
 if (BUILD_BENCH)
