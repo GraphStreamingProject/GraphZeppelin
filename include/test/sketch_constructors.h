@@ -14,10 +14,10 @@ SketchUniquePtr makeSketch(long seed) {
   };
 }
 
-SketchUniquePtr makeSketch(long seed, std::fstream &binary_in) {
+SketchUniquePtr makeSketch(long seed, std::fstream &binary_in, bool sparse=false) {
   void* loc = malloc(Sketch::sketchSizeof());
   return {
-    Sketch::makeSketch(loc, seed, binary_in),
+    Sketch::makeSketch(loc, seed, binary_in, sparse),
     [](Sketch* s){ free(s); }
   };
 }

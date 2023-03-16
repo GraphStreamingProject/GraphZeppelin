@@ -14,10 +14,6 @@
 #include "../util.h"
 #include "bucket.h"
 
-// max number of non-zeroes in vector is n/2*n/2=n^2/4
-#define guess_gen(x) double_to_ull(log2(x) - 2)
-#define bucket_gen(d) double_to_ull((log2(d) + 1))
-
 enum SampleSketchRet {
   GOOD,  // querying this sketch returned a single non-zero value
   ZERO,  // querying this sketch returned that there are no non-zero values
@@ -34,7 +30,7 @@ class Sketch {
   static vec_t failure_factor;  // Pr(failure) = 1 / factor. Determines number of columns in sketch.
   static vec_t n;               // Length of the vector this is sketching.
   static size_t num_elems;      // length of our actual arrays in number of elements
-  static size_t num_buckets;    // Portion of array length, number of buckets
+  static size_t num_columns;    // Portion of array length, number of columns
   static size_t num_guesses;    // Portion of array length, number of guesses
 
   // Seed used for hashing operations in this sketch.
@@ -52,14 +48,14 @@ class Sketch {
   FRIEND_TEST(EXPR_Parallelism, N10kU100k);
 
   // Buckets of this sketch.
-  // Length is bucket_gen(failure_factor) * guess_gen(n).
+  // Length is column_gen(failure_factor) * guess_gen(n).
   // For buckets[i * guess_gen(n) + j], the bucket has a 1/2^j probability
   // of containing an index. The first two are pointers into the buckets array.
   alignas(vec_t) char buckets[];
 
   // private constructors -- use makeSketch
   Sketch(uint64_t seed);
-  Sketch(uint64_t seed, std::istream& binary_in);
+  Sketch(uint64_t seed, std::istream& binary_in, bool sparse);
   Sketch(const Sketch& s);
 
  public:
@@ -73,7 +69,7 @@ class Sketch {
    * @return           A pointer to a newly constructed sketch
    */
   static Sketch* makeSketch(void* loc, uint64_t seed);
-  static Sketch* makeSketch(void* loc, uint64_t seed, std::istream& binary_in);
+  static Sketch* makeSketch(void* loc, uint64_t seed, std::istream& binary_in, bool sparse=false);
 
   /**
    * Copy constructor to create a sketch from another
@@ -92,9 +88,9 @@ class Sketch {
   inline static void configure(vec_t _n, vec_t _factor) {
     n = _n;
     failure_factor = _factor;
-    num_buckets = bucket_gen(failure_factor);
+    num_columns = column_gen(failure_factor);
     num_guesses = guess_gen(n);
-    num_elems = num_buckets * num_guesses + 1;  // +1 for zero bucket optimization
+    num_elems = num_columns * num_guesses + 1;  // +1 for zero bucket optimization
   }
 
   inline static size_t sketchSizeof() {
@@ -110,6 +106,8 @@ class Sketch {
 
   inline void reset_queried() { already_queried = false; }
 
+  inline static size_t get_columns() { return num_columns; }
+
   /**
    * Update a sketch based on information about one of its indices.
    * @param update the point update.
@@ -124,11 +122,19 @@ class Sketch {
 
   /**
    * Function to query a sketch.
-   * @return   A pair with the result index and a code indicating if the type of result.
+   * @return   A pair with the result index and a code indicating the type of result.
    */
   std::pair<vec_t, SampleSketchRet> query();
 
+  /*
+   * Function to query all columns within a sketch to return 1 or more non-zero indices
+   * @return   A pair with the result indices and a code indicating the type of result.
+   */
+  std::pair<std::vector<vec_t>, SampleSketchRet> exhaustive_query();
+
   inline uint64_t get_seed() const { return seed; }
+  inline size_t column_seed(size_t column_idx) const { return seed + column_idx*5; }
+  inline size_t checksum_seed() const { return seed; }
 
   /**
    * Operator to add a sketch to another one in-place. Guaranteed to be
@@ -144,10 +150,24 @@ class Sketch {
 
   /**
    * Serialize the sketch to a binary output stream.
-   * @param out the stream to write to.
+   * @param binary_out   the stream to write to.
    */
   void write_binary(std::ostream& binary_out);
   void write_binary(std::ostream& binary_out) const;
+
+  /**
+   * Serialize a sketch while optimizing for space
+   * This assumes that the sketch itself sparse
+   * Otherwise, this serialization will use more space
+   * @param binary_out   the stream to write to.
+   */
+  void write_sparse_binary(std::ostream& binary_out);
+  void write_sparse_binary(std::ostream& binary_out) const;
+
+
+  // max number of non-zeroes in vector is n/2*n/2=n^2/4
+  static size_t guess_gen(size_t x) { return double_to_ull(log2(x) - 2); }
+  static size_t column_gen(size_t d) { return double_to_ull((log2(d) + 1)); }
 };
 
 class MultipleQueryException : public std::exception {

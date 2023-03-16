@@ -5,21 +5,28 @@
 
 #include "l0_sampling/sketch.h"
 
+enum SerialType {
+  FULL,
+  PARTIAL,
+  SPARSE,
+};
+
 /**
  * This interface implements the "supernode" so Boruvka can use it as a black
  * box without needing to worry about implementing l_0.
  */
 class Supernode {
-  // the size of a super-node in bytes including the all sketches off the end
-  static size_t bytes_size; 
+  static size_t max_sketches;
+  static size_t bytes_size; // the size of a super-node in bytes including the sketches
   static size_t serialized_size; // the size of a supernode that has been serialized
-  int idx;
-  int num_sketches;
+  size_t sample_idx;
   std::mutex node_mt;
 
   FRIEND_TEST(SupernodeTestSuite, TestBatchUpdate);
   FRIEND_TEST(SupernodeTestSuite, TestConcurrency);
   FRIEND_TEST(SupernodeTestSuite, TestSerialization);
+  FRIEND_TEST(SupernodeTestSuite, TestPartialSparseSerialization);
+  FRIEND_TEST(SupernodeTestSuite, SketchesHaveUniqueSeeds);
   FRIEND_TEST(GraphTestSuite, TestCorrectnessOfReheating);
   FRIEND_TEST(GraphTest, TestSupernodeRestoreAfterCCFailure);
   FRIEND_TEST(EXPR_Parallelism, N10kU100k);
@@ -29,6 +36,7 @@ public:
   const uint64_t seed; // for creating a copy
   
 private:
+  size_t num_sketches;
   size_t sketch_size;
 
   /* collection of logn sketches to query from, since we can't query from one
@@ -79,10 +87,11 @@ public:
 
   ~Supernode();
 
-  static inline void configure(uint64_t n, vec_t sketch_fail_factor=100) {
+  static inline void configure(uint64_t n, vec_t sketch_fail_factor=default_fail_factor) {
     Sketch::configure(n*n, sketch_fail_factor);
-    bytes_size = sizeof(Supernode) + size_t(log2(n)/(log2(3)-1)) * Sketch::sketchSizeof();
-    serialized_size = size_t(log2(n)/(log2(3)-1)) * Sketch::serialized_size();
+    max_sketches = log2(n)/(log2(3)-1);
+    bytes_size = sizeof(Supernode) + max_sketches * Sketch::sketchSizeof();
+    serialized_size = max_sketches * Sketch::serialized_size();
   }
 
   static inline size_t get_size() {
@@ -98,28 +107,28 @@ public:
     return sketch_size;
   }
 
-  // return the number of sketches held in this supernode
-  int get_num_sktch() { return num_sketches; };
+  // return the maximum number of sketches held in by a Supernode
+  // most Supernodes will hold this many sketches
+  static int get_max_sketches() { return max_sketches; };
+
+  // get number of samples remaining in the Supernode
+  int samples_remaining() { return num_sketches - sample_idx; }
 
   inline bool out_of_queries() {
-    return idx == num_sketches;
+    return sample_idx >= num_sketches;
   }
 
   inline int curr_idx() {
-    return idx;
-  }
-
-  inline void incr_idx() {
-    ++idx;
+    return sample_idx;
   }
 
   // reset the supernode query metadata
   // we use this when resuming insertions after CC made copies in memory
   inline void reset_query_state() { 
-    for (int i = 0; i < idx; i++) {
+    for (size_t i = 0; i < sample_idx; i++) {
       get_sketch(i)->reset_queried();
     }
-    idx = 0;
+    sample_idx = 0;
   }
 
   // get the ith sketch in the sketch array as a const object
@@ -134,6 +143,15 @@ public:
    *           sample result (good, zero, or fail)
    */
   std::pair<Edge, SampleSketchRet> sample();
+
+  /**
+   * Function to sample 1 or more edges from the cut of a supernode.
+   * This function runs a query that samples from all columns in a single Sketch
+   * @return    an list of edges in the cut, each represented as an Edge with LHS <= RHS,
+   *            if one exists. Additionally, returns a code represnting the sample
+   *            result (good, zero, or fail)
+   */
+  std::pair<std::vector<Edge>, SampleSketchRet> exhaustive_sample();
 
   /**
    * In-place merge function. Guaranteed to update the caller Supernode.
@@ -166,9 +184,21 @@ public:
 
   /**
    * Serialize the supernode to a binary output stream.
-   * @param out the stream to write to.
+   * @param binary_out   the stream to write to.
    */
-  void write_binary(std::ostream &binary_out);
+  void write_binary(std::ostream &binary_out, bool sparse = false);
+
+  /*
+   * Serialize a portion of the supernode to a binary output stream.
+   * @param binary_out  the stream to write to.
+   * @param beg         the index of the first sketch to serialize
+   * @param num         the number of sketches to serialize
+   */
+  void write_binary_range(std::ostream&binary_out, uint32_t beg, uint32_t num, bool sparse = false);
+
+  // void write_sparse_binary_range(std::ostream&binary_out, uint32_t beg, uint32_t end);
+
+  static constexpr size_t default_fail_factor = 4;
 };
 
 

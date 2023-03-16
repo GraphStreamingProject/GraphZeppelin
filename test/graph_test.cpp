@@ -97,7 +97,7 @@ TEST(GraphTest, TestSupernodeRestoreAfterCCFailure) {
 
     ASSERT_THROW(g.connected_components(true), OutOfQueriesException);
     for (node_id_t i = 0; i < num_nodes; ++i) {
-      for (int j = 0; j < copy_supernodes[i]->get_num_sktch(); ++j) {
+      for (int j = 0; j < Supernode::get_max_sketches(); ++j) {
         ASSERT_TRUE(*copy_supernodes[i]->get_sketch(j) ==
                   *g.supernodes[i]->get_sketch(j));
       }

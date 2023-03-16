@@ -18,6 +18,12 @@ enum UpdateType {
 struct Edge {
   node_id_t src = 0;
   node_id_t dst = 0;
+
+  bool operator< (const Edge&oth) const {
+    if (src == oth.src)
+      return dst < oth.dst;
+    return src < oth.src;
+  }
 };
 
 struct GraphUpdate {
