@@ -122,10 +122,6 @@ public:
     return sample_idx;
   }
 
-  inline void incr_idx() {
-    ++sample_idx;
-  }
-
   // reset the supernode query metadata
   // we use this when resuming insertions after CC made copies in memory
   inline void reset_query_state() { 
