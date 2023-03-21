@@ -116,7 +116,7 @@ public:
   int samples_remaining() { return merged_sketches - sample_idx; }
 
   inline bool out_of_queries() {
-    return merged_sketches >= num_sketches;
+    return sample_idx >= merged_sketches;
   }
 
   inline int curr_idx() {
@@ -162,6 +162,7 @@ public:
   /**
    * In-place range merge function. Updates the caller Supernode.
    * The range merge only merges some of the Sketches
+   * This function should only be used if you know what you're doing
    * @param other       Supernode to merge into caller
    * @param start_idx   Index of first Sketch to merge
    * @param num_merge   How many sketches to merge

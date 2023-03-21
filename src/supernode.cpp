@@ -85,7 +85,7 @@ Supernode::~Supernode() {
 }
 
 std::pair<Edge, SampleSketchRet> Supernode::sample() {
-  if (sample_idx == num_sketches) throw OutOfQueriesException();
+  if (out_of_queries()) throw OutOfQueriesException();
 
   std::pair<vec_t, SampleSketchRet> query_ret = get_sketch(sample_idx++)->query();
   vec_t non_zero = query_ret.first;
@@ -94,7 +94,7 @@ std::pair<Edge, SampleSketchRet> Supernode::sample() {
 }
 
 std::pair<std::vector<Edge>, SampleSketchRet> Supernode::exhaustive_sample() {
-  if (sample_idx == num_sketches) throw OutOfQueriesException();
+  if (out_of_queries()) throw OutOfQueriesException();
 
   std::pair<std::vector<vec_t>, SampleSketchRet> query_ret = get_sketch(sample_idx++)->exhaustive_query();
   std::vector<Edge> edges(query_ret.first.size());
@@ -114,7 +114,9 @@ void Supernode::merge(Supernode &other) {
 
 void Supernode::range_merge(Supernode& other, size_t start_idx, size_t num_merge) {
   sample_idx = std::max(sample_idx, other.sample_idx);
-  merged_sketches = std::min(merged_sketches, start_idx + num_merge);
+  // we trust the caller so whatever they tell us goes here
+  // hopefully if the caller is incorrect then this will be caught by out_of_queries()
+  merged_sketches = start_idx + num_merge;
   for (size_t i = sample_idx; i < merged_sketches; i++)
     (*get_sketch(i))+=(*other.get_sketch(i));
 }
