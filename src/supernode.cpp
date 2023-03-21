@@ -8,7 +8,8 @@ size_t Supernode::bytes_size;
 size_t Supernode::serialized_size;
 
 Supernode::Supernode(uint64_t n, uint64_t seed): sample_idx(0),
-               n(n), seed(seed), num_sketches(max_sketches), sketch_size(Sketch::sketchSizeof()) {
+  n(n), seed(seed), num_sketches(max_sketches),
+  merged_sketches(max_sketches), sketch_size(Sketch::sketchSizeof()) {
 
   size_t sketch_width = Sketch::column_gen(Sketch::get_failure_factor());
   // generate num_sketches sketches for each supernode (read: node)
@@ -40,6 +41,7 @@ Supernode::Supernode(uint64_t n, uint64_t seed, std::istream &binary_in) :
   }
   // sample in range [beg, beg + num)
   num_sketches = beg + num;
+  merged_sketches = num_sketches;
   sample_idx = beg;
 
   // create empty sketches, if any
@@ -59,8 +61,9 @@ Supernode::Supernode(uint64_t n, uint64_t seed, std::istream &binary_in) :
   }
 }
 
-Supernode::Supernode(const Supernode& s) : sample_idx(s.sample_idx), n(s.n),
-    seed(s.seed), num_sketches(s.num_sketches), sketch_size(s.sketch_size) {
+Supernode::Supernode(const Supernode& s) : 
+  sample_idx(s.sample_idx), n(s.n), seed(s.seed), num_sketches(s.num_sketches), 
+  merged_sketches(s.merged_sketches), sketch_size(s.sketch_size) {
   for (size_t i = 0; i < num_sketches; ++i) {
     Sketch::makeSketch(get_sketch(i), *s.get_sketch(i));
   }
@@ -104,10 +107,16 @@ std::pair<std::vector<Edge>, SampleSketchRet> Supernode::exhaustive_sample() {
 
 void Supernode::merge(Supernode &other) {
   sample_idx = std::max(sample_idx, other.sample_idx);
-  num_sketches = std::min(num_sketches, other.num_sketches);
-  for (size_t i=sample_idx;i<num_sketches;++i) {
+  merged_sketches = std::min(merged_sketches, other.merged_sketches);
+  for (size_t i = sample_idx; i < merged_sketches; ++i)
     (*get_sketch(i))+=(*other.get_sketch(i));
-  }
+}
+
+void Supernode::range_merge(Supernode& other, size_t start_idx, size_t num_merge) {
+  sample_idx = std::max(sample_idx, other.sample_idx);
+  merged_sketches = std::min(merged_sketches, start_idx + num_merge);
+  for (size_t i = sample_idx; i < merged_sketches; i++)
+    (*get_sketch(i))+=(*other.get_sketch(i));
 }
 
 void Supernode::update(vec_t upd) {
