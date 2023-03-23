@@ -120,8 +120,16 @@ public:
     return bucket_a;
   }
 
+  inline void set_bucket_a(vec_t* new_bucket_a) {
+    bucket_a = new_bucket_a;
+  }
+
   inline vec_hash_t* get_bucket_c() {
     return bucket_c;
+  }
+
+  inline void set_bucket_c(vec_hash_t* new_bucket_c) {
+    bucket_c = new_bucket_c;
   }
 
   /**

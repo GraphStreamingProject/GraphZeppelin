@@ -23,7 +23,7 @@ class CudaSketch {
       d_bucket_a(d_bucket_a), d_bucket_c(d_bucket_c), failure_factor(failure_factor), num_elems(num_elems), num_buckets(num_buckets), num_guesses(num_guesses), seed(seed) {};
 };
 
-class CudaSupernode {
+/*class CudaSupernode {
   public:
     CudaSketch* cudaSketches;
     CudaSketch* deltaSketches;
@@ -59,7 +59,7 @@ class CudaSupernode {
       }
       num_sketches = number_sketches;
     };
-};
+};*/
 
 __device__ col_hash_t bucket_col_index_hash(const vec_t_cu& update_idx, const long seed_and_col) {
   return CUDA_XXH64(&update_idx, sizeof(update_idx), seed_and_col);
@@ -93,14 +93,14 @@ __global__ void sketch_update(int num_updates, vec_t* update_indexes, CudaSketch
     vec_t update_idx = update_indexes[tid];
 
     // Step 3: Get all the buckets from cudaSketch
-    vec_t_cu* cudaSketch_bucket_a = (vec_t_cu*)curr_cudaSketch.d_bucket_a;
-    vec_hash_t* cudaSketch_bucket_c = curr_cudaSketch.d_bucket_c;
+    vec_t_cu* bucket_a = (vec_t_cu*)curr_cudaSketch.d_bucket_a;
+    vec_hash_t* bucket_c = curr_cudaSketch.d_bucket_c;
     size_t num_elems = curr_cudaSketch.num_elems;
 
     // Step 4: Get update_hash
     vec_hash_t update_hash = bucket_index_hash(update_idx, curr_cudaSketch.seed);
 
-    bucket_update(cudaSketch_bucket_a[num_elems - 1], cudaSketch_bucket_c[num_elems - 1], update_idx, update_hash);
+    bucket_update(bucket_a[num_elems - 1], bucket_c[num_elems - 1], update_idx, update_hash);
 
     // Step 5: Update current sketch
     for (unsigned i = 0; i < curr_cudaSketch.num_buckets; ++i) {
@@ -108,7 +108,7 @@ __global__ void sketch_update(int num_updates, vec_t* update_indexes, CudaSketch
       for (unsigned j = 0; j < curr_cudaSketch.num_guesses; ++j) {
         unsigned bucket_id = i * curr_cudaSketch.num_guesses + j;
         if (bucket_contains(col_index_hash, ((col_hash_t)1) << j)){
-          bucket_update(cudaSketch_bucket_a[bucket_id], cudaSketch_bucket_c[bucket_id], update_idx, update_hash);
+          bucket_update(bucket_a[bucket_id], bucket_c[bucket_id], update_idx, update_hash);
         } else break;
       }
     }
@@ -116,7 +116,8 @@ __global__ void sketch_update(int num_updates, vec_t* update_indexes, CudaSketch
 }
 
 // Kernel code of handling all the stream updates
-__global__ void doubleStream_update(int* nodeUpdates, int num_updates, int num_nodes, vec_t* edgeUpdates, CudaSupernode* cudaSupernodes) {
+__global__ void doubleStream_update(int* nodeUpdates, int num_updates, int num_nodes, int num_sketches, vec_t* edgeUpdates, 
+                                    CudaSketch* cudaSketches) {
 
   // Get thread id
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -127,31 +128,27 @@ __global__ void doubleStream_update(int* nodeUpdates, int num_updates, int num_n
     // Step 1: Get node based on tid.
     const vec_t_cu node = nodeUpdates[tid];
 
-    // Step 2: Get number of sketches for current node.
-    int node_num_sketches = cudaSupernodes[node].num_sketches;
+    // Step 2: Update node's sketches
+    for (int i = 0; i < num_sketches; i++) {
 
-    // Step 3: Update node's sketches
-    for (int i = 0; i < node_num_sketches; i++) {
-
-      CudaSketch curr_cudaSketch = cudaSupernodes[node].cudaSketches[i];
-      CudaSketch curr_deltaSketch = cudaSupernodes[node].deltaSketches[i];
+      CudaSketch curr_cudaSketch = cudaSketches[(node * num_sketches) + i];
       size_t num_elems = curr_cudaSketch.num_elems;
 
-      // Get all the buckets from deltaSketch
-      vec_t_cu* deltaSketch_bucket_a = (vec_t_cu*)curr_deltaSketch.d_bucket_a;
-      vec_hash_t* deltaSketch_bucket_c = curr_deltaSketch.d_bucket_c;
+      // Get buckets based on current sketch and node id
+      vec_t_cu* bucket_a = (vec_t_cu*)curr_cudaSketch.d_bucket_a;
+      vec_hash_t* bucket_c = curr_cudaSketch.d_bucket_c;
 
-      vec_hash_t update_hash = bucket_index_hash(edgeUpdates[tid], curr_deltaSketch.seed);
+      vec_hash_t update_hash = bucket_index_hash(edgeUpdates[tid], curr_cudaSketch.seed);
 
-      bucket_update(deltaSketch_bucket_a[num_elems - 1], deltaSketch_bucket_c[num_elems - 1], edgeUpdates[tid], update_hash);
+      bucket_update(bucket_a[num_elems - 1], bucket_c[num_elems - 1], edgeUpdates[tid], update_hash);
 
-      // Update node's deltaSketch
+      // Update node's sketches
       for (unsigned j = 0; j < curr_cudaSketch.num_buckets; ++j) {
-        col_hash_t col_index_hash = bucket_col_index_hash(edgeUpdates[tid], curr_deltaSketch.seed + j);
+        col_hash_t col_index_hash = bucket_col_index_hash(edgeUpdates[tid], curr_cudaSketch.seed + j);
         for (unsigned k = 0; k < curr_cudaSketch.num_guesses; ++k) {
           unsigned bucket_id = j * curr_cudaSketch.num_guesses + k;
           if (bucket_contains(col_index_hash, ((col_hash_t)1) << k)){
-            bucket_update(deltaSketch_bucket_a[bucket_id], deltaSketch_bucket_c[bucket_id], edgeUpdates[tid], update_hash);
+            bucket_update(bucket_a[bucket_id], bucket_c[bucket_id], edgeUpdates[tid], update_hash);
           } else break;
         }
       }
@@ -160,7 +157,8 @@ __global__ void doubleStream_update(int* nodeUpdates, int num_updates, int num_n
 }
 
 // Kernel code of handling all the stream updates
-__global__ void singleStream_update(int* nodeUpdates, int num_updates, int num_nodes, vec_t* edgeUpdates, CudaSupernode* cudaSupernodes) {
+__global__ void singleStream_update(int* nodeUpdates, int num_updates, int num_nodes, int num_sketches, vec_t* edgeUpdates, 
+                                    CudaSketch* cudaSketches) {
 
   // Get thread id
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -171,32 +169,27 @@ __global__ void singleStream_update(int* nodeUpdates, int num_updates, int num_n
     const vec_t_cu node1 = nodeUpdates[tid * 2];
     const vec_t_cu node2 = nodeUpdates[(tid * 2) + 1];
 
-    // Step 2: Get number of sketches for each endpoint nodes
-    int node1_num_sketches = cudaSupernodes[node1].num_sketches;
-    int node2_num_sketches = cudaSupernodes[node2].num_sketches;
+    // Step 2a: Update node1's sketches
+    for (int i = 0; i < num_sketches; i++) {
 
-    // Step 3a: Update node1's sketches
-    for (int i = 0; i < node1_num_sketches; i++) {
-
-      CudaSketch curr_cudaSketch = cudaSupernodes[node1].cudaSketches[i];
-      CudaSketch curr_deltaSketch = cudaSupernodes[node1].deltaSketches[i];
+      CudaSketch curr_cudaSketch = cudaSketches[(node1 * num_sketches) + i];
       size_t num_elems = curr_cudaSketch.num_elems;
 
-      // Get all the buckets from deltaSketch
-      vec_t_cu* deltaSketch_bucket_a = (vec_t_cu*)curr_deltaSketch.d_bucket_a;
-      vec_hash_t* deltaSketch_bucket_c = curr_deltaSketch.d_bucket_c;
+      // Get buckets based on current sketch and node id
+      vec_t_cu* bucket_a = (vec_t_cu*)curr_cudaSketch.d_bucket_a;
+      vec_hash_t* bucket_c = curr_cudaSketch.d_bucket_c;
 
-      vec_hash_t update_hash = bucket_index_hash(edgeUpdates[tid * 2], curr_deltaSketch.seed);
+      vec_hash_t update_hash = bucket_index_hash(edgeUpdates[tid * 2], curr_cudaSketch.seed);
 
-      bucket_update(deltaSketch_bucket_a[num_elems - 1], deltaSketch_bucket_c[num_elems - 1], edgeUpdates[tid * 2], update_hash);
+      bucket_update(bucket_a[num_elems - 1], bucket_c[num_elems - 1], edgeUpdates[tid * 2], update_hash);
 
-      // Update node1's deltaSketch
+      // Update node1's sketches
       for (unsigned j = 0; j < curr_cudaSketch.num_buckets; ++j) {
-        col_hash_t col_index_hash = bucket_col_index_hash(edgeUpdates[tid * 2], curr_deltaSketch.seed + j);
+        col_hash_t col_index_hash = bucket_col_index_hash(edgeUpdates[tid * 2], curr_cudaSketch.seed + j);
         for (unsigned k = 0; k < curr_cudaSketch.num_guesses; ++k) {
           unsigned bucket_id = j * curr_cudaSketch.num_guesses + k;
           if (bucket_contains(col_index_hash, ((col_hash_t)1) << k)){
-            bucket_update(deltaSketch_bucket_a[bucket_id], deltaSketch_bucket_c[bucket_id], edgeUpdates[tid * 2], update_hash);
+            bucket_update(bucket_a[bucket_id], bucket_c[bucket_id], edgeUpdates[tid * 2], update_hash);
           } else break;
         }
       }
@@ -204,28 +197,27 @@ __global__ void singleStream_update(int* nodeUpdates, int num_updates, int num_n
 
     __syncthreads();
 
-    // Step 3b: Update node2's sketches
-    for (int i = 0; i < node2_num_sketches; i++) {
+    // Step 2b: Update node2's sketches
+    for (int i = 0; i < num_sketches; i++) {
 
-      CudaSketch curr_cudaSketch = cudaSupernodes[node2].cudaSketches[i];
-      CudaSketch curr_deltaSketch = cudaSupernodes[node2].deltaSketches[i];
+      CudaSketch curr_cudaSketch = cudaSketches[(node2 * num_sketches) + i];
       size_t num_elems = curr_cudaSketch.num_elems;
 
-      // Get all the buckets from deltaSketch
-      vec_t_cu* deltaSketch_bucket_a = (vec_t_cu*)curr_deltaSketch.d_bucket_a;
-      vec_hash_t* deltaSketch_bucket_c = curr_deltaSketch.d_bucket_c;
+      // Get buckets based on current sketch and node id
+      vec_t_cu* bucket_a = (vec_t_cu*)curr_cudaSketch.d_bucket_a;
+      vec_hash_t* bucket_c = curr_cudaSketch.d_bucket_c;
 
-      vec_hash_t update_hash = bucket_index_hash(edgeUpdates[(tid * 2) + 1], curr_deltaSketch.seed);
+      vec_hash_t update_hash = bucket_index_hash(edgeUpdates[(tid * 2) + 1], curr_cudaSketch.seed);
 
-      bucket_update(deltaSketch_bucket_a[num_elems - 1], deltaSketch_bucket_c[num_elems - 1], edgeUpdates[(tid * 2) + 1], update_hash);
+      bucket_update(bucket_a[num_elems - 1], bucket_c[num_elems - 1], edgeUpdates[(tid * 2) + 1], update_hash);
       
-      // Update node2's deltaSketch
+      // Update node2's sketches
       for (unsigned j = 0; j < curr_cudaSketch.num_buckets; ++j) {
-        col_hash_t col_index_hash = bucket_col_index_hash(edgeUpdates[(tid * 2) + 1], curr_deltaSketch.seed + j);
+        col_hash_t col_index_hash = bucket_col_index_hash(edgeUpdates[(tid * 2) + 1], curr_cudaSketch.seed + j);
         for (unsigned k = 0; k < curr_cudaSketch.num_guesses; ++k) {
           unsigned bucket_id = j * curr_cudaSketch.num_guesses + k;
           if (bucket_contains(col_index_hash, ((col_hash_t)1) << k)){
-            bucket_update(deltaSketch_bucket_a[bucket_id], deltaSketch_bucket_c[bucket_id], edgeUpdates[(tid * 2) + 1], update_hash);
+            bucket_update(bucket_a[bucket_id], bucket_c[bucket_id], edgeUpdates[(tid * 2) + 1], update_hash);
           } else break;
         }
       }
@@ -242,31 +234,19 @@ void sketchUpdate(int num_threads, int num_blocks, int num_updates, vec_t* updat
 
 
 // Function that calls stream update kernel code.
-void streamUpdate(int num_threads, int num_blocks, int *nodeUpdates, size_t num_updates, node_id_t num_nodes, vec_t *edgeUpdates, CudaSupernode* cudaSupernodes, int num_threads_per_update) {
+void streamUpdate(int num_threads, int num_blocks, int *nodeUpdates, size_t num_updates, node_id_t num_nodes, int num_sketches, vec_t *edgeUpdates, 
+                  CudaSketch* cudaSketches, int num_threads_per_update) {
 
   if(num_threads_per_update == 1) { // Updating sketches with one thread per edge update
-    singleStream_update<<<num_blocks, num_threads>>>(nodeUpdates, num_updates, num_nodes, edgeUpdates, cudaSupernodes);
+    singleStream_update<<<num_blocks, num_threads>>>(nodeUpdates, num_updates, num_nodes, num_sketches, edgeUpdates, cudaSketches);
     cudaDeviceSynchronize();
   }
   else if(num_threads_per_update == 2) { // Updating sketches with two thread per edge update
-    doubleStream_update<<<num_blocks, num_threads>>>(nodeUpdates, num_updates, num_nodes, edgeUpdates, cudaSupernodes);
+    doubleStream_update<<<num_blocks, num_threads>>>(nodeUpdates, num_updates, num_nodes, num_sketches, edgeUpdates, cudaSketches);
     cudaDeviceSynchronize();
   }
   else {
     std::cout << "(cuda_kernel.cu) ERROR: Invalid number of threads per edge update. Must be 1 or 2." << std::endl;
     return;
-  }
-
-  // Add all the supernodes' deltaSketch back to cudaSketch (Temporary, can be changed in the future)
-  for(int i = 0; i < num_nodes; i++) {
-    for(int j = 0; j < cudaSupernodes[i].num_sketches; j++) {
-      CudaSketch curr_cudaSketch = cudaSupernodes[i].cudaSketches[j];
-      CudaSketch curr_deltaSketch = cudaSupernodes[i].deltaSketches[j];
-
-      for(int k = 0; k < curr_cudaSketch.num_elems; k++) {
-        curr_cudaSketch.d_bucket_a[k] += curr_deltaSketch.d_bucket_a[k];
-        curr_cudaSketch.d_bucket_c[k] += curr_deltaSketch.d_bucket_c[k];
-      }
-    }
   }
 }

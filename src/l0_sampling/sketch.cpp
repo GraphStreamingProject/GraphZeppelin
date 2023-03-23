@@ -30,9 +30,6 @@ Sketch::Sketch(uint64_t seed): seed(seed) {
   bucket_a = reinterpret_cast<vec_t*>(buckets);
   bucket_c = reinterpret_cast<vec_hash_t*>(buckets + num_elems * sizeof(vec_t));
 
-  cudaMallocManaged(&bucket_a, num_elems * sizeof(vec_t));
-  cudaMallocManaged(&bucket_c, num_elems * sizeof(vec_hash_t));
-
   // initialize bucket values
   for (size_t i = 0; i < num_elems; ++i) {
     bucket_a[i] = 0;
@@ -45,9 +42,6 @@ Sketch::Sketch(uint64_t seed, std::istream &binary_in): seed(seed) {
   bucket_a = reinterpret_cast<vec_t*>(buckets);
   bucket_c = reinterpret_cast<vec_hash_t*>(buckets + num_elems * sizeof(vec_t));
 
-  cudaMallocManaged(&bucket_a, num_elems * sizeof(vec_t));
-  cudaMallocManaged(&bucket_c, num_elems * sizeof(vec_hash_t));
-
   binary_in.read((char*)bucket_a, num_elems * sizeof(vec_t));
   binary_in.read((char*)bucket_c, num_elems * sizeof(vec_hash_t));
 }
@@ -55,9 +49,6 @@ Sketch::Sketch(uint64_t seed, std::istream &binary_in): seed(seed) {
 Sketch::Sketch(const Sketch& s) : seed(s.seed) {
   bucket_a = reinterpret_cast<vec_t*>(buckets);
   bucket_c = reinterpret_cast<vec_hash_t*>(buckets + num_elems * sizeof(vec_t));
-
-  cudaMallocManaged(&bucket_a, num_elems * sizeof(vec_t));
-  cudaMallocManaged(&bucket_c, num_elems * sizeof(vec_hash_t));
 
   std::memcpy(bucket_a, s.bucket_a, num_elems * sizeof(vec_t));
   std::memcpy(bucket_c, s.bucket_c, num_elems * sizeof(vec_hash_t));

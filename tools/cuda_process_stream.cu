@@ -50,9 +50,6 @@ int main(int argc, char **argv) {
   Supernode** supernodes;
   supernodes = g.getSupernodes();
 
-  CudaSupernode* cudaSupernodes;
-  cudaMallocManaged(&cudaSupernodes, num_nodes * sizeof(CudaSupernode));
-
   // Collect all the edges that need to be updated
   // 1 Thread will be assigned to update the endpoint nodes of each edge
   for (size_t e = 0; e < num_updates; e++) {
@@ -64,19 +61,41 @@ int main(int argc, char **argv) {
     edgeUpdates[(e * 2) + 1] = static_cast<vec_t>(concat_pairing_fn(updatedEdge.second, updatedEdge.first));
   }
 
+  // Get number of sketches for each node.
+  // Number of sketches stays constant for among all super nodes.
+  int num_sketches = supernodes[0]->get_num_sktch();
+  
+  CudaSketch* cudaSketches;
+  cudaMallocManaged(&cudaSketches, num_nodes * num_sketches * sizeof(CudaSketch));
+
+  // Allocate space for all buckets
+
+  int num_elems = supernodes[0]->get_sketch(0)->get_num_elems();
+  vec_t* d_bucket_a;
+  vec_hash_t* d_bucket_c;
+  cudaMallocManaged(&d_bucket_a, (num_nodes * num_sketches * num_elems * sizeof(vec_t)));
+  cudaMallocManaged(&d_bucket_c, (num_nodes * num_sketches * num_elems * sizeof(vec_hash_t)));
+
+  for (int i = 0; i < (num_nodes * num_sketches * num_elems); i++) {
+    d_bucket_a[i] = 0;
+    d_bucket_c[i] = 0;
+  }
+
   // Create a vector of cuda supernodes and sketches
   for (int i = 0; i < num_nodes; i++) {
-    int num_sketches = supernodes[i]->get_num_sktch();
-    
-    CudaSketch* cudaSketches;
-    cudaMallocManaged(&cudaSketches, num_sketches * sizeof(CudaSketch));
-
     for (int j = 0; j < num_sketches; j++) {
       Sketch* sketch = supernodes[i]->get_sketch(j);
-      CudaSketch cudaSketch(sketch->get_bucket_a(), sketch->get_bucket_c(), sketch->get_failure_factor(), sketch->get_num_elems(), sketch->get_num_buckets(), sketch->get_num_guesses(), sketch->get_seed());
-      cudaSketches[j] = cudaSketch;
+
+      int bucket_id = (i * num_sketches * num_elems) + (j * num_elems);
+      vec_t* bucket_a = &d_bucket_a[bucket_id];
+      vec_hash_t* bucket_c = &d_bucket_c[bucket_id];
+
+      sketch->set_bucket_a(bucket_a);
+      sketch->set_bucket_c(bucket_c);
+
+      CudaSketch cudaSketch(bucket_a, bucket_c, sketch->get_failure_factor(), sketch->get_num_elems(), sketch->get_num_buckets(), sketch->get_num_guesses(), sketch->get_seed());
+      cudaSketches[(i * num_sketches) + j] = cudaSketch;
     }
-    cudaSupernodes[i] = CudaSupernode(cudaSketches, supernodes[i]->seed, num_sketches);
   }
 
   // Number of threads
@@ -92,18 +111,18 @@ int main(int argc, char **argv) {
     num_device_blocks = ((num_updates * 2) + num_device_threads - 1) / num_device_threads;
   }
 
-
   auto ins_start = std::chrono::steady_clock::now();
 
   // Call kernel code
-  streamUpdate(num_device_threads, num_device_blocks, nodeUpdates, num_updates, num_nodes, edgeUpdates, cudaSupernodes, num_threads_per_update);
+  streamUpdate(num_device_threads, num_device_blocks, nodeUpdates, num_updates, num_nodes, num_sketches, edgeUpdates, 
+              cudaSketches, num_threads_per_update);
 
   // Update graph's num_updates value
   g.num_updates += num_updates * 2;
 
   auto cc_start = std::chrono::steady_clock::now();
   auto CC_num = g.connected_components().size();
-  std::chrono::duration<double> insert_time = g.flush_end - ins_start;
+  std::chrono::duration<double> insert_time = cc_start - ins_start;
   std::chrono::duration<double> cc_time = std::chrono::steady_clock::now() - cc_start;
   double num_seconds = insert_time.count();
   std::cout << "Total insertion time was: " << num_seconds << std::endl;

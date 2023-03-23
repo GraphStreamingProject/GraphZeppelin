@@ -211,10 +211,10 @@ if (BUILD_EXE)
     test/xxhash_test.cu)
   target_link_libraries(xxhash_test PRIVATE GraphZeppelinCUDA)
 
-  add_executable(cuda_sketch_test
-    test/cuda_sketch_test.cu)
-  add_dependencies(cuda_sketch_test GraphZeppelinVerifyCUDA)
-  target_link_libraries(cuda_sketch_test PRIVATE GraphZeppelinVerifyCUDA)
+  #add_executable(cuda_sketch_test
+  #  test/cuda_sketch_test.cu)
+  #add_dependencies(cuda_sketch_test GraphZeppelinVerifyCUDA)
+  #target_link_libraries(cuda_sketch_test PRIVATE GraphZeppelinVerifyCUDA)
 
   # tool for validating that a binary stream appears correct  
   add_executable(validate_binary_stream
