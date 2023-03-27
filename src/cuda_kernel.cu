@@ -195,7 +195,7 @@ __global__ void singleStream_update(int* nodeUpdates, int num_updates, int num_n
       }
     }
 
-    __syncthreads();
+    //__syncthreads();
 
     // Step 2b: Update node2's sketches
     for (int i = 0; i < num_sketches; i++) {

@@ -1,5 +1,6 @@
 #include <vector>
 #include <graph.h>
+#include <map>
 #include <binary_graph_stream.h>
 #include "../src/cuda_kernel.cu"
 
@@ -50,8 +51,41 @@ int main(int argc, char **argv) {
   Supernode** supernodes;
   supernodes = g.getSupernodes();
 
+  std::map<int, std::vector<vec_t>> graphUpdates;
+
   // Collect all the edges that need to be updated
   // 1 Thread will be assigned to update the endpoint nodes of each edge
+  for (size_t e = 0; e < num_updates; e++) {
+    GraphUpdate graphUpdate = stream.get_edge();
+    Edge updatedEdge = graphUpdate.first;
+    
+    if (graphUpdates.find(updatedEdge.first) == graphUpdates.end()) {
+      graphUpdates[updatedEdge.first] = std::vector<vec_t>{static_cast<vec_t>(concat_pairing_fn(updatedEdge.first, updatedEdge.second))};
+    }
+    else {
+      graphUpdates[updatedEdge.first].push_back(static_cast<vec_t>(concat_pairing_fn(updatedEdge.first, updatedEdge.second)));
+    }
+    
+    if (graphUpdates.find(updatedEdge.second) == graphUpdates.end()) {
+      graphUpdates[updatedEdge.second] = std::vector<vec_t>{static_cast<vec_t>(concat_pairing_fn(updatedEdge.second, updatedEdge.first))};
+    }
+    else {
+      graphUpdates[updatedEdge.second].push_back(static_cast<vec_t>(concat_pairing_fn(updatedEdge.second, updatedEdge.first)));   
+    }
+     
+  }
+
+  int nodeIt = 0;
+  for (auto it = testUpdates.begin(); it != testUpdates.end(); it++) {
+    for (int i = 0; i < it->second.size(); i++) {
+      nodeUpdates[nodeIt] = it->first;
+      edgeUpdates[nodeIt] = it->second.at(i);
+      nodeIt++;
+    }
+  }
+
+  // Previous version of inserting nodeUpdates and edgeUpdates.
+  /*
   for (size_t e = 0; e < num_updates; e++) {
     GraphUpdate graphUpdate = stream.get_edge();
     Edge updatedEdge = graphUpdate.first;
@@ -59,7 +93,7 @@ int main(int argc, char **argv) {
     nodeUpdates[(e * 2) + 1] = updatedEdge.second;
     edgeUpdates[(e * 2)] = static_cast<vec_t>(concat_pairing_fn(updatedEdge.first, updatedEdge.second));
     edgeUpdates[(e * 2) + 1] = static_cast<vec_t>(concat_pairing_fn(updatedEdge.second, updatedEdge.first));
-  }
+  }*/
 
   // Get number of sketches for each node.
   // Number of sketches stays constant for among all super nodes.
