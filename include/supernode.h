@@ -37,6 +37,7 @@ public:
   
 private:
   size_t num_sketches;
+  size_t merged_sketches; // This variable tells us which sketches are good for queries post merge
   size_t sketch_size;
 
   /* collection of logn sketches to query from, since we can't query from one
@@ -112,10 +113,10 @@ public:
   static int get_max_sketches() { return max_sketches; };
 
   // get number of samples remaining in the Supernode
-  int samples_remaining() { return num_sketches - sample_idx; }
+  int samples_remaining() { return merged_sketches - sample_idx; }
 
   inline bool out_of_queries() {
-    return sample_idx >= num_sketches;
+    return sample_idx >= merged_sketches;
   }
 
   inline int curr_idx() {
@@ -157,6 +158,16 @@ public:
    * In-place merge function. Guaranteed to update the caller Supernode.
    */
   void merge(Supernode& other);
+
+  /**
+   * In-place range merge function. Updates the caller Supernode.
+   * The range merge only merges some of the Sketches
+   * This function should only be used if you know what you're doing
+   * @param other       Supernode to merge into caller
+   * @param start_idx   Index of first Sketch to merge
+   * @param num_merge   How many sketches to merge
+   */
+  void range_merge(Supernode& other, size_t start_idx, size_t num_merge);
 
   /**
    * Insert or delete an (encoded) edge into the supernode. Guaranteed to be
