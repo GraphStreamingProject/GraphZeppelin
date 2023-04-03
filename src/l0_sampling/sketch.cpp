@@ -116,6 +116,8 @@ std::pair<vec_t, SampleSketchRet> Sketch::query() {
 }
 
 std::pair<std::vector<vec_t>, SampleSketchRet> Sketch::exhaustive_query() {
+  unlikely_if (already_queried)
+    throw MultipleQueryException();
   std::vector<vec_t> ret;
 
   unlikely_if (bucket_a[num_elems - 1] == 0 && bucket_c[num_elems - 1] == 0)
@@ -136,8 +138,6 @@ std::pair<std::vector<vec_t>, SampleSketchRet> Sketch::exhaustive_query() {
       }
     }
   }
-  unlikely_if (already_queried)
-    throw MultipleQueryException();
   already_queried = true;
 
   unlikely_if (ret.size() == 0)

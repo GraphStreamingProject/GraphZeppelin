@@ -151,7 +151,7 @@ public:
       }
     }
 #else
-    dsu_valid = false;
+    if (dsu_valid) dsu_valid = false;
 #endif // USE_EAGER_DSU
   }
 
