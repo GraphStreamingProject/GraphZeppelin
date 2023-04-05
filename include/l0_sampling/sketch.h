@@ -9,6 +9,7 @@
 #include <mutex>
 #include <utility>
 #include <vector>
+#include <unordered_set>
 
 #include "../types.h"
 #include "../util.h"
@@ -130,7 +131,7 @@ class Sketch {
    * Function to query all columns within a sketch to return 1 or more non-zero indices
    * @return   A pair with the result indices and a code indicating the type of result.
    */
-  std::pair<std::vector<vec_t>, SampleSketchRet> exhaustive_query();
+  std::pair<std::unordered_set<vec_t>, SampleSketchRet> exhaustive_query();
 
   inline uint64_t get_seed() const { return seed; }
   inline size_t column_seed(size_t column_idx) const { return seed + column_idx*5; }
