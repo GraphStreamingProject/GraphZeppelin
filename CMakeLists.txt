@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 
+set(CMAKE_CUDA_ARCHITECTURES "70")
 
 # Make the default build type Release. If user or another
 # project sets a different value than use that
@@ -139,6 +140,7 @@ add_library(GraphZeppelinCUDA
 add_dependencies(GraphZeppelinCUDA GutterTree)
 target_link_libraries(GraphZeppelinCUDA PUBLIC xxhash GutterTree CudaLibrary)
 target_include_directories(GraphZeppelinCUDA PUBLIC include/ include/l0_sampling/)
+target_compile_options(GraphZeppelinCUDA PUBLIC -lineinfo)
 target_compile_definitions(GraphZeppelinCUDA PUBLIC XH_INLINE_ALL USE_EAGER_DSU)
 
 add_library(GraphZeppelinVerifyCUDA
@@ -155,6 +157,7 @@ add_library(GraphZeppelinVerifyCUDA
 add_dependencies(GraphZeppelinVerifyCUDA GutterTree)
 target_link_libraries(GraphZeppelinVerifyCUDA PUBLIC xxhash GutterTree CudaLibrary)
 target_include_directories(GraphZeppelinVerifyCUDA PUBLIC include/ include/l0_sampling/ include/test/)
+target_compile_options(GraphZeppelinVerifyCUDA PUBLIC -lineinfo $<$<COMPILE_LANGUAGE:CUDA>:-gencode arch=compute_70,code=sm_70>)
 target_compile_definitions(GraphZeppelinVerifyCUDA PUBLIC XH_INLINE_ALL USE_EAGER_DSU)
 
 

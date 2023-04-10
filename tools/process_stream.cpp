@@ -29,13 +29,6 @@ int main(int argc, char **argv) {
   for (size_t e = 0; e < num_updates; e++)
     g.update(stream.get_edge());
 
-  for(int i = 0; i < g.getSupernodes()[2]->get_num_sktch(); i++) {
-    for(size_t j = 0; j < g.getSupernodes()[2]->get_sketch(i)->get_num_elems(); j++) {
-      std::cout << g.getSupernodes()[2]->get_sketch(i)->get_bucket_a()[j] << " ";
-    }
-  }
-  std::cout << "\n";
-
   auto cc_start = std::chrono::steady_clock::now();
   auto CC_num = g.connected_components().size();
   std::chrono::duration<double> insert_time = g.flush_end - ins_start;
