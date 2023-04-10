@@ -154,8 +154,8 @@ inline void Graph::sample_supernodes(std::pair<Edge, SampleSketchRet> *query,
   if (except) std::rethrow_exception(err);
 }
 
-inline std::vector<std::vector<node_id_t>> Graph::supernodes_to_merge(std::pair<Edge, SampleSketchRet>
-               *query, std::vector<node_id_t> &reps) {
+inline std::vector<std::vector<node_id_t>> Graph::supernodes_to_merge(
+    std::pair<Edge, SampleSketchRet> *query, std::vector<node_id_t> &reps) {
   std::vector<std::vector<node_id_t>> to_merge(num_nodes);
   std::vector<node_id_t> new_reps;
   for (auto i : reps) {
@@ -254,7 +254,7 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
   Supernode** copy_supernodes;
   if (make_copy && config._backup_in_mem) 
     copy_supernodes = new Supernode*[num_nodes];
-  std::pair<Edge, SampleSketchRet> query[num_nodes];
+  std::pair<Edge, SampleSketchRet> *query = new std::pair<Edge, SampleSketchRet>[num_nodes];
   std::vector<node_id_t> reps(num_nodes);
   std::vector<node_id_t> backed_up;
   std::fill(size, size + num_nodes, 1);
@@ -304,9 +304,11 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
     } while (modified);
   } catch (...) {
     cleanup_copy();
+    delete[] query;
     std::rethrow_exception(std::current_exception());
   }
   cleanup_copy();
+  delete[] query;
   dsu_valid = true;
 
   auto retval = cc_from_dsu();

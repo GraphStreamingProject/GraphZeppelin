@@ -11,7 +11,8 @@ static inline int do_run() {
     edge_id_t m;
     in >> n >> m;
     Graph g{n};
-    int type, a, b;
+    int type;
+    node_id_t a, b;
     while (m--) {
       in >> type >> a >> b;
       if (type == INSERT) {
