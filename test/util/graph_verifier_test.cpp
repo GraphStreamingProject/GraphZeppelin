@@ -12,8 +12,8 @@ TEST(DeterministicToolsTestSuite, TestKruskal) {
 TEST(DeterministicToolsTestSuite, TestEdgeVerifier) {
   FileGraphVerifier verifier(1024, curr_dir+"/../res/multiples_graph_1024.txt");
   // add edges of the form {i,2i}
-  for (int i = 2; i < 512; ++i) {
-    verifier.verify_edge({i,i*2});
+  for (node_id_t i = 2; i < 512; ++i) {
+    verifier.verify_edge({i, i*2});
   }
   // throw on nonexistent edge
   ASSERT_THROW(verifier.verify_edge({69,420}), BadEdgeException);
@@ -33,8 +33,8 @@ TEST(DeterministicToolsTestSuite, TestCCVerifier) {
   verifier.verify_cc(1);
   verifier.verify_cc(911);
   // add edges of the form {i,2i}
-  for (int i = 2; i < 512; ++i) {
-    verifier.verify_edge({i,i*2});
+  for (node_id_t i = 2; i < 512; ++i) {
+    verifier.verify_edge({i, i*2});
   }
   // nothing else is currently a CC
   for (int i = 2; i < 512; ++i) {
