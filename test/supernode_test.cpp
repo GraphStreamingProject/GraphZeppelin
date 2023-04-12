@@ -286,23 +286,25 @@ TEST_F(SupernodeTestSuite, ExhaustiveSample) {
       }
     }
 
-    std::pair<std::unordered_set<Edge>, SampleSketchRet> query_ret = s_node->exhaustive_sample();
-    if (query_ret.second != GOOD) {
-      ASSERT_EQ(query_ret.first.size(), 0);
+    // do 4 samples
+    for (size_t i = 0; i < 4; i++) {
+      std::pair<std::unordered_set<Edge>, SampleSketchRet> query_ret = s_node->exhaustive_sample();
+      if (query_ret.second != GOOD) {
+        ASSERT_EQ(query_ret.first.size(), 0);
+      }
+
+      // assert everything returned is valid
+      for (Edge e : query_ret.first) {
+        ASSERT_GT(e.src, 0);
+        ASSERT_LE(e.src, 10);
+        ASSERT_GT(e.dst, e.src);
+        ASSERT_LE(e.dst, 10);
+      }
+
+      // assert everything returned is unique
+      std::set<Edge> unique_elms(query_ret.first.begin(), query_ret.first.end());
+      ASSERT_EQ(unique_elms.size(), query_ret.first.size());
     }
-
-    // assert everything returned is valid
-    for (Edge e : query_ret.first) {
-      ASSERT_GT(e.src, 0);
-      ASSERT_LE(e.src, 10);
-      ASSERT_GT(e.dst, e.src);
-      ASSERT_LE(e.dst, 10);
-    }
-
-    // assert everything returned is unique
-    std::set<Edge> unique_elms(query_ret.first.begin(), query_ret.first.end());
-    ASSERT_EQ(unique_elms.size(), query_ret.first.size());
-
     free(s_node);
   }
 }
