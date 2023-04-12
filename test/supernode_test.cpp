@@ -286,7 +286,7 @@ TEST_F(SupernodeTestSuite, ExhaustiveSample) {
       }
     }
 
-    std::pair<std::vector<Edge>, SampleSketchRet> query_ret = s_node->exhaustive_sample();
+    std::pair<std::unordered_set<Edge>, SampleSketchRet> query_ret = s_node->exhaustive_sample();
     if (query_ret.second != GOOD) {
       ASSERT_EQ(query_ret.first.size(), 0);
     }
