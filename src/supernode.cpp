@@ -97,9 +97,7 @@ std::pair<std::unordered_set<Edge>, SampleSketchRet> Supernode::exhaustive_sampl
   if (out_of_queries()) throw OutOfQueriesException();
 
   std::pair<std::unordered_set<vec_t>, SampleSketchRet> query_ret = get_sketch(sample_idx++)->exhaustive_query();
-  std::unordered_set<Edge> edges;
-  // for (size_t i = 0; i < query_ret.size(); i++)
-  //   edges[i] = inv_concat_pairing_fn(query_ret.first[i]);
+  std::unordered_set<Edge> edges(query_ret.first.size());
   for (const auto &query_item: query_ret.first) {
     edges.insert(inv_concat_pairing_fn(query_item));
   }

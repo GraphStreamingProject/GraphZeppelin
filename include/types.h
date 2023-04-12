@@ -33,7 +33,7 @@ namespace std {
   struct hash<Edge> {
     auto operator()(const Edge&edge) const -> size_t {
       std::hash<size_t> h;
-      return h(edge.dst) ^(31 * h(edge.src));
+      return h(edge.dst) + (31 * h(edge.src));
     }
   };
 }
