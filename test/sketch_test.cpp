@@ -358,7 +358,7 @@ TEST(SketchTestSuite, TestExhaustiveQuery) {
     sketch->update(9);
     sketch->update(10);
 
-    std::pair<std::unordered_set<vec_t>, SampleSketchRet> query_ret = sketch->exhaustive_query();
+    std::pair<std::vector<vec_t>, SampleSketchRet> query_ret = sketch->exhaustive_query();
     if (query_ret.second != GOOD) {
       ASSERT_EQ(query_ret.first.size(), 0) << query_ret.second;
     }

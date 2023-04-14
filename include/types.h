@@ -24,19 +24,7 @@ struct Edge {
       return dst < oth.dst;
     return src < oth.src;
   }
-  bool operator== (const Edge&oth) const {
-    return src == oth.src && dst == oth.dst;
-  }
 };
-namespace std {
-  template <>
-  struct hash<Edge> {
-    auto operator()(const Edge&edge) const -> size_t {
-      std::hash<size_t> h;
-      return h(edge.dst) + (31 * h(edge.src));
-    }
-  };
-}
 
 struct GraphUpdate {
   Edge edge;

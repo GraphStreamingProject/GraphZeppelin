@@ -152,7 +152,7 @@ public:
    *            if one exists. Additionally, returns a code represnting the sample
    *            result (good, zero, or fail)
    */
-  std::pair<std::unordered_set<Edge>, SampleSketchRet> exhaustive_sample();
+  std::pair<std::vector<Edge>, SampleSketchRet> exhaustive_sample();
 
   /**
    * In-place merge function. Guaranteed to update the caller Supernode.
