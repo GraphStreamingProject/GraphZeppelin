@@ -1,6 +1,7 @@
 #pragma once
 #include <xxhash.h>
 #include <graph_zeppelin_common.h>
+#include <functional>
 
 typedef uint64_t col_hash_t;
 static const auto& vec_hash = XXH3_64bits_withSeed;
