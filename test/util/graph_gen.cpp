@@ -33,7 +33,8 @@ void write_edges(long n, double p, const std::string& out_f) {
   out << n << " " << m << endl;
 
   while (m--) {
-    out << inv_concat_pairing_fn(arr[m]) << endl;
+    Edge e = inv_concat_pairing_fn(arr[m]);
+    out << e.src << " " << e.dst << endl;
   }
   out.flush();
   out.close();
@@ -89,7 +90,8 @@ void insert_delete(double p, int max_appearances, const std::string& in_file,
     int temp = i % 2;
     for (unsigned j = 0; j < ins_del_arr[i]; ++j) {
       out << temp << " ";
-      out << inv_concat_pairing_fn(memoized[j]) << endl;
+      Edge e = inv_concat_pairing_fn(memoized[j]);
+      out << e.src << " " << e.dst << endl;
     }
   }
   out.flush();

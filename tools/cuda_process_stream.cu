@@ -4,8 +4,6 @@
 #include <binary_graph_stream.h>
 #include "../src/cuda_kernel.cu"
 
-typedef std::pair<Edge, UpdateType> GraphUpdate;
-
 int main(int argc, char **argv) {
   if (argc != 4) {
     std::cout << "ERROR: Incorrect number of arguments!" << std::endl;
@@ -29,7 +27,7 @@ int main(int argc, char **argv) {
     std::cout << "ERROR: Invalid number of threads per edge update. Must be 1 or 2." << std::endl;
   }
 
-  BinaryGraphStream stream(stream_file, 1024*32);
+  BinaryGraphStream_MT stream(stream_file, 1024*32);
   node_id_t num_nodes = stream.nodes();
   size_t num_updates  = stream.edges();
   std::cout << "Running process_stream with CUDA: " << std::endl;
@@ -40,7 +38,7 @@ int main(int argc, char **argv) {
 
   auto config = GraphConfiguration().gutter_sys(STANDALONE).num_groups(num_threads);
   config.gutter_conf().gutter_factor(-4);
-  Graph g{num_nodes, config};
+  Graph g{num_nodes, config, 1};
 
   Supernode** supernodes;
   supernodes = g.getSupernodes();
@@ -50,12 +48,12 @@ int main(int argc, char **argv) {
   
   // Get variables from sample sketch
   size_t num_elems = supernodes[0]->get_sketch(0)->get_num_elems();
-  size_t num_buckets = supernodes[0]->get_sketch(0)->get_num_buckets();
+  size_t num_columns = supernodes[0]->get_sketch(0)->get_columns();
   size_t num_guesses = supernodes[0]->get_sketch(0)->get_num_guesses();
   
   CudaParams* cudaParams;
   gpuErrchk(cudaMallocManaged(&cudaParams, sizeof(CudaParams)));
-  cudaParams[0] = CudaParams(num_nodes, num_updates, num_sketches, num_elems, num_buckets, num_guesses);
+  cudaParams[0] = CudaParams(num_nodes, num_updates, num_sketches, num_elems, num_columns, num_guesses);
 
   // Hashmap that stores node ids and edge ids that need to be updated
   std::map<int, std::vector<vec_t>> graphUpdates;
@@ -67,13 +65,16 @@ int main(int argc, char **argv) {
     cudaParams[0].nodeStartIndex[i] = 0;
   }
   
+  MT_StreamReader reader(stream);
+  GraphUpdate upd;
+
   // Collect all the edges that need to be updated
   for (size_t e = 0; e < num_updates; e++) {
-    GraphUpdate graphUpdate = stream.get_edge();
-    Edge updatedEdge = graphUpdate.first;
-    
-    graphUpdates[updatedEdge.first].push_back(static_cast<vec_t>(concat_pairing_fn(updatedEdge.first, updatedEdge.second)));
-    graphUpdates[updatedEdge.second].push_back(static_cast<vec_t>(concat_pairing_fn(updatedEdge.second, updatedEdge.first)));   
+    upd = reader.get_edge();
+    Edge &edge = upd.edge;
+
+    graphUpdates[edge.src].push_back(static_cast<vec_t>(concat_pairing_fn(edge.src, edge.dst)));
+    graphUpdates[edge.dst].push_back(static_cast<vec_t>(concat_pairing_fn(edge.dst, edge.src)));   
   }
 
   std::cout << "Finished initializing graphUpdates\n";

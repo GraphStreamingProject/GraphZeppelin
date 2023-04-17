@@ -7,6 +7,8 @@
 #include "../include/test/testing_vector.h"
 #include "../include/test/sketch_constructors.h"
 
+// Deprecated, needs to be updated 
+
 static const int fail_factor = 100;
 
 bool contains_inclusive(col_hash_t hash, col_hash_t guess) {

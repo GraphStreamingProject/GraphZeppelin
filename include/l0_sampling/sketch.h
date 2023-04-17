@@ -1,22 +1,20 @@
 #pragma once
+#include <gtest/gtest_prod.h>
+
 #include <cmath>
 #include <exception>
 #include <fstream>
 #include <functional>
-#include <vector>
 #include <memory>
 #include <mutex>
 #include <utility>
-#include "../bucket.h"
+#include <vector>
+#include <unordered_set>
+
 #include "../types.h"
 #include "../util.h"
-#include <gtest/gtest_prod.h>
-
 #include "../../src/cuda_library.cu"
-
-// max number of non-zeroes in vector is n/2*n/2=n^2/4
-#define guess_gen(x) double_to_ull(log2(x) - 2)
-#define bucket_gen(d) double_to_ull((log2(d)+1))
+#include "bucket.h"
 
 enum SampleSketchRet {
   GOOD,  // querying this sketch returned a single non-zero value
@@ -30,18 +28,20 @@ enum SampleSketchRet {
  * raise an error.
  */
 class Sketch {
-private:
-  static vec_t failure_factor;     // Failure factor determines number of columns in sketch. Pr(failure) = 1 / factor
-  static vec_t n;                  // Length of the vector this is sketching.
-  static size_t num_elems;         // length of our actual arrays in number of elements
-  static size_t num_buckets;       // Portion of array length, number of buckets
-  static size_t num_guesses;       // Portion of array length, number of guesses
+ private:
+  static vec_t failure_factor;  // Pr(failure) = 1 / factor. Determines number of columns in sketch.
+  static vec_t n;               // Length of the vector this is sketching.
+  static size_t num_elems;      // length of our actual arrays in number of elements
+  static size_t num_columns;    // Portion of array length, number of columns
+  static size_t num_guesses;    // Portion of array length, number of guesses
 
   // Seed used for hashing operations in this sketch.
   const uint64_t seed;
   // pointers to buckets
-  vec_t*      bucket_a;
+  vec_t* bucket_a;
   vec_hash_t* bucket_c;
+
+  static constexpr size_t begin_nonnull = 1; // offset at which non-null buckets occur
 
   // Flag to keep track if this sketch has already been queried.
   bool already_queried = false;
@@ -50,67 +50,73 @@ private:
   FRIEND_TEST(CUDASketchTestSuite, TestExceptions);
   FRIEND_TEST(EXPR_Parallelism, N10kU100k);
 
-  
   // Buckets of this sketch.
-  // Length is bucket_gen(failure_factor) * guess_gen(n).
+  // Length is column_gen(failure_factor) * guess_gen(n).
   // For buckets[i * guess_gen(n) + j], the bucket has a 1/2^j probability
   // of containing an index. The first two are pointers into the buckets array.
-  char buckets[1];
+  alignas(vec_t) char buckets[];
 
   // private constructors -- use makeSketch
   Sketch(uint64_t seed);
-  Sketch(uint64_t seed, std::istream &binary_in);
+  Sketch(uint64_t seed, std::istream& binary_in, bool sparse);
   Sketch(const Sketch& s);
 
-public:
+ public:
   /**
    * Construct a sketch of a vector of size n
    * The optional parameters are used when building a sketch from a file
-   * @param loc        A pointer to a location in memory where the caller would like the sketch constructed
+   * @param loc        A pointer to a location in memory where the caller would like the sketch
+   * constructed
    * @param seed       Seed to use for hashing operations
    * @param binary_in  (Optional) A file which holds an encoding of a sketch
-   * @return           A pointer to a newly constructed sketch 
+   * @return           A pointer to a newly constructed sketch
    */
   static Sketch* makeSketch(void* loc, uint64_t seed);
-  static Sketch* makeSketch(void* loc, uint64_t seed, std::istream &binary_in);
-  
+  static Sketch* makeSketch(void* loc, uint64_t seed, std::istream& binary_in, bool sparse=false);
+
   /**
    * Copy constructor to create a sketch from another
-   * @param loc   A pointer to a location in memory where the caller would like the sketch constructed
+   * @param loc   A pointer to a location in memory where the caller would like the sketch
+   * constructed
    * @param s     A sketch to make a copy of
-   * @return      A pointer to a newly constructed sketch 
+   * @return      A pointer to a newly constructed sketch
    */
   static Sketch* makeSketch(void* loc, const Sketch& s);
-  
+
   /* configure the static variables of sketches
    * @param n               Length of the vector to sketch. (static variable)
-   * @param failure_factor  The rate at which an uint64_t
+   * @param failure_factor  1/factor = Failure rate for sketch (determines column width)
+   * @return nothing  inline void reset_queried() 
+  { already_queried = false; }
    */
   inline static void configure(vec_t _n, vec_t _factor) {
     n = _n;
     failure_factor = _factor;
-    num_buckets = bucket_gen(failure_factor);
+    num_columns = column_gen(failure_factor);
     num_guesses = guess_gen(n);
-    num_elems = num_buckets * num_guesses + 1;
+    num_elems = num_columns * num_guesses + 1;  // +1 for zero bucket optimization
   }
 
-  inline static size_t sketchSizeof()
-  { return sizeof(Sketch) + num_elems * (sizeof(vec_t) + sizeof(vec_hash_t)) - sizeof(char); }
-  
-  inline static vec_t get_failure_factor() 
-  { return failure_factor; }
+  inline static size_t sketchSizeof() {
+    return sizeof(Sketch) + num_elems * (sizeof(vec_t) + sizeof(vec_hash_t)) +
+           (num_elems % 2) * sizeof(vec_hash_t);
+  }
 
   inline static vec_t get_num_elems() 
   { return num_elems; }
 
-  inline static size_t get_num_buckets() 
-  { return num_buckets; }
-
   inline static size_t get_num_guesses() 
   { return num_guesses; }
 
-  inline void reset_queried() 
-  { already_queried = false; }
+  inline static size_t serialized_size() {
+    return num_elems * (sizeof(vec_t) + sizeof(vec_hash_t));
+  }
+
+  inline static vec_t get_failure_factor() { return failure_factor; }
+
+  inline void reset_queried() { already_queried = false; }
+
+  inline static size_t get_columns() { return num_columns; }
 
   inline uint64_t get_seed() {
     return seed;
@@ -136,7 +142,7 @@ public:
    * Update a sketch based on information about one of its indices.
    * @param update the point update.
    */
-  void update(const vec_t& update_idx);
+  void update(const vec_t update_idx);
 
   /**
    * Update a sketch given a batch of updates.
@@ -146,13 +152,19 @@ public:
 
   /**
    * Function to query a sketch.
-   * @return   A pair with the result index and a code indicating if the type of result.
+   * @return   A pair with the result index and a code indicating the type of result.
    */
   std::pair<vec_t, SampleSketchRet> query();
 
-  inline uint64_t get_seed() const {
-    return seed;
-  }
+  /*
+   * Function to query all columns within a sketch to return 1 or more non-zero indices
+   * @return   A pair with the result indices and a code indicating the type of result.
+   */
+  std::pair<std::unordered_set<vec_t>, SampleSketchRet> exhaustive_query();
+
+  inline uint64_t get_seed() const { return seed; }
+  inline size_t column_seed(size_t column_idx) const { return seed + column_idx*5; }
+  inline size_t checksum_seed() const { return seed; }
 
   /**
    * Operator to add a sketch to another one in-place. Guaranteed to be
@@ -162,21 +174,33 @@ public:
    * @param sketch2 the one being added.
    * @return a reference to the combined sketch.
    */
-  friend Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2);
-  friend bool operator== (const Sketch &sketch1, const Sketch &sketch2);
-  friend std::ostream& operator<< (std::ostream &os, const Sketch &sketch);
+  friend Sketch& operator+=(Sketch& sketch1, const Sketch& sketch2);
+  friend bool operator==(const Sketch& sketch1, const Sketch& sketch2);
+  friend std::ostream& operator<<(std::ostream& os, const Sketch& sketch);
 
   /**
    * Serialize the sketch to a binary output stream.
-   * @param out the stream to write to.
+   * @param binary_out   the stream to write to.
    */
   void write_binary(std::ostream& binary_out);
   void write_binary(std::ostream& binary_out) const;
+
+  /**
+   * Serialize a sketch while optimizing for space
+   * This assumes that the sketch itself sparse
+   * Otherwise, this serialization will use more space
+   * @param binary_out   the stream to write to.
+   */
+  void write_sparse_binary(std::ostream& binary_out);
+  void write_sparse_binary(std::ostream& binary_out) const;
+
+
+  // max number of non-zeroes in vector is n/2*n/2=n^2/4
+  static size_t guess_gen(size_t x) { return double_to_ull(log2(x) - 2); }
+  static size_t column_gen(size_t d) { return double_to_ull((log2(d) + 1)); }
 };
 
 class MultipleQueryException : public std::exception {
-public:
-  virtual const char* what() const throw() {
-    return "This sketch has already been sampled!";
-  }
+ public:
+  virtual const char* what() const throw() { return "This sketch has already been sampled!"; }
 };

@@ -29,6 +29,11 @@ else()
   message(STATUS "${CMAKE_CXX_COMPILER_ID} not recognized, no flags added")
 endif()
 
+#add_compile_options(-fsanitize=address)
+#add_link_options(-fsanitize=address)
+#add_compile_options(-fsanitize=undefined)
+#add_link_options(-fsanitize=undefined)
+
 # Check if this project is the top directory or build type is Debug
 # If so, build executables, otherwise, only build libraries
 get_directory_property(not_root PARENT_DIRECTORY)
@@ -102,7 +107,6 @@ add_library(GraphZeppelin
   src/supernode.cpp
   src/graph_worker.cpp
   src/l0_sampling/sketch.cpp
-  src/l0_sampling/update.cpp
   src/util.cpp)
 add_dependencies(GraphZeppelin GutterTree)
 target_link_libraries(GraphZeppelin PUBLIC xxhash GutterTree CudaLibrary)
@@ -117,7 +121,6 @@ add_library(GraphZeppelinVerifyCC
   src/supernode.cpp
   src/graph_worker.cpp
   src/l0_sampling/sketch.cpp
-  src/l0_sampling/update.cpp
   src/util.cpp
   test/util/file_graph_verifier.cpp
   test/util/mat_graph_verifier.cpp)
@@ -135,7 +138,6 @@ add_library(GraphZeppelinCUDA
   src/supernode.cpp
   src/graph_worker.cpp
   src/l0_sampling/sketch.cpp
-  src/l0_sampling/update.cpp
   src/util.cpp)
 add_dependencies(GraphZeppelinCUDA GutterTree)
 target_link_libraries(GraphZeppelinCUDA PUBLIC xxhash GutterTree CudaLibrary)
@@ -150,7 +152,6 @@ add_library(GraphZeppelinVerifyCUDA
   src/supernode.cpp
   src/graph_worker.cpp
   src/l0_sampling/sketch.cpp
-  src/l0_sampling/update.cpp
   src/util.cpp
   test/util/file_graph_verifier.cpp
   test/util/mat_graph_verifier.cpp)

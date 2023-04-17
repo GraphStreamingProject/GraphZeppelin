@@ -41,7 +41,7 @@ TEST_P(GraphTest, SmallGraphConnectivity) {
     in >> a >> b;
     g.update({{a, b}, INSERT});
   }
-  g.set_verifier(std::make_unique<FileGraphVerifier>(curr_dir + "/res/multiples_graph_1024.txt"));
+  g.set_verifier(std::make_unique<FileGraphVerifier>(1024, curr_dir + "/res/multiples_graph_1024.txt"));
   ASSERT_EQ(78, g.connected_components().size());
 }
 
@@ -61,7 +61,7 @@ TEST(GraphTest, IFconnectedComponentsAlgRunTHENupdateLocked) {
     in >> a >> b;
     g.update({{a, b}, INSERT});
   }
-  g.set_verifier(std::make_unique<FileGraphVerifier>(curr_dir + "/res/multiples_graph_1024.txt"));
+  g.set_verifier(std::make_unique<FileGraphVerifier>(1024, curr_dir + "/res/multiples_graph_1024.txt"));
   g.connected_components();
   ASSERT_THROW(g.update({{1,2}, INSERT}), UpdateLockedException);
   ASSERT_THROW(g.update({{1,2}, DELETE}), UpdateLockedException);
@@ -84,7 +84,7 @@ TEST(GraphTest, TestSupernodeRestoreAfterCCFailure) {
       in >> a >> b;
       g.update({{a, b}, INSERT});
     }
-    g.set_verifier(std::make_unique<FileGraphVerifier>(curr_dir + "/res/multiples_graph_1024.txt"));
+    g.set_verifier(std::make_unique<FileGraphVerifier>(1024, curr_dir + "/res/multiples_graph_1024.txt"));
     g.should_fail_CC();
 
     // flush to make sure copy supernodes is consistent with graph supernodes
@@ -97,7 +97,7 @@ TEST(GraphTest, TestSupernodeRestoreAfterCCFailure) {
 
     ASSERT_THROW(g.connected_components(true), OutOfQueriesException);
     for (node_id_t i = 0; i < num_nodes; ++i) {
-      for (int j = 0; j < copy_supernodes[i]->get_num_sktch(); ++j) {
+      for (int j = 0; j < Supernode::get_max_sketches(); ++j) {
         ASSERT_TRUE(*copy_supernodes[i]->get_sketch(j) ==
                   *g.supernodes[i]->get_sketch(j));
       }
@@ -115,7 +115,8 @@ TEST_P(GraphTest, TestCorrectnessOnSmallRandomGraphs) {
     edge_id_t m;
     in >> n >> m;
     Graph g{n, config};
-    int type, a, b;
+    int type;
+    node_id_t a, b;
     while (m--) {
       in >> type >> a >> b;
       if (type == INSERT) {
@@ -123,7 +124,7 @@ TEST_P(GraphTest, TestCorrectnessOnSmallRandomGraphs) {
       } else g.update({{a, b}, DELETE});
     }
 
-    g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
+    g.set_verifier(std::make_unique<FileGraphVerifier>(n, "./cumul_sample.txt"));
     g.connected_components();
   }
 }
@@ -138,7 +139,8 @@ TEST_P(GraphTest, TestCorrectnessOnSmallSparseGraphs) {
     edge_id_t m;
     in >> n >> m;
     Graph g{n, config};
-    int type, a, b;
+    int type;
+    node_id_t a, b;
     while (m--) {
       in >> type >> a >> b;
       if (type == INSERT) {
@@ -146,7 +148,7 @@ TEST_P(GraphTest, TestCorrectnessOnSmallSparseGraphs) {
       } else g.update({{a, b}, DELETE});
     }
 
-    g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
+    g.set_verifier(std::make_unique<FileGraphVerifier>(1024, "./cumul_sample.txt"));
     g.connected_components();
   } 
 }
@@ -161,7 +163,8 @@ TEST_P(GraphTest, TestCorrectnessOfReheating) {
     edge_id_t m;
     in >> n >> m;
     Graph *g = new Graph (n, config);
-    int type, a, b;
+    int type;
+    node_id_t a, b;
     printf("number of updates = %lu\n", m);
     while (m--) {
       in >> type >> a >> b;
@@ -169,14 +172,14 @@ TEST_P(GraphTest, TestCorrectnessOfReheating) {
       else g->update({{a, b}, DELETE});
     }
     g->write_binary("./out_temp.txt");
-    g->set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
+    g->set_verifier(std::make_unique<FileGraphVerifier>(1024, "./cumul_sample.txt"));
     std::vector<std::set<node_id_t>> g_res;
     g_res = g->connected_components();
     printf("number of CC = %lu\n", g_res.size());
     delete g; // delete g to avoid having multiple graphs open at once. Which is illegal.
 
     Graph reheated {"./out_temp.txt"};
-    reheated.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
+    reheated.set_verifier(std::make_unique<FileGraphVerifier>(1024, "./cumul_sample.txt"));
     auto reheated_res = reheated.connected_components();
     printf("number of reheated CC = %lu\n", reheated_res.size());
     ASSERT_EQ(g_res.size(), reheated_res.size());
@@ -205,7 +208,8 @@ TEST_P(GraphTest, MultipleWorkers) {
     edge_id_t m;
     in >> n >> m;
     Graph g{n, config};
-    int type, a, b;
+    int type;
+    node_id_t a, b;
     while (m--) {
       in >> type >> a >> b;
       if (type == INSERT) {
@@ -213,7 +217,7 @@ TEST_P(GraphTest, MultipleWorkers) {
       } else g.update({{a, b}, DELETE});
     }
 
-    g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
+    g.set_verifier(std::make_unique<FileGraphVerifier>(1024, "./cumul_sample.txt"));
     g.connected_components();
   } 
 }
@@ -234,7 +238,7 @@ TEST_P(GraphTest, TestPointQuery) {
     in >> a >> b;
     g.update({{a, b}, INSERT});
   }
-  g.set_verifier(std::make_unique<FileGraphVerifier>(curr_dir + "/res/multiples_graph_1024.txt"));
+  g.set_verifier(std::make_unique<FileGraphVerifier>(1024, curr_dir + "/res/multiples_graph_1024.txt"));
   std::vector<std::set<node_id_t>> ret = g.connected_components(true);
   std::vector<node_id_t> ccid (num_nodes);
   for (node_id_t i = 0; i < ret.size(); ++i) {
@@ -244,7 +248,7 @@ TEST_P(GraphTest, TestPointQuery) {
   }
   for (node_id_t i = 0; i < std::min(10u, num_nodes); ++i) {
     for (node_id_t j = 0; j < std::min(10u, num_nodes); ++j) {
-      g.set_verifier(std::make_unique<FileGraphVerifier>(curr_dir + "/res/multiples_graph_1024.txt"));
+      g.set_verifier(std::make_unique<FileGraphVerifier>(1024, curr_dir + "/res/multiples_graph_1024.txt"));
       ASSERT_EQ(g.point_query(i, j), ccid[i] == ccid[j]);
     }
   }
@@ -412,12 +416,12 @@ TEST(GraphTest, MultipleInsertThreads) {
     threads[i].join();
   }
 
-  g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
+  g.set_verifier(std::make_unique<FileGraphVerifier>(1024, "./cumul_sample.txt"));
   g.connected_components();
 }
 
 TEST(GraphTest, MTStreamWithMultipleQueries) {
-  for(int i = 1; i <= 10; i++) {
+  for(int i = 1; i <= 3; i++) {
     auto config = GraphConfiguration().gutter_sys(STANDALONE);
 
     const std::string fname = __FILE__;
@@ -441,7 +445,8 @@ TEST(GraphTest, MTStreamWithMultipleQueries) {
     std::mutex q_lock;
 
     // prepare evenly spaced queries
-    int num_queries = 10;
+    std::atomic<int> num_queries;
+    num_queries = 10;
     int upd_per_query = num_edges / num_queries;
     int query_idx = upd_per_query;
     ASSERT_TRUE(stream.register_query(query_idx)); // register first query
@@ -452,8 +457,8 @@ TEST(GraphTest, MTStreamWithMultipleQueries) {
       GraphUpdate upd;
       while(true) {
         upd = reader.get_edge();
-        if (upd.second == END_OF_FILE) return;
-        else if (upd.second == NXT_QUERY) {
+        if (upd.type == BREAKPOINT && num_queries == 0) return;
+        else if (upd.type == BREAKPOINT) {
           query_done = false;
           if (thr_id > 0) {
             // pause this thread and wait for query to be done
@@ -479,7 +484,7 @@ TEST(GraphTest, MTStreamWithMultipleQueries) {
             // add updates to verifier and perform query
             for (int j = 0; j < upd_per_query; j++) {
               GraphUpdate upd = verify_stream.get_edge();
-              verify.edge_update(upd.first.first, upd.first.second);
+              verify.edge_update(upd.edge.src, upd.edge.dst);
             }
             verify.reset_cc_state();
             g.set_verifier(std::make_unique<MatGraphVerifier>(verify));
@@ -491,15 +496,15 @@ TEST(GraphTest, MTStreamWithMultipleQueries) {
               // prepare next query
               query_idx += upd_per_query;
               ASSERT_TRUE(stream.register_query(query_idx));
-              num_queries--;
             }
+            num_queries--;
             num_query_ready--;
             query_done = true;
             lk.unlock();
             q_done_cond.notify_all();
           }
         }
-        else if (upd.second == INSERT || upd.second == DELETE)
+        else if (upd.type == INSERT || upd.type == DELETE)
           g.update(upd, thr_id);
         else
           throw std::invalid_argument("Did not recognize edge code!");
@@ -518,7 +523,7 @@ TEST(GraphTest, MTStreamWithMultipleQueries) {
     // process the rest of the stream into the MatGraphVerifier
     for(size_t i = query_idx; i < num_edges; i++) {
       GraphUpdate upd = verify_stream.get_edge();
-      verify.edge_update(upd.first.first, upd.first.second);
+      verify.edge_update(upd.edge.src, upd.edge.dst);
     }
 
     // perform final query

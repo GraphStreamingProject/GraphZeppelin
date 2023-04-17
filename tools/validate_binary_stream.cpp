@@ -28,10 +28,10 @@ int main(int argc, char **argv) {
       std::rethrow_exception(std::current_exception());
       break;
     }
-    Edge edge = upd.first;
-    UpdateType u = upd.second;
-    if (edge.first >= nodes || edge.second >= nodes || (u != INSERT && u != DELETE) || edge.first == edge.second) {
-      std::cerr << "ERROR: edge idx:" << e << "=(" << edge.first << "," << edge.second << "), " << u << std::endl;
+    Edge edge = upd.edge;
+    UpdateType u = upd.type;
+    if (edge.src >= nodes || edge.dst >= nodes || (u != INSERT && u != DELETE) || edge.src == edge.dst) {
+      std::cerr << "ERROR: edge idx:" << e << "=(" << edge.src << "," << edge.dst << "), " << u << std::endl;
       err = true;
     }
     if (e % 1000000000 == 0 && e != 0) std::cout << e << std::endl; 

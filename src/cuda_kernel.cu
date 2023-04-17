@@ -53,14 +53,14 @@ class CudaParams {
     
     // Parameter for each sketch (consistent with other sketches)
     size_t num_elems;
-    size_t num_buckets;
+    size_t num_columns;
     size_t num_guesses;
 
     // Default Constructor of CudaParams
     CudaParams():nodeUpdates(nullptr), edgeUpdates(nullptr), nodeNumUpdates(nullptr), nodeStartIndex(nullptr) {};
     
-    CudaParams(node_id_t num_nodes, size_t num_updates, int num_sketches, size_t num_elems, size_t num_buckets, size_t num_guesses):
-      num_nodes(num_nodes), num_updates(num_updates), num_sketches(num_sketches), num_elems(num_elems), num_buckets(num_buckets), num_guesses(num_guesses) {
+    CudaParams(node_id_t num_nodes, size_t num_updates, int num_sketches, size_t num_elems, size_t num_columns, size_t num_guesses):
+      num_nodes(num_nodes), num_updates(num_updates), num_sketches(num_sketches), num_elems(num_elems), num_columns(num_columns), num_guesses(num_guesses) {
       
       // Allocate memory space for GPU
       gpuErrchk(cudaMallocManaged(&nodeUpdates, 2 * num_updates * sizeof(node_id_t)));
@@ -70,12 +70,8 @@ class CudaParams {
     };
 };
 
-__device__ col_hash_t bucket_col_index_hash(const vec_t_cu& update_idx, const long seed_and_col) {
-  return CUDA_XXH64(&update_idx, sizeof(update_idx), seed_and_col);
-}
-
 __device__ vec_hash_t bucket_index_hash(const vec_t_cu& index, long sketch_seed) {
-  return CUDA_XXH32(&index, sizeof(index), sketch_seed);
+  return CUDA_XXH64(&index, sizeof(index), sketch_seed);
 }
 
 __device__  bool bucket_contains(const vec_t_cu& col_index_hash, const vec_t_cu& guess_nonzero) {
@@ -87,12 +83,27 @@ __device__ void bucket_update(vec_t_cu& a, vec_hash_t& c, const vec_t_cu& update
   atomicXor(&c, update_hash);
 }
 
-__device__ void bucket_a_single_update(vec_t_cu& a, const vec_t_cu& update_idx) {
-  atomicXor(&a, update_idx);
+// Source: http://graphics.stanford.edu/~seander/bithacks.html#ZerosOnRightLinear
+__device__ int ctzll(col_hash_t v) {
+  int c;
+  if (v) {
+    v = (v ^ (v - 1)) >> 1;
+    for (c = 0; v; c++) {
+      v >>= 1;
+    }
+  }
+  else {
+    c = 8 * sizeof(v);
+  }
+  return c;
 }
 
-__device__ void bucket_c_single_update(vec_hash_t& c, const vec_hash_t& update_hash) {
-  atomicXor(&c, update_hash);
+__device__ col_hash_t bucket_get_index_depth(const vec_t_cu update_idx, const long seed_and_col, const vec_hash_t max_depth) {
+  // Update CUDA_XXH, confirm they are correct with xxhash_test.cu
+  col_hash_t depth_hash = CUDA_XXH64(&update_idx, sizeof(vec_t), seed_and_col);
+  depth_hash |= (1ull << max_depth); // assert not > max_depth by ORing
+
+  return ctzll(depth_hash);
 }
 
 // Kernel code for only sketch updates
@@ -121,7 +132,7 @@ __device__ void bucket_c_single_update(vec_hash_t& c, const vec_hash_t& update_h
     bucket_update(bucket_a[num_elems - 1], bucket_c[num_elems - 1], update_idx, update_hash);
 
     // Step 5: Update current sketch
-    for (unsigned i = 0; i < curr_cudaSketch.num_buckets; ++i) {
+    for (unsigned i = 0; i < curr_cudaSketch.num_columns; ++i) {
       col_hash_t col_index_hash = bucket_col_index_hash(update_idx, curr_cudaSketch.seed + i);
       for (unsigned j = 0; j < curr_cudaSketch.num_guesses; ++j) {
         unsigned bucket_id = i * curr_cudaSketch.num_guesses + j;
@@ -150,7 +161,7 @@ __device__ void bucket_c_single_update(vec_hash_t& c, const vec_hash_t& update_h
   int num_sketches = cudaParams[0].num_sketches;
   
   size_t num_elems = cudaParams[0].num_elems;
-  size_t num_buckets = cudaParams[0].num_buckets;
+  size_t num_columns = cudaParams[0].num_columns;
   size_t num_guesses = cudaParams[0].num_guesses;
 
   if (tid < num_updates * 2){
@@ -172,7 +183,7 @@ __device__ void bucket_c_single_update(vec_hash_t& c, const vec_hash_t& update_h
       bucket_update(bucket_a[num_elems - 1], bucket_c[num_elems - 1], edgeUpdates[tid], update_hash);
 
       // Update node's sketches
-      for (unsigned j = 0; j < num_buckets; ++j) {
+      for (unsigned j = 0; j < num_columns; ++j) {
         col_hash_t col_index_hash = bucket_col_index_hash(edgeUpdates[tid], curr_cudaSketch.seed + j);
         for (unsigned k = 0; k < num_guesses; ++k) {
           unsigned bucket_id = j * num_guesses + k;
@@ -202,7 +213,7 @@ __device__ void bucket_c_single_update(vec_hash_t& c, const vec_hash_t& update_h
   int num_sketches = cudaParams[0].num_sketches;
   
   size_t num_elems = cudaParams[0].num_elems;
-  size_t num_buckets = cudaParams[0].num_buckets;
+  size_t num_columns = cudaParams[0].num_columns;
   size_t num_guesses = cudaParams[0].num_guesses;
 
   if (tid < num_updates * 2){
@@ -230,7 +241,7 @@ __device__ void bucket_c_single_update(vec_hash_t& c, const vec_hash_t& update_h
       bucket_update(bucket_a[num_elems - 1], bucket_c[num_elems - 1], edgeUpdates[start_index + i], update_hash);
 
       // Update node's sketches
-      for (unsigned j = 0; j < num_buckets; ++j) {
+      for (unsigned j = 0; j < num_columns; ++j) {
         col_hash_t col_index_hash = bucket_col_index_hash(edgeUpdates[start_index + i], curr_cudaSketch.seed + j);
         for (unsigned k = 0; k < num_guesses; ++k) {
           unsigned bucket_id = j * num_guesses + k;
@@ -247,7 +258,7 @@ __device__ void bucket_c_single_update(vec_hash_t& c, const vec_hash_t& update_h
 // Two threads will be responsible for one edge update -> one thread is only modifying one node's sketches.
 // Placing sketches in shared memory
 /*__global__ void doubleStream_update(int* nodeUpdates, vec_t* edgeUpdates, int* nodeNumUpdates, int* nodeStartIndex, node_id_t num_nodes, size_t num_updates,
-    int num_sketches, size_t num_elems, size_t num_buckets, size_t num_guesses, CudaSketch* cudaSketches, long* sketchSeeds) {
+    int num_sketches, size_t num_elems, size_t num_columns, size_t num_guesses, CudaSketch* cudaSketches, long* sketchSeeds) {
 
   if (blockIdx.x < num_nodes){
     
@@ -278,7 +289,7 @@ __device__ void bucket_c_single_update(vec_hash_t& c, const vec_hash_t& update_h
         bucket_update(bucket_a[(i * num_elems) + num_elems - 1], bucket_c[(i * num_elems) + num_elems - 1], edgeUpdates[startIndex + id], update_hash);
 
         // Update node's sketches
-        for (unsigned j = 0; j < num_buckets; ++j) {
+        for (unsigned j = 0; j < num_columns; ++j) {
           col_hash_t col_index_hash = bucket_col_index_hash(edgeUpdates[startIndex + id], sketchSeeds[(node * num_sketches) + i] + j);
           for (unsigned k = 0; k < num_guesses; ++k) {
             unsigned bucket_id = j * num_guesses + k;
@@ -312,8 +323,8 @@ __device__ void bucket_c_single_update(vec_hash_t& c, const vec_hash_t& update_h
 // Version 5: Kernel code of handling all the stream updates
 // Two threads will be responsible for one edge update -> one thread is only modifying one node's sketches.
 // Placing sketches in shared memory, each thread is doing log n updates on one slice of sketch
-__global__ void doubleStream_update(int* nodeUpdates, vec_t* edgeUpdates, int* nodeNumUpdates, int* nodeStartIndex, node_id_t num_nodes, size_t num_updates,
-    int num_sketches, size_t num_elems, size_t num_buckets, size_t num_guesses, CudaSketch* cudaSketches, long* sketchSeeds) {
+/*__global__ void doubleStream_update(int* nodeUpdates, vec_t* edgeUpdates, int* nodeNumUpdates, int* nodeStartIndex, node_id_t num_nodes, size_t num_updates,
+    int num_sketches, size_t num_elems, size_t num_columns, size_t num_guesses, CudaSketch* cudaSketches, long* sketchSeeds) {
 
   if (blockIdx.x < num_nodes){
     
@@ -352,7 +363,7 @@ __global__ void doubleStream_update(int* nodeUpdates, vec_t* edgeUpdates, int* n
         bucket_update(bucket_a[(sketch_offset * num_elems) + num_elems - 1], bucket_c[(sketch_offset * num_elems) + num_elems - 1], edgeUpdates[startIndex + update_offset + i], update_hash);
 
         // Update node's sketches
-        for (unsigned j = 0; j < num_buckets; ++j) {
+        for (unsigned j = 0; j < num_columns; ++j) {
           col_hash_t col_index_hash = bucket_col_index_hash(edgeUpdates[startIndex + update_offset + i], sketchSeeds[(node * num_sketches) + sketch_offset] + j);
           for (unsigned k = 0; k < num_guesses; ++k) {
             unsigned bucket_id = j * num_guesses + k;
@@ -360,6 +371,79 @@ __global__ void doubleStream_update(int* nodeUpdates, vec_t* edgeUpdates, int* n
               bucket_update(bucket_a[(sketch_offset * num_elems) + bucket_id], bucket_c[(sketch_offset * num_elems) + bucket_id], edgeUpdates[startIndex + update_offset + i], update_hash);
             } else break;
           }
+        }
+      }
+    }
+
+    __syncthreads();
+
+    // Have one thread to transfer sketches back to global memory
+    if (threadIdx.x == 0) {
+      for (int i = 0; i < num_sketches; i++) {
+        CudaSketch curr_cudaSketch = cudaSketches[(node * num_sketches) + i];
+
+        vec_t_cu* curr_bucket_a = (vec_t_cu*)curr_cudaSketch.d_bucket_a;
+        vec_hash_t* curr_bucket_c = curr_cudaSketch.d_bucket_c;
+
+        for (int j = 0; j < num_elems; j++) {
+          curr_bucket_a[j] = bucket_a[(i * num_elems) + j];
+          curr_bucket_c[j] = bucket_c[(i * num_elems) + j];
+        }
+      }
+    }
+  }
+}*/
+
+// Version 6: Kernel code of handling all the stream updates
+// Two threads will be responsible for one edge update -> one thread is only modifying one node's sketches.
+// Placing sketches in shared memory, each thread is doing log n updates on one slice of sketch.
+// Applying newest verison of sketch update function
+__global__ void doubleStream_update(int* nodeUpdates, vec_t* edgeUpdates, int* nodeNumUpdates, int* nodeStartIndex, node_id_t num_nodes, size_t num_updates,
+    int num_sketches, size_t num_elems, size_t num_columns, size_t num_guesses, CudaSketch* cudaSketches, long* sketchSeeds) {
+
+  if (blockIdx.x < num_nodes){
+    
+    extern __shared__ vec_t_cu sketches[];
+    vec_t_cu* bucket_a = sketches;
+    vec_hash_t* bucket_c = (vec_hash_t*)&bucket_a[num_elems * num_sketches];
+    int node = blockIdx.x;
+    int startIndex = nodeStartIndex[node];
+
+    // Have one thread to initialize shared memory
+    if (threadIdx.x == 0) {
+      for (int i = 0; i < num_sketches; i++) {
+        for (int j = 0; j < num_elems; j++) {
+          bucket_a[(i * num_elems) + j] = 0;
+          bucket_c[(i * num_elems) + j] = 0;
+        }
+      }
+    }
+
+    __syncthreads();
+
+    // Update node's sketches
+    for (int id = threadIdx.x; id < nodeNumUpdates[node] + num_sketches; id += blockDim.x) {
+      
+      int sketch_offset = id % num_sketches;
+      int update_offset = ((id / num_sketches) * num_sketches);
+      
+      for (int i = 0; i < num_sketches; i++) {
+
+        if ((startIndex + update_offset + i) >= startIndex + nodeNumUpdates[node]) {
+          break;
+        }
+
+        vec_hash_t checksum = bucket_index_hash(edgeUpdates[startIndex + update_offset + i], sketchSeeds[(node * num_sketches) + sketch_offset]);
+
+        // Update depth 0 bucket
+        bucket_update(bucket_a[(sketch_offset * num_elems) + num_elems - 1], bucket_c[(sketch_offset * num_elems) + num_elems - 1], edgeUpdates[startIndex + update_offset + i], checksum);
+
+        // Update higher depth buckets
+        for (unsigned j = 0; j < num_columns; ++j) {
+          col_hash_t depth = bucket_get_index_depth(edgeUpdates[startIndex + update_offset + i], sketchSeeds[(node * num_sketches) + sketch_offset] + j*5, num_guesses);
+          size_t bucket_id = j * num_guesses + depth;
+          if(depth < num_guesses)
+            bucket_update(bucket_a[(sketch_offset * num_elems) + bucket_id], bucket_c[(sketch_offset * num_elems) + bucket_id], edgeUpdates[startIndex + update_offset + i], checksum);
         }
       }
     }
@@ -399,7 +483,7 @@ __global__ void doubleStream_update(int* nodeUpdates, vec_t* edgeUpdates, int* n
   int num_sketches = cudaParams[0].num_sketches;
   
   size_t num_elems = cudaParams[0].num_elems;
-  size_t num_buckets = cudaParams[0].num_buckets;
+  size_t num_columns = cudaParams[0].num_columns;
   size_t num_guesses = cudaParams[0].num_guesses;
 
   // One thread will be responsible for one edge update = one thread is updating sketches on each endpoint nodes (2).
@@ -427,7 +511,7 @@ __global__ void doubleStream_update(int* nodeUpdates, vec_t* edgeUpdates, int* n
       bucket_update(bucket_a[num_elems - 1], bucket_c[num_elems - 1], edgeUpdates[node1_id], update_hash);
 
       // Update node1's sketches
-      for (unsigned j = 0; j < num_buckets; ++j) {
+      for (unsigned j = 0; j < num_columns; ++j) {
         col_hash_t col_index_hash = bucket_col_index_hash(edgeUpdates[node1_id], curr_cudaSketch.seed + j);
         for (unsigned k = 0; k < num_guesses; ++k) {
           unsigned bucket_id = j * num_guesses + k;
@@ -452,7 +536,7 @@ __global__ void doubleStream_update(int* nodeUpdates, vec_t* edgeUpdates, int* n
       bucket_update(bucket_a[num_elems - 1], bucket_c[num_elems - 1], edgeUpdates[node2_id], update_hash);
       
       // Update node2's sketches
-      for (unsigned j = 0; j < num_buckets; ++j) {
+      for (unsigned j = 0; j < num_columns; ++j) {
         col_hash_t col_index_hash = bucket_col_index_hash(edgeUpdates[node2_id], curr_cudaSketch.seed + j);
         for (unsigned k = 0; k < num_guesses; ++k) {
           unsigned bucket_id = j * num_guesses + k;
@@ -481,7 +565,7 @@ __global__ void singleStream_update(CudaParams* cudaParams, CudaSketch* cudaSket
   int num_sketches = cudaParams[0].num_sketches;
   
   size_t num_elems = cudaParams[0].num_elems;
-  size_t num_buckets = cudaParams[0].num_buckets;
+  size_t num_columns = cudaParams[0].num_columns;
   size_t num_guesses = cudaParams[0].num_guesses;
 
   // One thread will be responsible for one edge update = one thread is updating sketches on each endpoint nodes (2).
@@ -509,19 +593,16 @@ __global__ void singleStream_update(CudaParams* cudaParams, CudaSketch* cudaSket
       vec_t_cu* bucket_a = (vec_t_cu*)curr_cudaSketch.d_bucket_a;
       vec_hash_t* bucket_c = curr_cudaSketch.d_bucket_c;
 
-      vec_hash_t update_hash = bucket_index_hash(edgeUpdates[start_index + i], curr_cudaSketch.seed);
+      vec_hash_t checksum = bucket_index_hash(edgeUpdates[start_index + i], curr_cudaSketch.seed);
 
-      bucket_update(bucket_a[num_elems - 1], bucket_c[num_elems - 1], edgeUpdates[start_index + i], update_hash);
+      bucket_update(bucket_a[num_elems - 1], bucket_c[num_elems - 1], edgeUpdates[start_index + i], checksum);
 
-      // Update node1's sketches
-      for (unsigned j = 0; j < num_buckets; ++j) {
-        col_hash_t col_index_hash = bucket_col_index_hash(edgeUpdates[start_index + i], curr_cudaSketch.seed + j);
-        for (unsigned k = 0; k < num_guesses; ++k) {
-          unsigned bucket_id = j * num_guesses + k;
-          if (bucket_contains(col_index_hash, ((col_hash_t)1) << k)){
-            bucket_update(bucket_a[bucket_id], bucket_c[bucket_id], edgeUpdates[start_index + i], update_hash);
-          } else break;
-        }
+      // Update higher depth buckets
+      for (unsigned j = 0; j < num_columns; ++j) {
+        col_hash_t depth = bucket_get_index_depth(edgeUpdates[start_index + i], curr_cudaSketch.seed + j*5, num_guesses);
+        size_t bucket_id = j * num_guesses + depth;
+        if(depth < num_guesses)
+          bucket_update(bucket_a[bucket_id], bucket_c[bucket_id], edgeUpdates[start_index + i], checksum);
       }
     }
 
@@ -541,19 +622,16 @@ __global__ void singleStream_update(CudaParams* cudaParams, CudaSketch* cudaSket
       vec_t_cu* bucket_a = (vec_t_cu*)curr_cudaSketch.d_bucket_a;
       vec_hash_t* bucket_c = curr_cudaSketch.d_bucket_c;
 
-      vec_hash_t update_hash = bucket_index_hash(edgeUpdates[start_index + i], curr_cudaSketch.seed);
+      vec_hash_t checksum = bucket_index_hash(edgeUpdates[start_index + i], curr_cudaSketch.seed);
 
-      bucket_update(bucket_a[num_elems - 1], bucket_c[num_elems - 1], edgeUpdates[start_index + i], update_hash);
-      
-      // Update node2's sketches
-      for (unsigned j = 0; j < num_buckets; ++j) {
-        col_hash_t col_index_hash = bucket_col_index_hash(edgeUpdates[start_index + i], curr_cudaSketch.seed + j);
-        for (unsigned k = 0; k < num_guesses; ++k) {
-          unsigned bucket_id = j * num_guesses + k;
-          if (bucket_contains(col_index_hash, ((col_hash_t)1) << k)){
-            bucket_update(bucket_a[bucket_id], bucket_c[bucket_id], edgeUpdates[start_index + i], update_hash);
-          } else break;
-        }
+      bucket_update(bucket_a[num_elems - 1], bucket_c[num_elems - 1], edgeUpdates[start_index + i], checksum);
+
+      // Update higher depth buckets
+      for (unsigned j = 0; j < num_columns; ++j) {
+        col_hash_t depth = bucket_get_index_depth(edgeUpdates[start_index + i], curr_cudaSketch.seed + j*5, num_guesses);
+        size_t bucket_id = j * num_guesses + depth;
+        if(depth < num_guesses)
+          bucket_update(bucket_a[bucket_id], bucket_c[bucket_id], edgeUpdates[start_index + i], checksum);
       }
     }
   }
@@ -586,7 +664,7 @@ void streamUpdate(int num_threads, int num_blocks, CudaParams* cudaParams, CudaS
     int num_sketches = cudaParams[0].num_sketches;
     
     size_t num_elems = cudaParams[0].num_elems;
-    size_t num_buckets = cudaParams[0].num_buckets;
+    size_t num_columns = cudaParams[0].num_columns;
     size_t num_guesses = cudaParams[0].num_guesses;
 
     int maxbytes = num_elems * num_sketches * sizeof(vec_t_cu) + num_elems * num_sketches * sizeof(vec_hash_t);
@@ -597,7 +675,7 @@ void streamUpdate(int num_threads, int num_blocks, CudaParams* cudaParams, CudaS
         caused these parameter variables to stay within global memory, creating more latency. Therefore, unwrapping these 
         variables then passing as argument of the kernel code avoids that issue.
     */ 
-    doubleStream_update<<<num_blocks, num_threads, maxbytes>>>(nodeUpdates, edgeUpdates, nodeNumUpdates, nodeStartIndex, num_nodes, num_updates, num_sketches, num_elems, num_buckets, num_guesses, cudaSketches, sketchSeeds);
+    doubleStream_update<<<num_blocks, num_threads, maxbytes>>>(nodeUpdates, edgeUpdates, nodeNumUpdates, nodeStartIndex, num_nodes, num_updates, num_sketches, num_elems, num_columns, num_guesses, cudaSketches, sketchSeeds);
     //doubleStream_update<<<num_blocks, num_threads>>>(cudaParams, cudaSketches);
   }
   else {

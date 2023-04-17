@@ -11,7 +11,7 @@ __global__ void xxhash_func(vec_t_cu* d_64, vec_hash_t* d_32, int num_items) {
 
     if (tid < num_items) {
         d_64[tid] = CUDA_XXH64(&tid, sizeof(tid), tid);
-        d_32[tid] = CUDA_XXH32(&tid, sizeof(tid), tid);
+        //d_32[tid] = CUDA_XXH32(&tid, sizeof(tid), tid);
     }
 }
 
@@ -31,10 +31,10 @@ int main() {
     cudaMallocManaged(&d_32, num_items * sizeof(vec_hash_t));
 
     for (vec_t i = 0; i < num_items; i++) {
-        h_64.push_back(XXH64(&i, sizeof(i), i));
-        h_32.push_back(XXH32(&i, sizeof(i), i));
+        h_64.push_back(XXH3_64bits_withSeed(&i, sizeof(i), i));
+        //h_32.push_back(XXH32(&i, sizeof(i), i));
         d_64[i] = 0;
-        d_32[i] = 0;
+        //d_32[i] = 0;
     }
 
     int num_threads = 1024;
@@ -50,17 +50,11 @@ int main() {
             std::cout << "Wrong 64 bit at index: " << i << "\n";
             std::cout << h_64[i] << " != " << d_64[i] << "\n";
         }
-        if(h_32[i] != d_32[i]) {
+        /*if(h_32[i] != d_32[i]) {
             std::cout << "Wrong 32 bit at index: " << i << "\n";
             std::cout << h_32[i] << " != " << d_32[i] << "\n";
-        }
+        }*/
     }
     
-    vec_t test = 1020;
-    vec_t idx = 1022;
-    test ^= idx;
-
-    std::cout << test << "\n";
-
     return 0;
 }

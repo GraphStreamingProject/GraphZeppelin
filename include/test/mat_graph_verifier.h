@@ -12,10 +12,9 @@
 class MatGraphVerifier : public GraphVerifier {
   std::vector<std::set<node_id_t>> kruskal_ref;
   std::vector<std::set<node_id_t>> boruvka_cc;
-  std::vector<std::vector<bool>> adj_graph;
-  DisjointSetUnion<node_id_t> sets;
 
   node_id_t n;
+  DisjointSetUnion<node_id_t> sets;
 
   /**
    * Runs Kruskal's (deterministic) CC algo.
@@ -25,6 +24,10 @@ class MatGraphVerifier : public GraphVerifier {
   std::vector<std::set<node_id_t>> kruskal();
 public:
   MatGraphVerifier(node_id_t n);
+
+  // When we want to build a MatGraphVerifier without iterative edge_updates
+  MatGraphVerifier(node_id_t n, std::vector<std::vector<bool>> _adj)
+   : GraphVerifier(_adj), n(n), sets(n) { reset_cc_state(); };
   
   void reset_cc_state();       // run this function before using as a verifier in CC
   void edge_update(node_id_t src, node_id_t dst);

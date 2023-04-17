@@ -11,14 +11,15 @@ static inline int do_run() {
     edge_id_t m;
     in >> n >> m;
     Graph g{n};
-    int type, a, b;
+    int type;
+    node_id_t a, b;
     while (m--) {
       in >> type >> a >> b;
       if (type == INSERT) {
         g.update({{a, b}, INSERT});
       } else g.update({{a, b}, DELETE});
     }
-    g.set_verifier(std::make_unique<FileGraphVerifier>("./cumul_sample.txt"));
+    g.set_verifier(std::make_unique<FileGraphVerifier>(n, "./cumul_sample.txt"));
     try {
         g.connected_components();
     } catch (std::exception const &err) {
@@ -93,6 +94,4 @@ int main() {
         trial_list.clear();
         out.close();
     }
-    
-    
 }

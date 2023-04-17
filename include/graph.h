@@ -20,8 +20,6 @@
 // forward declarations
 class GraphWorker;
 
-typedef std::pair<Edge, UpdateType> GraphUpdate;
-
 // Exceptions the Graph class may throw
 class UpdateLockedException : public std::exception {
   virtual const char* what() const throw() {
@@ -130,15 +128,15 @@ public:
 
   inline void update(GraphUpdate upd, int thr_id = 0) {
     if (update_locked) throw UpdateLockedException();
-    Edge &edge = upd.first;
+    Edge &edge = upd.edge;
 
-    gts->insert(edge, thr_id);
-    std::swap(edge.first, edge.second);
-    gts->insert(edge, thr_id);
+    gts->insert({edge.src, edge.dst}, thr_id);
+    std::swap(edge.src, edge.dst);
+    gts->insert({edge.src, edge.dst}, thr_id);
 #ifdef USE_EAGER_DSU
     if (dsu_valid) {
-      auto src = std::min(edge.first, edge.second);
-      auto dst = std::max(edge.first, edge.second);
+      auto src = std::min(edge.src, edge.dst);
+      auto dst = std::max(edge.src, edge.dst);
       std::lock_guard<std::mutex> sflock (spanning_forest_mtx[src]);
       if (spanning_forest[src].find(dst) != spanning_forest[src].end()) {
         dsu_valid = false;
@@ -156,6 +154,8 @@ public:
         }
       }
     }
+#else
+    unlikely_if(dsu_valid) dsu_valid = false;
 #endif // USE_EAGER_DSU
   }
 
