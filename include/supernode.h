@@ -94,6 +94,10 @@ public:
     return serialized_size;
   }
 
+  inline size_t get_sketch_size() {
+    return sketch_size;
+  }
+
   // return the number of sketches held in this supernode
   int get_num_sktch() { return num_sketches; };
 
