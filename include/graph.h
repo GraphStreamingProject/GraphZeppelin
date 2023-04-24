@@ -126,9 +126,9 @@ public:
     if (update_locked) throw UpdateLockedException();
     Edge &edge = upd.edge;
 
-    gts->insert({edge.src, edge.dst}, thr_id);
+//    gts->insert({edge.src, edge.dst}, thr_id);
     std::swap(edge.src, edge.dst);
-    gts->insert({edge.src, edge.dst}, thr_id);
+//    gts->insert({edge.src, edge.dst}, thr_id);
 #ifdef USE_EAGER_DSU
     if (dsu_valid) {
       auto src = std::min(edge.src, edge.dst);

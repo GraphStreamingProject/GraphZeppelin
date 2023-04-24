@@ -165,6 +165,12 @@ if (BUILD_EXE)
     tools/validate_binary_stream.cpp
   )
   target_link_libraries(validate_binary_stream PRIVATE GraphZeppelin)
+
+  add_executable(eager_dsu_speed
+    test/eager_dsu_speed.cpp
+  )
+  add_dependencies(eager_dsu_speed GraphZeppelin)
+  target_link_libraries(eager_dsu_speed PRIVATE GraphZeppelin)
 endif()
 
 if (BUILD_BENCH)
