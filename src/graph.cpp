@@ -118,17 +118,9 @@ void Graph::generate_delta_node(node_id_t node_n, uint64_t node_seed, node_id_t
   updates.reserve(edges.size());
   for (const auto& edge : edges) {
     if (src < edge) {
-      vec_t temp = static_cast<vec_t>(concat_pairing_fn(src, edge));
-      updates.push_back(temp);
-      /*if (src == 20 && edge == 180) {
-        std::cout << "Source -> Edge: " << temp << "\n";
-      }*/
+      updates.push_back(static_cast<vec_t>(concat_pairing_fn(src, edge)));
     } else {
-      vec_t temp = static_cast<vec_t>(concat_pairing_fn(edge, src));
-      updates.push_back(temp);
-      /*if (src == 180 && edge == 20) {
-        std::cout << "Edge -> Source: " << temp << "\n";
-      }*/
+      updates.push_back(static_cast<vec_t>(concat_pairing_fn(edge, src)));
     }
   }
   Supernode::delta_supernode(node_n, node_seed, updates, delta_loc);
@@ -139,13 +131,6 @@ void Graph::batch_update(node_id_t src, const std::vector<node_id_t> &edges, Sup
   num_updates += edges.size();
   generate_delta_node(supernodes[src]->n, supernodes[src]->seed, src, edges, delta_loc);
   supernodes[src]->apply_delta_update(delta_loc);
-  /*if(src == 2) {
-    std::cout << "Here: ";
-    for (vec_t i = 0; i < supernodes[src]->get_sketch(0)->get_num_elems(); i++) {
-      std::cout << supernodes[src]->get_sketch(0)->get_bucket_a()[i] << " ";
-    }
-    std::cout << "\n";
-  }*/
 }
 
 inline void Graph::sample_supernodes(std::pair<Edge, SampleSketchRet> *query,
@@ -229,7 +214,7 @@ inline std::vector<std::vector<node_id_t>> Graph::supernodes_to_merge(
   return to_merge;
 }
 
-inline void Graph::merge_supernodes(Supernode** copy_supernodes, std::vector<node_id_t> &new_reps,
+void Graph::merge_supernodes(Supernode** copy_supernodes, std::vector<node_id_t> &new_reps,
                std::vector<std::vector<node_id_t>> &to_merge, bool make_copy) {
   bool except = false;
   std::exception_ptr err;

@@ -67,42 +67,10 @@ protected:
   void restore_from_disk(const std::vector<node_id_t>& ids_to_restore);
 
   /**
-   * Update the query array with new samples
-   * @param query  an array of supernode query results
-   * @param reps   an array containing node indices for the representative of each supernode
-   */
-  virtual void sample_supernodes(std::pair<Edge, SampleSketchRet> *query,
-                          std::vector<node_id_t> &reps);
-
-  /**
-   * @param copy_supernodes  an array to be filled with supernodes
-   * @param to_merge         an list of lists of supernodes to be merged
-   *
-   */
-  void merge_supernodes(Supernode** copy_supernodes, std::vector<node_id_t> &new_reps,
-                        std::vector<std::vector<node_id_t>> &to_merge, bool make_copy);
-
-  /**
-   * Run the disjoint set union to determine what supernodes
-   * Should be merged together.
-   * Map from nodes to a vector of nodes to merge with them
-   * @param query  an array of supernode query results
-   * @param reps   an array containing node indices for the representative of each supernode
-   */
-  std::vector<std::vector<node_id_t>> supernodes_to_merge(std::pair<Edge, SampleSketchRet> *query,
-                        std::vector<node_id_t> &reps);
-
-  /**
    * Main parallel algorithm utilizing Boruvka and L_0 sampling.
    * @return a vector of the connected components in the graph.
    */
   std::vector<std::set<node_id_t>> boruvka_emulation(bool make_copy);
-
-  /**
-   * Generates connected components from this graph's dsu
-   * @return a vector of the connected components in the graph.
-   */
-  std::vector<std::set<node_id_t>> cc_from_dsu();
 
   std::string backup_file; // where to backup the supernodes
 
@@ -122,9 +90,15 @@ public:
 
   virtual ~Graph();
 
-  Supernode** getSupernodes() {
-    return supernodes;
-  }
+  Supernode** getSupernodes() { return supernodes; }
+
+  bool getModified() { return modified; }
+
+  inline void setModified(bool newModified) { modified = newModified; }
+
+  inline void fillSize(int value) { std::fill(size, size + num_nodes, value); }
+
+  inline void setParent(int index, int value) { parent[index] = value; }
 
   inline void update(GraphUpdate upd, int thr_id = 0) {
     if (update_locked) throw UpdateLockedException();
@@ -168,6 +142,40 @@ public:
    */
   void batch_update(node_id_t src, const std::vector<node_id_t> &edges, Supernode *delta_loc);
 
+  // MOVING CC functions to public so they are accessible by cuda_process_stream.cu
+
+  /**
+   * Update the query array with new samples
+   * @param query  an array of supernode query results
+   * @param reps   an array containing node indices for the representative of each supernode
+   */
+  virtual void sample_supernodes(std::pair<Edge, SampleSketchRet> *query,
+                          std::vector<node_id_t> &reps);
+  
+  /**
+   * @param copy_supernodes  an array to be filled with supernodes
+   * @param to_merge         an list of lists of supernodes to be merged
+   *
+   */
+  void merge_supernodes(Supernode** copy_supernodes, std::vector<node_id_t> &new_reps,
+                        std::vector<std::vector<node_id_t>> &to_merge, bool make_copy);
+
+  /**
+   * Run the disjoint set union to determine what supernodes
+   * Should be merged together.
+   * Map from nodes to a vector of nodes to merge with them
+   * @param query  an array of supernode query results
+   * @param reps   an array containing node indices for the representative of each supernode
+   */
+  std::vector<std::vector<node_id_t>> supernodes_to_merge(std::pair<Edge, SampleSketchRet> *query,
+                        std::vector<node_id_t> &reps);
+
+  /**
+   * Generates connected components from this graph's dsu
+   * @return a vector of the connected components in the graph.
+   */
+  std::vector<std::set<node_id_t>> cc_from_dsu();
+
   /**
    * Main parallel query algorithm utilizing Boruvka and L_0 sampling.
    * If cont is true, allow for additional updates when done.
@@ -183,7 +191,6 @@ public:
    * @return true if a and b are in the same connected component, false otherwise.
    */
   bool point_query(node_id_t a, node_id_t b);
-
 
 #ifdef VERIFY_SAMPLES_F
   std::unique_ptr<GraphVerifier> verifier;

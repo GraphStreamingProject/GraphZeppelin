@@ -114,6 +114,10 @@ class Sketch {
 
   inline void reset_queried() { already_queried = false; }
 
+  inline bool get_queried() { return already_queried; }
+
+  inline void set_queried(bool new_queried) { already_queried = new_queried; }
+
   inline static size_t get_columns() { return num_columns; }
 
   inline vec_t* get_bucket_a() {
