@@ -112,7 +112,11 @@ public:
     return sample_idx >= merged_sketches;
   }
 
-  inline int curr_idx() {
+  inline size_t get_merged_sketches() {
+    return merged_sketches;
+  }
+
+  inline size_t curr_idx() {
     return sample_idx;
   }
 

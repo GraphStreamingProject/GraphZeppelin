@@ -44,15 +44,20 @@ int main(int argc, char **argv) {
   gpuErrchk(cudaMallocManaged(&cudaUpdateParams, sizeof(CudaUpdateParams)));
   cudaUpdateParams[0] = CudaUpdateParams(num_nodes, num_updates, num_sketches, num_elems, num_columns, num_guesses);
 
+  std::cout << "num_sketches: " << num_sketches << "\n";
+  std::cout << "num_elems: " << num_elems << "\n";
+  std::cout << "num_columns: " << num_columns << "\n";
+  std::cout << "num_guesses: " << num_guesses << "\n";
+
   CudaCCParams* cudaCCParams;
   gpuErrchk(cudaMallocManaged(&cudaCCParams, sizeof(CudaCCParams)));
   cudaCCParams[0] = CudaCCParams(num_nodes, num_sketches, num_elems, num_columns, num_guesses);
 
   std::pair<Edge, SampleSketchRet> *graph_query = new std::pair<Edge, SampleSketchRet>[num_nodes];
-  std::vector<node_id_t> graph_reps(num_nodes);
 
   // Hashmap that stores node ids and edge ids that need to be updated
   std::map<int, std::vector<vec_t>> graphUpdates;
+  std::vector<node_id_t> graph_reps(num_nodes);
 
   for (int i = 0; i < num_nodes; i++) {
     // Initialize each key in graphUpdates with empty vector
@@ -65,9 +70,12 @@ int main(int argc, char **argv) {
     // Initialize cudaCCParams
     cudaCCParams[0].reps[i] = i;
     cudaCCParams[0].query[i] = {1, ZERO};
-    cudaCCParams[0].sketchIds[i] = 0;
+    cudaCCParams[0].parent[i] = i;
+    cudaCCParams[0].size[i] = 1;
 
-    // Initialize query and reps for sending to graph class
+    cudaCCParams[0].sample_idxs[i] = supernodes[i]->curr_idx();
+    cudaCCParams[0].merged_sketches[i] = supernodes[i]->get_merged_sketches();
+
     graph_reps[i] = i;
   }
   
@@ -180,35 +188,28 @@ int main(int argc, char **argv) {
 
   bool first_round = true;
   Supernode** copy_supernodes;
+  std::vector<std::chrono::duration<double>> round_durations;
   std::vector<std::chrono::duration<double>> sample_durations;
-
-  // Prepare graph's size and parent pointers
-  g.fillSize(1);
-
-  for (node_id_t i = 0; i < num_nodes; ++i) {
-    g.setParent(i, i);
-  }
+  std::vector<std::chrono::duration<double>> to_merge_durations;
+  std::vector<std::chrono::duration<double>> merge_durations;
 
   // Start sampling supernodes
   do {
-    g.setModified(false);
+    // Start timer for initial time for round
+    auto round_start = std::chrono::steady_clock::now();
 
-    cudaCCParams[0].num_nodes = graph_reps.size();
+    cudaCCParams[0].modified[0] = false;
 
     // Number of blocks
-    num_device_blocks = (cudaCCParams[0].num_nodes + num_device_threads - 1) / num_device_threads;
+    num_device_blocks = (cudaCCParams[0].num_nodes[0] + num_device_threads - 1) / num_device_threads;
 
     // Get and check sample_idx of each supernodes
-    for (int i = 0; i < cudaCCParams[0].num_nodes; i++) {
-      int index = graph_reps[i];
-      cudaCCParams[0].reps[i] = index;
+    for (int i = 0; i < cudaCCParams[0].num_nodes[0]; i++) {
+      int index = cudaCCParams[0].reps[i];
 
-      if (supernodes[index]->out_of_queries()) throw OutOfQueriesException();
+      if(cudaCCParams[0].sample_idxs[index] >= cudaCCParams[0].merged_sketches[index]) throw OutOfQueriesException();
 
-      int curr_idx = supernodes[index]->curr_idx();
-
-      cudaCCParams[0].sketchIds[i] = curr_idx;
-      Sketch* sketch = supernodes[index]->get_sketch(curr_idx);
+      Sketch* sketch = supernodes[index]->get_sketch(cudaCCParams[0].sample_idxs[index]);
 
       // Check if this sketch has already been queried
       if(sketch->get_queried()) throw MultipleQueryException();
@@ -216,7 +217,7 @@ int main(int argc, char **argv) {
       sketch->set_queried(true);
 
       // Increment current supernode's sample idx
-      supernodes[index]->inc_sample_idx();
+      cudaCCParams[0].sample_idxs[index]++;
     }
 
     // Start timer for sampling
@@ -229,19 +230,41 @@ int main(int argc, char **argv) {
     auto sample_end = std::chrono::steady_clock::now();
     sample_durations.push_back(sample_end - sample_start);
 
-    int count = 0;
-    for (int i = 0; i < cudaCCParams[0].num_nodes; i++) {
-      int index = graph_reps[i];
-      graph_query[index] = {inv_concat_pairing_fn(cudaCCParams[0].query[index].non_zero), cudaCCParams[0].query[index].ret_code};
+    // Start timer for to_merge
+    auto to_merge_start = std::chrono::steady_clock::now();
+
+    // Reset to_merge
+    for(int i = 0; i < num_nodes; i++) {
+      cudaCCParams[0].to_merge[i].size[0] = 0;
     }
 
-    std::vector<std::vector<node_id_t>> to_merge = g.supernodes_to_merge(graph_query, graph_reps);
+    cuda_supernodes_to_merge(num_device_threads, num_device_blocks, cudaCCParams);
 
-    g.merge_supernodes(copy_supernodes, graph_reps, to_merge, first_round && false);
+    // End timer for to_merge
+    auto to_merge_end = std::chrono::steady_clock::now();
+    to_merge_durations.push_back(to_merge_end - to_merge_start);
+
+    // Start timer for merge
+    auto merge_start = std::chrono::steady_clock::now();
+
+    cuda_merge_supernodes(num_device_threads, num_device_blocks, cudaCCParams, cudaSketches);
+
+    // End timer for merge
+    auto merge_end = std::chrono::steady_clock::now();
+    merge_durations.push_back(merge_end - merge_start);
 
     first_round = false;
 
-  } while (g.getModified());
+    // End timer for round
+    auto round_end = std::chrono::steady_clock::now();
+    round_durations.push_back(round_end - round_start);
+
+  } while (cudaCCParams[0].modified[0] == true);
+
+  for (node_id_t i = 0; i < num_nodes; ++i) {
+    g.setSize(i, cudaCCParams[0].size[i]);
+    g.setParent(i, cudaCCParams[0].parent[i]);
+  }
 
   // Find connected components
   auto CC_num = g.cc_from_dsu().size();
@@ -258,7 +281,10 @@ int main(int argc, char **argv) {
   std::cout << "Total CC query latency:       " << cc_time.count() << std::endl;
 
   for (int i = 0; i < sample_durations.size(); i++) {
-    std::cout << "    Sample " << i << ":                 " << sample_durations[i].count() << std::endl;
+    std::cout << "    Round " << i << ":                  " << round_durations[i].count() << std::endl;
+    std::cout << "        Sampling:               " << sample_durations[i].count() << std::endl;
+    std::cout << "        To_Merge:               " << to_merge_durations[i].count() << std::endl;
+    std::cout << "        Merge:                  " << merge_durations[i].count() << std::endl;
   }
   std::cout << "Connected Components:         " << CC_num << std::endl;
 }

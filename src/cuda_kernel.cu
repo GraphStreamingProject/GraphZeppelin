@@ -77,8 +77,13 @@ class CudaUpdateParams {
 };
 
 struct CudaQuery {
-  vec_t non_zero;
+  Edge edge;
   SampleSketchRet ret_code;
+};
+
+struct CudaToMerge {
+  node_id_t* children;
+  int* size;
 };
 
 class CudaCCParams {
@@ -89,11 +94,26 @@ class CudaCCParams {
     // List of querys
     CudaQuery* query;
 
-    // List of sketch ids for each thread
-    int* sketchIds;
+    // List of parent of each node id
+    node_id_t* parent;
+
+    // List of parent of each node id
+    node_id_t* size;
+
+    // List of node ids to be merged
+    CudaToMerge* to_merge;
 
     // Number of remaining supernodes in a graph
-    node_id_t num_nodes;
+    // [0]: Current reps size
+    // [1]: num_nodes of the graph
+    node_id_t* num_nodes;
+
+    // Indicate if supernode has been merged or not
+    bool* modified; 
+
+    // List of sample_idx and merged_sketches for all nodes
+    size_t* sample_idxs;
+    size_t* merged_sketches;
 
     // Parameter for each supernode (consistent with other supernodes)
     int num_sketches;
@@ -103,15 +123,38 @@ class CudaCCParams {
     size_t num_columns;
     size_t num_guesses;
 
-    CudaCCParams(): reps(nullptr), query(nullptr), sketchIds(nullptr) {};
+    CudaCCParams(node_id_t total_nodes, int num_sketches, size_t num_elems, size_t num_columns, size_t num_guesses): 
+      num_sketches(num_sketches), num_elems(num_elems), num_columns(num_columns), num_guesses(num_guesses) {
 
-    CudaCCParams(node_id_t num_nodes, int num_sketches, size_t num_elems, size_t num_columns, size_t num_guesses): 
-      num_nodes(num_nodes), num_sketches(num_sketches), num_elems(num_elems), num_columns(num_columns), num_guesses(num_guesses) {
+      gpuErrchk(cudaMallocManaged(&num_nodes, 2 * sizeof(node_id_t)));
+      num_nodes[0] = total_nodes;
+      num_nodes[1] = total_nodes;
 
       // Allocate memory space for GPU
-      gpuErrchk(cudaMallocManaged(&reps, num_nodes * sizeof(node_id_t)));
-      gpuErrchk(cudaMallocManaged(&query, num_nodes * sizeof(CudaQuery)));
-      gpuErrchk(cudaMallocManaged(&sketchIds, num_nodes * sizeof(int)));
+      gpuErrchk(cudaMallocManaged(&reps, num_nodes[0] * sizeof(node_id_t)));
+      gpuErrchk(cudaMallocManaged(&query, num_nodes[0] * sizeof(CudaQuery)));
+      gpuErrchk(cudaMallocManaged(&parent, num_nodes[0] * sizeof(node_id_t)));
+      gpuErrchk(cudaMallocManaged(&size, num_nodes[0] * sizeof(node_id_t)));
+      gpuErrchk(cudaMallocManaged(&to_merge, num_nodes[0] * sizeof(CudaToMerge)));
+      gpuErrchk(cudaMallocManaged(&modified, sizeof(bool)));
+      gpuErrchk(cudaMallocManaged(&sample_idxs, num_nodes[0] * sizeof(size_t)));
+      gpuErrchk(cudaMallocManaged(&merged_sketches, num_nodes[0] * sizeof(size_t)));
+
+      node_id_t* merge_children;
+      gpuErrchk(cudaMallocManaged(&merge_children, num_nodes[0] * num_nodes[0] * sizeof(node_id_t)));
+      for (int i = 0; i < num_nodes[0] * num_nodes[0]; i++) {
+        merge_children[i] = 0;
+      }
+
+      int* merge_size;
+      gpuErrchk(cudaMallocManaged(&merge_size, num_nodes[0] * sizeof(int)));
+
+      for (int i = 0; i < num_nodes[0]; i++) {
+        merge_size[i] = 0;
+        to_merge[i] = CudaToMerge{&merge_children[i * num_nodes[0]], &merge_size[i]};
+      }
+
+      modified[0] = false;
     };
 };
 
@@ -277,25 +320,32 @@ void streamUpdate(int num_threads, int num_blocks, CudaUpdateParams* cudaUpdateP
 *
 */
 
-__global__ void cuda_query(node_id_t* reps, CudaQuery* query, int* sketchIds, node_id_t num_nodes, int num_sketches, size_t num_elems, size_t num_columns, size_t num_guesses, CudaSketch* cudaSketches) {
+__device__ Edge cuda_inv_concat_pairing_fn(uint64_t idx) {
+  uint8_t num_bits = sizeof(node_id_t) * 8;
+  node_id_t j = idx & 0xFFFFFFFF;
+  node_id_t i = idx >> num_bits;
+  return {i, j};
+}
+
+__global__ void sketch_query(node_id_t* reps, CudaQuery* query, size_t* sample_idxs, node_id_t num_nodes, int num_sketches, size_t num_elems, size_t num_columns, size_t num_guesses, CudaSketch* cudaSketches) {
 
   // Get thread id
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
 
   if (tid < num_nodes) {
     int query_id = reps[tid];
-    CudaSketch cudaSketch = cudaSketches[(query_id * num_sketches) + sketchIds[tid]];
+    CudaSketch cudaSketch = cudaSketches[(query_id * num_sketches) + sample_idxs[query_id]];
 
     vec_t_cu* bucket_a = (vec_t_cu*)cudaSketch.d_bucket_a;
     vec_hash_t* bucket_c = cudaSketch.d_bucket_c;
 
     if (bucket_a[num_elems - 1] == 0 && bucket_c[num_elems - 1] == 0) {
-      query[query_id] = {0, ZERO}; // the "first" bucket is deterministic so if all zero then no edges to return
+      query[query_id] = {cuda_inv_concat_pairing_fn(0), ZERO}; // the "first" bucket is deterministic so if all zero then no edges to return
       return;     
     }
 
     if (bucket_is_good(bucket_a[num_elems - 1], bucket_c[num_elems - 1], cudaSketch.seed)) {
-      query[query_id] = {bucket_a[num_elems - 1], GOOD};
+      query[query_id] = {cuda_inv_concat_pairing_fn(bucket_a[num_elems - 1]), GOOD};
       return;      
     }
 
@@ -303,12 +353,12 @@ __global__ void cuda_query(node_id_t* reps, CudaQuery* query, int* sketchIds, no
       for (unsigned j = 0; j < num_guesses; ++j) {
         unsigned bucket_id = i * num_guesses + j;
         if (bucket_is_good(bucket_a[bucket_id], bucket_c[bucket_id], cudaSketch.seed)) {
-          query[query_id] = {bucket_a[bucket_id], GOOD};
+          query[query_id] = {cuda_inv_concat_pairing_fn(bucket_a[bucket_id]), GOOD};
           return;          
         }
       }
     }
-    query[query_id] = {0, FAIL};
+    query[query_id] = {cuda_inv_concat_pairing_fn(0), FAIL};
   }
 }
 
@@ -316,9 +366,9 @@ void cuda_sample_supernodes(int num_threads, int num_blocks, CudaCCParams* cudaC
   // Unwarp variables from cudaCCParams
   node_id_t* reps = cudaCCParams[0].reps;
   CudaQuery* query = cudaCCParams[0].query;
-  int* sketchIds = cudaCCParams[0].sketchIds;
+  size_t* sample_idxs = cudaCCParams[0].sample_idxs;
 
-  node_id_t num_nodes = cudaCCParams[0].num_nodes;
+  node_id_t num_nodes = cudaCCParams[0].num_nodes[0];
 
   int num_sketches = cudaCCParams[0].num_sketches;
 
@@ -327,7 +377,181 @@ void cuda_sample_supernodes(int num_threads, int num_blocks, CudaCCParams* cudaC
   size_t num_guesses = cudaCCParams[0].num_guesses;
 
   // Call query kernel
-  cuda_query<<<num_blocks, num_threads>>>(reps, query, sketchIds, num_nodes, num_sketches, num_elems, num_columns, num_guesses, cudaSketches);
+  sketch_query<<<num_blocks, num_threads>>>(reps, query, sample_idxs, num_nodes, num_sketches, num_elems, num_columns, num_guesses, cudaSketches);
 
+  cudaDeviceSynchronize();
+}
+
+__device__ node_id_t get_parent(node_id_t* parent, node_id_t node) {
+  if (parent[node] == node) return node;
+  return parent[node] = get_parent(parent, parent[node]);
+}
+
+__global__ void supernodes_to_merge(node_id_t* reps, node_id_t* temp_reps, CudaQuery* query, node_id_t* parent, node_id_t* size, CudaToMerge* to_merge, node_id_t* num_nodes, bool* modified) {
+  // Get thread id
+  int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
+
+  // Note: Have 1 thread to handle all workload (Temporary)
+  if (tid == 0) {
+    int temp_reps_id = 0;
+
+    for (int i = 0; i < num_nodes[0]; i++) {
+      int query_id = reps[i];
+
+      // unpack query result
+      Edge edge = query[query_id].edge;
+      SampleSketchRet ret_code = query[query_id].ret_code;
+
+      if (ret_code == ZERO) {
+        continue;
+      }
+      else if (ret_code == FAIL) {
+        modified[0] = true;
+        temp_reps[temp_reps_id] = query_id;
+        temp_reps_id++;
+        continue;
+      }
+      else { // ret_code == GOOD
+        // query dsu
+        node_id_t a = get_parent(parent, edge.src);
+        node_id_t b = get_parent(parent, edge.dst);
+        if (a == b) continue;
+
+        // make a the parent of b
+        if (size[a] < size[b]) {
+          node_id_t temp = a;
+          a = b;
+          b = temp;
+        }
+        parent[b] = a;
+        size[a] += size[b];
+
+        // add b and any of the nodes to merge with it to a's vector
+        CudaToMerge a_merge = to_merge[a];
+        CudaToMerge b_merge = to_merge[b];
+
+        a_merge.children[a_merge.size[0]] = b;
+        a_merge.size[0]++;
+
+        // Fill b's children to a
+        for (int j = 0; j < b_merge.size[0]; j++) {
+          a_merge.children[a_merge.size[0]] = b_merge.children[j];
+          a_merge.size[0]++;
+        }
+
+        // Clear b
+        b_merge.size[0] = 0;
+        modified[0] = true;
+      }
+    }
+
+    // remove nodes added to new_reps due to sketch failures that
+    // did end up being able to merge after all
+    int temp_reps_size = temp_reps_id;
+    int reps_id = 0;
+
+    for (int i = 0; i < temp_reps_size; i++) {
+      node_id_t a = temp_reps[i];
+      if (to_merge[a].size[0] == 0) {
+        reps[reps_id] = a;
+        reps_id++;
+      }
+    }
+
+    for (int i = 0; i < num_nodes[1]; i++) {
+      if (to_merge[i].size[0] != 0) {
+        reps[reps_id] = i;
+        reps_id++;
+      }
+    }
+
+    num_nodes[0] = reps_id;
+  }
+}
+
+void cuda_supernodes_to_merge(int num_threads, int num_blocks, CudaCCParams* cudaCCParams) {
+  // Unwarp variables from cudaCCParams
+  node_id_t* reps = cudaCCParams[0].reps;
+  CudaQuery* query = cudaCCParams[0].query;
+
+  node_id_t* parent = cudaCCParams[0].parent;
+  node_id_t* size = cudaCCParams[0].size;
+
+  CudaToMerge* to_merge = cudaCCParams[0].to_merge;
+
+  node_id_t* num_nodes = cudaCCParams[0].num_nodes;
+
+  bool* modified = cudaCCParams[0].modified;
+
+  node_id_t* temp_reps;
+  gpuErrchk(cudaMallocManaged(&temp_reps, num_nodes[0] * sizeof(node_id_t)));
+  for(int i = 0; i < num_nodes[0]; i++) {
+    temp_reps[i] = 0;
+  }
+
+  // Call supernodes_to_merge kernel
+  supernodes_to_merge<<<num_blocks, num_threads>>>(reps, temp_reps, query, parent, size, to_merge, num_nodes, modified);
+  cudaDeviceSynchronize();
+}
+
+__global__ void merge_supernodes(node_id_t* reps, CudaToMerge* to_merge, node_id_t num_nodes, size_t* sample_idxs, size_t* merged_sketches, int num_sketches, size_t num_elems, CudaSketch* cudaSketches) {
+  // Get thread id
+  int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
+
+  if (tid < num_nodes) {
+    node_id_t a = reps[tid];
+
+    // perform merging of nodes b into node a
+    for (int i = 0; i < to_merge[a].size[0]; i++) {
+      node_id_t b = to_merge[a].children[i];
+
+      if (sample_idxs[b] > sample_idxs[a]) {
+        sample_idxs[a] = sample_idxs[b];
+      }
+      if (merged_sketches[b] < merged_sketches[a]) {
+        merged_sketches[a] = merged_sketches[b];
+      }
+      
+      // Merge sketches
+      for (int j = sample_idxs[a]; j < merged_sketches[a]; ++j) {
+        CudaSketch cudaSketch1 = cudaSketches[(a * num_sketches) + j];
+        CudaSketch cudaSketch2 = cudaSketches[(b * num_sketches) + j];
+
+        vec_t_cu* sketch1_bucket_a = (vec_t_cu*)cudaSketch1.d_bucket_a;
+        vec_hash_t* sketch1_bucket_c = cudaSketch1.d_bucket_c;
+
+        vec_t_cu* sketch2_bucket_a = (vec_t_cu*)cudaSketch2.d_bucket_a;
+        vec_hash_t* sketch2_bucket_c = cudaSketch2.d_bucket_c;
+
+        if(sketch2_bucket_a[num_elems - 1] == 0 && sketch2_bucket_c[num_elems - 1] == 0) {
+          continue;
+        }
+        for (int k = 0; k < num_elems; k++) {
+          sketch1_bucket_a[k] ^= sketch2_bucket_a[k];
+          sketch1_bucket_c[k] ^= sketch2_bucket_c[k];
+        }
+      }
+  
+    }
+  }
+}
+
+void cuda_merge_supernodes(int num_threads, int num_blocks, CudaCCParams* cudaCCParams, CudaSketch* cudaSketches) {
+  // Unwarp variables from cudaCCParams
+  node_id_t* reps = cudaCCParams[0].reps;
+
+  CudaToMerge* to_merge = cudaCCParams[0].to_merge;
+
+  node_id_t num_nodes = cudaCCParams[0].num_nodes[0];
+
+  size_t* sample_idxs = cudaCCParams[0].sample_idxs;
+  size_t* merged_sketches = cudaCCParams[0].merged_sketches;
+
+  int num_sketches = cudaCCParams[0].num_sketches;
+
+  size_t num_elems = cudaCCParams[0].num_elems;
+
+  // Call supernodes_to_merge kernel
+  merge_supernodes<<<num_blocks, num_threads>>>(reps, to_merge, num_nodes, sample_idxs, merged_sketches, num_sketches, num_elems, cudaSketches);
   cudaDeviceSynchronize();
 }

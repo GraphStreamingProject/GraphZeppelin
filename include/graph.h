@@ -98,6 +98,8 @@ public:
 
   inline void fillSize(int value) { std::fill(size, size + num_nodes, value); }
 
+  inline void setSize(int index, int value) { size[index] = value; }
+
   inline void setParent(int index, int value) { parent[index] = value; }
 
   inline void update(GraphUpdate upd, int thr_id = 0) {
