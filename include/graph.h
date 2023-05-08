@@ -8,6 +8,7 @@
 #include <mutex>
 
 #include <guttering_system.h>
+#include <cuda_graph.h>
 #include "supernode.h"
 #include "graph_configuration.h"
 
@@ -87,10 +88,13 @@ public:
     Graph(input_file, GraphConfiguration(), num_inserters) {};
   explicit Graph(const std::string &input_file, GraphConfiguration config, int num_inserters=1);
   explicit Graph(node_id_t num_nodes, GraphConfiguration config, int num_inserters=1);
+  explicit Graph(node_id_t num_nodes, GraphConfiguration config, CudaGraph* cudaGraph, int num_inserters=1);
 
   virtual ~Graph();
 
   Supernode** getSupernodes() { return supernodes; }
+
+  GutteringSystem* getGTS() { return gts; }
 
   bool getModified() { return modified; }
 

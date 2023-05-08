@@ -38,9 +38,6 @@ class CudaSketch {
 
 class CudaUpdateParams {
   public:
-    // List of node ids that thread will be responsible for updating 
-    int *nodeUpdates;
-
     // List of edge ids that thread will be responsble for updating
     vec_t *edgeUpdates;
 
@@ -48,11 +45,11 @@ class CudaUpdateParams {
     int *nodeNumUpdates;
 
     // List of starting index for each node's update
-    int *nodeStartIndex;
+    vec_t *nodeStartIndex;
 
     // Parameter for entire graph
     node_id_t num_nodes;
-    size_t num_updates;
+    vec_t num_updates;
     
     // Parameter for each supernode (consistent with other supernodes)
     int num_sketches;
@@ -63,16 +60,15 @@ class CudaUpdateParams {
     size_t num_guesses;
 
     // Default Constructor of CudaUpdateParams
-    CudaUpdateParams():nodeUpdates(nullptr), edgeUpdates(nullptr), nodeNumUpdates(nullptr), nodeStartIndex(nullptr) {};
+    CudaUpdateParams():edgeUpdates(nullptr), nodeNumUpdates(nullptr), nodeStartIndex(nullptr) {};
     
     CudaUpdateParams(node_id_t num_nodes, size_t num_updates, int num_sketches, size_t num_elems, size_t num_columns, size_t num_guesses):
       num_nodes(num_nodes), num_updates(num_updates), num_sketches(num_sketches), num_elems(num_elems), num_columns(num_columns), num_guesses(num_guesses) {
       
       // Allocate memory space for GPU
-      gpuErrchk(cudaMallocManaged(&nodeUpdates, 2 * num_updates * sizeof(node_id_t)));
       gpuErrchk(cudaMallocManaged(&edgeUpdates, 2 * num_updates * sizeof(vec_t)));
       gpuErrchk(cudaMallocManaged(&nodeNumUpdates, num_nodes * sizeof(int)));
-      gpuErrchk(cudaMallocManaged(&nodeStartIndex, num_nodes * sizeof(int)));
+      gpuErrchk(cudaMallocManaged(&nodeStartIndex, num_nodes * sizeof(vec_t)));
     };
 };
 
@@ -90,6 +86,8 @@ class CudaCCParams {
   public:
     // List of node ids that need to be sampled
     node_id_t* reps;
+
+    node_id_t* temp_reps;
 
     // List of querys
     CudaQuery* query;
@@ -132,6 +130,7 @@ class CudaCCParams {
 
       // Allocate memory space for GPU
       gpuErrchk(cudaMallocManaged(&reps, num_nodes[0] * sizeof(node_id_t)));
+      gpuErrchk(cudaMallocManaged(&temp_reps, num_nodes[0] * sizeof(node_id_t)));
       gpuErrchk(cudaMallocManaged(&query, num_nodes[0] * sizeof(CudaQuery)));
       gpuErrchk(cudaMallocManaged(&parent, num_nodes[0] * sizeof(node_id_t)));
       gpuErrchk(cudaMallocManaged(&size, num_nodes[0] * sizeof(node_id_t)));
@@ -141,7 +140,7 @@ class CudaCCParams {
       gpuErrchk(cudaMallocManaged(&merged_sketches, num_nodes[0] * sizeof(size_t)));
 
       node_id_t* merge_children;
-      gpuErrchk(cudaMallocManaged(&merge_children, num_nodes[0] * num_nodes[0] * sizeof(node_id_t)));
+      gpuErrchk(cudaMallocManaged(&merge_children, num_nodes[0] * num_nodes[0] * sizeof(uint64_t)));
       for (int i = 0; i < num_nodes[0] * num_nodes[0]; i++) {
         merge_children[i] = 0;
       }
@@ -210,7 +209,7 @@ __device__ void bucket_update(vec_t_cu& a, vec_hash_t& c, const vec_t_cu& update
 // Two threads will be responsible for one edge update -> one thread is only modifying one node's sketches.
 // Placing sketches in shared memory, each thread is doing log n updates on one slice of sketch.
 // Applying newest verison of sketch update function
-__global__ void doubleStream_update(int* nodeUpdates, vec_t* edgeUpdates, int* nodeNumUpdates, int* nodeStartIndex, node_id_t num_nodes, size_t num_updates,
+__global__ void doubleStream_update(vec_t* edgeUpdates, int* nodeNumUpdates, vec_t* nodeStartIndex, node_id_t num_nodes, size_t num_updates,
     int num_sketches, size_t num_elems, size_t num_columns, size_t num_guesses, CudaSketch* cudaSketches, long* sketchSeeds) {
 
   if (blockIdx.x < num_nodes){
@@ -219,7 +218,7 @@ __global__ void doubleStream_update(int* nodeUpdates, vec_t* edgeUpdates, int* n
     vec_t_cu* bucket_a = sketches;
     vec_hash_t* bucket_c = (vec_hash_t*)&bucket_a[num_elems * num_sketches];
     int node = blockIdx.x;
-    int startIndex = nodeStartIndex[node];
+    vec_t startIndex = nodeStartIndex[node];
 
     // Each thread will initialize a bucket
     for (int i = threadIdx.x; i < num_sketches * num_elems; i += blockDim.x) {
@@ -284,10 +283,9 @@ void sketchUpdate(int num_threads, int num_blocks, int num_updates, vec_t* updat
 void streamUpdate(int num_threads, int num_blocks, CudaUpdateParams* cudaUpdateParams, CudaSketch* cudaSketches, long* sketchSeeds) {
 
   // Unwarp variables from cudaUpdateParams
-  int *nodeUpdates = cudaUpdateParams[0].nodeUpdates;
   vec_t *edgeUpdates = cudaUpdateParams[0].edgeUpdates;
   int *nodeNumUpdates = cudaUpdateParams[0].nodeNumUpdates;
-  int *nodeStartIndex = cudaUpdateParams[0].nodeStartIndex;
+  vec_t *nodeStartIndex = cudaUpdateParams[0].nodeStartIndex;
 
   node_id_t num_nodes = cudaUpdateParams[0].num_nodes;
   size_t num_updates = cudaUpdateParams[0].num_updates;
@@ -309,7 +307,7 @@ void streamUpdate(int num_threads, int num_blocks, CudaUpdateParams* cudaUpdateP
       caused these parameter variables to stay within global memory, creating more latency. Therefore, unwrapping these 
       variables then passing as argument of the kernel code avoids that issue.
   */ 
-  doubleStream_update<<<num_blocks, num_threads, maxbytes>>>(nodeUpdates, edgeUpdates, nodeNumUpdates, nodeStartIndex, num_nodes, num_updates, num_sketches, num_elems, num_columns, num_guesses, cudaSketches, sketchSeeds);
+  doubleStream_update<<<num_blocks, num_threads, maxbytes>>>(edgeUpdates, nodeNumUpdates, nodeStartIndex, num_nodes, num_updates, num_sketches, num_elems, num_columns, num_guesses, cudaSketches, sketchSeeds);
 
   cudaDeviceSynchronize();
 }
@@ -472,6 +470,7 @@ __global__ void supernodes_to_merge(node_id_t* reps, node_id_t* temp_reps, CudaQ
 void cuda_supernodes_to_merge(int num_threads, int num_blocks, CudaCCParams* cudaCCParams) {
   // Unwarp variables from cudaCCParams
   node_id_t* reps = cudaCCParams[0].reps;
+  node_id_t* temp_reps = cudaCCParams[0].temp_reps;
   CudaQuery* query = cudaCCParams[0].query;
 
   node_id_t* parent = cudaCCParams[0].parent;
@@ -482,12 +481,6 @@ void cuda_supernodes_to_merge(int num_threads, int num_blocks, CudaCCParams* cud
   node_id_t* num_nodes = cudaCCParams[0].num_nodes;
 
   bool* modified = cudaCCParams[0].modified;
-
-  node_id_t* temp_reps;
-  gpuErrchk(cudaMallocManaged(&temp_reps, num_nodes[0] * sizeof(node_id_t)));
-  for(int i = 0; i < num_nodes[0]; i++) {
-    temp_reps[i] = 0;
-  }
 
   // Call supernodes_to_merge kernel
   supernodes_to_merge<<<num_blocks, num_threads>>>(reps, temp_reps, query, parent, size, to_merge, num_nodes, modified);

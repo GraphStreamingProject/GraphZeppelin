@@ -1,20 +1,25 @@
 #include <vector>
 #include <graph.h>
+#include <graph_worker.h>
+#include <cuda_graph.h>
 #include <map>
 #include <binary_graph_stream.h>
 #include "../src/cuda_kernel.cu"
 
 int main(int argc, char **argv) {
-  if (argc != 3) {
+  if (argc != 4) {
     std::cout << "ERROR: Incorrect number of arguments!" << std::endl;
-    std::cout << "Arguments: stream_file, graph_workers" << std::endl;
+    std::cout << "Arguments: stream_file, graph_workers, reader_threads" << std::endl;
+    exit(EXIT_FAILURE);
   }
 
   std::string stream_file = argv[1];
   int num_threads = std::atoi(argv[2]);
   if (num_threads < 1) {
     std::cout << "ERROR: Invalid number of graph workers! Must be > 0." << std::endl;
+    exit(EXIT_FAILURE);
   }
+  int reader_threads = std::atoi(argv[3]);
 
   BinaryGraphStream_MT stream(stream_file, 1024*32);
   node_id_t num_nodes = stream.nodes();
@@ -25,9 +30,11 @@ int main(int argc, char **argv) {
   std::cout << "num_updates = " << num_updates << std::endl;
   std::cout << std::endl;
 
+  CudaGraph cudaGraph;
+
   auto config = GraphConfiguration().gutter_sys(STANDALONE).num_groups(num_threads);
   config.gutter_conf().gutter_factor(-4);
-  Graph g{num_nodes, config, 1};
+  Graph g{num_nodes, config, &cudaGraph, reader_threads};
 
   Supernode** supernodes;
   supernodes = g.getSupernodes();
@@ -59,6 +66,9 @@ int main(int argc, char **argv) {
   std::map<int, std::vector<vec_t>> graphUpdates;
   std::vector<node_id_t> graph_reps(num_nodes);
 
+  // Start timer for initializing
+  auto init_start = std::chrono::steady_clock::now();
+
   for (int i = 0; i < num_nodes; i++) {
     // Initialize each key in graphUpdates with empty vector
     graphUpdates[i] = std::vector<vec_t>{};
@@ -69,6 +79,7 @@ int main(int argc, char **argv) {
 
     // Initialize cudaCCParams
     cudaCCParams[0].reps[i] = i;
+    cudaCCParams[0].temp_reps[i] = 0;
     cudaCCParams[0].query[i] = {1, ZERO};
     cudaCCParams[0].parent[i] = i;
     cudaCCParams[0].size[i] = 1;
@@ -78,36 +89,43 @@ int main(int argc, char **argv) {
 
     graph_reps[i] = i;
   }
+
+  for (int i = 0; i < num_updates * 2; i++) {
+    cudaUpdateParams[0].edgeUpdates[i] = 0;
+  }
+
+  std::cout << "Finished initializing CUDA parameters\n";
+  auto init_end = std::chrono::steady_clock::now();
+  std::chrono::duration<double> init_time = init_end - init_start;
+  std::cout << "CUDA parameters init duration: " << init_time.count() << std::endl;
+
+  cudaGraph.configure(cudaUpdateParams[0].edgeUpdates, cudaUpdateParams[0].nodeNumUpdates, cudaUpdateParams[0].nodeStartIndex, num_nodes);
   
+  GutteringSystem *gts = g.getGTS();
   MT_StreamReader reader(stream);
   GraphUpdate upd;
 
-  // Collect all the edges that need to be updated
+  // Start timer for reordering
+  auto reorder_start = std::chrono::steady_clock::now();
+
+  // Insert an edge to guttering system
   for (size_t e = 0; e < num_updates; e++) {
     upd = reader.get_edge();
     Edge &edge = upd.edge;
 
-    graphUpdates[edge.src].push_back(static_cast<vec_t>(concat_pairing_fn(edge.src, edge.dst)));
-    graphUpdates[edge.dst].push_back(static_cast<vec_t>(concat_pairing_fn(edge.dst, edge.src)));   
+    gts->insert({edge.src, edge.dst});
+    std::swap(edge.src, edge.dst);
+    gts->insert({edge.src, edge.dst});
   }
 
-  std::cout << "Finished initializing graphUpdates\n";
+  gts->force_flush();
+  GraphWorker::pause_workers();
+  cudaGraph.fillParam();
 
-  // Transfer graphUpdates to nodeUpdates and edgeUpdates
-  int nodeIt = 0;
-  int startIndex = 0;
-  for (auto it = graphUpdates.begin(); it != graphUpdates.end(); it++) {
-    cudaUpdateParams[0].nodeStartIndex[it->first] = startIndex;
-    cudaUpdateParams[0].nodeNumUpdates[it->first] = it->second.size();
-    for (int i = 0; i < it->second.size(); i++) {
-      cudaUpdateParams[0].nodeUpdates[nodeIt] = it->first;
-      cudaUpdateParams[0].edgeUpdates[nodeIt] = it->second.at(i);
-      nodeIt++;
-    }
-    startIndex += it->second.size();
-  }
-
-  std::cout << "Finished initializing nodeUpdates and edgeUpdates\n";
+  std::cout << "Finished Reordering using GTS\n";
+  auto reorder_end = std::chrono::steady_clock::now();
+  std::chrono::duration<double> reorder_time = reorder_end - reorder_start;
+  std::cout << "Reordering duration: " << reorder_time.count() << std::endl;
 
   CudaSketch* cudaSketches;
   gpuErrchk(cudaMallocManaged(&cudaSketches, num_nodes * num_sketches * sizeof(CudaSketch)));
@@ -160,7 +178,6 @@ int main(int argc, char **argv) {
   std::cout << "Allocated Shared Memory of: " << (num_elems * num_sketches * sizeof(vec_t_cu)) + (num_elems * num_sketches * sizeof(vec_hash_t)) << "\n";
 
   // Prefetch memory to device 
-  gpuErrchk(cudaMemPrefetchAsync(cudaUpdateParams[0].nodeUpdates, num_updates * sizeof(node_id_t) * 2, device_id));
   gpuErrchk(cudaMemPrefetchAsync(cudaUpdateParams[0].edgeUpdates, num_updates * sizeof(vec_t) * 2, device_id));
   gpuErrchk(cudaMemPrefetchAsync(cudaUpdateParams[0].nodeNumUpdates, num_nodes * sizeof(node_id_t), device_id));
   gpuErrchk(cudaMemPrefetchAsync(cudaUpdateParams[0].nodeStartIndex, num_nodes * sizeof(node_id_t), device_id));
@@ -187,11 +204,19 @@ int main(int argc, char **argv) {
   auto cc_start = std::chrono::steady_clock::now();
 
   bool first_round = true;
-  Supernode** copy_supernodes;
+  int round_num = 0;
+
   std::vector<std::chrono::duration<double>> round_durations;
   std::vector<std::chrono::duration<double>> sample_durations;
   std::vector<std::chrono::duration<double>> to_merge_durations;
   std::vector<std::chrono::duration<double>> merge_durations;
+
+  // Prepare graph's size and parent pointers
+  g.fillSize(1);
+
+  for (node_id_t i = 0; i < num_nodes; ++i) {
+    g.setParent(i, i);
+  }
 
   // Start sampling supernodes
   do {
@@ -199,6 +224,7 @@ int main(int argc, char **argv) {
     auto round_start = std::chrono::steady_clock::now();
 
     cudaCCParams[0].modified[0] = false;
+    g.setModified(false);
 
     // Number of blocks
     num_device_blocks = (cudaCCParams[0].num_nodes[0] + num_device_threads - 1) / num_device_threads;
@@ -234,11 +260,35 @@ int main(int argc, char **argv) {
     auto to_merge_start = std::chrono::steady_clock::now();
 
     // Reset to_merge
-    for(int i = 0; i < num_nodes; i++) {
+    /*for(int i = 0; i < num_nodes; i++) {
+      cudaCCParams[0].temp_reps[i] = 0;
+
+      for (int j = 0; j < cudaCCParams[0].to_merge[i].size[0]; j++) {
+        cudaCCParams[0].to_merge[i].children[j] = 0;
+      }
       cudaCCParams[0].to_merge[i].size[0] = 0;
     }
 
     cuda_supernodes_to_merge(num_device_threads, num_device_blocks, cudaCCParams);
+
+    std::cout << "Reps: ";
+    for(int i = 0; i < cudaCCParams[0].num_nodes[0]; i++) {
+      std::cout << cudaCCParams[0].reps[i] << " ";
+    }
+    std::cout << "\n";*/
+
+    for (int i = 0; i < cudaCCParams[0].num_nodes[0]; i++) {
+      int index = graph_reps[i];
+      graph_query[index] = {cudaCCParams[0].query[index].edge, cudaCCParams[0].query[index].ret_code};
+    }
+
+    std::vector<std::vector<node_id_t>> to_merge = g.supernodes_to_merge(graph_query, graph_reps);
+
+    cudaCCParams[0].num_nodes[0] = graph_reps.size();
+    for (int i = 0; i < graph_reps.size(); i++) {
+      cudaCCParams[0].reps[i] = graph_reps[i];
+    }
+    cudaCCParams[0].modified[0] = g.getModified();
 
     // End timer for to_merge
     auto to_merge_end = std::chrono::steady_clock::now();
@@ -247,6 +297,14 @@ int main(int argc, char **argv) {
     // Start timer for merge
     auto merge_start = std::chrono::steady_clock::now();
 
+    // Transfer to_merge information
+    for (int i = 0; i < num_nodes; i++) {
+      cudaCCParams[0].to_merge[i].size[0] = to_merge[i].size();
+      for (int j = 0; j < to_merge[i].size(); j++) {
+        cudaCCParams[0].to_merge[i].children[j] = to_merge[i][j];
+      }
+    } 
+
     cuda_merge_supernodes(num_device_threads, num_device_blocks, cudaCCParams, cudaSketches);
 
     // End timer for merge
@@ -254,17 +312,18 @@ int main(int argc, char **argv) {
     merge_durations.push_back(merge_end - merge_start);
 
     first_round = false;
+    round_num++;
 
     // End timer for round
     auto round_end = std::chrono::steady_clock::now();
     round_durations.push_back(round_end - round_start);
 
-  } while (cudaCCParams[0].modified[0] == true);
+  } while (cudaCCParams[0].modified[0]);
 
-  for (node_id_t i = 0; i < num_nodes; ++i) {
+  /*for (node_id_t i = 0; i < num_nodes; ++i) {
     g.setSize(i, cudaCCParams[0].size[i]);
     g.setParent(i, cudaCCParams[0].parent[i]);
-  }
+  }*/
 
   // Find connected components
   auto CC_num = g.cc_from_dsu().size();

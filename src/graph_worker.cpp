@@ -1,5 +1,6 @@
 #include "../include/graph_worker.h"
 #include "../include/graph.h"
+#include "../include/cuda_graph.h"
 
 #ifdef USE_FBT_F
 #include <gutter_tree.h>
@@ -10,6 +11,7 @@
 
 bool GraphWorker::shutdown = false;
 bool GraphWorker::paused   = false; // controls whether threads should pause or resume work
+bool GraphWorker::cudaEnabled = false;
 int GraphWorker::num_groups = 1;
 int GraphWorker::group_size = 1;
 long GraphWorker::supernode_size;
@@ -31,6 +33,19 @@ void GraphWorker::start_workers(Graph *_graph, GutteringSystem *_gts, long _supe
   workers = (GraphWorker **) calloc(num_groups, sizeof(GraphWorker *));
   for (int i = 0; i < num_groups; i++) {
     workers[i] = new GraphWorker(i, _graph, _gts);
+  }
+}
+
+void GraphWorker::start_workers(Graph *_graph, GutteringSystem *_gts, CudaGraph *_cudaGraph, long _supernode_size) {
+  shutdown = false;
+  paused   = false;
+  supernode_size = _supernode_size;
+
+  cudaEnabled = true;
+
+  workers = (GraphWorker **) calloc(num_groups, sizeof(GraphWorker *));
+  for (int i = 0; i < num_groups; i++) {
+    workers[i] = new GraphWorker(i, _graph, _gts, _cudaGraph);
   }
 }
 
@@ -113,6 +128,11 @@ GraphWorker::GraphWorker(int _id, Graph *_graph, GutteringSystem *_gts) :
   delta_node = (Supernode *) malloc(supernode_size);
 }
 
+GraphWorker::GraphWorker(int _id, Graph *_graph, GutteringSystem *_gts, CudaGraph *_cudaGraph) :
+ id(_id), graph(_graph), gts(_gts), cudaGraph(_cudaGraph), thr(start_worker, this), thr_paused(false) {
+  delta_node = (Supernode *) malloc(supernode_size);
+}
+
 GraphWorker::~GraphWorker() {
   // join the GraphWorker thread to reclaim resources
   thr.join();
@@ -129,9 +149,17 @@ void GraphWorker::do_work() {
     if (valid) {
       const std::vector<update_batch> &batches = data->get_batches();
       for (auto &batch : batches) {
-        if (batch.upd_vec.size() > 0)
-          graph->batch_update(batch.node_idx, batch.upd_vec, delta_node);
+        if (batch.upd_vec.size() > 0) {
+          if (cudaEnabled) {
+            cudaGraph->batch_update(batch.node_idx, batch.upd_vec);
+          }
+          else {
+            graph->batch_update(batch.node_idx, batch.upd_vec, delta_node);
+          }
+        }
+
       }
+
       gts->get_data_callback(data); // inform guttering system that we're done
     }
     else if(shutdown)

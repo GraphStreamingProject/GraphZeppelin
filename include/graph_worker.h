@@ -2,11 +2,13 @@
 #include <mutex>
 #include <condition_variable>
 #include <thread>
+#include <iostream>
 
 // forward declarations
 class Graph;
 class Supernode;
 class GutteringSystem;
+class CudaGraph;
 
 class GraphWorker {
 public:
@@ -19,10 +21,10 @@ public:
    *                         space for a delta_node.
    */
   static void start_workers(Graph *_graph, GutteringSystem *_gts, long _supernode_size);
+  static void start_workers(Graph *_graph, GutteringSystem *_gts, CudaGraph *_cudaGraph, long _supernode_size);
   static void stop_workers();    // shutdown and delete GraphWorkers
   static void pause_workers();   // pause the GraphWorkers before CC
   static void unpause_workers(); // unpause the GraphWorkers to resume updates
-
 
   /**
    * Returns whether the current thread is paused.
@@ -42,6 +44,7 @@ private:
    * @param _gts    the database data will be extracted from.
    */
   GraphWorker(int _id, Graph *_graph, GutteringSystem *_gts);
+  GraphWorker(int _id, Graph *_graph, GutteringSystem *_gts, CudaGraph *_cudaGraph);
   ~GraphWorker();
 
   /**
@@ -60,6 +63,8 @@ private:
   GutteringSystem *gts;
   std::thread thr;
   bool thr_paused; // indicates if this individual thread is paused
+  CudaGraph *cudaGraph;
+  static bool cudaEnabled;
 
   // thread status and status management
   static bool shutdown;
