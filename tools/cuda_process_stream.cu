@@ -118,7 +118,7 @@ int main(int argc, char **argv) {
   gpuErrchk(cudaMemPrefetchAsync(d_bucket_a, num_nodes * num_sketches * num_elems * sizeof(vec_t), device_id));
   gpuErrchk(cudaMemPrefetchAsync(d_bucket_c, num_nodes * num_sketches * num_elems * sizeof(vec_hash_t), device_id));
 
-  cudaGraph.configure(cudaUpdateParams, cudaSketches, sketchSeeds);
+  cudaGraph.configure(cudaUpdateParams, cudaSketches, sketchSeeds, num_threads);
   
   GutteringSystem *gts = g.getGTS();
   MT_StreamReader reader(stream);
@@ -133,7 +133,33 @@ int main(int argc, char **argv) {
 
   // Call kernel code
   std::cout << "Update Kernel Starting...\n";
-  //streamUpdate(num_device_threads, num_device_blocks, cudaUpdateParams, cudaSketches, sketchSeeds);
+
+  // Do the edge updates
+  /*std::thread querier(track_insertions, num_updates, &g, ins_start);
+  std::vector<std::thread> threads;
+  threads.reserve(reader_threads);
+  auto task = [&](const int thr_id) {
+    MT_StreamReader reader(stream);
+    GraphUpdate upd;
+    while(true) {
+      upd = reader.get_edge();
+      if (upd.type == BREAKPOINT) break;
+      Edge &edge = upd.edge;
+
+      gts->insert({edge.src, edge.dst});
+      std::swap(edge.src, edge.dst);
+      gts->insert({edge.src, edge.dst});
+    }
+  };
+
+  // start inserters
+  for (int t = 0; t < reader_threads; t++) {
+    threads.emplace_back(task, t);
+  }
+  // wait for inserters to be done
+  for (int t = 0; t < reader_threads; t++) {
+    threads[t].join();
+  }*/
 
   // Insert an edge to guttering system
   for (size_t e = 0; e < num_updates; e++) {

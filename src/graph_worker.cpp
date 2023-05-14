@@ -151,7 +151,7 @@ void GraphWorker::do_work() {
       for (auto &batch : batches) {
         if (batch.upd_vec.size() > 0) {
           if (cudaEnabled) {
-            cudaGraph->batch_update(batch.node_idx, batch.upd_vec);
+            cudaGraph->batch_update(id, batch.node_idx, batch.upd_vec);
           }
           else {
             graph->batch_update(batch.node_idx, batch.upd_vec, delta_node);
