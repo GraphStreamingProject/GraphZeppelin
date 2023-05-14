@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include <assert.h>
+#include "../src/cuda_library.cu"
 
 #define CUDA_XXH_CPU_LITTLE_ENDIAN 1
 #define CUDA_XXH_REROLL_CUDA_XXH64 0

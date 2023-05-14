@@ -8,7 +8,6 @@
 #include <mutex>
 
 #include <guttering_system.h>
-#include <cuda_graph.h>
 #include "supernode.h"
 #include "graph_configuration.h"
 
@@ -17,6 +16,7 @@
 #endif
 
 #include <iostream>
+#include <cuda_graph.cuh>
 
 // forward declarations
 class GraphWorker;

@@ -1,6 +1,6 @@
 #include "../include/graph_worker.h"
 #include "../include/graph.h"
-#include "../include/cuda_graph.h"
+#include <cuda_graph.cuh>
 
 #ifdef USE_FBT_F
 #include <gutter_tree.h>
