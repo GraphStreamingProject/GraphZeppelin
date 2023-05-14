@@ -135,7 +135,6 @@ int main(int argc, char **argv) {
   std::cout << "Update Kernel Starting...\n";
 
   // Do the edge updates
-  /*std::thread querier(track_insertions, num_updates, &g, ins_start);
   std::vector<std::thread> threads;
   threads.reserve(reader_threads);
   auto task = [&](const int thr_id) {
@@ -146,9 +145,9 @@ int main(int argc, char **argv) {
       if (upd.type == BREAKPOINT) break;
       Edge &edge = upd.edge;
 
-      gts->insert({edge.src, edge.dst});
+      gts->insert({edge.src, edge.dst}, thr_id);
       std::swap(edge.src, edge.dst);
-      gts->insert({edge.src, edge.dst});
+      gts->insert({edge.src, edge.dst}, thr_id);
     }
   };
 
@@ -159,16 +158,6 @@ int main(int argc, char **argv) {
   // wait for inserters to be done
   for (int t = 0; t < reader_threads; t++) {
     threads[t].join();
-  }*/
-
-  // Insert an edge to guttering system
-  for (size_t e = 0; e < num_updates; e++) {
-    upd = reader.get_edge();
-    Edge &edge = upd.edge;
-
-    gts->insert({edge.src, edge.dst});
-    std::swap(edge.src, edge.dst);
-    gts->insert({edge.src, edge.dst});
   }
 
   auto flush_start = std::chrono::steady_clock::now();
