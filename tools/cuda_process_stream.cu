@@ -163,9 +163,9 @@ int main(int argc, char **argv) {
   auto flush_start = std::chrono::steady_clock::now();
   gts->force_flush();
   GraphWorker::pause_workers();
+  cudaDeviceSynchronize();
   auto flush_end = std::chrono::steady_clock::now();
 
-  cudaDeviceSynchronize();
   std::cout << "Update Kernel finished.\n";
 
   // End timer for kernel
