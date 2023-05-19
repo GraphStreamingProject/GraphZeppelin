@@ -44,7 +44,7 @@ class CudaGraph {
 
             for (int i = 0; i < num_host_threads; i++) {
                 cudaStream_t stream;
-                cudaStreamCreate(&stream);
+                cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
                 streams.push_back(stream);
             }
             isInit = true;
