@@ -11,13 +11,22 @@ struct DSUMergeRet {
 
 template <class T>
 class DisjointSetUnion {
-  std::vector<T> parent;
-  std::vector<T> size;
+  // number of items in the DSU
+  T n;
+
+  // parent and size arrays
+  T* parent;
+  T* size;
 public:
-  DisjointSetUnion(T n) : parent(n), size(n, 1) {
+  DisjointSetUnion(T n) : n(n), parent(new T[n]), size(new T[n]) {
     for (T i = 0; i < n; i++) {
       parent[i] = i;
     }
+  }
+
+  ~DisjointSetUnion() {
+    delete[] parent;
+    delete[] size;
   }
 
   inline T find_root(T u) {
@@ -40,7 +49,7 @@ public:
   }
 
   inline void reset() {
-    for (T i = 0; i < parent.size(); i++) {
+    for (T i = 0; i < n; i++) {
       parent[i] = i;
       size[i] = 1;
     }
@@ -50,19 +59,30 @@ public:
 // Disjoint set union that uses atomics to be thread safe
 // thus is a little slower for single threaded use cases
 template <class T>
-class MT_DisjoinSetUnion {
+class DisjointSetUnion_MT {
 private:
-  std::vector<std::atomic<T>> parent;
-  std::vector<T> size;
+  // number of items in the DSU
+  T n;
+
+  // parent and size arrays
+  std::atomic<T>* parent;
+  std::atomic<T>* size;
 public:
-  MT_DisjoinSetUnion(T n) : parent(n), size(n, 1) {
-    for (T i = 0; i < n; i++)
+  DisjointSetUnion_MT(T n) : n(n), parent(new std::atomic<T>[n]), size(new std::atomic<T>[n]) {
+    for (T i = 0; i < n; i++) {
       parent[i] = i;
+      size[i] = 1;
+    }
+  }
+
+  ~DisjointSetUnion_MT() {
+    delete[] parent;
+    delete[] size;
   }
 
   inline T find_root(T u) {
     while (parent[parent[u]] != u) {
-      parent[u] = parent[parent[u]];
+      parent[u] = parent[parent[u]].load();
       u = parent[u];
     }
     return u;
@@ -84,7 +104,7 @@ public:
   }
 
   inline void reset() {
-    for (T i = 0; i < parent.size(); i++) {
+    for (T i = 0; i < n; i++) {
       parent[i] = i;
       size[i] = 1;
     }
