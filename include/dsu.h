@@ -39,6 +39,13 @@ public:
     }
   }
 
+  // move the DSU to a new object
+  DisjointSetUnion(DisjointSetUnion &&oth) : n(oth.n), parent(oth.parent), size(oth.size) {
+    oth.n = 0;
+    oth.parent = nullptr;
+    oth.size = nullptr;
+  }
+
   DisjointSetUnion operator=(const DisjointSetUnion &oth) = delete;
 
   inline T find_root(T u) {
@@ -101,6 +108,13 @@ public:
       parent[i] = oth.parent[i].load();
       size[i] = oth.size[i].load();
     }
+  }
+
+  // move the DSU to a new object
+  DisjointSetUnion_MT(DisjointSetUnion_MT &&oth) : n(oth.n), parent(oth.parent), size(oth.size) {
+    oth.n = 0;
+    oth.parent = nullptr;
+    oth.size = nullptr;
   }
 
   inline T find_root(T u) {
