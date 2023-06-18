@@ -21,6 +21,7 @@ public:
   DisjointSetUnion(T n) : n(n), parent(new T[n]), size(new T[n]) {
     for (T i = 0; i < n; i++) {
       parent[i] = i;
+      size[i] = 1;
     }
   }
 
@@ -28,6 +29,16 @@ public:
     delete[] parent;
     delete[] size;
   }
+
+  // make a copy of the DSU
+  DisjointSetUnion(const DisjointSetUnion &oth) : n(oth.n), parent(new T[n]), size(new T[n]) {
+    for (T i = 0; i < n; i++) {
+      parent[i] = oth.parent[i];
+      size[i] = oth.size[i];
+    }
+  }
+
+  DisjointSetUnion operator=(const DisjointSetUnion &oth) = delete;
 
   inline T find_root(T u) {
     while(parent[parent[u]] != u) {
@@ -78,6 +89,14 @@ public:
   ~DisjointSetUnion_MT() {
     delete[] parent;
     delete[] size;
+  }
+
+  // make a copy of the DSU
+  DisjointSetUnion_MT(const DisjointSetUnion_MT &oth) : n(oth.n), parent(new T[n]), size(new T[n]) {
+    for (T i = 0; i < n; i++) {
+      parent[i] = oth.parent[i].load();
+      size[i] = oth.size[i].load();
+    }
   }
 
   inline T find_root(T u) {
