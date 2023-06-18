@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <atomic>
+#include <cassert>
 
 template<class T>
 struct DSUMergeRet {
@@ -41,6 +42,7 @@ public:
   DisjointSetUnion operator=(const DisjointSetUnion &oth) = delete;
 
   inline T find_root(T u) {
+    assert(0 <= u && u < n);
     while(parent[parent[u]] != u) {
       parent[u] = parent[parent[u]];
       u = parent[u];
@@ -51,6 +53,8 @@ public:
   inline DSUMergeRet<T> merge(T u, T v) {
     T a = find_root(u);
     T b = find_root(v);
+    assert(0 <= a && a < n);
+    assert(0 <= b && b < n);
     if (a == b) return {false, 0, 0};
 
     if (size[a] < size[b]) std::swap(a,b);
@@ -100,6 +104,7 @@ public:
   }
 
   inline T find_root(T u) {
+    assert(0 <= u && u < n);
     while (parent[parent[u]] != u) {
       parent[u] = parent[parent[u]].load();
       u = parent[u];
@@ -110,6 +115,8 @@ public:
   // use CAS in this function to allow for simultaneous merge calls
   inline DSUMergeRet<T> merge(T u, T v) {
     while ((u = find_root(u)) != (v = find_root(v))) {
+      assert(0 <= u && u < n);
+      assert(0 <= v && v < n);
       if (size[u] < size[v])
         std::swap(u, v);
 
