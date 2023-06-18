@@ -135,7 +135,7 @@ public:
         std::swap(u, v);
 
       // if parent of b has not been modified by another thread -> replace with a
-      if (std::atomic_compare_exchange_weak(&parent[u], &v, u)) {
+      if (parent[v].compare_exchange_weak(v, u)) {
         size[u] += size[v];
         return {true, u, v};
       }
