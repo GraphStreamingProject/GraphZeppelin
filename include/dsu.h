@@ -127,17 +127,17 @@ public:
   }
 
   // use CAS in this function to allow for simultaneous merge calls
-  inline DSUMergeRet<T> merge(T u, T v) {
-    while ((u = find_root(u)) != (v = find_root(v))) {
-      assert(0 <= u && u < n);
-      assert(0 <= v && v < n);
-      if (size[u] < size[v])
-        std::swap(u, v);
+  inline DSUMergeRet<T> merge(T a, T b) {
+    while ((a = find_root(a)) != (b = find_root(b))) {
+      assert(0 <= a && a < n);
+      assert(0 <= b && b < n);
+      if (size[a] < size[b])
+        std::swap(a, b);
 
       // if parent of b has not been modified by another thread -> replace with a
-      if (parent[v].compare_exchange_weak(v, u)) {
-        size[u] += size[v];
-        return {true, u, v};
+      if (parent[b].compare_exchange_weak(b, a)) {
+        size[a] += size[b];
+        return {true, a, b};
       }
     }
     return {false, 0, 0};
