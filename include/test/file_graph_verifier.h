@@ -11,14 +11,11 @@
  */
 class FileGraphVerifier : public GraphVerifier {
   std::vector<std::set<node_id_t>> kruskal_ref;
-  std::vector<std::set<node_id_t>> boruvka_cc;
-  DisjointSetUnion<node_id_t> sets;
 
 public:
   FileGraphVerifier(node_id_t n, const std::string& input_file);
 
   void verify_edge(Edge edge);
-  void verify_cc(node_id_t node);
   void verify_soln(std::vector<std::set<node_id_t>>& retval);
 
   /**

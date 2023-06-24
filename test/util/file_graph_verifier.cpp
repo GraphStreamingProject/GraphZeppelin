@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cassert>
 
-FileGraphVerifier::FileGraphVerifier(node_id_t n, const std::string &input_file) : sets(n) {
+FileGraphVerifier::FileGraphVerifier(node_id_t n, const std::string &input_file) {
   std::ifstream in(input_file);
   if (!in) {
     throw std::invalid_argument("FileGraphVerifier: Could not open: " + input_file);
@@ -19,7 +19,6 @@ FileGraphVerifier::FileGraphVerifier(node_id_t n, const std::string &input_file)
   if (num_nodes != n) throw std::invalid_argument("num_nodes != n in FileGraphVerifier");
 
   for (unsigned i = 0; i < n; ++i) {
-    boruvka_cc.push_back({i});
     adj_matrix.emplace_back(n - i);
   }
   while (m--) {
@@ -63,23 +62,6 @@ void FileGraphVerifier::verify_edge(Edge edge) {
     printf("Got an error on edge (%u, %u): edge is not in graph!\n", edge.src, edge.dst);
     throw BadEdgeException();
   }
-
-  DSUMergeRet<node_id_t> ret = sets.merge(edge.src, edge.dst);
-  if (!ret.merged) {
-    printf("Got an error of node (%u, %u): components already joined!\n", edge.src, edge.dst);
-    throw BadEdgeException();
-  }
-
-  // if all checks pass, merge supernodes
-  for (auto& i : boruvka_cc[ret.child]) boruvka_cc[ret.root].insert(i);
-}
-
-void FileGraphVerifier::verify_cc(node_id_t node) {
-  node = sets.find_root(node);
-  for (const auto& cc : kruskal_ref) {
-    if (boruvka_cc[node] == cc) return;
-  }
-  throw NotCCException();
 }
 
 void FileGraphVerifier::verify_soln(std::vector<std::set<node_id_t>> &retval) {

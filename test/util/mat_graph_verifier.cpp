@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cassert>
 
-MatGraphVerifier::MatGraphVerifier(node_id_t n) : n(n), sets(n) {
+MatGraphVerifier::MatGraphVerifier(node_id_t n) : n(n) {
   adj_matrix = std::vector<std::vector<bool>>(n);
   for (node_id_t i = 0; i < n; ++i)
     adj_matrix[i] = std::vector<bool>(n - i);
@@ -23,10 +23,6 @@ void MatGraphVerifier::edge_update(node_id_t src, node_id_t dst) {
 
 void MatGraphVerifier::reset_cc_state() {
   kruskal_ref = kruskal();
-  sets.reset();
-  boruvka_cc.clear();
-  for (node_id_t i = 0; i < n; ++i)
-    boruvka_cc.push_back({i});
 }
 
 std::vector<std::set<node_id_t>> MatGraphVerifier::kruskal() {
@@ -58,23 +54,6 @@ void MatGraphVerifier::verify_edge(Edge edge) {
     printf("Got an error on edge (%u, %u): edge is not in adj_matrix\n", edge.src, edge.dst);
     throw BadEdgeException();
   }
-
-  DSUMergeRet<node_id_t> ret = sets.merge(edge.src, edge.dst); // perform the merge
-  if (!ret.merged) {
-    printf("Got an error on edge (%u, %u): components already joined!\n", edge.src, edge.dst);
-    throw BadEdgeException();
-  }
-
-  // if all checks pass, update boruvka_cc by merging in set elements of child
-  for (auto& i : boruvka_cc[ret.child]) boruvka_cc[ret.root].insert(i);
-}
-
-void MatGraphVerifier::verify_cc(node_id_t node) {
-  node = sets.find_root(node);
-  for (const auto& cc : kruskal_ref) {
-    if (boruvka_cc[node] == cc) return;
-  }
-  throw NotCCException();
 }
 
 void MatGraphVerifier::verify_soln(std::vector<std::set<node_id_t>> &retval) {
