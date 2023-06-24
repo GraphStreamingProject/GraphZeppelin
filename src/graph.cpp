@@ -169,12 +169,8 @@ inline std::vector<std::vector<node_id_t>> Graph::supernodes_to_merge(
       new_reps.push_back(i);
       continue;
     }
-    if (ret_code == ZERO) {
-#ifdef VERIFY_SAMPLES_F
-      verifier->verify_cc(i);
-#endif
+    if (ret_code == ZERO)
       continue;
-    }
 
     // query dsu
     node_id_t a = get_parent(edge.src);
