@@ -365,4 +365,74 @@ static void BM_DSU_Root(benchmark::State& state) {
 }
 BENCHMARK(BM_DSU_Root);
 
+// Benchmark the efficiency of parallel DSU merges
+// when the sequence of DSU merges is adversarial
+// This means we avoid joining roots wherever possible
+static void BM_Parallel_DSU_Adversarial(benchmark::State& state) {
+  constexpr size_t size_of_dsu = 16 * MB;
+
+  auto rng = std::default_random_engine{};
+
+  std::vector<std::pair<node_id_t, node_id_t>> updates;
+  // generate updates
+  for (size_t iter = 0; ((size_t)2 << iter) <= size_of_dsu; iter++) {
+    size_t loc_size = 1 << iter;
+    size_t jump = 2 << iter;
+    std::vector<std::pair<node_id_t, node_id_t>> new_updates;
+    for (size_t i = 0; i < size_of_dsu; i += jump) {
+      new_updates.push_back({i + loc_size - 1, i + loc_size - 1 + jump / 2});
+    }
+    std::shuffle(new_updates.begin(), new_updates.end(), rng);
+    updates.insert(updates.end(), new_updates.begin(), new_updates.end());
+  }
+
+  // Perform merge test
+  for (auto _ : state) {
+    DisjointSetUnion_MT<node_id_t> dsu(size_of_dsu);
+#pragma omp parallel for num_threads(state.range(0))
+    for (auto upd : updates) {
+      dsu.merge(upd.first, upd.second);
+    }
+  }
+  state.counters["Merge_Latency"] =
+      benchmark::Counter(state.iterations() * updates.size(),
+                         benchmark::Counter::kIsRate | benchmark::Counter::kInvert);
+}
+BENCHMARK(BM_Parallel_DSU_Adversarial)->RangeMultiplier(2)->Range(1, 8)->UseRealTime();
+
+// Benchmark the efficiency of parallel DSU merges
+// when the sequence of DSU merges is helpful
+// this means we only join roots
+static void BM_Parallel_DSU_Root(benchmark::State& state) {
+  constexpr size_t size_of_dsu = 16 * MB;
+
+  auto rng = std::default_random_engine{};
+
+  // generate updates
+  std::vector<std::pair<node_id_t, node_id_t>> updates;
+  // generate updates
+  for (size_t iter = 0; ((size_t)2 << iter) <= size_of_dsu; iter++) {
+    size_t jump = 2 << iter;
+    std::vector<std::pair<node_id_t, node_id_t>> new_updates;
+    for (size_t i = 0; i < size_of_dsu; i += jump) {
+      new_updates.push_back({i, i + jump / 2});
+    }
+    std::shuffle(new_updates.begin(), new_updates.end(), rng);
+    updates.insert(updates.end(), new_updates.begin(), new_updates.end());
+  }
+
+  // Perform merge test
+  for (auto _ : state) {
+    DisjointSetUnion_MT<node_id_t> dsu(size_of_dsu);
+#pragma omp parallel for num_threads(state.range(0))
+    for (auto upd : updates) {
+      dsu.merge(upd.first, upd.second);
+    }
+  }
+  state.counters["Merge_Latency"] =
+      benchmark::Counter(state.iterations() * updates.size(),
+                         benchmark::Counter::kIsRate | benchmark::Counter::kInvert);
+}
+BENCHMARK(BM_Parallel_DSU_Root)->RangeMultiplier(2)->Range(1, 8)->UseRealTime();
+
 BENCHMARK_MAIN();

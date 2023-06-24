@@ -128,6 +128,7 @@ if (BUILD_EXE)
     test/graph_test.cpp
     test/sketch_test.cpp
     test/supernode_test.cpp
+    test/dsu_test.cpp
     test/util_test.cpp
     test/util/file_graph_verifier.cpp
     test/util/graph_gen.cpp

@@ -114,9 +114,12 @@ void Supernode::merge(Supernode &other) {
 }
 
 void Supernode::range_merge(Supernode& other, size_t start_idx, size_t num_merge) {
+  // For simplicity we only perform basic error checking here.
+  // It's up to the caller to ensure they aren't accessing out of
+  // range for a Supernode valid only in a subset of this range.
+  if (start_idx >= Supernode::max_sketches) throw OutOfQueriesException();
+
   sample_idx = std::max(sample_idx, other.sample_idx);
-  // we trust the caller so whatever they tell us goes here
-  // hopefully if the caller is incorrect then this will be caught by out_of_queries()
   merged_sketches = start_idx + num_merge;
   for (size_t i = sample_idx; i < merged_sketches; i++)
     (*get_sketch(i))+=(*other.get_sketch(i));
