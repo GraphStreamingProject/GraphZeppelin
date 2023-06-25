@@ -52,7 +52,7 @@ void MatGraphVerifier::verify_edge(Edge edge) {
   if (edge.src > edge.dst) std::swap(edge.src, edge.dst);
   if (!adj_matrix[edge.src][edge.dst - edge.src]) {
     printf("Got an error on edge (%u, %u): edge is not in adj_matrix\n", edge.src, edge.dst);
-    throw BadEdgeException();
+    throw BadEdgeException(edge);
   }
 }
 
@@ -61,7 +61,7 @@ void MatGraphVerifier::verify_soln(std::vector<std::set<node_id_t>> &retval) {
   std::sort(temp.begin(),temp.end());
   std::sort(kruskal_ref.begin(),kruskal_ref.end());
   if (kruskal_ref != temp)
-    throw IncorrectCCException();
+    throw IncorrectCCException(kruskal_ref, temp);
 
   std::cout << "Solution ok: " << retval.size() << " CCs found." << std::endl;
 }
