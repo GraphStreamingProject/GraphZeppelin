@@ -14,6 +14,7 @@ class CudaGraph {
         std::vector<std::mutex> mutexes;
         std::atomic<vec_t> offset;
         std::vector<cudaStream_t> streams;
+        std::vector<int> stream_offsets;
 
         CudaKernel cudaKernel;
 
@@ -26,6 +27,8 @@ class CudaGraph {
         int num_host_threads;
 
         bool isInit = false;
+
+        int stream_multiplier = 4;
 
         // Default constructor
         CudaGraph() {}
@@ -43,8 +46,14 @@ class CudaGraph {
             num_host_threads = _num_host_threads;
 
             for (int i = 0; i < num_host_threads; i++) {
+                stream_offsets.push_back(0);
+            }
+
+            // Assuming num_host_threads is even number
+            for (int i = 0; i < num_host_threads * stream_multiplier; i++) {
                 cudaStream_t stream;
                 cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
+                cudaStreamAttachMemAsync(stream, &cudaUpdateParams[0].edgeUpdates[0], 2 * cudaUpdateParams[0].num_updates * sizeof(vec_t));
                 streams.push_back(stream);
             }
             isInit = true;
@@ -67,7 +76,12 @@ class CudaGraph {
                 count++;
             }
 
-            cudaStreamAttachMemAsync(streams[id], &cudaUpdateParams[0].edgeUpdates[prev_offset]);
-            cudaKernel.gtsStreamUpdate(num_device_threads, num_device_blocks, src, streams[id], prev_offset, edges.size(), cudaUpdateParams, cudaSketches, sketchSeeds);
+            //cudaStreamAttachMemAsync(streams[id], &cudaUpdateParams[0].edgeUpdates[prev_offset], edges.size() * sizeof(vec_t));
+            cudaKernel.gtsStreamUpdate(num_device_threads, num_device_blocks, src, streams[(id * stream_multiplier) + stream_offsets[id]], prev_offset, edges.size(), cudaUpdateParams, cudaSketches, sketchSeeds);
+            stream_offsets[id]++;
+            if(stream_offsets[id] == stream_multiplier) {
+                stream_offsets[id] = 0;
+            }
+            //cudaKernel.gtsStreamUpdate(num_device_threads, num_device_blocks, src, streams[id], prev_offset, edges.size(), cudaUpdateParams, cudaSketches, sketchSeeds);
         };
 };
