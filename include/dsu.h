@@ -25,11 +25,15 @@ class DisjointSetUnion {
   // if sum odd, larger first
   inline void order_edge(T& a, T& b) {
     if (size[a] < size[b]) std::swap(a, b);
-    if (size[a] == size[b]) {
-      if ((a + b) % 2 == 0 && a > b)
-        std::swap(a, b);
-      else if ((a + b) % 2 == 1 && a < b)
-        std::swap(a, b);
+    else if (size[a] == size[b]) {
+      if ((a + b) % 2 == 0) {
+        a = std::min(a, b);
+        b = std::max(a, b);
+      }
+      else {
+        a = std::max(a, b);
+        b = std::min(a, b);
+      }
     }
   }
 
@@ -111,11 +115,15 @@ class DisjointSetUnion_MT {
   // if sum odd, larger first
   inline void order_edge(T& a, T& b) {
     if (size[a] < size[b]) std::swap(a, b);
-    if (size[a] == size[b]) {
-      if ((a + b) % 2 == 0 && a > b)
-        std::swap(a, b);
-      else if ((a + b) % 2 == 1 && a < b)
-        std::swap(a, b);
+    else if (size[a] == size[b]) {
+      if ((a + b) % 2 == 0) {
+        a = std::min(a, b);
+        b = std::max(a, b);
+      }
+      else {
+        a = std::max(a, b);
+        b = std::min(a, b);
+      }
     }
   }
 
