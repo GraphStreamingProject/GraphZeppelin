@@ -78,7 +78,7 @@ int main(int argc, char **argv) {
   std::cout << "num_updates = " << num_updates << std::endl;
   std::cout << std::endl;
 
-  auto config = GraphConfiguration().gutter_sys(STANDALONE).num_groups(num_threads).adtl_skts_factor(0.5);
+  auto config = GraphConfiguration().gutter_sys(STANDALONE).num_groups(num_threads);
   config.gutter_conf().gutter_factor(-4);
   Graph g{num_nodes, config, reader_threads};
 
@@ -124,5 +124,5 @@ int main(int argc, char **argv) {
   std::cout << "  Flush Gutters(sec):           " << flush_time.count() << std::endl;
   std::cout << "  Boruvka's Algorithm(sec):     " << cc_alg_time.count() << std::endl;
   std::cout << "Connected Components:         " << CC_num << std::endl;
-  std::cout << "Maximum Memory Usage:         " << get_max_mem_used() << std::endl;
+  std::cout << "Maximum Memory Usage(MiB):    " << get_max_mem_used() << std::endl;
 }
