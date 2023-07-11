@@ -30,6 +30,12 @@ private:
   // How many OMP threads each graph worker uses
   size_t _group_size = 1;
 
+  // Option to create more sketches than for standard connected components
+  // Ex factor of 1, double the sketches
+  //    factor of 0.5, 1.5 times the sketches
+  //    factor of 0, normal quantity of sketches
+  double _adtl_skts_factor = 0;
+
   // Configuration for the guttering system
   GutteringConfiguration _gutter_conf;
 
@@ -48,6 +54,8 @@ public:
   GraphConfiguration& num_groups(size_t num_groups);
 
   GraphConfiguration& group_size(size_t group_size);
+
+  GraphConfiguration& adtl_skts_factor(double factor);
 
   GutteringConfiguration& gutter_conf();
 
