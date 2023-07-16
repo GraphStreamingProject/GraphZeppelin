@@ -53,7 +53,7 @@ class CudaGraph {
             for (int i = 0; i < num_host_threads * stream_multiplier; i++) {
                 cudaStream_t stream;
                 cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
-                cudaStreamAttachMemAsync(stream, &cudaUpdateParams[0].edgeUpdates[0], 2 * cudaUpdateParams[0].num_updates * sizeof(vec_t));
+                //cudaStreamAttachMemAsync(stream, &cudaUpdateParams[0].edgeUpdates[0], 2 * cudaUpdateParams[0].num_updates * sizeof(vec_t));
                 streams.push_back(stream);
             }
             isInit = true;
