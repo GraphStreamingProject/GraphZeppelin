@@ -189,7 +189,7 @@ __global__ void doubleStream_update(vec_t* edgeUpdates, int* nodeNumUpdates, vec
 // Function that calls sketch update kernel code.
 void CudaKernel::gtsStreamUpdate(int num_threads, int num_blocks, node_id_t src, cudaStream_t stream, vec_t prev_offset, size_t update_size, CudaUpdateParams* cudaUpdateParams, CudaSketch* cudaSketches, long* sketchSeeds) {
   // Unwarp variables from cudaUpdateParams
-  vec_t *edgeUpdates = cudaUpdateParams[0].edgeUpdates;
+  vec_t *edgeUpdates = cudaUpdateParams[0].d_edgeUpdates;
 
   node_id_t num_nodes = cudaUpdateParams[0].num_nodes;
   

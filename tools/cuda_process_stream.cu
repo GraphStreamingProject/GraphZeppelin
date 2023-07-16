@@ -53,14 +53,18 @@ int main(int argc, char **argv) {
 
   // Start timer for initializing
   auto init_start = std::chrono::steady_clock::now();
+
+  GutteringSystem *gts = g.getGTS();
+  int batch_size = gts->gutter_size() / sizeof(node_id_t);
+  int stream_multiplier = 4;
   
   CudaUpdateParams* cudaUpdateParams;
   gpuErrchk(cudaMallocManaged(&cudaUpdateParams, sizeof(CudaUpdateParams)));
-  cudaUpdateParams[0] = CudaUpdateParams(num_nodes, num_updates, num_sketches, num_elems, num_columns, num_guesses);
+  cudaUpdateParams[0] = CudaUpdateParams(num_nodes, num_updates, num_sketches, num_elems, num_columns, num_guesses, num_threads, batch_size, stream_multiplier);
 
-  for (size_t i = 0; i < num_updates * 2; i++) {
+  /*for (size_t i = 0; i < num_updates * 2; i++) {
     cudaUpdateParams[0].edgeUpdates[i] = 0;
-  }
+  }*/
 
   CudaSketch* cudaSketches;
   gpuErrchk(cudaMallocManaged(&cudaSketches, num_nodes * num_sketches * sizeof(CudaSketch)));
@@ -120,7 +124,6 @@ int main(int argc, char **argv) {
 
   cudaGraph.configure(cudaUpdateParams, cudaSketches, sketchSeeds, num_threads);
   
-  GutteringSystem *gts = g.getGTS();
   MT_StreamReader reader(stream);
   GraphUpdate upd;
 

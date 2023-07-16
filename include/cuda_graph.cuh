@@ -14,7 +14,6 @@ class CudaGraph {
         std::vector<std::mutex> mutexes;
         std::atomic<vec_t> offset;
         std::vector<cudaStream_t> streams;
-        std::vector<int> stream_offsets;
 
         CudaKernel cudaKernel;
 
@@ -25,10 +24,10 @@ class CudaGraph {
         int num_device_blocks;
 
         int num_host_threads;
+        int batch_size;
+        int stream_multiplier;
 
         bool isInit = false;
-
-        int stream_multiplier = 4;
 
         // Default constructor
         CudaGraph() {}
@@ -44,18 +43,17 @@ class CudaGraph {
             num_device_threads = 1024;
             num_device_blocks = 1;
             num_host_threads = _num_host_threads;
-
-            for (int i = 0; i < num_host_threads; i++) {
-                stream_offsets.push_back(0);
-            }
+            batch_size = cudaUpdateParams[0].batch_size;
+            stream_multiplier = cudaUpdateParams[0].stream_multiplier;
 
             // Assuming num_host_threads is even number
             for (int i = 0; i < num_host_threads * stream_multiplier; i++) {
                 cudaStream_t stream;
                 cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
-                cudaStreamAttachMemAsync(stream, &cudaUpdateParams[0].edgeUpdates[0], 2 * cudaUpdateParams[0].num_updates * sizeof(vec_t));
+                //cudaStreamCreate(&stream);
                 streams.push_back(stream);
             }
+
             isInit = true;
         };
 
@@ -63,25 +61,26 @@ class CudaGraph {
             if (!isInit) {
                 std::cout << "CudaGraph has not been initialized!\n";
             }
-            // Add first to prevent data conflicts
-            vec_t prev_offset = std::atomic_fetch_add(&offset, edges.size());
+            // Find which stream is available
+            int stream_id = id * stream_multiplier;
+            int stream_offset = 0;
+            while(true) {
+                if (cudaStreamQuery(streams[stream_id + stream_offset]) == cudaSuccess) {
+                    stream_id += stream_offset;
+                    break;
+                }
+                stream_offset++;
+                if (stream_offset == stream_multiplier) {
+                    stream_offset = 0;
+                }
+            }
+            int start_index = stream_id * batch_size;
             int count = 0;
-            for (vec_t i = prev_offset; i < prev_offset + edges.size(); i++) {
-                if (src < edges[count]) {
-                    cudaUpdateParams[0].edgeUpdates[i] = static_cast<vec_t>(concat_pairing_fn(src, edges[count]));
-                }
-                else {
-                    cudaUpdateParams[0].edgeUpdates[i] = static_cast<vec_t>(concat_pairing_fn(edges[count], src));
-                }
+            for (vec_t i = start_index; i < start_index + edges.size(); i++) {
+                cudaUpdateParams[0].h_edgeUpdates[i] = static_cast<vec_t>(concat_pairing_fn(src, edges[count]));
                 count++;
             }
-
-            //cudaStreamAttachMemAsync(streams[id], &cudaUpdateParams[0].edgeUpdates[prev_offset], edges.size() * sizeof(vec_t));
-            cudaKernel.gtsStreamUpdate(num_device_threads, num_device_blocks, src, streams[(id * stream_multiplier) + stream_offsets[id]], prev_offset, edges.size(), cudaUpdateParams, cudaSketches, sketchSeeds);
-            stream_offsets[id]++;
-            if(stream_offsets[id] == stream_multiplier) {
-                stream_offsets[id] = 0;
-            }
-            //cudaKernel.gtsStreamUpdate(num_device_threads, num_device_blocks, src, streams[id], prev_offset, edges.size(), cudaUpdateParams, cudaSketches, sketchSeeds);
+            gpuErrchk(cudaMemcpyAsync(&cudaUpdateParams[0].d_edgeUpdates[start_index], &cudaUpdateParams[0].h_edgeUpdates[start_index], edges.size() * sizeof(vec_t), cudaMemcpyHostToDevice, streams[stream_id]));
+            cudaKernel.gtsStreamUpdate(num_device_threads, num_device_blocks, src, streams[stream_id], start_index, edges.size(), cudaUpdateParams, cudaSketches, sketchSeeds);
         };
 };

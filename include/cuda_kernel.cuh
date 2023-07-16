@@ -40,7 +40,7 @@ class CudaSketch {
 class CudaUpdateParams {
   public:
     // List of edge ids that thread will be responsble for updating
-    vec_t *edgeUpdates;
+    vec_t *h_edgeUpdates, *d_edgeUpdates;
 
     // Parameter for entire graph
     node_id_t num_nodes;
@@ -54,14 +54,21 @@ class CudaUpdateParams {
     size_t num_columns;
     size_t num_guesses;
 
+    int num_host_threads;
+    int batch_size;
+    int stream_multiplier; 
+
     // Default Constructor of CudaUpdateParams
-    CudaUpdateParams():edgeUpdates(nullptr) {};
+    CudaUpdateParams():h_edgeUpdates(nullptr), d_edgeUpdates(nullptr) {};
     
-    CudaUpdateParams(node_id_t num_nodes, size_t num_updates, int num_sketches, size_t num_elems, size_t num_columns, size_t num_guesses):
-      num_nodes(num_nodes), num_updates(num_updates), num_sketches(num_sketches), num_elems(num_elems), num_columns(num_columns), num_guesses(num_guesses) {
+    CudaUpdateParams(node_id_t num_nodes, size_t num_updates, int num_sketches, size_t num_elems, size_t num_columns, size_t num_guesses, int num_host_threads, int batch_size, int stream_multiplier):
+      num_nodes(num_nodes), num_updates(num_updates), num_sketches(num_sketches), num_elems(num_elems), num_columns(num_columns), num_guesses(num_guesses), num_host_threads(num_host_threads), batch_size(batch_size), stream_multiplier(stream_multiplier) {
       
       // Allocate memory space for GPU
-      gpuErrchk(cudaMallocManaged(&edgeUpdates, 2 * num_updates * sizeof(vec_t)));
+      gpuErrchk(cudaMallocHost(&h_edgeUpdates, num_host_threads * batch_size * sizeof(vec_t)));
+      gpuErrchk(cudaMalloc(&d_edgeUpdates, stream_multiplier * num_host_threads * batch_size * sizeof(vec_t)));
+
+      //gpuErrchk(cudaMallocManaged(&edgeUpdates, 2 * num_updates * sizeof(vec_t)));
     };
 };
 
