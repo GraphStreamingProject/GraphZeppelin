@@ -39,15 +39,15 @@ GraphConfiguration& GraphConfiguration::group_size(size_t group_size) {
 
 GraphConfiguration& GraphConfiguration::adtl_skts_factor(double factor) {
   _adtl_skts_factor = factor;
-  if (_adtl_skts_factor < 0) {
-    std::cout << "adtl_skts_factor=" << _adtl_skts_factor << " is out of bounds. [0, infty)"
-              << "Defaulting to 0." << std::endl;
-    _adtl_skts_factor = 0;
+  if (_adtl_skts_factor <= 1) {
+    std::cout << "adtl_skts_factor=" << _adtl_skts_factor << " is out of bounds. [1, infty)"
+              << "Defaulting to 1." << std::endl;
+    _adtl_skts_factor = 1;
   }
-  if (_adtl_skts_factor > 0) {
+  if (_adtl_skts_factor > 1) {
     std::cerr << "WARNING: Your graph configuration specifies using a factor " << _adtl_skts_factor 
               << " more memory than normal." << std::endl;
-    std::cerr << "         Is this intentional? If not, set adtl_skts_factor to zero" << std::endl;
+    std::cerr << "         Is this intentional? If not, set adtl_skts_factor to one" << std::endl;
   }
   return *this;
 }

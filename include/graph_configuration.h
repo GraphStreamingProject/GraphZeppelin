@@ -31,10 +31,9 @@ private:
   size_t _group_size = 1;
 
   // Option to create more sketches than for standard connected components
-  // Ex factor of 1, double the sketches
-  //    factor of 0.5, 1.5 times the sketches
-  //    factor of 0, normal quantity of sketches
-  double _adtl_skts_factor = 0;
+  // Ex factor of 1.5, 1.5 times the sketches
+  //    factor of 1, normal quantity of sketches
+  double _adtl_skts_factor = 1;
 
   // Configuration for the guttering system
   GutteringConfiguration _gutter_conf;

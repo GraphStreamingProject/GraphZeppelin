@@ -89,9 +89,9 @@ public:
   ~Supernode();
 
   static inline void configure(uint64_t n, vec_t sketch_fail_factor = default_fail_factor,
-                               double skt_factor = 0) {
+                               double skt_factor = 1) {
     Sketch::configure(n * n, sketch_fail_factor);
-    max_sketches = log2(n) / (log2(3) - 1) * (skt_factor + 1);
+    max_sketches = log2(n) / (log2(3) - 1) * skt_factor;
     bytes_size = sizeof(Supernode) + max_sketches * Sketch::sketchSizeof();
     serialized_size = max_sketches * Sketch::serialized_size();
   }
