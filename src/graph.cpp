@@ -20,7 +20,7 @@ Graph::Graph(node_id_t num_nodes, GraphConfiguration config, int num_inserters) 
 #ifdef VERIFY_SAMPLES_F
   std::cout << "Verifying samples..." << std::endl;
 #endif
-  Supernode::configure(num_nodes);
+  Supernode::configure(num_nodes, Supernode::default_fail_factor, config._adtl_skts_factor);
   representatives = new std::set<node_id_t>();
   supernodes = new Supernode*[num_nodes];
   parent = new std::remove_reference<decltype(*parent)>::type[num_nodes];
@@ -59,11 +59,13 @@ Graph::Graph(const std::string& input_file, GraphConfiguration config, int num_i
   if (open_graph) throw MultipleGraphsException();
   
   vec_t sketch_fail_factor;
+  double adtl_skts_factor;
   auto binary_in = std::fstream(input_file, std::ios::in | std::ios::binary);
   binary_in.read((char*)&seed, sizeof(seed));
   binary_in.read((char*)&num_nodes, sizeof(num_nodes));
   binary_in.read((char*)&sketch_fail_factor, sizeof(sketch_fail_factor));
-  Supernode::configure(num_nodes, sketch_fail_factor);
+  binary_in.read((char*)&adtl_skts_factor, sizeof(adtl_skts_factor));
+  Supernode::configure(num_nodes, sketch_fail_factor, adtl_skts_factor);
 
 #ifdef VERIFY_SAMPLES_F
   std::cout << "Verifying samples..." << std::endl;
@@ -213,7 +215,7 @@ inline std::vector<std::vector<node_id_t>> Graph::supernodes_to_merge(
   return to_merge;
 }
 
-inline void Graph::merge_supernodes(Supernode** copy_supernodes, std::vector<node_id_t> &new_reps,
+void Graph::merge_supernodes(Supernode** copy_supernodes, std::vector<node_id_t> &new_reps,
                std::vector<std::vector<node_id_t>> &to_merge, bool make_copy) {
   bool except = false;
   std::exception_ptr err;
@@ -280,6 +282,7 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
     parent[i] = i;
     spanning_forest[i].clear();
   }
+  size_t round_num = 1;
   try {
     do {
       modified = false;
@@ -297,6 +300,7 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
       if (!first_round && fail_round_2) throw OutOfQueriesException();
 #endif
       first_round = false;
+      ++round_num;
     } while (modified);
   } catch (...) {
     cleanup_copy();
@@ -307,6 +311,7 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
   delete[] query;
   dsu_valid = true;
 
+  std::cout << "Query complete in " << round_num << " rounds." << std::endl;
   auto retval = cc_from_dsu();
   cc_alg_end = std::chrono::steady_clock::now();
   return retval;
@@ -482,6 +487,7 @@ void Graph::write_binary(const std::string& filename) {
   binary_out.write((char*)&seed, sizeof(seed));
   binary_out.write((char*)&num_nodes, sizeof(num_nodes));
   binary_out.write((char*)&fail_factor, sizeof(fail_factor));
+  binary_out.write((char*)&config._adtl_skts_factor, sizeof(config._adtl_skts_factor));
   for (node_id_t i = 0; i < num_nodes; ++i) {
     supernodes[i]->write_binary(binary_out);
   }

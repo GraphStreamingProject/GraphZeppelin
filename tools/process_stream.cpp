@@ -1,8 +1,15 @@
 #include <graph.h>
 #include <binary_graph_stream.h>
 #include <thread>
+#include <sys/resource.h> // for rusage
 
 static bool shutdown = false;
+
+static double get_max_mem_used() {
+  struct rusage data;
+  getrusage(RUSAGE_SELF, &data);
+  return (double) data.ru_maxrss / 1024.0;
+}
 
 /*
  * Function which is run in a seperate thread and will query
@@ -12,7 +19,7 @@ static bool shutdown = false;
  * @param start_time  the time that we started stream ingestion
  */
 void track_insertions(uint64_t total, Graph *g, std::chrono::steady_clock::time_point start_time) {
-  total = total * 2;                // we insert 2 edge updates per edge
+  total = total * 2; // we insert 2 edge updates per edge
 
   printf("Insertions\n");
   printf("Progress:                    | 0%%\r"); fflush(stdout);
@@ -117,4 +124,5 @@ int main(int argc, char **argv) {
   std::cout << "  Flush Gutters(sec):           " << flush_time.count() << std::endl;
   std::cout << "  Boruvka's Algorithm(sec):     " << cc_alg_time.count() << std::endl;
   std::cout << "Connected Components:         " << CC_num << std::endl;
+  std::cout << "Maximum Memory Usage(MiB):    " << get_max_mem_used() << std::endl;
 }

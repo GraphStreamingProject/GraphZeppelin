@@ -20,7 +20,7 @@ GraphConfiguration& GraphConfiguration::backup_in_mem(bool backup_in_mem) {
 GraphConfiguration& GraphConfiguration::num_groups(size_t num_groups) {
   _num_groups = num_groups;
   if (_num_groups < 1) {
-    std::cout << "num_groups="<< _num_groups << " is out of bounds. "
+    std::cout << "num_groups="<< _num_groups << " is out of bounds. [1, infty)"
               << "Defaulting to 1." << std::endl;
     _num_groups = 1;
   }
@@ -30,9 +30,24 @@ GraphConfiguration& GraphConfiguration::num_groups(size_t num_groups) {
 GraphConfiguration& GraphConfiguration::group_size(size_t group_size) {
   _group_size = group_size;
   if (_group_size < 1) {
-    std::cout << "group_size="<< _group_size << " is out of bounds. "
+    std::cout << "group_size="<< _group_size << " is out of bounds. [1, infty)"
               << "Defaulting to 1." << std::endl;
     _group_size = 1;
+  }
+  return *this;
+}
+
+GraphConfiguration& GraphConfiguration::adtl_skts_factor(double factor) {
+  _adtl_skts_factor = factor;
+  if (_adtl_skts_factor <= 1) {
+    std::cout << "adtl_skts_factor=" << _adtl_skts_factor << " is out of bounds. [1, infty)"
+              << "Defaulting to 1." << std::endl;
+    _adtl_skts_factor = 1;
+  }
+  if (_adtl_skts_factor > 1) {
+    std::cerr << "WARNING: Your graph configuration specifies using a factor " << _adtl_skts_factor 
+              << " more memory than normal." << std::endl;
+    std::cerr << "         Is this intentional? If not, set adtl_skts_factor to one" << std::endl;
   }
   return *this;
 }
