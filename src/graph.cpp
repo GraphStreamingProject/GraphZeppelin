@@ -20,7 +20,7 @@ Graph::Graph(node_id_t num_nodes, GraphConfiguration config, int num_inserters) 
 #ifdef VERIFY_SAMPLES_F
   std::cout << "Verifying samples..." << std::endl;
 #endif
-  Supernode::configure(num_nodes, Supernode::default_fail_factor, config._adtl_skts_factor);
+  Supernode::configure(num_nodes, Supernode::default_fail_factor, config._sketches_factor);
   representatives = new std::set<node_id_t>();
   supernodes = new Supernode*[num_nodes];
   parent = new std::remove_reference<decltype(*parent)>::type[num_nodes];
@@ -34,6 +34,11 @@ Graph::Graph(node_id_t num_nodes, GraphConfiguration config, int num_inserters) 
     representatives->insert(i);
     supernodes[i] = Supernode::makeSupernode(num_nodes,seed);
     parent[i] = i;
+  }
+
+  // set the leaf size of the guttering system appropriately
+  if (config._gutter_conf.get_gutter_bytes() == GutteringConfiguration::uninit_param) {
+    config._gutter_conf.gutter_bytes(Supernode::get_size() * config._batch_factor);
   }
   
   backup_file = config._disk_dir + "supernode_backup.data";
@@ -59,13 +64,13 @@ Graph::Graph(const std::string& input_file, GraphConfiguration config, int num_i
   if (open_graph) throw MultipleGraphsException();
   
   vec_t sketch_fail_factor;
-  double adtl_skts_factor;
+  double sketches_factor;
   auto binary_in = std::fstream(input_file, std::ios::in | std::ios::binary);
   binary_in.read((char*)&seed, sizeof(seed));
   binary_in.read((char*)&num_nodes, sizeof(num_nodes));
   binary_in.read((char*)&sketch_fail_factor, sizeof(sketch_fail_factor));
-  binary_in.read((char*)&adtl_skts_factor, sizeof(adtl_skts_factor));
-  Supernode::configure(num_nodes, sketch_fail_factor, adtl_skts_factor);
+  binary_in.read((char*)&sketches_factor, sizeof(sketches_factor));
+  Supernode::configure(num_nodes, sketch_fail_factor, sketches_factor);
 
 #ifdef VERIFY_SAMPLES_F
   std::cout << "Verifying samples..." << std::endl;
@@ -81,6 +86,11 @@ Graph::Graph(const std::string& input_file, GraphConfiguration config, int num_i
     parent[i] = i;
   }
   binary_in.close();
+
+  // set the leaf size of the guttering system appropriately
+  if (config._gutter_conf.get_gutter_bytes() == GutteringConfiguration::uninit_param) {
+    config._gutter_conf.gutter_bytes(Supernode::get_size() * config._batch_factor);
+  }
 
   backup_file = config._disk_dir + "supernode_backup.data";
   // Create the guttering system
@@ -487,7 +497,7 @@ void Graph::write_binary(const std::string& filename) {
   binary_out.write((char*)&seed, sizeof(seed));
   binary_out.write((char*)&num_nodes, sizeof(num_nodes));
   binary_out.write((char*)&fail_factor, sizeof(fail_factor));
-  binary_out.write((char*)&config._adtl_skts_factor, sizeof(config._adtl_skts_factor));
+  binary_out.write((char*)&config._sketches_factor, sizeof(config._sketches_factor));
   for (node_id_t i = 0; i < num_nodes; ++i) {
     supernodes[i]->write_binary(binary_out);
   }

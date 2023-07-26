@@ -37,17 +37,27 @@ GraphConfiguration& GraphConfiguration::group_size(size_t group_size) {
   return *this;
 }
 
-GraphConfiguration& GraphConfiguration::adtl_skts_factor(double factor) {
-  _adtl_skts_factor = factor;
-  if (_adtl_skts_factor <= 1) {
-    std::cout << "adtl_skts_factor=" << _adtl_skts_factor << " is out of bounds. [1, infty)"
+GraphConfiguration& GraphConfiguration::sketches_factor(double factor) {
+  _sketches_factor = factor;
+  if (_sketches_factor < 0) {
+    std::cout << "adtl_skts_factor=" << _sketches_factor << " is out of bounds. (0, infty)"
               << "Defaulting to 1." << std::endl;
-    _adtl_skts_factor = 1;
+    _sketches_factor = 1;
   }
-  if (_adtl_skts_factor > 1) {
-    std::cerr << "WARNING: Your graph configuration specifies using a factor " << _adtl_skts_factor 
-              << " more memory than normal." << std::endl;
-    std::cerr << "         Is this intentional? If not, set adtl_skts_factor to one" << std::endl;
+  if (_sketches_factor != 1) {
+    std::cerr << "WARNING: Your graph configuration specifies using a factor " << _sketches_factor 
+              << " of the normal quantity of sketches." << std::endl;
+    std::cerr << "         Is this intentional? If not, set adtl_skts_factor to one!" << std::endl;
+  }
+  return *this;
+}
+
+GraphConfiguration& GraphConfiguration::batch_factor(double factor) {
+  _batch_factor = factor;
+  if (_sketches_factor < 0) {
+    std::cout << "sketches_factor=" << _sketches_factor << " is out of bounds. (0, infty)"
+              << "Defaulting to 1." << std::endl;
+    _sketches_factor = 1;
   }
   return *this;
 }

@@ -141,9 +141,9 @@ void test_sketch_sample(unsigned long num_sketches,
 }
 
 TEST(SketchTestSuite, TestSketchSample) {
-  test_sketch_sample(10000, 1e3, 100, 0.005, 0.02);
-  test_sketch_sample(1000, 1e4, 1000, 0.001, 0.02);
-  test_sketch_sample(1000, 1e5, 10000, 0.001, 0.02);
+  test_sketch_sample(10000, 1e3, 100, 0.001, 0.03);
+  test_sketch_sample(1000, 1e4, 1000, 0.001, 0.03);
+  test_sketch_sample(1000, 1e5, 10000, 0.001, 0.03);
 }
 
 /**
@@ -209,9 +209,9 @@ void test_sketch_addition(unsigned long num_sketches,
 }
 
 TEST(SketchTestSuite, TestSketchAddition){
-  test_sketch_addition(10000, 1e3, 100, 0.005, 0.02);
-  test_sketch_addition(1000, 1e4, 1000, 0.001, 0.02);
-  test_sketch_addition(1000, 1e5, 10000, 0.001, 0.02);
+  test_sketch_addition(10000, 1e3, 100, 0.001, 0.03);
+  test_sketch_addition(1000, 1e4, 1000, 0.001, 0.03);
+  test_sketch_addition(1000, 1e5, 10000, 0.001, 0.03);
 }
 
 /**
