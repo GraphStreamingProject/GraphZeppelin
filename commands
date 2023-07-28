@@ -3,10 +3,35 @@ ncu -o ./kron_13_two -f --set full --target-processes all --import-source yes ./
 ncu -o ./kron_13_four -f --set full --target-processes all --import-source yes ./cuda_process_stream ../../../datasets/kron_13_stream_binary 1 4
 ncu -o ./kron_15_one -f --set full --target-processes all --import-source yes ./cuda_process_stream ../../../datasets/kron_15_stream_binary 8 1
 ncu -o ./kron_15_two -f --set full --target-processes all --import-source yes ./cuda_process_stream ../../../datasets/kron_15_stream_binary 8 2
+ncu -o ./kron_16_48 -f --set full -c 10 --target-processes all --import-source yes ./cuda_process_stream ../../../datasets/kron_16_stream_binary 48 48
+ncu -o ./kron_16_48_test -f --set full -c 1 --target-processes all --import-source yes ./cuda_process_stream ../../../datasets/kron_16_stream_binary 48 48
 ncu -o ./multiples_1024_one -f --set full --target-processes all --import-source yes ./cuda_process_stream ../test/res/multiples_graph_1024_stream.data 1 1
 ncu -o ./multiples_1024_two -f --set full --target-processes all --import-source yes ./cuda_process_stream ../test/res/multiples_graph_1024_stream.data 1 2
 
 nsys profile -o multiples_1024_one -f true ./cuda_process_stream ../test/res/multiples_graph_1024_stream.data 1 1
 nsys profile -o kron_13_one -f true ./cuda_process_stream ../../../datasets/kron_13_stream_binary 1 1
 nsys profile -o kron_13_8 -f true ./cuda_process_stream ../../../datasets/kron_13_stream_binary 8 8
+nsys profile -o kron_13_12 -f true ./cuda_process_stream ../../../datasets/kron_13_stream_binary 12 12
+nsys profile -o kron_13_12_barrier -f true ./cuda_process_stream ../../../datasets/kron_13_stream_binary 12 12
 nsys profile -o kron_13_16 -f true ./cuda_process_stream ../../../datasets/kron_13_stream_binary 16 16
+
+nsys profile -o kron_15_12 -f true ./cuda_process_stream ../../../datasets/kron_15_stream_binary 12 12
+nsys profile -o kron_16_12 -f true ./cuda_process_stream ../../../datasets/kron_16_stream_binary 12 12
+
+nsys profile -o kron_16_48_test2 -f true ./cuda_process_stream ../../../datasets/kron_16_stream_binary 48 48
+nsys profile -o kron_16_48_test2 -f true ./cuda_process_stream ../../../datasets/kron_16_stream_binary 48 48
+nsys profile -o kron_16_48_test3 -f true ./cuda_process_stream ../../../datasets/kron_16_stream_binary 48 48
+nsys profile -o kron_16_48_test4 -f true ./cuda_process_stream ../../../datasets/kron_16_stream_binary 48 48
+
+nsys stats -o kron_13_48 --format json -r /opt/nvidia/nsight-systems/2022.4.2/host-linux-x64/reports/gputrace.py kron_13_48.sqlite
+nsys stats -o kron_15_48 --format json -r /opt/nvidia/nsight-systems/2022.4.2/host-linux-x64/reports/gputrace.py kron_15_48.sqlite
+
+
+nsys stats -o kron_16_test4 --format json -r /opt/nvidia/nsight-systems/2022.4.2/host-linux-x64/reports/gputrace.py kron_16_48_test4.nsys-rep
+nsys stats -o kron_16_12 --format json -r /opt/nvidia/nsight-systems/2022.4.2/host-linux-x64/reports/gputrace.py kron_16_12.sqlite
+
+nsys profile -o kron_16_24 -f true ./cuda_process_stream ../../../datasets/kron_16_stream_binary 24 24
+nsys profile -o kron_17_12 -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 12 12
+nsys profile -o kron_17_24 -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+
+nsys stats -o kron_13_12 --format json -r /opt/nvidia/nsight-systems/2023.2.3/host-linux-x64/reports/gputrace.py kron_13_12.sqlite
