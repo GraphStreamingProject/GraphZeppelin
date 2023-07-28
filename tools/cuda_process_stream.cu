@@ -57,14 +57,12 @@ int main(int argc, char **argv) {
   GutteringSystem *gts = g.getGTS();
   int batch_size = gts->gutter_size() / sizeof(node_id_t);
   int stream_multiplier = 4;
+
+  std::cout << "Batch_size: " << batch_size << "\n";
   
   CudaUpdateParams* cudaUpdateParams;
   gpuErrchk(cudaMallocManaged(&cudaUpdateParams, sizeof(CudaUpdateParams)));
   cudaUpdateParams[0] = CudaUpdateParams(num_nodes, num_updates, num_sketches, num_elems, num_columns, num_guesses, num_threads, batch_size, stream_multiplier);
-
-  /*for (size_t i = 0; i < num_updates * 2; i++) {
-    cudaUpdateParams[0].edgeUpdates[i] = 0;
-  }*/
 
   CudaSketch* cudaSketches;
   gpuErrchk(cudaMallocManaged(&cudaSketches, num_nodes * num_sketches * sizeof(CudaSketch)));
@@ -102,19 +100,15 @@ int main(int argc, char **argv) {
     }
   }
 
-  // Number of threads
-  int num_device_threads = 1024;
-  
-  // Number of blocks
-  int num_device_blocks = num_nodes;
-
   int device_id = cudaGetDevice(&device_id);
   int device_count = 0;
   cudaGetDeviceCount(&device_count);
   std::cout << "CUDA Device Count: " << device_count << "\n";
   std::cout << "CUDA Device ID: " << device_id << "\n";
 
-  std::cout << "Allocated Shared Memory of: " << (num_elems * num_sketches * sizeof(vec_t_cu)) + (num_elems * num_sketches * sizeof(vec_hash_t)) << "\n";
+  int maxBytes = num_elems * num_sketches * sizeof(vec_t_cu) + num_elems * num_sketches * sizeof(vec_hash_t);
+  cudaGraph.cudaKernel.kernelUpdateSharedMemory(maxBytes);
+  std::cout << "Allocated Shared Memory of: " << maxBytes << "\n";
 
   // Prefetch memory to device 
   gpuErrchk(cudaMemPrefetchAsync(cudaSketches, num_nodes * num_sketches * sizeof(CudaSketch), device_id));
@@ -173,6 +167,15 @@ int main(int argc, char **argv) {
 
   // End timer for kernel
   auto ins_end = std::chrono::steady_clock::now();
+
+  /*for (int i = 0; i < cudaGraph.loop_times.size(); i++) {
+    std::cout << "Stream #" << i << ": ";
+    double total_loop_time = 0;
+    for (int j = 0; j < cudaGraph.loop_times[i].size(); j++) {
+      total_loop_time += cudaGraph.loop_times[i][j];
+    }
+    std::cout << total_loop_time << "\n";
+  }*/
   
   // Update graph's num_updates value
   g.num_updates += num_updates * 2;
@@ -193,121 +196,4 @@ int main(int argc, char **argv) {
   std::cout << "  Flush Gutters(sec):           " << flush_time.count() << std::endl;
   std::cout << "  Boruvka's Algorithm(sec):     " << cc_alg_time.count() << std::endl;
   std::cout << "Connected Components:         " << CC_num << std::endl;
-
-  /*bool first_round = true;
-  int round_num = 0;
-
-  std::vector<std::chrono::duration<double>> round_durations;
-  std::vector<std::chrono::duration<double>> sample_durations;
-  std::vector<std::chrono::duration<double>> to_merge_durations;
-  std::vector<std::chrono::duration<double>> merge_durations;
-
-  // Start sampling supernodes
-  do {
-    // Start timer for initial time for round
-    auto round_start = std::chrono::steady_clock::now();
-    std::cout << "Round " << round_num << "\n";
-
-    cudaCCParams[0].modified[0] = false;
-
-    // Number of blocks
-    num_device_blocks = (cudaCCParams[0].num_nodes[0] + num_device_threads - 1) / num_device_threads;
-
-    // Get and check sample_idx of each supernodes
-    for (int i = 0; i < cudaCCParams[0].num_nodes[0]; i++) {
-      int index = cudaCCParams[0].reps[i];
-
-      if(cudaCCParams[0].sample_idxs[index] >= cudaCCParams[0].merged_sketches[index]) throw OutOfQueriesException();
-
-      Sketch* sketch = supernodes[index]->get_sketch(cudaCCParams[0].sample_idxs[index]);
-
-      // Check if this sketch has already been queried
-      if(sketch->get_queried()) throw MultipleQueryException();
-      
-      sketch->set_queried(true);
-
-      // Increment current supernode's sample idx
-      cudaCCParams[0].sample_idxs[index]++;
-    }
-
-    // Start timer for sampling
-    auto sample_start = std::chrono::steady_clock::now();
-
-    // Sample each supernodes
-    cuda_sample_supernodes(num_device_threads, num_device_blocks, cudaCCParams, cudaSketches);
-    std::cout << "SAMPLING DONE\n";
-
-    // End timer for sampling
-    auto sample_end = std::chrono::steady_clock::now();
-    sample_durations.push_back(sample_end - sample_start);
-
-    // Start timer for to_merge
-    auto to_merge_start = std::chrono::steady_clock::now();
-
-    // Reset to_merge
-    if(!first_round) {
-      cudaCCParams[0].reset();
-    }
-
-    cuda_supernodes_to_merge(num_device_threads, num_device_blocks, cudaCCParams);
-
-    std::cout << "TO_MERGE DONE\n";
-
-    std::cout << "Reps: ";
-    for (int i = 0; i < cudaCCParams[0].num_nodes[0]; i++) {
-      std::cout << cudaCCParams[0].reps[i] << " ";
-    }
-    std::cout << "\n";
-
-    // End timer for to_merge
-    auto to_merge_end = std::chrono::steady_clock::now();
-    to_merge_durations.push_back(to_merge_end - to_merge_start);
-
-    // Start timer for merge
-    auto merge_start = std::chrono::steady_clock::now();
-
-    num_device_blocks = (cudaCCParams[0].num_nodes[0] + num_device_threads - 1) / num_device_threads;
-
-    cuda_merge_supernodes(num_device_threads, num_device_blocks, cudaCCParams, cudaSketches);
-    std::cout << "MERGE DONE\n";
-
-    // End timer for merge
-    auto merge_end = std::chrono::steady_clock::now();
-    merge_durations.push_back(merge_end - merge_start);
-
-    first_round = false;
-    round_num++;
-
-    // End timer for round
-    auto round_end = std::chrono::steady_clock::now();
-    round_durations.push_back(round_end - round_start);
-
-  } while (cudaCCParams[0].modified[0]);
-
-  for (node_id_t i = 0; i < num_nodes; ++i) {
-    g.setSize(i, cudaCCParams[0].size[i]);
-    g.setParent(i, cudaCCParams[0].parent[i]);
-  }
-
-  // Find connected components
-  auto CC_num = g.cc_from_dsu().size();
-
-  // End timer for cc
-  auto cc_end = std::chrono::steady_clock::now();
-
-  std::chrono::duration<double> insert_time = ins_end - ins_start;
-  std::chrono::duration<double> cc_time = cc_end - cc_start;
-
-  double num_seconds = insert_time.count();
-  std::cout << "Total insertion time(sec):    " << num_seconds << std::endl;
-  std::cout << "Updates per second:           " << stream.edges() / num_seconds << std::endl;
-  std::cout << "Total CC query latency:       " << cc_time.count() << std::endl;
-
-  for (int i = 0; i < sample_durations.size(); i++) {
-    std::cout << "    Round " << i << ":                  " << round_durations[i].count() << std::endl;
-    std::cout << "        Sampling:               " << sample_durations[i].count() << std::endl;
-    std::cout << "        To_Merge:               " << to_merge_durations[i].count() << std::endl;
-    std::cout << "        Merge:                  " << merge_durations[i].count() << std::endl;
-  }
-  std::cout << "Connected Components:         " << CC_num << std::endl;*/
 }

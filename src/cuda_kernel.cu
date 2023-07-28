@@ -116,76 +116,6 @@ __global__ void gtsStream_kernel(node_id_t src, vec_t* edgeUpdates, vec_t prev_o
 
 }
 
-// Version 6: Kernel code of handling all the stream updates
-// Two threads will be responsible for one edge update -> one thread is only modifying one node's sketches.
-// Placing sketches in shared memory, each thread is doing log n updates on one slice of sketch.
-// Applying newest verison of sketch update function
-__global__ void doubleStream_update(vec_t* edgeUpdates, int* nodeNumUpdates, vec_t* nodeStartIndex, node_id_t num_nodes,
-    int num_sketches, size_t num_elems, size_t num_columns, size_t num_guesses, CudaSketch* cudaSketches, long* sketchSeeds) {
-
-  if (blockIdx.x < num_nodes){
-    
-    extern __shared__ vec_t_cu sketches[];
-    vec_t_cu* bucket_a = sketches;
-    vec_hash_t* bucket_c = (vec_hash_t*)&bucket_a[num_elems * num_sketches];
-    int node = blockIdx.x;
-    vec_t startIndex = nodeStartIndex[node];
-
-    // Each thread will initialize a bucket
-    for (int i = threadIdx.x; i < num_sketches * num_elems; i += blockDim.x) {
-      bucket_a[i] = 0;
-      bucket_c[i] = 0;
-    }
-
-    __syncthreads();
-
-    // Update node's sketches
-    for (int id = threadIdx.x; id < nodeNumUpdates[node] + num_sketches; id += blockDim.x) {
-      
-      int sketch_offset = id % num_sketches;
-      int update_offset = ((id / num_sketches) * num_sketches);
-      
-      for (int i = 0; i < num_sketches; i++) {
-
-        if ((startIndex + update_offset + i) >= startIndex + nodeNumUpdates[node]) {
-          break;
-        }
-
-        vec_hash_t checksum = bucket_get_index_hash(edgeUpdates[startIndex + update_offset + i], sketchSeeds[(node * num_sketches) + sketch_offset]);
-
-        // Update depth 0 bucket
-        bucket_update(bucket_a[(sketch_offset * num_elems) + num_elems - 1], bucket_c[(sketch_offset * num_elems) + num_elems - 1], edgeUpdates[startIndex + update_offset + i], checksum);
-
-        // Update higher depth buckets
-        for (unsigned j = 0; j < num_columns; ++j) {
-          col_hash_t depth = bucket_get_index_depth(edgeUpdates[startIndex + update_offset + i], sketchSeeds[(node * num_sketches) + sketch_offset] + j*5, num_guesses);
-          size_t bucket_id = j * num_guesses + depth;
-          if(depth < num_guesses)
-            bucket_update(bucket_a[(sketch_offset * num_elems) + bucket_id], bucket_c[(sketch_offset * num_elems) + bucket_id], edgeUpdates[startIndex + update_offset + i], checksum);
-        }
-      }
-    }
-
-    __syncthreads();
-
-    // Each thread will trasfer a bucket back to global memory
-    for (int i = threadIdx.x; i < num_sketches * num_elems; i += blockDim.x) {
-        int sketch_offset = i / num_elems; 
-        int elem_id = i % num_elems;
-
-        CudaSketch curr_cudaSketch = cudaSketches[(node * num_sketches) + sketch_offset];
-
-        vec_t_cu* curr_bucket_a = (vec_t_cu*)curr_cudaSketch.d_bucket_a;
-        vec_hash_t* curr_bucket_c = curr_cudaSketch.d_bucket_c;
-
-        curr_bucket_a[elem_id] = bucket_a[i];
-        curr_bucket_c[elem_id] = bucket_c[i];
-        
-    }
-    __syncthreads();
-  }
-}
-
 // Function that calls sketch update kernel code.
 void CudaKernel::gtsStreamUpdate(int num_threads, int num_blocks, node_id_t src, cudaStream_t stream, vec_t prev_offset, size_t update_size, CudaUpdateParams* cudaUpdateParams, CudaSketch* cudaSketches, long* sketchSeeds) {
   // Unwarp variables from cudaUpdateParams
@@ -201,43 +131,12 @@ void CudaKernel::gtsStreamUpdate(int num_threads, int num_blocks, node_id_t src,
 
   int maxbytes = num_elems * num_sketches * sizeof(vec_t_cu) + num_elems * num_sketches * sizeof(vec_hash_t);
 
-  cudaFuncSetAttribute(doubleStream_update, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
   gtsStream_kernel<<<num_blocks, num_threads, maxbytes, stream>>>(src, edgeUpdates, prev_offset, update_size, num_nodes, num_sketches, num_elems, num_columns, num_guesses, cudaSketches, sketchSeeds);
-
-
 }
 
-// Function that calls stream update kernel code.
-/*void CudaKernel::streamUpdate(int num_threads, int num_blocks, CudaUpdateParams* cudaUpdateParams, CudaSketch* cudaSketches, long* sketchSeeds) {
-
-  // Unwarp variables from cudaUpdateParams
-  vec_t *edgeUpdates = cudaUpdateParams[0].edgeUpdates;
-  int *nodeNumUpdates = cudaUpdateParams[0].nodeNumUpdates;
-  vec_t *nodeStartIndex = cudaUpdateParams[0].nodeStartIndex;
-
-  node_id_t num_nodes = cudaUpdateParams[0].num_nodes;
-
-  int num_sketches = cudaUpdateParams[0].num_sketches;
-  
-  size_t num_elems = cudaUpdateParams[0].num_elems;
-  size_t num_columns = cudaUpdateParams[0].num_columns;
-  size_t num_guesses = cudaUpdateParams[0].num_guesses;
-
-  int maxbytes = num_elems * num_sketches * sizeof(vec_t_cu) + num_elems * num_sketches * sizeof(vec_hash_t);
-  
-  // Increase maximum of dynamic shared memory size
-  // Note: Only works if GPU has enough shared memory capacity to store sketches for each vertex
-  cudaFuncSetAttribute(doubleStream_update, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
-
-  /*
-      Note (Only when using shared memory): I have noticed that unwrapping variables within kernel code
-      caused these parameter variables to stay within global memory, creating more latency. Therefore, unwrapping these 
-      variables then passing as argument of the kernel code avoids that issue.
-  */ 
-  /*doubleStream_update<<<num_blocks, num_threads, maxbytes>>>(edgeUpdates, nodeNumUpdates, nodeStartIndex, num_nodes, num_sketches, num_elems, num_columns, num_guesses, cudaSketches, sketchSeeds);
-
-  cudaDeviceSynchronize();
-}*/
+void CudaKernel::kernelUpdateSharedMemory(int maxBytes) {
+  cudaFuncSetAttribute(gtsStream_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, maxBytes);
+}
 
 /*
 *   
