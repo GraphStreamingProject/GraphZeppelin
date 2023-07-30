@@ -65,7 +65,7 @@ class CudaUpdateParams {
       num_nodes(num_nodes), num_updates(num_updates), num_sketches(num_sketches), num_elems(num_elems), num_columns(num_columns), num_guesses(num_guesses), num_host_threads(num_host_threads), batch_size(batch_size), stream_multiplier(stream_multiplier) {
       
       // Allocate memory space for GPU
-      gpuErrchk(cudaMallocHost(&h_edgeUpdates, num_host_threads * batch_size * sizeof(vec_t)));
+      gpuErrchk(cudaMallocHost(&h_edgeUpdates, stream_multiplier * num_host_threads * batch_size * sizeof(vec_t)));
       gpuErrchk(cudaMalloc(&d_edgeUpdates, stream_multiplier * num_host_threads * batch_size * sizeof(vec_t)));
     };
 };
