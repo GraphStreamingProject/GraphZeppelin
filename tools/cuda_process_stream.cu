@@ -64,14 +64,24 @@ int main(int argc, char **argv) {
   gpuErrchk(cudaMallocManaged(&cudaUpdateParams, sizeof(CudaUpdateParams)));
   cudaUpdateParams[0] = CudaUpdateParams(num_nodes, num_updates, num_sketches, num_elems, num_columns, num_guesses, num_threads, batch_size, stream_multiplier);
 
-  CudaSketch* cudaSketches;
-  gpuErrchk(cudaMallocManaged(&cudaSketches, num_nodes * num_sketches * sizeof(CudaSketch)));
-
   long* sketchSeeds;
   gpuErrchk(cudaMallocManaged(&sketchSeeds, num_nodes * num_sketches * sizeof(long)));
 
+  for (int i = 0; i < num_nodes; i++) {
+    for (int j = 0; j < num_sketches; j++) {
+      Sketch* sketch = supernodes[i]->get_sketch(j);
+      sketchSeeds[(i * num_sketches) + j] = sketch->get_seed();
+    }
+  }
+
+  /* cudaSketches;
+  gpuErrchk(cudaMallocManaged(&cudaSketches, num_nodes * num_sketches * sizeof(CudaSketch)));
+
+  long* sketchSeeds;
+  gpuErrchk(cudaMallocManaged(&sketchSeeds, num_nodes * num_sketches * sizeof(long)));*/
+
   // Allocate space for all buckets
-  vec_t* d_bucket_a;
+  /*vec_t* d_bucket_a;
   vec_hash_t* d_bucket_c;
   gpuErrchk(cudaMallocManaged(&d_bucket_a, (num_nodes * num_sketches * num_elems * sizeof(vec_t))));
   gpuErrchk(cudaMallocManaged(&d_bucket_c, (num_nodes * num_sketches * num_elems * sizeof(vec_hash_t))));
@@ -98,7 +108,7 @@ int main(int argc, char **argv) {
       cudaSketches[(i * num_sketches) + j] = cudaSketch;
       sketchSeeds[(i * num_sketches) + j] = sketch->get_seed();
     }
-  }
+  }*/
 
   int device_id = cudaGetDevice(&device_id);
   int device_count = 0;
@@ -111,12 +121,13 @@ int main(int argc, char **argv) {
   std::cout << "Allocated Shared Memory of: " << maxBytes << "\n";
 
   // Prefetch memory to device 
-  gpuErrchk(cudaMemPrefetchAsync(cudaSketches, num_nodes * num_sketches * sizeof(CudaSketch), device_id));
   gpuErrchk(cudaMemPrefetchAsync(sketchSeeds, num_nodes * num_sketches * sizeof(long), device_id));
-  gpuErrchk(cudaMemPrefetchAsync(d_bucket_a, num_nodes * num_sketches * num_elems * sizeof(vec_t), device_id));
-  gpuErrchk(cudaMemPrefetchAsync(d_bucket_c, num_nodes * num_sketches * num_elems * sizeof(vec_hash_t), device_id));
 
-  cudaGraph.configure(cudaUpdateParams, cudaSketches, sketchSeeds, num_threads);
+  /*gpuErrchk(cudaMemPrefetchAsync(cudaSketches, num_nodes * num_sketches * sizeof(CudaSketch), device_id));
+  gpuErrchk(cudaMemPrefetchAsync(d_bucket_a, num_nodes * num_sketches * num_elems * sizeof(vec_t), device_id));
+  gpuErrchk(cudaMemPrefetchAsync(d_bucket_c, num_nodes * num_sketches * num_elems * sizeof(vec_hash_t), device_id));*/
+
+  cudaGraph.configure(cudaUpdateParams, supernodes, sketchSeeds, num_threads);
   
   MT_StreamReader reader(stream);
   GraphUpdate upd;
@@ -157,26 +168,22 @@ int main(int argc, char **argv) {
     threads[t].join();
   }
 
+  std::cout << "  Flush Starting...\n";
+  
   auto flush_start = std::chrono::steady_clock::now();
   gts->force_flush();
   GraphWorker::pause_workers();
   cudaDeviceSynchronize();
+  cudaGraph.applyFlushUpdates();
   auto flush_end = std::chrono::steady_clock::now();
+
+  std::cout << "  Flushed Ended.\n";
 
   std::cout << "Update Kernel finished.\n";
 
   // End timer for kernel
   auto ins_end = std::chrono::steady_clock::now();
 
-  /*for (int i = 0; i < cudaGraph.loop_times.size(); i++) {
-    std::cout << "Stream #" << i << ": ";
-    double total_loop_time = 0;
-    for (int j = 0; j < cudaGraph.loop_times[i].size(); j++) {
-      total_loop_time += cudaGraph.loop_times[i][j];
-    }
-    std::cout << total_loop_time << "\n";
-  }*/
-  
   // Update graph's num_updates value
   g.num_updates += num_updates * 2;
 

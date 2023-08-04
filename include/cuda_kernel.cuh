@@ -26,21 +26,31 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 
 class CudaSketch {
   public:
-    vec_t* d_bucket_a;
-    vec_hash_t* d_bucket_c;
-
-    uint64_t seed;
+    vec_t* bucket_a;
+    vec_hash_t* bucket_c;
 
     // Default Constructor of CudaSketch
-    CudaSketch():d_bucket_a(nullptr), d_bucket_c(nullptr) {};
+    CudaSketch():bucket_a(nullptr), bucket_c(nullptr) {};
 
-    CudaSketch(vec_t* d_bucket_a, vec_hash_t* d_bucket_c, uint64_t seed): d_bucket_a(d_bucket_a), d_bucket_c(d_bucket_c), seed(seed) {};
+    CudaSketch(vec_t* bucket_a, vec_hash_t* bucket_c): bucket_a(bucket_a), bucket_c(bucket_c) {};
+};
+
+class CudaSupernode {
+  public:
+    CudaSketch* cudaSketches;
+    int src = 0;
+    bool deltaApplied = true;
+
+    CudaSupernode(): cudaSketches(nullptr) {};
 };
 
 class CudaUpdateParams {
   public:
     // List of edge ids that thread will be responsble for updating
     vec_t *h_edgeUpdates, *d_edgeUpdates;
+
+    vec_t *h_bucket_a, *d_bucket_a;
+    vec_hash_t *h_bucket_c, *d_bucket_c;
 
     // Parameter for entire graph
     node_id_t num_nodes;
@@ -64,9 +74,30 @@ class CudaUpdateParams {
     CudaUpdateParams(node_id_t num_nodes, size_t num_updates, int num_sketches, size_t num_elems, size_t num_columns, size_t num_guesses, int num_host_threads, int batch_size, int stream_multiplier):
       num_nodes(num_nodes), num_updates(num_updates), num_sketches(num_sketches), num_elems(num_elems), num_columns(num_columns), num_guesses(num_guesses), num_host_threads(num_host_threads), batch_size(batch_size), stream_multiplier(stream_multiplier) {
       
-      // Allocate memory space for GPU
-      gpuErrchk(cudaMallocHost(&h_edgeUpdates, num_host_threads * batch_size * sizeof(vec_t)));
+      // Allocate memory for buffer that stores edge updates
+      gpuErrchk(cudaMallocHost(&h_edgeUpdates, stream_multiplier * num_host_threads * batch_size * sizeof(vec_t)));
       gpuErrchk(cudaMalloc(&d_edgeUpdates, stream_multiplier * num_host_threads * batch_size * sizeof(vec_t)));
+
+      // Allocate memory for buckets 
+      gpuErrchk(cudaMallocHost(&h_bucket_a, stream_multiplier * num_host_threads * num_sketches * num_elems * sizeof(vec_t)));
+      gpuErrchk(cudaMalloc(&d_bucket_a, stream_multiplier * num_host_threads * num_sketches * num_elems * sizeof(vec_t)));
+      gpuErrchk(cudaMallocHost(&h_bucket_c, stream_multiplier * num_host_threads * num_sketches * num_elems * sizeof(vec_hash_t)));
+      gpuErrchk(cudaMalloc(&d_bucket_c, stream_multiplier * num_host_threads * num_sketches * num_elems * sizeof(vec_hash_t)));
+
+      //gpuErrchk(cudaMallocManaged(&h_bucket_a, stream_multiplier * num_host_threads * num_sketches * num_elems * sizeof(vec_t)));
+      //gpuErrchk(cudaMallocManaged(&h_bucket_c, stream_multiplier * num_host_threads * num_sketches * num_elems * sizeof(vec_hash_t)));
+
+      std::cout << "Allocated buckets\n";
+      
+      // Initialize host buckets
+      for (size_t i = 0; i < stream_multiplier * num_host_threads * num_sketches * num_elems; i++) {
+        h_bucket_a[i] = 0;
+        h_bucket_c[i] = 0;
+      }
+
+      //cudaMemcpy(&d_bucket_a, &h_bucket_a, stream_multiplier * num_host_threads * num_sketches * num_elems * sizeof(vec_t), cudaMemcpyHostToDevice);
+      //cudaMemcpy(&d_bucket_c, &h_bucket_c, stream_multiplier * num_host_threads * num_sketches * num_elems * sizeof(vec_hash_t), cudaMemcpyHostToDevice);
+
     };
 };
 
@@ -172,8 +203,7 @@ class CudaKernel {
     *
     */
 
-    void gtsStreamUpdate(int num_threads, int num_blocks, node_id_t src, cudaStream_t stream, vec_t prev_offset, size_t update_size, CudaUpdateParams* cudaUpdateParams, CudaSketch* cudaSketches, long* sketchSeeds);
-    void streamUpdate(int num_threads, int num_blocks, CudaUpdateParams* cudaUpdateParams, CudaSketch* cudaSketches, long* sketchSeeds);
+    void gtsStreamUpdate(int num_threads, int num_blocks, vec_t bucket_id, node_id_t src, cudaStream_t stream, vec_t prev_offset, size_t update_size, CudaUpdateParams* cudaUpdateParams, long* sketchSeeds);
     void kernelUpdateSharedMemory(int maxBytes);
 
     /*

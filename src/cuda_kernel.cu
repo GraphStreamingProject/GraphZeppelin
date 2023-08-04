@@ -57,7 +57,7 @@ __device__ void bucket_update(vec_t_cu& a, vec_hash_t& c, const vec_t_cu& update
 */
 
 __global__ void gtsStream_kernel(node_id_t src, vec_t* edgeUpdates, vec_t prev_offset, size_t update_size, node_id_t num_nodes,
-    int num_sketches, size_t num_elems, size_t num_columns, size_t num_guesses, CudaSketch* cudaSketches, long* sketchSeeds) {
+    int num_sketches, size_t num_elems, size_t num_columns, size_t num_guesses, size_t cuda_bucket_id, vec_t* cuda_bucket_a, vec_hash_t* cuda_bucket_c, long* sketchSeeds) {
       
   extern __shared__ vec_t_cu sketches[];
   vec_t_cu* bucket_a = sketches;
@@ -100,24 +100,34 @@ __global__ void gtsStream_kernel(node_id_t src, vec_t* edgeUpdates, vec_t prev_o
 
   __syncthreads();
 
+  if (threadIdx.x == 0) {
+    for (int i = 0; i < num_sketches * num_elems; i++) {
+      cuda_bucket_a[cuda_bucket_id + i] = bucket_a[i];
+      cuda_bucket_c[cuda_bucket_id + i] = bucket_c[i];
+    }
+  }
+
   // Each thread will trasfer a bucket back to global memory
-  for (int i = threadIdx.x; i < num_sketches * num_elems; i += blockDim.x) {
-      int sketch_offset = i / num_elems; 
+  //for (int i = threadIdx.x; i < num_sketches * num_elems; i += blockDim.x) {
+      /*int sketch_offset = i / num_elems; 
       int elem_id = i % num_elems;
 
-      CudaSketch curr_cudaSketch = cudaSketches[(src * num_sketches) + sketch_offset];
+      CudaSketch cudaSketch = cudaSketches[sketch_offset];
 
-      vec_t_cu* curr_bucket_a = (vec_t_cu*)curr_cudaSketch.d_bucket_a;
-      vec_hash_t* curr_bucket_c = curr_cudaSketch.d_bucket_c;
+      vec_t_cu* curr_bucket_a = (vec_t_cu*)cudaSketch.bucket_a;
+      vec_hash_t* curr_bucket_c = cudaSketch.bucket_c;*/
 
-      atomicXor(&curr_bucket_a[elem_id], bucket_a[i]);
-      atomicXor(&curr_bucket_c[elem_id], bucket_c[i]);
-  }
+      //((vec_t_cu*)cuda_bucket_a)[cuda_bucket_id + i] = bucket_a[i];
+      //cuda_bucket_c[cuda_bucket_id + i] = bucket_c[i];
+      
+      /*atomicXor(&curr_bucket_a[elem_id], bucket_a[i]);
+      atomicXor(&curr_bucket_c[elem_id], bucket_c[i]);*/
+  //}
 
 }
 
 // Function that calls sketch update kernel code.
-void CudaKernel::gtsStreamUpdate(int num_threads, int num_blocks, node_id_t src, cudaStream_t stream, vec_t prev_offset, size_t update_size, CudaUpdateParams* cudaUpdateParams, CudaSketch* cudaSketches, long* sketchSeeds) {
+void CudaKernel::gtsStreamUpdate(int num_threads, int num_blocks, vec_t bucket_id, node_id_t src, cudaStream_t stream, vec_t prev_offset, size_t update_size, CudaUpdateParams* cudaUpdateParams, long* sketchSeeds) {
   // Unwarp variables from cudaUpdateParams
   vec_t *edgeUpdates = cudaUpdateParams[0].d_edgeUpdates;
 
@@ -130,8 +140,7 @@ void CudaKernel::gtsStreamUpdate(int num_threads, int num_blocks, node_id_t src,
   size_t num_guesses = cudaUpdateParams[0].num_guesses;
 
   int maxbytes = num_elems * num_sketches * sizeof(vec_t_cu) + num_elems * num_sketches * sizeof(vec_hash_t);
-
-  gtsStream_kernel<<<num_blocks, num_threads, maxbytes, stream>>>(src, edgeUpdates, prev_offset, update_size, num_nodes, num_sketches, num_elems, num_columns, num_guesses, cudaSketches, sketchSeeds);
+  gtsStream_kernel<<<num_blocks, num_threads, maxbytes, stream>>>(src, edgeUpdates, prev_offset, update_size, num_nodes, num_sketches, num_elems, num_columns, num_guesses, bucket_id, cudaUpdateParams[0].d_bucket_a, cudaUpdateParams[0].d_bucket_c, sketchSeeds);
 }
 
 void CudaKernel::kernelUpdateSharedMemory(int maxBytes) {
@@ -144,7 +153,7 @@ void CudaKernel::kernelUpdateSharedMemory(int maxBytes) {
 *
 */
 
-__device__ Edge cuda_inv_concat_pairing_fn(uint64_t idx) {
+/*__device__ Edge cuda_inv_concat_pairing_fn(uint64_t idx) {
   uint8_t num_bits = sizeof(node_id_t) * 8;
   node_id_t j = idx & 0xFFFFFFFF;
   node_id_t i = idx >> num_bits;
@@ -374,4 +383,4 @@ void CudaKernel::cuda_merge_supernodes(int num_threads, int num_blocks, CudaCCPa
   // Call supernodes_to_merge kernel
   merge_supernodes<<<num_blocks, num_threads>>>(reps, to_merge, num_nodes, sample_idxs, merged_sketches, num_sketches, num_elems, cudaSketches);
   cudaDeviceSynchronize();
-}
+}*/
