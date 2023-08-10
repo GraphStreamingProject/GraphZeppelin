@@ -92,7 +92,6 @@ public:
                                double skt_factor = 1) {
     Sketch::configure(n * n, sketch_fail_factor);
     max_sketches = log2(n) / (log2(3) - 1) * skt_factor;
-    if (max_sketches < 1) max_sketches = 1;
     bytes_size = sizeof(Supernode) + max_sketches * Sketch::sketchSizeof();
     serialized_size = max_sketches * Sketch::serialized_size();
   }
@@ -212,7 +211,7 @@ public:
   // void write_sparse_binary_range(std::ostream&binary_out, uint32_t beg, uint32_t end);
 
 #ifdef L0_SAMPLING
-  static constexpr size_t default_fail_factor = 100;
+  static constexpr size_t default_fail_factor = 128;
 #else
   static constexpr size_t default_fail_factor = 4;
 #endif

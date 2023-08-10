@@ -81,7 +81,7 @@ int main(int argc, char **argv) {
   auto config = GraphConfiguration()
                 .gutter_sys(STANDALONE)
                 .num_groups(num_threads)
-                .batch_factor(-4);
+                .batch_factor(1.0 / 2);
   Graph g{num_nodes, config, reader_threads};
 
   auto ins_start = std::chrono::steady_clock::now();

@@ -168,7 +168,7 @@ class Sketch {
 
   // max number of non-zeroes in vector is n/2*n/2=n^2/4
   static size_t guess_gen(size_t x) { return double_to_ull(log2(x) - 2); }
-  static size_t column_gen(size_t d) { return double_to_ull((log2(d) + 1)); }
+  static size_t column_gen(size_t d) { return double_to_ull(log2(d)); }
 };
 
 class MultipleQueryException : public std::exception {

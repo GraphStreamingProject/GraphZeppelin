@@ -54,10 +54,10 @@ GraphConfiguration& GraphConfiguration::sketches_factor(double factor) {
 
 GraphConfiguration& GraphConfiguration::batch_factor(double factor) {
   _batch_factor = factor;
-  if (_sketches_factor < 0) {
-    std::cout << "sketches_factor=" << _sketches_factor << " is out of bounds. (0, infty)"
+  if (_batch_factor < 0) {
+    std::cout << "batch factor=" << _batch_factor << " is out of bounds. (0, infty)"
               << "Defaulting to 1." << std::endl;
-    _sketches_factor = 1;
+    _batch_factor = 1;
   }
   return *this;
 }
