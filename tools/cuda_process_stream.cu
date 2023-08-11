@@ -32,7 +32,14 @@ int main(int argc, char **argv) {
   CudaGraph cudaGraph;
 
   auto config = GraphConfiguration().gutter_sys(CACHETREE).num_groups(num_threads);
-  config.gutter_conf().gutter_factor(-4);
+  // Configuration is from cache_exp.cpp
+  config.gutter_conf().page_factor(1)
+              .buffer_exp(20)
+              .fanout(64)
+              .queue_factor(8)
+              .num_flushers(2)
+              .gutter_factor(1)
+              .wq_batch_per_elm(8);
   Graph g{num_nodes, config, &cudaGraph, reader_threads};
 
   Supernode** supernodes;
