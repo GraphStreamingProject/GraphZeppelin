@@ -91,8 +91,10 @@ class CudaGraph {
                         streams_deltaApplied[stream_id] = 1;
 
                         // Bring back delta sketch
-                        cudaMemcpy(&cudaUpdateParams[0].h_bucket_a[stream_id * sketch_size], &cudaUpdateParams[0].d_bucket_a[stream_id * sketch_size], sketch_size * sizeof(vec_t), cudaMemcpyDeviceToHost);
-                        cudaMemcpy(&cudaUpdateParams[0].h_bucket_c[stream_id * sketch_size], &cudaUpdateParams[0].d_bucket_c[stream_id * sketch_size], sketch_size * sizeof(vec_hash_t), cudaMemcpyDeviceToHost);
+                        cudaMemcpyAsync(&cudaUpdateParams[0].h_bucket_a[stream_id * sketch_size], &cudaUpdateParams[0].d_bucket_a[stream_id * sketch_size], sketch_size * sizeof(vec_t), cudaMemcpyDeviceToHost, streams[stream_id]);
+                        cudaMemcpyAsync(&cudaUpdateParams[0].h_bucket_c[stream_id * sketch_size], &cudaUpdateParams[0].d_bucket_c[stream_id * sketch_size], sketch_size * sizeof(vec_hash_t), cudaMemcpyDeviceToHost, streams[stream_id]);
+
+                        cudaStreamSynchronize(streams[stream_id]);
 
                         if(streams_src[stream_id] == -1) {
                             std::cout << "Stream #" << stream_id << ": Shouldn't be here!\n";

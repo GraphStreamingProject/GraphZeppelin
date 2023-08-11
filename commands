@@ -16,7 +16,9 @@ nsys profile -o kron_13_12_barrier -f true ./cuda_process_stream ../../../datase
 nsys profile -o kron_13_16 -f true ./cuda_process_stream ../../../datasets/kron_13_stream_binary 16 16
 
 nsys profile -o kron_15_12 -f true ./cuda_process_stream ../../../datasets/kron_15_stream_binary 12 12
+nsys profile -o kron_15_12_delta -f true ./cuda_process_stream ../../../datasets/kron_15_stream_binary 12 12
 nsys profile -o kron_16_12 -f true ./cuda_process_stream ../../../datasets/kron_16_stream_binary 12 12
+nsys profile -o kron_16_12_delta -f true ./cuda_process_stream ../../../datasets/kron_16_stream_binary 12 12
 
 nsys profile -o kron_16_48_test2 -f true ./cuda_process_stream ../../../datasets/kron_16_stream_binary 48 48
 nsys profile -o kron_16_48_test2 -f true ./cuda_process_stream ../../../datasets/kron_16_stream_binary 48 48
