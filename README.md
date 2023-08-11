@@ -4,6 +4,10 @@ This is the source code of GraphZeppelin: a compact, fast, and scalable graph pr
 The full experiments for our SIGMOD paper can be found in our [Experiments Repository](https://github.com/GraphStreamingProject/ZeppelinExperiments).
 
 ## Installing and Running GraphZeppelin
+### Requirements
+- Unix OS (not Mac, tested on Ubuntu)
+- cmake>=3.15
+
 ### Installation
 1. Clone this repository
 2. Create a `build` sub directory at the project root dir.
