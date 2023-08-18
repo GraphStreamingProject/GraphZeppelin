@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
 
   auto config = GraphConfiguration()
                 .gutter_sys(STANDALONE)
-                .num_groups(num_threads)
+                .num_graph_workers(num_threads)
                 .batch_factor(1.0 / 2);
   Graph g{num_nodes, config, reader_threads};
 

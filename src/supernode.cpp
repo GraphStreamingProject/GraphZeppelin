@@ -96,7 +96,8 @@ std::pair<Edge, SampleSketchRet> Supernode::sample() {
 std::pair<std::unordered_set<Edge>, SampleSketchRet> Supernode::exhaustive_sample() {
   if (out_of_queries()) throw OutOfQueriesException();
 
-  std::pair<std::unordered_set<vec_t>, SampleSketchRet> query_ret = get_sketch(sample_idx++)->exhaustive_query();
+  std::pair<std::unordered_set<vec_t>, SampleSketchRet> query_ret =
+      get_sketch(sample_idx++)->exhaustive_query();
   std::unordered_set<Edge> edges(query_ret.first.size());
   for (const auto &query_item: query_ret.first) {
     edges.insert(inv_concat_pairing_fn(query_item));
@@ -162,7 +163,6 @@ void Supernode::apply_delta_update(const Supernode* delta_node) {
 void Supernode::delta_supernode(uint64_t n, uint64_t seed,
                const std::vector<vec_t> &updates, void *loc) {
   auto delta_node = makeSupernode(n, seed, loc);
-#pragma omp parallel for num_threads(GraphWorker::get_group_size()) default(shared)
   for (size_t i = 0; i < delta_node->num_sketches; ++i) {
     delta_node->get_sketch(i)->batch_update(updates);
   }

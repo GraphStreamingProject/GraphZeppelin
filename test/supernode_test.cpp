@@ -205,9 +205,7 @@ TEST_F(SupernodeTestSuite, TestBatchUpdate) {
 }
 
 TEST_F(SupernodeTestSuite, TestConcurrency) {
-  int num_threads_per_group = 2;
-  unsigned num_threads =
-      std::thread::hardware_concurrency() / num_threads_per_group - 1;  // hyperthreading?
+  unsigned num_threads = std::thread::hardware_concurrency() - 1;
   unsigned vec_len = 1000000;
   unsigned num_updates = 100000;
   Supernode::configure(vec_len);
@@ -222,8 +220,6 @@ TEST_F(SupernodeTestSuite, TestConcurrency) {
 
   Supernode* supernode = Supernode::makeSupernode(vec_len, seed);
   Supernode* piecemeal = Supernode::makeSupernode(vec_len, seed);
-
-  GraphWorker::set_config(0, num_threads_per_group);  // set number of threads per omp parallel
 
   // concurrently run batch_updates
   std::thread thd[num_threads];
