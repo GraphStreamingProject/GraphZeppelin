@@ -172,9 +172,11 @@ class CudaKernel {
     *
     */
 
+   int maxBytes;
+
     void gtsStreamUpdate(int num_threads, int num_blocks, node_id_t src, cudaStream_t stream, vec_t prev_offset, size_t update_size, CudaUpdateParams* cudaUpdateParams, CudaSketch* cudaSketches, long* sketchSeeds);
     void streamUpdate(int num_threads, int num_blocks, CudaUpdateParams* cudaUpdateParams, CudaSketch* cudaSketches, long* sketchSeeds);
-    void kernelUpdateSharedMemory(int maxBytes);
+    void kernelUpdateSharedMemory(int _maxBytes);
 
     /*
     *   

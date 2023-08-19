@@ -129,12 +129,11 @@ void CudaKernel::gtsStreamUpdate(int num_threads, int num_blocks, node_id_t src,
   size_t num_columns = cudaUpdateParams[0].num_columns;
   size_t num_guesses = cudaUpdateParams[0].num_guesses;
 
-  int maxbytes = num_elems * num_sketches * sizeof(vec_t_cu) + num_elems * num_sketches * sizeof(vec_hash_t);
-
-  gtsStream_kernel<<<num_blocks, num_threads, maxbytes, stream>>>(src, edgeUpdates, prev_offset, update_size, num_nodes, num_sketches, num_elems, num_columns, num_guesses, cudaSketches, sketchSeeds);
+  gtsStream_kernel<<<num_blocks, num_threads, maxBytes, stream>>>(src, edgeUpdates, prev_offset, update_size, num_nodes, num_sketches, num_elems, num_columns, num_guesses, cudaSketches, sketchSeeds);
 }
 
-void CudaKernel::kernelUpdateSharedMemory(int maxBytes) {
+void CudaKernel::kernelUpdateSharedMemory(int _maxBytes) {
+  maxBytes = _maxBytes;
   cudaFuncSetAttribute(gtsStream_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, maxBytes);
 }
 

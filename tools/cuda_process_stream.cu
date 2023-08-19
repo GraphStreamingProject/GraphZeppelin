@@ -183,12 +183,23 @@ int main(int argc, char **argv) {
     }
     std::cout << total_loop_time << "\n";
   }*/
+  /*for (int i = 0; i < cudaGraph.loop_count.size(); i++) {
+    std::cout << "Stream #" << i << ": ";
+    std::cout << cudaGraph.loop_count[i] << "\n";
+  }*/
   
   // Update graph's num_updates value
   g.num_updates += num_updates * 2;
 
   // Start timer for cc
   auto cc_start = std::chrono::steady_clock::now();
+
+  // Prefetch back to host
+  gpuErrchk(cudaMemPrefetchAsync(cudaSketches, num_nodes * num_sketches * sizeof(CudaSketch), cudaCpuDeviceId));
+  gpuErrchk(cudaMemPrefetchAsync(sketchSeeds, num_nodes * num_sketches * sizeof(long), cudaCpuDeviceId));
+  gpuErrchk(cudaMemPrefetchAsync(d_bucket_a, num_nodes * num_sketches * num_elems * sizeof(vec_t), cudaCpuDeviceId));
+  gpuErrchk(cudaMemPrefetchAsync(d_bucket_c, num_nodes * num_sketches * num_elems * sizeof(vec_hash_t), cudaCpuDeviceId));
+
   auto CC_num = g.connected_components().size();
 
   std::chrono::duration<double> insert_time = flush_end - ins_start;
@@ -199,7 +210,7 @@ int main(int argc, char **argv) {
   double num_seconds = insert_time.count();
   std::cout << "Total insertion time(sec):    " << num_seconds << std::endl;
   std::cout << "Updates per second:           " << stream.edges() / num_seconds << std::endl;
-  std::cout << "Total CC query latency:       " << cc_time.count() << std::endl;
+  std::cout << "Total CC query latency:       " << cc_time.count() + flush_time.count() << std::endl;
   std::cout << "  Flush Gutters(sec):           " << flush_time.count() << std::endl;
   std::cout << "  Boruvka's Algorithm(sec):     " << cc_alg_time.count() << std::endl;
   std::cout << "Connected Components:         " << CC_num << std::endl;

@@ -33,5 +33,6 @@ nsys stats -o kron_16_12 --format json -r /opt/nvidia/nsight-systems/2022.4.2/ho
 nsys profile -o kron_16_24 -f true ./cuda_process_stream ../../../datasets/kron_16_stream_binary 24 24
 nsys profile -o kron_17_12 -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 12 12
 nsys profile -o kron_17_24 -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+nsys profile -o kron_17_24_test -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
 
 nsys stats -o kron_13_12 --format json -r /opt/nvidia/nsight-systems/2023.2.3/host-linux-x64/reports/gputrace.py kron_13_12.sqlite
