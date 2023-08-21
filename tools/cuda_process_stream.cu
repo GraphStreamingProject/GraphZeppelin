@@ -180,11 +180,25 @@ int main(int argc, char **argv) {
   gts->force_flush();
   GraphWorker::pause_workers();
   cudaDeviceSynchronize();
-  cudaGraph.applyFlushUpdates();
+
+  std::vector<std::thread> flush_threads;
+  flush_threads.reserve(num_threads);
+
+  auto flush_task = [&](const int thr_id) {
+    cudaGraph.applyFlushUpdates(thr_id);
+  };
+
+  for (int t = 0; t < num_threads; t++) {
+    flush_threads.emplace_back(flush_task, t);
+  }
+
+  for (int t = 0; t < num_threads; t++) {
+    flush_threads[t].join();
+  }
+
   auto flush_end = std::chrono::steady_clock::now();
 
   std::cout << "  Flushed Ended.\n";
-
   std::cout << "Update Kernel finished.\n";
 
   // End timer for kernel
