@@ -79,6 +79,7 @@ protected:
   FRIEND_TEST(GraphTest, TestSupernodeRestoreAfterCCFailure);
 
   GraphConfiguration config;
+  CudaGraph *cudaGraph;
 
   static bool open_graph;
 public:

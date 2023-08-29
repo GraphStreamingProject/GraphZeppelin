@@ -113,6 +113,7 @@ class CudaGraph {
                             }
                         }
                         lk.unlock();
+                        streams_src[stream_id] = -1;
                     }
                     else {
                         if (streams_src[stream_id] != -1) {
@@ -139,19 +140,17 @@ class CudaGraph {
             cudaKernel.gtsStreamUpdate(num_device_threads, num_device_blocks, stream_id * sketch_size, src, streams[stream_id], start_index, edges.size(), cudaUpdateParams, sketchSeeds);
         };
 
-        void applyFlushUpdates(int id) {
+        void applyFlushUpdates() {
+            //std::cout << "    Applying flush updates\n";
 
-            for (int stream_offset = 0; stream_offset < stream_multiplier; stream_offset++) {
-                int stream_id = (id * stream_multiplier) + stream_offset;
+            for (int stream_id = 0; stream_id < num_host_threads * stream_multiplier; stream_id++) {
                 if(streams_deltaApplied[stream_id] == 0) {
                     streams_deltaApplied[stream_id] = 1;
+                    
+                    cudaMemcpy(&cudaUpdateParams[0].h_bucket_a[stream_id * sketch_size], &cudaUpdateParams[0].d_bucket_a[stream_id * sketch_size], sketch_size * sizeof(vec_t), cudaMemcpyDeviceToHost);
+                    cudaMemcpy(&cudaUpdateParams[0].h_bucket_c[stream_id * sketch_size], &cudaUpdateParams[0].d_bucket_c[stream_id * sketch_size], sketch_size * sizeof(vec_hash_t), cudaMemcpyDeviceToHost);
 
-                    cudaMemcpyAsync(&cudaUpdateParams[0].h_bucket_a[stream_id * sketch_size], &cudaUpdateParams[0].d_bucket_a[stream_id * sketch_size], sketch_size * sizeof(vec_t), cudaMemcpyDeviceToHost, streams[stream_id]);
-                    cudaMemcpyAsync(&cudaUpdateParams[0].h_bucket_c[stream_id * sketch_size], &cudaUpdateParams[0].d_bucket_c[stream_id * sketch_size], sketch_size * sizeof(vec_hash_t), cudaMemcpyDeviceToHost, streams[stream_id]);
-
-                    cudaStreamSynchronize(streams[stream_id]);
-
-                    std::unique_lock<std::mutex> lk(mutexes[streams_src[stream_id]]);
+                    // Apply the delta sketch
                     for (int i = 0; i < cudaUpdateParams[0].num_sketches; i++) {
                         Sketch* sketch = supernodes[streams_src[stream_id]]->get_sketch(i);
                         vec_t* bucket_a = sketch->get_bucket_a();
@@ -162,7 +161,7 @@ class CudaGraph {
                             bucket_c[j] ^= cudaUpdateParams[0].h_bucket_c[(stream_id * sketch_size) + (i * cudaUpdateParams[0].num_elems) + j];
                         }
                     }
-                    lk.unlock();
+                    streams_src[stream_id] = -1;
                 }
             }
         }

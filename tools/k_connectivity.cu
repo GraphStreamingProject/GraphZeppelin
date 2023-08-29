@@ -4,42 +4,60 @@
 #include <map>
 #include <binary_graph_stream.h>
 #include <cuda_graph.cuh>
+#include <k_connected_graph.h>
+
+constexpr size_t k = 1000;
+constexpr size_t vert_multiple = 200;
 
 int main(int argc, char **argv) {
-  if (argc != 4) {
+  /*if (argc != 3) {
     std::cout << "ERROR: Incorrect number of arguments!" << std::endl;
-    std::cout << "Arguments: stream_file, graph_workers, reader_threads" << std::endl;
+    std::cout << "Arguments: graph_workers, reader_threads" << std::endl;
     exit(EXIT_FAILURE);
   }
 
-  std::string stream_file = argv[1];
-  int num_threads = std::atoi(argv[2]);
+  int num_threads = std::atoi(argv[1]);
   if (num_threads < 1) {
     std::cout << "ERROR: Invalid number of graph workers! Must be > 0." << std::endl;
     exit(EXIT_FAILURE);
   }
-  int reader_threads = std::atoi(argv[3]);
+  int reader_threads = std::atoi(argv[2]);*/
 
-  BinaryGraphStream_MT stream(stream_file, 1024*32);
+  /*BinaryGraphStream_MT stream(stream_file, 1024*32);
   node_id_t num_nodes = stream.nodes();
   size_t num_updates  = stream.edges();
   std::cout << "Running process_stream with CUDA: " << std::endl;
   std::cout << "Processing stream: " << stream_file << std::endl;
   std::cout << "nodes       = " << num_nodes << std::endl;
   std::cout << "num_updates = " << num_updates << std::endl;
-  std::cout << std::endl;
+  std::cout << std::endl;*/
+  node_id_t num_nodes = k * vert_multiple;
+  size_t num_updates = (k * (k - 1) / 2) * vert_multiple;
+
+  if (k > num_nodes) {
+    std::cerr << "k must be less than vertices!" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  if (num_nodes % k != 0) {
+    std::cerr << "number of vertices must be a multiple of k!" << std::endl;
+    exit(EXIT_FAILURE);
+  }
 
   CudaGraph cudaGraph;
 
-  auto config = GraphConfiguration().gutter_sys(CACHETREE).num_groups(num_threads);
+  /*auto config = GraphConfiguration().gutter_sys(CACHETREE).num_groups(num_threads);
+  // Configuration is from cache_exp.cpp
   config.gutter_conf().page_factor(1)
               .buffer_exp(20)
               .fanout(64)
               .queue_factor(8)
               .num_flushers(2)
               .gutter_factor(1)
-              .wq_batch_per_elm(8);
-  Graph g{num_nodes, config, &cudaGraph, reader_threads};
+              .wq_batch_per_elm(8);*/
+  GraphConfiguration conf;
+  int num_threads = 40;
+  conf.num_groups(num_threads);
+  KConnectedGraph g{num_nodes, conf, &cudaGraph, 4};
 
   Supernode** supernodes;
   supernodes = g.getSupernodes();
@@ -135,8 +153,8 @@ int main(int argc, char **argv) {
 
   cudaGraph.configure(cudaUpdateParams, supernodes, sketchSeeds, num_threads);
   
-  MT_StreamReader reader(stream);
-  GraphUpdate upd;
+  //MT_StreamReader reader(stream);
+  //GraphUpdate upd;
 
   std::cout << "Finished initializing CUDA parameters\n";
   std::chrono::duration<double> init_time = std::chrono::steady_clock::now() - init_start;
@@ -149,19 +167,20 @@ int main(int argc, char **argv) {
   std::cout << "Update Kernel Starting...\n";
 
   // Do the edge updates
-  std::vector<std::thread> threads;
+  /*std::vector<std::thread> threads;
   threads.reserve(reader_threads);
   auto task = [&](const int thr_id) {
-    MT_StreamReader reader(stream);
-    GraphUpdate upd;
-    while(true) {
-      upd = reader.get_edge();
-      if (upd.type == BREAKPOINT) break;
-      Edge &edge = upd.edge;
+    int node_id = thr_id;
+    node_id_t hop = k - thr_id;
 
-      gts->insert({edge.src, edge.dst}, thr_id);
-      std::swap(edge.src, edge.dst);
-      gts->insert({edge.src, edge.dst}, thr_id);
+    while(node_id < num_nodes) {
+        for (node_id_t j = node_id+1; j <= node_id + hop && j < num_nodes; j++) {
+            gts->insert({node_id, j}, thr_id);
+            gts->insert({j, node_id}, thr_id);
+        }
+        node_id += reader_threads;
+        hop -= reader_threads;
+        if (hop <= 0) hop += k;
     }
   };
 
@@ -172,18 +191,17 @@ int main(int argc, char **argv) {
   // wait for inserters to be done
   for (int t = 0; t < reader_threads; t++) {
     threads[t].join();
+  }*/
+
+  node_id_t hop = k;
+  for (node_id_t i = 0; i < num_nodes; i++) {
+    for (node_id_t j = i+1; j <= i + hop && j < num_nodes; j++) {
+      // std::cout << "Edge = " << i << ", " << j << std::endl;
+      g.update({{i, j}, INSERT});
+    }
+    --hop;
+    if (hop == 0) hop = k;
   }
-
-  std::cout << "  Flush Starting...\n";
-  
-  auto flush_start = std::chrono::steady_clock::now();
-  gts->force_flush();
-  GraphWorker::pause_workers();
-  cudaDeviceSynchronize();
-  cudaGraph.applyFlushUpdates();
-  auto flush_end = std::chrono::steady_clock::now();
-
-  std::cout << "  Flushed Ended.\n";
 
   std::cout << "Update Kernel finished.\n";
 
@@ -194,19 +212,10 @@ int main(int argc, char **argv) {
   g.num_updates += num_updates * 2;
 
   // Start timer for cc
-  auto cc_start = std::chrono::steady_clock::now();
-  auto CC_num = g.connected_components().size();
+  auto k_cc_start = std::chrono::steady_clock::now();
 
-  std::chrono::duration<double> insert_time = flush_end - ins_start;
-  std::chrono::duration<double> cc_time = std::chrono::steady_clock::now() - cc_start;
-  std::chrono::duration<double> flush_time = flush_end - flush_start;
-  std::chrono::duration<double> cc_alg_time = g.cc_alg_end - g.cc_alg_start;
+  //auto CC_num = g.connected_components().size();
+  std::vector<std::vector<Edge>> forests = g.k_spanning_forests(k);
 
-  double num_seconds = insert_time.count();
-  std::cout << "Total insertion time(sec):    " << num_seconds << std::endl;
-  std::cout << "Updates per second:           " << stream.edges() / num_seconds << std::endl;
-  std::cout << "Total CC query latency:       " << cc_time.count() + flush_time.count() << std::endl;
-  std::cout << "  Flush Gutters(sec):           " << flush_time.count() << std::endl;
-  std::cout << "  Boruvka's Algorithm(sec):     " << cc_alg_time.count() << std::endl;
-  std::cout << "Connected Components:         " << CC_num << std::endl;
+  std::chrono::duration<double> k_cc_time = std::chrono::steady_clock::now() - k_cc_start;
 }

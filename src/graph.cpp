@@ -55,7 +55,7 @@ Graph::Graph(node_id_t num_nodes, GraphConfiguration config, int num_inserters) 
 }
 
 Graph::Graph(node_id_t num_nodes, GraphConfiguration config, CudaGraph* cudaGraph, int num_inserters) : 
- num_nodes(num_nodes), config(config), num_updates(0) {
+ num_nodes(num_nodes), config(config), cudaGraph(cudaGraph), num_updates(0) {
   if (open_graph) throw MultipleGraphsException();
 
 #ifdef VERIFY_SAMPLES_F
