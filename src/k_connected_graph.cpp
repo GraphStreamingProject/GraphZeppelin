@@ -1,9 +1,15 @@
 #include "k_connected_graph.h"
 #include <graph_worker.h>
+#include <types.h>
+
+node_id_t KConnectedGraph::k_get_parent(node_id_t node, int k_id) {
+  if (parent[(node * k) + k_id] == node) return node;
+  return parent[(node * k) + k_id] = k_get_parent(parent[(node * k) + k_id], k_id);
+}
 
 std::vector<std::vector<node_id_t>> KConnectedGraph::to_merge_and_forest_edges(
     std::vector<Edge> &forest, std::pair<Edge, SampleSketchRet> *query,
-    std::vector<node_id_t> &reps) {
+    std::vector<node_id_t> &reps, int k_id) {
   std::vector<std::vector<node_id_t>> to_merge(num_nodes);
   std::vector<node_id_t> new_reps;
   for (auto i : reps) {
@@ -25,8 +31,8 @@ std::vector<std::vector<node_id_t>> KConnectedGraph::to_merge_and_forest_edges(
     }
 
     // query dsu
-    node_id_t a = get_parent(edge.src);
-    node_id_t b = get_parent(edge.dst);
+    node_id_t a = k_get_parent(edge.src, k_id);
+    node_id_t b = k_get_parent(edge.dst, k_id);
     if (a == b) continue;
 
 #ifdef VERIFY_SAMPLES_F
@@ -35,7 +41,7 @@ std::vector<std::vector<node_id_t>> KConnectedGraph::to_merge_and_forest_edges(
 
     // make a the parent of b
     if (size[a] < size[b]) std::swap(a,b);
-    parent[b] = a;
+    parent[(b * k) + k_id] = a;
     size[a] += size[b];
 
     // add b and any of the nodes to merge with it to a's vector
@@ -65,7 +71,53 @@ std::vector<std::vector<node_id_t>> KConnectedGraph::to_merge_and_forest_edges(
   return to_merge;
 }
 
-std::vector<Edge> KConnectedGraph::get_spanning_forest() {
+inline void KConnectedGraph::k_sample_supernodes(std::pair<Edge, SampleSketchRet> *query, std::vector<node_id_t> &reps, int k_id) {
+  bool except = false;
+  std::exception_ptr err;
+  #pragma omp parallel for default(none) shared(query, reps, k_id, except, err)
+  for (node_id_t i = 0; i < reps.size(); ++i) { // NOLINT(modernize-loop-convert)
+    // wrap in a try/catch because exiting through exception is undefined behavior in OMP
+    try {
+      query[reps[i]] = supernodes[(reps[i] * k) + k_id]->sample();
+
+    } catch (...) {
+      except = true;
+      err = std::current_exception();
+    }
+  }
+  // Did one of our threads produce an exception?
+  if (except) std::rethrow_exception(err);
+}
+
+void KConnectedGraph::k_merge_supernodes(Supernode** copy_supernodes, std::vector<node_id_t> &new_reps,
+               std::vector<std::vector<node_id_t>> &to_merge, bool make_copy, int k_id) {
+  bool except = false;
+  std::exception_ptr err;
+  // loop over the to_merge vector and perform supernode merging
+  #pragma omp parallel for default(shared)
+  for (node_id_t i = 0; i < new_reps.size(); i++) { // NOLINT(modernize-loop-convert)
+    // OMP requires a traditional for-loop to work
+    node_id_t a = new_reps[i];
+    try {
+      if (make_copy && Graph::config._backup_in_mem) { // make a copy of a
+        copy_supernodes[a] = Supernode::makeSupernode(*supernodes[(a * k) + k_id]);
+      }
+
+      // perform merging of nodes b into node a
+      for (node_id_t b : to_merge[a]) {
+        supernodes[(a * k) + k_id]->merge(*supernodes[(b * k) + k_id]);
+      }
+    } catch (...) {
+      except = true;
+      err = std::current_exception();
+    }
+  }
+
+  // Did one of our threads produce an exception?
+  if (except) std::rethrow_exception(err);
+}
+
+std::vector<Edge> KConnectedGraph::get_spanning_forest(int k_id) {
   std::vector<Edge> forest;
   bool first_round = true;
   size_t round = 0;
@@ -77,19 +129,35 @@ std::vector<Edge> KConnectedGraph::get_spanning_forest() {
   for (node_id_t i = 0; i < num_nodes; ++i) {
     reps[i] = i;
     copy_supernodes[i] = nullptr;
-    parent[i] = i;
+    parent[(i * k) + k_id] = i;
   }
   try {
     do {
       round++;
       modified = false;
-      sample_supernodes(query, reps);
-      std::vector<std::vector<node_id_t>> to_merge = to_merge_and_forest_edges(forest, query, reps);
+      k_sample_supernodes(query, reps, k_id);
+      //std::cout << "  Sampling Round " << round << ":\n"; 
+      for (node_id_t i = 0; i < reps.size(); ++i) {
+        //std::cout << "Node " << reps[i] << ":{" << query[i].first.src << "," << query[i].first.dst << "}";
+      }
+      //std::cout << "\n";
+      std::vector<std::vector<node_id_t>> to_merge = to_merge_and_forest_edges(forest, query, reps, k_id);
+
+      //std::cout << "  Merging Round " << round << ":\n"; 
+      for (node_id_t i = 0; i < to_merge.size(); ++i) {
+        if(to_merge[i].size() == 0) continue;
+        //std::cout << "    Node " << i << ": ";
+        for (node_id_t j = 0; j < to_merge[i].size(); ++j) {
+          //std::cout << to_merge[i][j] << " ";
+        }
+        //td::cout << "\n";
+      }
       // make a copy if necessary
       if (first_round)
         backed_up = reps;
 
-      merge_supernodes(copy_supernodes, reps, to_merge, first_round);
+      k_merge_supernodes(copy_supernodes, reps, to_merge, first_round, k_id);
+      //std::cout << "  Finished Merging\n";
 
 #ifdef VERIFY_SAMPLES_F
       if (!first_round && fail_round_2) throw OutOfQueriesException();
@@ -102,14 +170,14 @@ std::vector<Edge> KConnectedGraph::get_spanning_forest() {
     std::rethrow_exception(std::current_exception());
   }
   for (node_id_t i : backed_up) {
-    free(supernodes[i]);
-    supernodes[i] = copy_supernodes[i];
+    free(supernodes[(i * k) + k_id]);
+    supernodes[(i * k) + k_id] = copy_supernodes[i];
   }
 
   node_id_t num_cc = 0;
   std::set<node_id_t> roots;
   for (node_id_t i = 0; i < num_nodes; i++) {
-    node_id_t parent = get_parent(i);
+    node_id_t parent = k_get_parent(i, k_id);
     if (roots.count(parent) == 0) {
       ++num_cc;
       roots.insert(parent);
@@ -123,11 +191,14 @@ std::vector<Edge> KConnectedGraph::get_spanning_forest() {
 }
 
 void KConnectedGraph::trim_spanning_forest(std::vector<Edge> &forest) {
-  // std::cout << "DELETING THESE EDGES:" << std::endl;
+  //std::cout << "  DELETING THESE EDGES: " << std::endl;
   for (auto e : forest) {
-    // std::cout << e.src << " " << e.dst << std::endl;
-    update({e, DELETE});    
+    //std::cout << "{" << e.src << "," << e.dst << "}";
+    gts->insert({e.src, e.dst});
+    std::swap(e.src, e.dst);
+    gts->insert({e.src, e.dst});
   }
+  //std::cout << std::endl;
 }
 
 // void KConnectedGraph::cycle_supernodes() {
@@ -139,7 +210,7 @@ void KConnectedGraph::trim_spanning_forest(std::vector<Edge> &forest) {
 // }
 
 void KConnectedGraph::verify_spanning_forests(std::vector<std::vector<Edge>> forests) {
-  std::set<Edge> edges;
+  /*std::set<Edge> edges;
   for (auto& forest : forests) {
     for (auto& e : forest) {
       if (edges.count(e) == 0) {
@@ -150,7 +221,7 @@ void KConnectedGraph::verify_spanning_forests(std::vector<std::vector<Edge>> for
         exit(EXIT_FAILURE);
       }
     }
-  }
+  }*/
 
 }
 
@@ -160,14 +231,14 @@ std::vector<std::vector<Edge>> KConnectedGraph::k_spanning_forests(size_t k) {
     gts->force_flush(); // flush everything in guttering system to make final updates
     GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
     cudaDeviceSynchronize();
-    cudaGraph->applyFlushUpdates();
-    std::cout << "Getting spanning forest " << i + 1 << std::endl;
-    forests.push_back(get_spanning_forest());
+    cudaGraph->k_applyFlushUpdates();
+    std::cout << "Getting spanning forest " << i + 1 << ":" << std::endl;
+    forests.push_back(get_spanning_forest(i));
 
     // get ready for ingesting more from the stream
     // reset supernodes and resume graph workers
-    for (node_id_t i = 0; i < num_nodes; i++) {
-      supernodes[i]->reset_query_state();
+    for (node_id_t j = 0; j < num_nodes; j++) {
+      supernodes[(j * k) + i]->reset_query_state();
     }
     GraphWorker::unpause_workers();
     trim_spanning_forest(forests[i]);

@@ -82,6 +82,7 @@ protected:
   CudaGraph *cudaGraph;
 
   static bool open_graph;
+
 public:
   explicit Graph(node_id_t num_nodes, int num_inserters=1) : 
     Graph(num_nodes, GraphConfiguration(), num_inserters) {};
@@ -89,7 +90,7 @@ public:
     Graph(input_file, GraphConfiguration(), num_inserters) {};
   explicit Graph(const std::string &input_file, GraphConfiguration config, int num_inserters=1);
   explicit Graph(node_id_t num_nodes, GraphConfiguration config, int num_inserters=1);
-  explicit Graph(node_id_t num_nodes, GraphConfiguration config, CudaGraph* cudaGraph, int num_inserters=1);
+  explicit Graph(node_id_t num_nodes, GraphConfiguration config, CudaGraph* cudaGraph, int k, int num_inserters=1);
 
   virtual ~Graph();
 
@@ -239,4 +240,6 @@ public:
   std::chrono::steady_clock::time_point flush_end;
   std::chrono::steady_clock::time_point cc_alg_start;
   std::chrono::steady_clock::time_point cc_alg_end;
+
+  friend class KConnectedGraph;
 };

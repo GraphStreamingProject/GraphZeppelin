@@ -46,6 +46,9 @@ class CudaSupernode {
 
 class CudaUpdateParams {
   public:
+    // Value of k
+    int k;
+
     // List of edge ids that thread will be responsble for updating
     vec_t *h_edgeUpdates, *d_edgeUpdates;
 
@@ -71,32 +74,26 @@ class CudaUpdateParams {
     // Default Constructor of CudaUpdateParams
     CudaUpdateParams():h_edgeUpdates(nullptr), d_edgeUpdates(nullptr) {};
     
-    CudaUpdateParams(node_id_t num_nodes, size_t num_updates, int num_sketches, size_t num_elems, size_t num_columns, size_t num_guesses, int num_host_threads, int batch_size, int stream_multiplier):
-      num_nodes(num_nodes), num_updates(num_updates), num_sketches(num_sketches), num_elems(num_elems), num_columns(num_columns), num_guesses(num_guesses), num_host_threads(num_host_threads), batch_size(batch_size), stream_multiplier(stream_multiplier) {
+    CudaUpdateParams(node_id_t num_nodes, size_t num_updates, int num_sketches, size_t num_elems, size_t num_columns, size_t num_guesses, int num_host_threads, int batch_size, int stream_multiplier, int k = 1):
+      num_nodes(num_nodes), num_updates(num_updates), num_sketches(num_sketches), num_elems(num_elems), num_columns(num_columns), num_guesses(num_guesses), num_host_threads(num_host_threads), batch_size(batch_size), stream_multiplier(stream_multiplier), k(k) {
       
       // Allocate memory for buffer that stores edge updates
       gpuErrchk(cudaMallocHost(&h_edgeUpdates, stream_multiplier * num_host_threads * batch_size * sizeof(vec_t)));
       gpuErrchk(cudaMalloc(&d_edgeUpdates, stream_multiplier * num_host_threads * batch_size * sizeof(vec_t)));
 
       // Allocate memory for buckets 
-      gpuErrchk(cudaMallocHost(&h_bucket_a, stream_multiplier * num_host_threads * num_sketches * num_elems * sizeof(vec_t)));
-      gpuErrchk(cudaMalloc(&d_bucket_a, stream_multiplier * num_host_threads * num_sketches * num_elems * sizeof(vec_t)));
-      gpuErrchk(cudaMallocHost(&h_bucket_c, stream_multiplier * num_host_threads * num_sketches * num_elems * sizeof(vec_hash_t)));
-      gpuErrchk(cudaMalloc(&d_bucket_c, stream_multiplier * num_host_threads * num_sketches * num_elems * sizeof(vec_hash_t)));
-
-      //gpuErrchk(cudaMallocManaged(&h_bucket_a, stream_multiplier * num_host_threads * num_sketches * num_elems * sizeof(vec_t)));
-      //gpuErrchk(cudaMallocManaged(&h_bucket_c, stream_multiplier * num_host_threads * num_sketches * num_elems * sizeof(vec_hash_t)));
+      gpuErrchk(cudaMallocHost(&h_bucket_a, k * stream_multiplier * num_host_threads * num_sketches * num_elems * sizeof(vec_t)));
+      gpuErrchk(cudaMalloc(&d_bucket_a, k * stream_multiplier * num_host_threads * num_sketches * num_elems * sizeof(vec_t)));
+      gpuErrchk(cudaMallocHost(&h_bucket_c, k * stream_multiplier * num_host_threads * num_sketches * num_elems * sizeof(vec_hash_t)));
+      gpuErrchk(cudaMalloc(&d_bucket_c, k * stream_multiplier * num_host_threads * num_sketches * num_elems * sizeof(vec_hash_t)));
 
       std::cout << "Allocated buckets\n";
       
       // Initialize host buckets
-      for (size_t i = 0; i < stream_multiplier * num_host_threads * num_sketches * num_elems; i++) {
+      for (size_t i = 0; i < k * stream_multiplier * num_host_threads * num_sketches * num_elems; i++) {
         h_bucket_a[i] = 0;
         h_bucket_c[i] = 0;
       }
-
-      //cudaMemcpy(&d_bucket_a, &h_bucket_a, stream_multiplier * num_host_threads * num_sketches * num_elems * sizeof(vec_t), cudaMemcpyHostToDevice);
-      //cudaMemcpy(&d_bucket_c, &h_bucket_c, stream_multiplier * num_host_threads * num_sketches * num_elems * sizeof(vec_hash_t), cudaMemcpyHostToDevice);
 
     };
 };
@@ -204,6 +201,8 @@ class CudaKernel {
     */
 
     void gtsStreamUpdate(int num_threads, int num_blocks, vec_t bucket_id, node_id_t src, cudaStream_t stream, vec_t prev_offset, size_t update_size, CudaUpdateParams* cudaUpdateParams, long* sketchSeeds);
+    void k_gtsStreamUpdate(int num_threads, int num_blocks, int k, vec_t bucket_id, node_id_t src, cudaStream_t stream, vec_t prev_offset, size_t update_size, CudaUpdateParams* cudaUpdateParams, long* sketchSeeds);
+ 
     void kernelUpdateSharedMemory(int maxBytes);
 
     /*

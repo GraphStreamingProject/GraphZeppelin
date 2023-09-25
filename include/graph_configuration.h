@@ -34,6 +34,7 @@ private:
   GutteringConfiguration _gutter_conf;
 
   friend class Graph;
+  friend class KConnectedGraph;
 
 public:
   GraphConfiguration() {};

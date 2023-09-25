@@ -39,7 +39,7 @@ int main(int argc, char **argv) {
               .num_flushers(2)
               .gutter_factor(1)
               .wq_batch_per_elm(8);
-  Graph g{num_nodes, config, &cudaGraph, reader_threads};
+  Graph g{num_nodes, config, &cudaGraph, 1, reader_threads};
 
   Supernode** supernodes;
   supernodes = g.getSupernodes();

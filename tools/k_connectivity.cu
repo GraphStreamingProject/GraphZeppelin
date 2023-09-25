@@ -6,33 +6,32 @@
 #include <cuda_graph.cuh>
 #include <k_connected_graph.h>
 
-constexpr size_t k = 1000;
-constexpr size_t vert_multiple = 200;
+constexpr size_t k = 2;
+//constexpr size_t vert_multiple = 2;
 
 int main(int argc, char **argv) {
-  /*if (argc != 3) {
+  if (argc != 4) {
     std::cout << "ERROR: Incorrect number of arguments!" << std::endl;
-    std::cout << "Arguments: graph_workers, reader_threads" << std::endl;
+    std::cout << "Arguments: stream_file, graph_workers, reader_threads" << std::endl;
     exit(EXIT_FAILURE);
   }
 
-  int num_threads = std::atoi(argv[1]);
+  std::string stream_file = argv[1];
+  int num_threads = std::atoi(argv[2]);
   if (num_threads < 1) {
     std::cout << "ERROR: Invalid number of graph workers! Must be > 0." << std::endl;
     exit(EXIT_FAILURE);
   }
-  int reader_threads = std::atoi(argv[2]);*/
+  int reader_threads = std::atoi(argv[3]);
 
-  /*BinaryGraphStream_MT stream(stream_file, 1024*32);
+  BinaryGraphStream_MT stream(stream_file, 1024*32);
   node_id_t num_nodes = stream.nodes();
   size_t num_updates  = stream.edges();
   std::cout << "Running process_stream with CUDA: " << std::endl;
   std::cout << "Processing stream: " << stream_file << std::endl;
   std::cout << "nodes       = " << num_nodes << std::endl;
   std::cout << "num_updates = " << num_updates << std::endl;
-  std::cout << std::endl;*/
-  node_id_t num_nodes = k * vert_multiple;
-  size_t num_updates = (k * (k - 1) / 2) * vert_multiple;
+  std::cout << std::endl;
 
   if (k > num_nodes) {
     std::cerr << "k must be less than vertices!" << std::endl;
@@ -45,7 +44,7 @@ int main(int argc, char **argv) {
 
   CudaGraph cudaGraph;
 
-  /*auto config = GraphConfiguration().gutter_sys(CACHETREE).num_groups(num_threads);
+  auto config = GraphConfiguration().gutter_sys(CACHETREE).num_groups(num_threads);
   // Configuration is from cache_exp.cpp
   config.gutter_conf().page_factor(1)
               .buffer_exp(20)
@@ -53,22 +52,22 @@ int main(int argc, char **argv) {
               .queue_factor(8)
               .num_flushers(2)
               .gutter_factor(1)
-              .wq_batch_per_elm(8);*/
-  GraphConfiguration conf;
-  int num_threads = 40;
-  conf.num_groups(num_threads);
-  KConnectedGraph g{num_nodes, conf, &cudaGraph, 4};
+              .wq_batch_per_elm(8);
+  /*GraphConfiguration conf;
+  int num_threads = 12;
+  conf.num_groups(num_threads);*/
+  KConnectedGraph kGraph{num_nodes, config, &cudaGraph, k, reader_threads};
 
-  Supernode** supernodes;
-  supernodes = g.getSupernodes();
+  Supernode** k_supernodes;
+  k_supernodes = kGraph.getSupernodes();
 
   // Get variable from sample supernode
-  int num_sketches = supernodes[0]->get_num_sktch();
+  int num_sketches = k_supernodes[0]->get_num_sktch();
   
   // Get variables from sample sketch
-  size_t num_elems = supernodes[0]->get_sketch(0)->get_num_elems();
-  size_t num_columns = supernodes[0]->get_sketch(0)->get_columns();
-  size_t num_guesses = supernodes[0]->get_sketch(0)->get_num_guesses();
+  size_t num_elems = k_supernodes[0]->get_sketch(0)->get_num_elems();
+  size_t num_columns = k_supernodes[0]->get_sketch(0)->get_columns();
+  size_t num_guesses = k_supernodes[0]->get_sketch(0)->get_num_guesses();
 
   std::cout << "num_sketches: " << num_sketches << "\n";
   std::cout << "num_elems: " << num_elems << "\n";
@@ -78,7 +77,7 @@ int main(int argc, char **argv) {
   // Start timer for initializing
   auto init_start = std::chrono::steady_clock::now();
 
-  GutteringSystem *gts = g.getGTS();
+  GutteringSystem *gts = kGraph.getGTS();
   int batch_size = gts->gutter_size() / sizeof(node_id_t);
   int stream_multiplier = 4;
 
@@ -86,53 +85,20 @@ int main(int argc, char **argv) {
   
   CudaUpdateParams* cudaUpdateParams;
   gpuErrchk(cudaMallocManaged(&cudaUpdateParams, sizeof(CudaUpdateParams)));
-  cudaUpdateParams[0] = CudaUpdateParams(num_nodes, num_updates, num_sketches, num_elems, num_columns, num_guesses, num_threads, batch_size, stream_multiplier);
+  cudaUpdateParams[0] = CudaUpdateParams(num_nodes, num_updates, num_sketches, num_elems, num_columns, num_guesses, num_threads, batch_size, stream_multiplier, k);
+
+  std::cout << "Initialized cudaUpdateParams\n";
 
   long* sketchSeeds;
-  gpuErrchk(cudaMallocManaged(&sketchSeeds, num_nodes * num_sketches * sizeof(long)));
+  gpuErrchk(cudaMallocManaged(&sketchSeeds, num_nodes * num_sketches * k * sizeof(long)));
 
-  for (int i = 0; i < num_nodes; i++) {
+  // Initialize sketch seeds
+  for (int i = 0; i < num_nodes * k; i++) {
     for (int j = 0; j < num_sketches; j++) {
-      Sketch* sketch = supernodes[i]->get_sketch(j);
+      Sketch* sketch = k_supernodes[i]->get_sketch(j);
       sketchSeeds[(i * num_sketches) + j] = sketch->get_seed();
     }
   }
-
-  /* cudaSketches;
-  gpuErrchk(cudaMallocManaged(&cudaSketches, num_nodes * num_sketches * sizeof(CudaSketch)));
-
-  long* sketchSeeds;
-  gpuErrchk(cudaMallocManaged(&sketchSeeds, num_nodes * num_sketches * sizeof(long)));*/
-
-  // Allocate space for all buckets
-  /*vec_t* d_bucket_a;
-  vec_hash_t* d_bucket_c;
-  gpuErrchk(cudaMallocManaged(&d_bucket_a, (num_nodes * num_sketches * num_elems * sizeof(vec_t))));
-  gpuErrchk(cudaMallocManaged(&d_bucket_c, (num_nodes * num_sketches * num_elems * sizeof(vec_hash_t))));
-
-  for (size_t i = 0; i < (num_nodes * num_sketches * num_elems); i++) {
-    d_bucket_a[i] = 0;
-    d_bucket_c[i] = 0;
-  }
-
-  // Create a vector of cuda supernodes and sketches
-  for (int i = 0; i < num_nodes; i++) {
-    for (int j = 0; j < num_sketches; j++) {
-      Sketch* sketch = supernodes[i]->get_sketch(j);
-
-      int bucket_id = (i * num_sketches * num_elems) + (j * num_elems);
-      vec_t* bucket_a = &d_bucket_a[bucket_id];
-      vec_hash_t* bucket_c = &d_bucket_c[bucket_id];
-
-      // Rewrite sketch's bucket_a and bucket_c memory location
-      sketch->set_bucket_a(bucket_a);
-      sketch->set_bucket_c(bucket_c);
-
-      CudaSketch cudaSketch(bucket_a, bucket_c, sketch->get_seed());
-      cudaSketches[(i * num_sketches) + j] = cudaSketch;
-      sketchSeeds[(i * num_sketches) + j] = sketch->get_seed();
-    }
-  }*/
 
   int device_id = cudaGetDevice(&device_id);
   int device_count = 0;
@@ -144,18 +110,14 @@ int main(int argc, char **argv) {
   cudaGraph.cudaKernel.kernelUpdateSharedMemory(maxBytes);
   std::cout << "Allocated Shared Memory of: " << maxBytes << "\n";
 
-  // Prefetch memory to device 
-  gpuErrchk(cudaMemPrefetchAsync(sketchSeeds, num_nodes * num_sketches * sizeof(long), device_id));
+  // Prefetch memory to device  
+  gpuErrchk(cudaMemPrefetchAsync(sketchSeeds, k * num_nodes * num_sketches * sizeof(long), device_id));
 
-  /*gpuErrchk(cudaMemPrefetchAsync(cudaSketches, num_nodes * num_sketches * sizeof(CudaSketch), device_id));
-  gpuErrchk(cudaMemPrefetchAsync(d_bucket_a, num_nodes * num_sketches * num_elems * sizeof(vec_t), device_id));
-  gpuErrchk(cudaMemPrefetchAsync(d_bucket_c, num_nodes * num_sketches * num_elems * sizeof(vec_hash_t), device_id));*/
+  cudaGraph.k_configure(cudaUpdateParams, k_supernodes, sketchSeeds, num_threads, k);
 
-  cudaGraph.configure(cudaUpdateParams, supernodes, sketchSeeds, num_threads);
+  MT_StreamReader reader(stream);
+  GraphUpdate upd;
   
-  //MT_StreamReader reader(stream);
-  //GraphUpdate upd;
-
   std::cout << "Finished initializing CUDA parameters\n";
   std::chrono::duration<double> init_time = std::chrono::steady_clock::now() - init_start;
   std::cout << "CUDA parameters init duration: " << init_time.count() << std::endl;
@@ -166,21 +128,31 @@ int main(int argc, char **argv) {
   // Call kernel code
   std::cout << "Update Kernel Starting...\n";
 
+  // Insert edges 
+  /*node_id_t hop = k;
+  for (node_id_t i = 0; i < num_nodes; i++) {
+    for (node_id_t j = i+1; j <= i + hop && j < num_nodes; j++) {
+      std::cout << "Edge = " << i << ", " << j << ". hop = " << hop << std::endl;
+      kGraph.update({{i, j}, INSERT});
+    }
+    --hop;
+    if (hop == 0) hop = k;
+  }*/
+
   // Do the edge updates
-  /*std::vector<std::thread> threads;
+  std::vector<std::thread> threads;
   threads.reserve(reader_threads);
   auto task = [&](const int thr_id) {
-    int node_id = thr_id;
-    node_id_t hop = k - thr_id;
+    MT_StreamReader reader(stream);
+    GraphUpdate upd;
+    while(true) {
+      upd = reader.get_edge();
+      if (upd.type == BREAKPOINT) break;
+      Edge &edge = upd.edge;
 
-    while(node_id < num_nodes) {
-        for (node_id_t j = node_id+1; j <= node_id + hop && j < num_nodes; j++) {
-            gts->insert({node_id, j}, thr_id);
-            gts->insert({j, node_id}, thr_id);
-        }
-        node_id += reader_threads;
-        hop -= reader_threads;
-        if (hop <= 0) hop += k;
+      gts->insert({edge.src, edge.dst}, thr_id);
+      std::swap(edge.src, edge.dst);
+      gts->insert({edge.src, edge.dst}, thr_id);
     }
   };
 
@@ -191,31 +163,46 @@ int main(int argc, char **argv) {
   // wait for inserters to be done
   for (int t = 0; t < reader_threads; t++) {
     threads[t].join();
-  }*/
-
-  node_id_t hop = k;
-  for (node_id_t i = 0; i < num_nodes; i++) {
-    for (node_id_t j = i+1; j <= i + hop && j < num_nodes; j++) {
-      // std::cout << "Edge = " << i << ", " << j << std::endl;
-      g.update({{i, j}, INSERT});
-    }
-    --hop;
-    if (hop == 0) hop = k;
   }
+
+  std::cout << "  Flush Starting...\n";
+  
+  auto flush_start = std::chrono::steady_clock::now();
+  gts->force_flush();
+  GraphWorker::pause_workers();
+  cudaDeviceSynchronize();
+  cudaGraph.k_applyFlushUpdates();
+  auto flush_end = std::chrono::steady_clock::now();
+
+  std::cout << "  Flushed Ended.\n";
 
   std::cout << "Update Kernel finished.\n";
 
   // End timer for kernel
   auto ins_end = std::chrono::steady_clock::now();
 
+  for (int i = 0; i < num_threads; i++) {
+    std::cout << "Thread #" << i << ":\n";
+    std::cout << "  Transfer Time (sec): " << cudaGraph.transfer_times[i].count() << "\n";  
+    std::cout << "  Delta Apply Time (sec): " << cudaGraph.delta_apply_times[i].count() << "\n";  
+  }
+
   // Update graph's num_updates value
-  g.num_updates += num_updates * 2;
+  kGraph.num_updates += num_updates * 2;
 
   // Start timer for cc
   auto k_cc_start = std::chrono::steady_clock::now();
 
-  //auto CC_num = g.connected_components().size();
-  std::vector<std::vector<Edge>> forests = g.k_spanning_forests(k);
+  std::cout << "Getting k = " << k << " spanning forests\n";
+  std::vector<std::vector<Edge>> forests = kGraph.k_spanning_forests(k);
 
+  std::chrono::duration<double> insert_time = flush_end - ins_start;
+  std::chrono::duration<double> flush_time = flush_end - flush_start;
   std::chrono::duration<double> k_cc_time = std::chrono::steady_clock::now() - k_cc_start;
+
+  double num_seconds = insert_time.count();
+  std::cout << "Total insertion time(sec): " << num_seconds << std::endl;
+  std::cout << "Updates per second: " << stream.edges() / num_seconds << std::endl;
+  std::cout << "Flush Gutters(sec): " << flush_time.count() << std::endl;
+  std::cout << "K_CC(sec): " << k_cc_time.count() << std::endl;
 }

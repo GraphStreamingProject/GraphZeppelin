@@ -8,6 +8,10 @@ ncu -o ./kron_16_48_test -f --set full -c 1 --target-processes all --import-sour
 ncu -o ./multiples_1024_one -f --set full --target-processes all --import-source yes ./cuda_process_stream ../test/res/multiples_graph_1024_stream.data 1 1
 ncu -o ./multiples_1024_two -f --set full --target-processes all --import-source yes ./cuda_process_stream ../test/res/multiples_graph_1024_stream.data 1 2
 
+ncu -o ./kron_17_kcon_1tblocks_4 -f --set full -c 10 --target-processes all --import-source yes ./k_connectivity ../../../datasets/kron_17_stream_binary 24 24
+ncu -o ./kron_17_kcon_ktblocks_2 -f --set full -c 10 --target-processes all --import-source yes ./k_connectivity ../../../datasets/kron_17_stream_binary 24 24
+ncu -o ./kron_17_kcon_ktblocks_4 -f --set full -c 10 --target-processes all --import-source yes ./k_connectivity ../../../datasets/kron_17_stream_binary 24 24
+
 nsys profile -o multiples_1024_one -f true ./cuda_process_stream ../test/res/multiples_graph_1024_stream.data 1 1
 nsys profile -o kron_13_one -f true ./cuda_process_stream ../../../datasets/kron_13_stream_binary 1 1
 nsys profile -o kron_13_8 -f true ./cuda_process_stream ../../../datasets/kron_13_stream_binary 8 8
