@@ -93,7 +93,7 @@ public:
     Sketch::configure(n * n, sketch_fail_factor);
     max_sketches = log2(n) / (log2(4) - log2(3)) * skt_factor;
     bytes_size = sizeof(Supernode) + max_sketches * Sketch::sketchSizeof();
-    serialized_size = max_sketches * Sketch::serialized_size();
+    serialized_size = max_sketches * Sketch::serialized_size() + sizeof(SerialType);
   }
 
   static inline size_t get_size() {

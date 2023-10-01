@@ -1,6 +1,7 @@
 #include "../include/supernode.h"
 
 #include <gtest/gtest.h>
+#include <sys/stat.h>
 
 #include <chrono>
 #include <cmath>
@@ -260,10 +261,16 @@ TEST_F(SupernodeTestSuite, TestSerialization) {
   snodes[num_nodes / 2]->write_binary(file);
   file.close();
 
-  auto in_file = std::fstream("./out_supernode.txt", std::ios::in | std::ios::binary);
+  // Get the size of the serialized Supernode file
+  struct stat stat_buf;
+  ASSERT_EQ(stat("./out_supernode.txt", &stat_buf), 0);
+  ASSERT_EQ(Supernode::get_serialized_size(), stat_buf.st_size);
 
+  // Create a supernode from the file
+  auto in_file = std::fstream("./out_supernode.txt", std::ios::in | std::ios::binary);
   Supernode* reheated = Supernode::makeSupernode(num_nodes, seed, in_file);
 
+  // Assert the Supernodes match
   for (int i = 0; i < Supernode::get_max_sketches(); ++i) {
     ASSERT_EQ(*snodes[num_nodes / 2]->get_sketch(i), *reheated->get_sketch(i));
   }
