@@ -5,9 +5,27 @@
 #include <binary_graph_stream.h>
 #include <cuda_graph.cuh>
 #include <k_connected_graph.h>
+#include <random>
 
-constexpr size_t k = 4;
-//constexpr size_t vert_multiple = 2;
+constexpr size_t epsilon = 1;
+
+void sample_edges(std::pair<Edge, SampleSketchRet> *query, std::vector<node_id_t> &reps) {
+  bool except = false;
+  std::exception_ptr err;
+  #pragma omp parallel for default(none) shared(query, reps, except, err)
+  for (node_id_t i = 0; i < reps.size(); ++i) { // NOLINT(modernize-loop-convert)
+    // wrap in a try/catch because exiting through exception is undefined behavior in OMP
+    try {
+      query[reps[i]] = supernodes[(reps[i])]->sample();
+
+    } catch (...) {
+      except = true;
+      err = std::current_exception();
+    }
+  }
+  // Did one of our threads produce an exception?
+  if (except) std::rethrow_exception(err);
+}
 
 int main(int argc, char **argv) {
   if (argc != 4) {
@@ -33,14 +51,13 @@ int main(int argc, char **argv) {
   std::cout << "num_updates = " << num_updates << std::endl;
   std::cout << std::endl;
 
-  if (k > num_nodes) {
-    std::cerr << "k must be less than vertices!" << std::endl;
-    exit(EXIT_FAILURE);
-  }
-  if (num_nodes % k != 0) {
-    std::cerr << "number of vertices must be a multiple of k!" << std::endl;
-    exit(EXIT_FAILURE);
-  }
+  //size_t k = log2(num_nodes) / (epsilon * epsilon);
+  size_t k = 1;
+
+  // TODO: Check format of epsilon
+  
+  std::cout << "epsilon: " << epsilon << std::endl;
+  std::cout << "k: " << k << std::endl;
 
   CudaGraph cudaGraph;
 
@@ -53,21 +70,18 @@ int main(int argc, char **argv) {
               .num_flushers(2)
               .gutter_factor(1)
               .wq_batch_per_elm(8);
-  /*GraphConfiguration conf;
-  int num_threads = 12;
-  conf.num_groups(num_threads);*/
-  KConnectedGraph kGraph{num_nodes, config, &cudaGraph, k, reader_threads};
+  KConnectedGraph graph{num_nodes, config, &cudaGraph, k, reader_threads};
 
-  Supernode** k_supernodes;
-  k_supernodes = kGraph.getSupernodes();
+  Supernode** supernodes;
+  supernodes = graph.getSupernodes();
 
   // Get variable from sample supernode
-  int num_sketches = k_supernodes[0]->get_num_sktch();
-  
+  int num_sketches = supernodes[0]->get_num_sktch();
+
   // Get variables from sample sketch
-  size_t num_elems = k_supernodes[0]->get_sketch(0)->get_num_elems();
-  size_t num_columns = k_supernodes[0]->get_sketch(0)->get_columns();
-  size_t num_guesses = k_supernodes[0]->get_sketch(0)->get_num_guesses();
+  size_t num_elems = supernodes[0]->get_sketch(0)->get_num_elems();
+  size_t num_columns = supernodes[0]->get_sketch(0)->get_columns();
+  size_t num_guesses = supernodes[0]->get_sketch(0)->get_num_guesses();
 
   std::cout << "num_sketches: " << num_sketches << "\n";
   std::cout << "num_elems: " << num_elems << "\n";
@@ -77,7 +91,7 @@ int main(int argc, char **argv) {
   // Start timer for initializing
   auto init_start = std::chrono::steady_clock::now();
 
-  GutteringSystem *gts = kGraph.getGTS();
+  GutteringSystem *gts = graph.getGTS();
   int batch_size = gts->gutter_size() / sizeof(node_id_t);
   int stream_multiplier = 4;
 
@@ -93,11 +107,11 @@ int main(int argc, char **argv) {
   gpuErrchk(cudaMallocManaged(&sketchSeeds, num_nodes * num_sketches * k * sizeof(long)));
 
   // Initialize sketch seeds
-  for (int i = 0; i < num_nodes * k; i++) {
-    for (int j = 0; j < num_sketches; j++) {
-      Sketch* sketch = k_supernodes[i]->get_sketch(j);
-      sketchSeeds[(i * num_sketches) + j] = sketch->get_seed();
-    }
+  for (int node_id = 0; node_id < num_nodes * k; node_id++) {
+      for (int j = 0; j < num_sketches; j++) {
+      Sketch* sketch = supernodes[node_id]->get_sketch(j);
+      sketchSeeds[(node_id * num_sketches) + j] = sketch->get_seed();
+      }
   }
 
   int device_id = cudaGetDevice(&device_id);
@@ -113,7 +127,7 @@ int main(int argc, char **argv) {
   // Prefetch memory to device  
   gpuErrchk(cudaMemPrefetchAsync(sketchSeeds, k * num_nodes * num_sketches * sizeof(long), device_id));
 
-  cudaGraph.k_configure(cudaUpdateParams, k_supernodes, sketchSeeds, num_threads, k);
+  cudaGraph.k_configure(cudaUpdateParams, supernodes, sketchSeeds, num_threads, k);
 
   MT_StreamReader reader(stream);
   GraphUpdate upd;
@@ -122,7 +136,7 @@ int main(int argc, char **argv) {
   std::chrono::duration<double> init_time = std::chrono::steady_clock::now() - init_start;
   std::cout << "CUDA parameters init duration: " << init_time.count() << std::endl;
 
-  // Start timer for kernel
+    // Start timer for kernel
   auto ins_start = std::chrono::steady_clock::now();
 
   // Call kernel code
@@ -171,39 +185,43 @@ int main(int argc, char **argv) {
   auto ins_end = std::chrono::steady_clock::now();
 
   // Update graph's num_updates value
-  kGraph.num_updates += num_updates * 2;
+  graph.num_updates += num_updates * 2;
 
-  // Start timer for k_cc
-  auto k_cc_start = std::chrono::steady_clock::now();
 
-  std::cout << "Getting k = " << k << " spanning forests\n";
-  std::vector<std::vector<Edge>> forests = kGraph.k_spanning_forests(k);
+  //for (int i = 1; i <= 2 * log2(num_nodes); i++) {
+  for (int i = 1; i <= 1; i++) {
+    std::cout << "Making Subgraph G_" << i << "\n";
 
-  /*for (int i = 0; i <= 2 * log2(num_nodes); i++) {
-    std::cout << "Making Subgraph G_i: " << i << "\n";
-    // Do something for i == 0
-    if (i == 0) {
-      continue;
+    // Prepare for edge sampling process
+    bool modified;
+    size_t round = 0;
+    std::pair<Edge, SampleSketchRet> *query = new std::pair<Edge, SampleSketchRet>[num_nodes];
+    std::vector<node_id_t> reps(num_nodes);
+
+    // Initialize reps
+    for (node_id_t i = 0; i < num_nodes; ++i) {
+      reps[i] = i;
     }
 
-    // Get hash value product for every edge
-    for (size_t edge_id = 0; edge_id < num_updates; edge_id++) {
-      int edge_prod = 0;
-      for (int j = 0; j <= i; j++) {
-        // Uniform hash function
-      }
-      if (edge_prod == 1) { // Include current edge to the subgraph G_i
+    // WIP 
+    /*do {
+      round++;
+      modified = false;
+      sample_edges(query, reps);
 
-      }
-    }
+      std::vector<std::vector<node_id_t>> to_merge = to_merge_and_forest_edges(forest, query, reps, k_id);
 
-    std::cout << "Making Sketch H_i: " << i << "\n";
-    
-    // Make Sketch H_i with k-edge connectivity with G_i and k = O(e^-2 log n)
+      // make a copy if necessary
+      if (first_round)
+        backed_up = reps;
 
-  }*/
+      k_merge_supernodes(copy_supernodes, reps, to_merge, first_round, k_id);
 
-  std::chrono::duration<double> insert_time = flush_end - ins_start;
+    } while (modified);*/
+
+  }
+
+  /*std::chrono::duration<double> insert_time = flush_end - ins_start;
   std::chrono::duration<double> flush_time = flush_end - flush_start;
   std::chrono::duration<double> k_cc_time = std::chrono::steady_clock::now() - k_cc_start;
 
@@ -211,5 +229,5 @@ int main(int argc, char **argv) {
   std::cout << "Total insertion time(sec): " << num_seconds << std::endl;
   std::cout << "Updates per second: " << stream.edges() / num_seconds << std::endl;
   std::cout << "Flush Gutters(sec): " << flush_time.count() << std::endl;
-  std::cout << "K_CC(sec): " << k_cc_time.count() << std::endl;
+  std::cout << "K_CC(sec): " << k_cc_time.count() << std::endl;*/
 }

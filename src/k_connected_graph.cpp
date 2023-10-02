@@ -1,6 +1,7 @@
 #include "k_connected_graph.h"
 #include <graph_worker.h>
 #include <types.h>
+#include <random>
 
 node_id_t KConnectedGraph::k_get_parent(node_id_t node, int k_id) {
   if (parent[(node * k) + k_id] == node) return node;
@@ -136,28 +137,14 @@ std::vector<Edge> KConnectedGraph::get_spanning_forest(int k_id) {
       round++;
       modified = false;
       k_sample_supernodes(query, reps, k_id);
-      //std::cout << "  Sampling Round " << round << ":\n"; 
-      for (node_id_t i = 0; i < reps.size(); ++i) {
-        //std::cout << "Node " << reps[i] << ":{" << query[i].first.src << "," << query[i].first.dst << "}";
-      }
-      //std::cout << "\n";
+
       std::vector<std::vector<node_id_t>> to_merge = to_merge_and_forest_edges(forest, query, reps, k_id);
 
-      //std::cout << "  Merging Round " << round << ":\n"; 
-      for (node_id_t i = 0; i < to_merge.size(); ++i) {
-        if(to_merge[i].size() == 0) continue;
-        //std::cout << "    Node " << i << ": ";
-        for (node_id_t j = 0; j < to_merge[i].size(); ++j) {
-          //std::cout << to_merge[i][j] << " ";
-        }
-        //td::cout << "\n";
-      }
       // make a copy if necessary
       if (first_round)
         backed_up = reps;
 
       k_merge_supernodes(copy_supernodes, reps, to_merge, first_round, k_id);
-      //std::cout << "  Finished Merging\n";
 
 #ifdef VERIFY_SAMPLES_F
       if (!first_round && fail_round_2) throw OutOfQueriesException();
@@ -210,7 +197,7 @@ void KConnectedGraph::trim_spanning_forest(std::vector<Edge> &forest) {
 // }
 
 void KConnectedGraph::verify_spanning_forests(std::vector<std::vector<Edge>> forests) {
-  /*std::set<Edge> edges;
+  std::set<Edge> edges;
   for (auto& forest : forests) {
     for (auto& e : forest) {
       if (edges.count(e) == 0) {
@@ -221,8 +208,7 @@ void KConnectedGraph::verify_spanning_forests(std::vector<std::vector<Edge>> for
         exit(EXIT_FAILURE);
       }
     }
-  }*/
-
+  }
 }
 
 std::vector<std::vector<Edge>> KConnectedGraph::k_spanning_forests(size_t k) {
@@ -249,4 +235,11 @@ std::vector<std::vector<Edge>> KConnectedGraph::k_spanning_forests(size_t k) {
 
   verify_spanning_forests(forests);
   return forests;
+}
+
+KConnectedGraph::~KConnectedGraph() {
+  // Only delete the extra supernodes that were made due to k
+  for (unsigned i=num_nodes;i<num_nodes * k;++i) {
+    free(supernodes[i]); // free because memory is malloc'd in make_supernode
+  }
 }

@@ -116,7 +116,7 @@ __global__ void k_gtsStream_kernel(node_id_t src, vec_t* edgeUpdates, vec_t prev
   vec_hash_t* bucket_c = (vec_hash_t*)&bucket_a[num_elems * num_sketches];
 
   // Each thread will initialize
-  /*for (int i = threadIdx.x; i < num_sketches * num_elems; i += blockDim.x) {
+  for (int i = threadIdx.x; i < num_sketches * num_elems; i += blockDim.x) {
     bucket_a[i] = 0;
     bucket_c[i] = 0;
   }
@@ -158,10 +158,10 @@ __global__ void k_gtsStream_kernel(node_id_t src, vec_t* edgeUpdates, vec_t prev
       cuda_bucket_a[k_bucket_id + i] = bucket_a[i];
       cuda_bucket_c[k_bucket_id + i] = bucket_c[i];
     }
-  }*/
+  }
   
   // Update node's sketches
-  for (int k_id = 0; k_id < k; k_id++) {
+  /*for (int k_id = 0; k_id < k; k_id++) {
     __syncthreads();
 
     // Each thread will initialize & reset a bucket
@@ -208,7 +208,7 @@ __global__ void k_gtsStream_kernel(node_id_t src, vec_t* edgeUpdates, vec_t prev
         cuda_bucket_c[k_bucket_id + i] = bucket_c[i];
       }
     }
-  }
+  }*/
 }
 
 // Function that calls sketch update kernel code.

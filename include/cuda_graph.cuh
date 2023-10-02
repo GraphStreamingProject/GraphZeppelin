@@ -18,9 +18,6 @@ class CudaGraph {
         std::vector<cudaStream_t> streams;
         std::vector<int> streams_deltaApplied;
         std::vector<int> streams_src;
-        std::vector<std::chrono::duration<double>> transfer_times;
-        std::vector<std::chrono::duration<double>> delta_apply_times;
-
 
         CudaKernel cudaKernel;
 
@@ -85,15 +82,12 @@ class CudaGraph {
             mutexes = std::vector<std::mutex>(cudaUpdateParams[0].num_nodes);
 
             num_device_threads = 1024;
-            num_device_blocks = 1;
+            num_device_blocks = k;
             num_host_threads = _num_host_threads;
             batch_size = cudaUpdateParams[0].batch_size;
             stream_multiplier = cudaUpdateParams[0].stream_multiplier;
             sketch_size = cudaUpdateParams[0].num_sketches * cudaUpdateParams[0].num_elems;
-
-            transfer_times.reserve(num_host_threads);
-            delta_apply_times.reserve(num_host_threads);
-            
+   
             // Assuming num_host_threads is even number
             for (int i = 0; i < num_host_threads * stream_multiplier; i++) {
                 cudaStream_t stream;
@@ -124,20 +118,16 @@ class CudaGraph {
                         streams_deltaApplied[stream_id] = 1;
 
                         // Bring back delta sketch
-                        auto transfer_start = std::chrono::steady_clock::now();
                         cudaMemcpyAsync(&cudaUpdateParams[0].h_bucket_a[k * stream_id * sketch_size], &cudaUpdateParams[0].d_bucket_a[k * stream_id * sketch_size], k * sketch_size * sizeof(vec_t), cudaMemcpyDeviceToHost, streams[stream_id]);
                         cudaMemcpyAsync(&cudaUpdateParams[0].h_bucket_c[k * stream_id * sketch_size], &cudaUpdateParams[0].d_bucket_c[k * stream_id * sketch_size], k * sketch_size * sizeof(vec_hash_t), cudaMemcpyDeviceToHost, streams[stream_id]);
 
                         cudaStreamSynchronize(streams[stream_id]);
-                        auto transfer_end = std::chrono::steady_clock::now();
-                        transfer_times[id] += transfer_end - transfer_start;
 
                         if(streams_src[stream_id] == -1) {
                             std::cout << "Stream #" << stream_id << ": Shouldn't be here!\n";
                         }
 
                         // Apply the delta sketch
-                        auto delta_apply_start = std::chrono::steady_clock::now();
                         std::unique_lock<std::mutex> lk(mutexes[streams_src[stream_id]]);
                         for (int i = 0; i < k; i++) {
                             for (int j = 0; j < cudaUpdateParams[0].num_sketches; j++) {
@@ -153,8 +143,6 @@ class CudaGraph {
                         }
                         lk.unlock();
                         streams_src[stream_id] = -1;
-                        auto delta_apply_end = std::chrono::steady_clock::now();
-                        delta_apply_times[id] += delta_apply_end - delta_apply_start;
                     }
                     else {
                         if (streams_src[stream_id] != -1) {
@@ -272,7 +260,7 @@ class CudaGraph {
                                 bucket_c[m] ^= cudaUpdateParams[0].h_bucket_c[(stream_id * sketch_size * k) + (i * sketch_size) + (j * cudaUpdateParams[0].num_elems) + m];
                             }
                         }
-                }
+                    }
                     streams_src[stream_id] = -1;
                 }
             }

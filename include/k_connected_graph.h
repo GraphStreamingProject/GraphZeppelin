@@ -19,6 +19,8 @@ public:
   explicit KConnectedGraph(node_id_t num_nodes, GraphConfiguration config, CudaGraph* cudaGraph, int _k, int num_inserters = 1)
       : Graph(num_nodes, config, cudaGraph, _k, num_inserters){ k = _k; };
 
+  ~KConnectedGraph() override;
+
 private:
   node_id_t k_get_parent(node_id_t node, int k_id);
 
