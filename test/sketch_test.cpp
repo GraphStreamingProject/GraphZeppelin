@@ -4,7 +4,7 @@
 #include "../include/test/testing_vector.h"
 #include "../include/test/sketch_constructors.h"
 
-static const int fail_factor = 100;
+static const int fail_factor = 128;
 
 TEST(SketchTestSuite, TestExceptions) {
   Sketch::configure(100, fail_factor);

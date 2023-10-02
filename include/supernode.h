@@ -91,7 +91,7 @@ public:
   static inline void configure(uint64_t n, vec_t sketch_fail_factor = default_fail_factor,
                                double skt_factor = 1) {
     Sketch::configure(n * n, sketch_fail_factor);
-    max_sketches = log2(n) / (log2(4) - log2(3)) * skt_factor;
+    max_sketches = (log2(n) / num_sketches_div) * skt_factor;
     bytes_size = sizeof(Supernode) + max_sketches * Sketch::sketchSizeof();
     serialized_size = max_sketches * Sketch::serialized_size() + sizeof(SerialType);
   }
@@ -212,8 +212,10 @@ public:
 
 #ifdef L0_SAMPLING
   static constexpr size_t default_fail_factor = 128;
+  static constexpr double num_sketches_div = log2(3) - 1;
 #else
   static constexpr size_t default_fail_factor = 2;
+  static constexpr double num_sketches_div = log2(4) - log2(3);
 #endif
 };
 
