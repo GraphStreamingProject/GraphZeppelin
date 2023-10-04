@@ -4,10 +4,10 @@
 #include "../include/test/testing_vector.h"
 #include "../include/test/sketch_constructors.h"
 
-static const int fail_factor = 128;
+static const int num_columns = 7;
 
 TEST(SketchTestSuite, TestExceptions) {
-  Sketch::configure(100, fail_factor);
+  Sketch::configure(100, num_columns);
   SketchUniquePtr sketch1 = makeSketch(rand());
   ASSERT_EQ(sketch1->query().second, ZERO);
   ASSERT_THROW(sketch1->query(), MultipleQueryException);
@@ -15,13 +15,13 @@ TEST(SketchTestSuite, TestExceptions) {
   /**
    * Find a vector that makes no good buckets
    */
-  Sketch::configure(10000, fail_factor);
+  Sketch::configure(10000, num_columns);
   SketchUniquePtr sketch2 = makeSketch(0);
   std::vector<bool> vec_idx(sketch2->n, true);
-  unsigned long long num_columns = Sketch::column_gen(fail_factor);
-  unsigned long long num_guesses = Sketch::guess_gen(sketch2->n);
+  unsigned long long columns = num_columns;
+  unsigned long long guesses = Sketch::guess_gen(sketch2->n);
   size_t total_updates = 2;
-  for (unsigned long long i = 0; i < num_columns;) {
+  for (unsigned long long i = 0; i < columns;) {
     size_t depth_1_updates = 0;
     size_t k = 0;
     size_t u = 0;
@@ -31,7 +31,7 @@ TEST(SketchTestSuite, TestExceptions) {
         continue;
       }
 
-      col_hash_t depth = Bucket_Boruvka::get_index_depth(k, sketch2->column_seed(i), num_guesses);
+      col_hash_t depth = Bucket_Boruvka::get_index_depth(k, sketch2->column_seed(i), guesses);
       if (depth >= 2) {
         vec_idx[k] = false; // force all updates to only touch depths <= 1
         i = 0;
@@ -61,7 +61,7 @@ TEST(SketchTestSuite, TestExceptions) {
 
 TEST(SketchTestSuite, GIVENonlyIndexZeroUpdatedTHENitWorks) {
   // GIVEN only the index 0 is updated
-  Sketch::configure(1000, fail_factor);
+  Sketch::configure(1000, num_columns);
   SketchUniquePtr sketch = makeSketch(rand());
   sketch->update(0);
   sketch->update(0);
@@ -82,7 +82,7 @@ TEST(SketchTestSuite, GIVENonlyIndexZeroUpdatedTHENitWorks) {
 void test_sketch_sample(unsigned long num_sketches,
     unsigned long vec_size, unsigned long num_updates,
     double max_sample_fail_prob, double max_bucket_fail_prob) {
-  Sketch::configure(vec_size, fail_factor);
+  Sketch::configure(vec_size, num_columns);
 
   std::chrono::duration<long double> runtime(0);
   unsigned long all_bucket_failures = 0;
@@ -152,7 +152,7 @@ TEST(SketchTestSuite, TestSketchSample) {
 void test_sketch_addition(unsigned long num_sketches,
     unsigned long vec_size, unsigned long num_updates,
     double max_sample_fail_prob, double max_bucket_fail_prob) {
-  Sketch::configure(vec_size, fail_factor);
+  Sketch::configure(vec_size, num_columns);
 
   unsigned long all_bucket_failures = 0;
   unsigned long sample_incorrect_failures = 0;
@@ -218,7 +218,7 @@ TEST(SketchTestSuite, TestSketchAddition){
  * Large sketch test
  */
 void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
-  Sketch::configure(vec_size, vec_size);
+  Sketch::configure(vec_size, Sketch::column_gen(vec_size));
 
   // we use an optimization in our sketching that is valid when solving CC
   // we assume that max number of non-zeroes in vector is vec_size / 4
@@ -280,7 +280,7 @@ TEST(SketchTestSuite, TestSketchLarge) {
 
 TEST(SketchTestSuite, TestBatchUpdate) {
   unsigned long vec_size = 1000000000, num_updates = 1000000;
-  Sketch::configure(vec_size, fail_factor);
+  Sketch::configure(vec_size, num_columns);
   std::vector<vec_t> updates(num_updates);
   for (unsigned long i = 0; i < num_updates; i++) {
     updates[i] = static_cast<vec_t>(rand() % vec_size);
@@ -303,7 +303,7 @@ TEST(SketchTestSuite, TestBatchUpdate) {
 TEST(SketchTestSuite, TestSerialization) {
   unsigned long vec_size = 1 << 20;
   unsigned long num_updates = 10000;
-  Sketch::configure(vec_size, fail_factor);
+  Sketch::configure(vec_size, num_columns);
   Testing_Vector test_vec = Testing_Vector(vec_size, num_updates);
   auto seed = rand();
   SketchUniquePtr sketch = makeSketch(seed);
@@ -323,7 +323,7 @@ TEST(SketchTestSuite, TestSerialization) {
 TEST(SketchTestSuite, TestSparseSerialization) {
   unsigned long vec_size = 1 << 20;
   unsigned long num_updates = 10000;
-  Sketch::configure(vec_size, fail_factor);
+  Sketch::configure(vec_size, num_columns);
   Testing_Vector test_vec = Testing_Vector(vec_size, num_updates);
   auto seed = rand();
   SketchUniquePtr sketch = makeSketch(seed);
@@ -343,7 +343,7 @@ TEST(SketchTestSuite, TestSparseSerialization) {
 TEST(SketchTestSuite, TestExhaustiveQuery) {
   size_t runs = 10;
   size_t vec_size = 10;
-  Sketch::configure(vec_size, vec_size*vec_size);
+  Sketch::configure(vec_size, Sketch::column_gen(vec_size*vec_size));
   for (size_t i = 0; i < runs; i++) {
     SketchUniquePtr sketch = makeSketch(rand());
 

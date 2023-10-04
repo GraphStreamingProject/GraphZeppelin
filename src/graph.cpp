@@ -22,7 +22,7 @@ Graph::Graph(node_id_t num_nodes, GraphConfiguration config, int num_inserters)
 #ifdef VERIFY_SAMPLES_F
   std::cout << "Verifying samples..." << std::endl;
 #endif
-  Supernode::configure(num_nodes, Supernode::default_fail_factor, config._sketches_factor);
+  Supernode::configure(num_nodes, Supernode::default_num_columns, config._sketches_factor);
   representatives = new std::set<node_id_t>();
   supernodes = new Supernode *[num_nodes];
   parent = new std::remove_reference<decltype(*parent)>::type[num_nodes];
@@ -70,14 +70,14 @@ Graph::Graph(const std::string &input_file, GraphConfiguration config, int num_i
     : config(config), num_updates(0) {
   if (open_graph) throw MultipleGraphsException();
 
-  vec_t sketch_fail_factor;
+  vec_t sketch_num_columns;
   double sketches_factor;
   auto binary_in = std::fstream(input_file, std::ios::in | std::ios::binary);
   binary_in.read((char *)&seed, sizeof(seed));
   binary_in.read((char *)&num_nodes, sizeof(num_nodes));
-  binary_in.read((char *)&sketch_fail_factor, sizeof(sketch_fail_factor));
+  binary_in.read((char *)&sketch_num_columns, sizeof(sketch_num_columns));
   binary_in.read((char *)&sketches_factor, sizeof(sketches_factor));
-  Supernode::configure(num_nodes, sketch_fail_factor, sketches_factor);
+  Supernode::configure(num_nodes, sketch_num_columns, sketches_factor);
 
 #ifdef VERIFY_SAMPLES_F
   std::cout << "Verifying samples..." << std::endl;
@@ -497,10 +497,10 @@ void Graph::write_binary(const std::string &filename) {
   // after this point all updates have been processed from the buffering system
 
   auto binary_out = std::fstream(filename, std::ios::out | std::ios::binary);
-  auto fail_factor = Sketch::get_failure_factor();
+  vec_t sketch_num_columns = Sketch::get_columns();
   binary_out.write((char *)&seed, sizeof(seed));
   binary_out.write((char *)&num_nodes, sizeof(num_nodes));
-  binary_out.write((char *)&fail_factor, sizeof(fail_factor));
+  binary_out.write((char *)&sketch_num_columns, sizeof(sketch_num_columns));
   binary_out.write((char *)&config._sketches_factor, sizeof(config._sketches_factor));
   for (node_id_t i = 0; i < num_nodes; ++i) {
     supernodes[i]->write_binary(binary_out);

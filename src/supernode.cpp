@@ -11,7 +11,7 @@ Supernode::Supernode(uint64_t n, uint64_t seed): sample_idx(0),
   n(n), seed(seed), num_sketches(max_sketches),
   merged_sketches(max_sketches), sketch_size(Sketch::sketchSizeof()) {
 
-  size_t sketch_width = Sketch::column_gen(Sketch::get_failure_factor());
+  size_t sketch_width = Sketch::get_columns();
   // generate num_sketches sketches for each supernode (read: node)
   for (size_t i = 0; i < num_sketches; ++i) {
     Sketch::makeSketch(get_sketch(i), seed);
@@ -22,7 +22,7 @@ Supernode::Supernode(uint64_t n, uint64_t seed): sample_idx(0),
 Supernode::Supernode(uint64_t n, uint64_t seed, std::istream &binary_in) :
   sample_idx(0), n(n), seed(seed), sketch_size(Sketch::sketchSizeof()) {
 
-  size_t sketch_width = Sketch::column_gen(Sketch::get_failure_factor());
+  size_t sketch_width = Sketch::get_columns();
 
   SerialType type;
   binary_in.read((char*) &type, sizeof(SerialType));

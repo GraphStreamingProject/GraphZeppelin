@@ -193,7 +193,7 @@ static void BM_Sketch_Update(benchmark::State& state) {
   size_t vec_size = state.range(0);
   vec_t input = vec_size / 3;
   // initialize sketches
-  Sketch::configure(vec_size, Supernode::default_fail_factor);
+  Sketch::configure(vec_size, Supernode::default_num_columns);
   SketchUniquePtr skt = makeSketch(seed);
 
   // Test the speed of updating the sketches
