@@ -11,7 +11,6 @@
 bool GraphWorker::shutdown = false;
 bool GraphWorker::paused   = false; // controls whether threads should pause or resume work
 int GraphWorker::num_groups = 1;
-int GraphWorker::group_size = 1;
 long GraphWorker::supernode_size;
 GraphWorker **GraphWorker::workers;
 std::condition_variable GraphWorker::pause_condition;

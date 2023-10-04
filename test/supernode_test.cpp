@@ -1,6 +1,7 @@
 #include "../include/supernode.h"
 
 #include <gtest/gtest.h>
+#include <sys/stat.h>
 
 #include <chrono>
 #include <cmath>
@@ -205,9 +206,7 @@ TEST_F(SupernodeTestSuite, TestBatchUpdate) {
 }
 
 TEST_F(SupernodeTestSuite, TestConcurrency) {
-  int num_threads_per_group = 2;
-  unsigned num_threads =
-      std::thread::hardware_concurrency() / num_threads_per_group - 1;  // hyperthreading?
+  unsigned num_threads = std::thread::hardware_concurrency() - 1;
   unsigned vec_len = 1000000;
   unsigned num_updates = 100000;
   Supernode::configure(vec_len);
@@ -222,8 +221,6 @@ TEST_F(SupernodeTestSuite, TestConcurrency) {
 
   Supernode* supernode = Supernode::makeSupernode(vec_len, seed);
   Supernode* piecemeal = Supernode::makeSupernode(vec_len, seed);
-
-  GraphWorker::set_config(0, num_threads_per_group);  // set number of threads per omp parallel
 
   // concurrently run batch_updates
   std::thread thd[num_threads];
@@ -264,10 +261,16 @@ TEST_F(SupernodeTestSuite, TestSerialization) {
   snodes[num_nodes / 2]->write_binary(file);
   file.close();
 
-  auto in_file = std::fstream("./out_supernode.txt", std::ios::in | std::ios::binary);
+  // Get the size of the serialized Supernode file
+  struct stat stat_buf;
+  ASSERT_EQ(stat("./out_supernode.txt", &stat_buf), 0);
+  ASSERT_EQ(Supernode::get_serialized_size(), stat_buf.st_size);
 
+  // Create a supernode from the file
+  auto in_file = std::fstream("./out_supernode.txt", std::ios::in | std::ios::binary);
   Supernode* reheated = Supernode::makeSupernode(num_nodes, seed, in_file);
 
+  // Assert the Supernodes match
   for (int i = 0; i < Supernode::get_max_sketches(); ++i) {
     ASSERT_EQ(*snodes[num_nodes / 2]->get_sketch(i), *reheated->get_sketch(i));
   }

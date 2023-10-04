@@ -28,7 +28,6 @@ enum SampleSketchRet {
  */
 class Sketch {
  private:
-  static vec_t failure_factor;  // Pr(failure) = 1 / factor. Determines number of columns in sketch.
   static vec_t n;               // Length of the vector this is sketching.
   static size_t num_elems;      // length of our actual arrays in number of elements
   static size_t num_columns;    // Portion of array length, number of columns
@@ -49,7 +48,7 @@ class Sketch {
   FRIEND_TEST(EXPR_Parallelism, N10kU100k);
 
   // Buckets of this sketch.
-  // Length is column_gen(failure_factor) * guess_gen(n).
+  // Length is num_columns * guess_gen(n).
   // For buckets[i * guess_gen(n) + j], the bucket has a 1/2^j probability
   // of containing an index. The first two are pointers into the buckets array.
   alignas(vec_t) char buckets[];
@@ -83,13 +82,12 @@ class Sketch {
 
   /* configure the static variables of sketches
    * @param n               Length of the vector to sketch. (static variable)
-   * @param failure_factor  1/factor = Failure rate for sketch (determines column width)
+   * @param num_columns     Column width, determines the failure probability of the sketch
    * @return nothing
    */
-  inline static void configure(vec_t _n, vec_t _factor) {
+  inline static void configure(vec_t _n, vec_t _num_columns) {
     n = _n;
-    failure_factor = _factor;
-    num_columns = column_gen(failure_factor);
+    num_columns = _num_columns;
     num_guesses = guess_gen(n);
     num_elems = num_columns * num_guesses + 1;  // +1 for zero bucket optimization
   }
@@ -102,8 +100,6 @@ class Sketch {
   inline static size_t serialized_size() {
     return num_elems * (sizeof(vec_t) + sizeof(vec_hash_t));
   }
-
-  inline static vec_t get_failure_factor() { return failure_factor; }
 
   inline void reset_queried() { already_queried = false; }
 
@@ -168,7 +164,7 @@ class Sketch {
 
   // max number of non-zeroes in vector is n/2*n/2=n^2/4
   static size_t guess_gen(size_t x) { return double_to_ull(log2(x) - 2); }
-  static size_t column_gen(size_t d) { return double_to_ull((log2(d) + 1)); }
+  static size_t column_gen(size_t d) { return double_to_ull(ceil(log2(d))); }
 };
 
 class MultipleQueryException : public std::exception {

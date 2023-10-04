@@ -88,12 +88,12 @@ public:
 
   ~Supernode();
 
-  static inline void configure(uint64_t n, vec_t sketch_fail_factor = default_fail_factor,
+  static inline void configure(uint64_t n, vec_t sketch_num_columns = default_num_columns,
                                double skt_factor = 1) {
-    Sketch::configure(n * n, sketch_fail_factor);
-    max_sketches = log2(n) / (log2(3) - 1) * skt_factor;
+    Sketch::configure(n * n, sketch_num_columns);
+    max_sketches = (log2(n) / num_sketches_div) * skt_factor;
     bytes_size = sizeof(Supernode) + max_sketches * Sketch::sketchSizeof();
-    serialized_size = max_sketches * Sketch::serialized_size();
+    serialized_size = max_sketches * Sketch::serialized_size() + sizeof(SerialType);
   }
 
   static inline size_t get_size() {
@@ -210,7 +210,13 @@ public:
 
   // void write_sparse_binary_range(std::ostream&binary_out, uint32_t beg, uint32_t end);
 
-  static constexpr size_t default_fail_factor = 4;
+#ifdef L0_SAMPLING
+  static constexpr size_t default_num_columns = 7;
+  static constexpr double num_sketches_div = log2(3) - 1;
+#else
+  static constexpr size_t default_num_columns = 2;
+  static constexpr double num_sketches_div = log2(3) - 1;
+#endif
 };
 
 

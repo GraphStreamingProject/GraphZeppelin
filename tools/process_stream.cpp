@@ -78,8 +78,10 @@ int main(int argc, char **argv) {
   std::cout << "num_updates = " << num_updates << std::endl;
   std::cout << std::endl;
 
-  auto config = GraphConfiguration().gutter_sys(STANDALONE).num_groups(num_threads);
-  config.gutter_conf().gutter_factor(-4);
+  auto config = GraphConfiguration()
+                .gutter_sys(STANDALONE)
+                .num_graph_workers(num_threads)
+                .batch_factor(1);
   Graph g{num_nodes, config, reader_threads};
 
   auto ins_start = std::chrono::steady_clock::now();

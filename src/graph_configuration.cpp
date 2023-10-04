@@ -17,37 +17,37 @@ GraphConfiguration& GraphConfiguration::backup_in_mem(bool backup_in_mem) {
   return *this;
 }
 
-GraphConfiguration& GraphConfiguration::num_groups(size_t num_groups) {
-  _num_groups = num_groups;
-  if (_num_groups < 1) {
-    std::cout << "num_groups="<< _num_groups << " is out of bounds. [1, infty)"
+GraphConfiguration& GraphConfiguration::num_graph_workers(size_t num_graph_workers) {
+  _num_graph_workers = num_graph_workers;
+  if (_num_graph_workers < 1) {
+    std::cout << "num_graph_workers="<< _num_graph_workers << " is out of bounds. [1, infty)"
               << "Defaulting to 1." << std::endl;
-    _num_groups = 1;
+    _num_graph_workers = 1;
   }
   return *this;
 }
 
-GraphConfiguration& GraphConfiguration::group_size(size_t group_size) {
-  _group_size = group_size;
-  if (_group_size < 1) {
-    std::cout << "group_size="<< _group_size << " is out of bounds. [1, infty)"
+GraphConfiguration& GraphConfiguration::sketches_factor(double factor) {
+  _sketches_factor = factor;
+  if (_sketches_factor <= 0) {
+    std::cout << "sketches_factor=" << _sketches_factor << " is out of bounds. (0, infty)"
               << "Defaulting to 1." << std::endl;
-    _group_size = 1;
+    _sketches_factor = 1;
+  }
+  if (_sketches_factor != 1) {
+    std::cerr << "WARNING: Your graph configuration specifies using a factor " << _sketches_factor 
+              << " of the normal quantity of sketches." << std::endl;
+    std::cerr << "         Is this intentional? If not, set sketches_factor to one!" << std::endl;
   }
   return *this;
 }
 
-GraphConfiguration& GraphConfiguration::adtl_skts_factor(double factor) {
-  _adtl_skts_factor = factor;
-  if (_adtl_skts_factor <= 1) {
-    std::cout << "adtl_skts_factor=" << _adtl_skts_factor << " is out of bounds. [1, infty)"
+GraphConfiguration& GraphConfiguration::batch_factor(double factor) {
+  _batch_factor = factor;
+  if (_batch_factor <= 0) {
+    std::cout << "batch factor=" << _batch_factor << " is out of bounds. (0, infty)"
               << "Defaulting to 1." << std::endl;
-    _adtl_skts_factor = 1;
-  }
-  if (_adtl_skts_factor > 1) {
-    std::cerr << "WARNING: Your graph configuration specifies using a factor " << _adtl_skts_factor 
-              << " more memory than normal." << std::endl;
-    std::cerr << "         Is this intentional? If not, set adtl_skts_factor to one" << std::endl;
+    _batch_factor = 1;
   }
   return *this;
 }
@@ -63,9 +63,15 @@ std::ostream& operator<< (std::ostream &out, const GraphConfiguration &conf) {
       gutter_system = "GutterTree";
     else if (conf._gutter_sys == CACHETREE)
       gutter_system = "CacheTree";
+#ifdef L0_SAMPLING
+    out << " Sketching algorithm   = CubeSketch" << std::endl;
+#else
+    out << " Sketching algorithm   = CameoSketch" << std::endl;
+#endif
     out << " Guttering system      = " << gutter_system << std::endl;
-    out << " Number of groups      = " << conf._num_groups << std::endl;
-    out << " Size of groups        = " << conf._group_size << std::endl;
+    out << " Num sketches factor   = " << conf._sketches_factor << std::endl;
+    out << " Batch size factor     = " << conf._batch_factor << std::endl;
+    out << " Graph worker count    = " << conf._num_graph_workers << std::endl;
     out << " On disk data location = " << conf._disk_dir << std::endl;
     out << " Backup sketch to RAM  = " << (conf._backup_in_mem? "ON" : "OFF") << std::endl;
     out << conf._gutter_conf;

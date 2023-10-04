@@ -3,7 +3,6 @@
 #include <cstring>
 #include <iostream>
 
-vec_t Sketch::failure_factor = 100;
 vec_t Sketch::n;
 size_t Sketch::num_elems;
 size_t Sketch::num_columns;
@@ -72,6 +71,25 @@ Sketch::Sketch(const Sketch& s) : seed(s.seed) {
   std::memcpy(bucket_c, s.bucket_c, num_elems * sizeof(vec_hash_t));
 }
 
+#ifdef L0_SAMPLING
+void Sketch::update(const vec_t update_idx) {
+  vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update_idx, checksum_seed());
+  
+  // Update depth 0 bucket
+  Bucket_Boruvka::update(bucket_a[num_elems - 1], bucket_c[num_elems - 1], update_idx, checksum);
+
+  // Update higher depth buckets
+  for (unsigned i = 0; i < num_columns; ++i) {
+    col_hash_t depth = Bucket_Boruvka::get_index_depth(update_idx, column_seed(i), num_guesses);
+    likely_if(depth < num_guesses) {
+      for (col_hash_t j = 0; j <= depth; ++j) {
+        size_t bucket_id = i * num_guesses + j;
+        Bucket_Boruvka::update(bucket_a[bucket_id], bucket_c[bucket_id], update_idx, checksum);
+      }
+    }
+  }
+}
+#else // Use support finding algorithm instead. Faster but no guarantee of uniform sample.
 void Sketch::update(const vec_t update_idx) {
   vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update_idx, checksum_seed());
   
@@ -86,6 +104,7 @@ void Sketch::update(const vec_t update_idx) {
       Bucket_Boruvka::update(bucket_a[bucket_id], bucket_c[bucket_id], update_idx, checksum);
   }
 }
+#endif
 
 void Sketch::batch_update(const std::vector<vec_t>& updates) {
   for (const auto& update_idx : updates) {

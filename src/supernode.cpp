@@ -11,7 +11,7 @@ Supernode::Supernode(uint64_t n, uint64_t seed): sample_idx(0),
   n(n), seed(seed), num_sketches(max_sketches),
   merged_sketches(max_sketches), sketch_size(Sketch::sketchSizeof()) {
 
-  size_t sketch_width = Sketch::column_gen(Sketch::get_failure_factor());
+  size_t sketch_width = Sketch::get_columns();
   // generate num_sketches sketches for each supernode (read: node)
   for (size_t i = 0; i < num_sketches; ++i) {
     Sketch::makeSketch(get_sketch(i), seed);
@@ -22,7 +22,7 @@ Supernode::Supernode(uint64_t n, uint64_t seed): sample_idx(0),
 Supernode::Supernode(uint64_t n, uint64_t seed, std::istream &binary_in) :
   sample_idx(0), n(n), seed(seed), sketch_size(Sketch::sketchSizeof()) {
 
-  size_t sketch_width = Sketch::column_gen(Sketch::get_failure_factor());
+  size_t sketch_width = Sketch::get_columns();
 
   SerialType type;
   binary_in.read((char*) &type, sizeof(SerialType));
@@ -96,7 +96,8 @@ std::pair<Edge, SampleSketchRet> Supernode::sample() {
 std::pair<std::unordered_set<Edge>, SampleSketchRet> Supernode::exhaustive_sample() {
   if (out_of_queries()) throw OutOfQueriesException();
 
-  std::pair<std::unordered_set<vec_t>, SampleSketchRet> query_ret = get_sketch(sample_idx++)->exhaustive_query();
+  std::pair<std::unordered_set<vec_t>, SampleSketchRet> query_ret =
+      get_sketch(sample_idx++)->exhaustive_query();
   std::unordered_set<Edge> edges(query_ret.first.size());
   for (const auto &query_item: query_ret.first) {
     edges.insert(inv_concat_pairing_fn(query_item));
@@ -162,7 +163,6 @@ void Supernode::apply_delta_update(const Supernode* delta_node) {
 void Supernode::delta_supernode(uint64_t n, uint64_t seed,
                const std::vector<vec_t> &updates, void *loc) {
   auto delta_node = makeSupernode(n, seed, loc);
-#pragma omp parallel for num_threads(GraphWorker::get_group_size()) default(shared)
   for (size_t i = 0; i < delta_node->num_sketches; ++i) {
     delta_node->get_sketch(i)->batch_update(updates);
   }

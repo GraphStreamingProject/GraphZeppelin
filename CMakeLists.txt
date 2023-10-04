@@ -88,9 +88,13 @@ set(BUILD_SHARED_LIBS "${SAVED_BUILD_SHARED_LIBS}" CACHE BOOL "" FORCE)
 
 
 # AVAILABLE COMPILATION DEFINITIONS:
-# VERIFY_SAMPLES_F   Use a deterministic connected-components 
+# VERIFY_SAMPLES_F   Use a deterministic connected-components
 #                    algorithm to verify post-processing.
-# USE_EAGER_DSU      Use the eager DSU query optimization if this flag is present.
+# USE_EAGER_DSU      Use the eager DSU query optimization if
+#                    this flag is present.
+# L0_SAMPLING        Run the CubeSketch l0 sampling algorithm
+#                    to ensure that we sample uniformly.
+#                    Otherwise, run a support finding algorithm.
 
 add_library(GraphZeppelin
   src/graph.cpp

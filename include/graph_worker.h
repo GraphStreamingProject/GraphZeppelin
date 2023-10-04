@@ -32,8 +32,7 @@ public:
   // manage configuration
   // configuration should be set before calling start_workers
   static int get_num_groups() {return num_groups;} // return the number of GraphWorkers
-  static int get_group_size() {return group_size;} // return the number of threads in each worker
-  static void set_config(int g, int s) { num_groups = g; group_size = s; }
+  static void set_config(int g) { num_groups = g; }
 private:
   /**
    * Create a GraphWorker object by setting metadata and spinning up a thread.
@@ -69,7 +68,6 @@ private:
 
   // configuration
   static int num_groups;
-  static int group_size;
   static long supernode_size;
 
   // list of all GraphWorkers

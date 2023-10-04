@@ -5,7 +5,6 @@
 // forward declaration
 class Graph;
 
-// TODO: Replace this with an enum defined by GutterTree repo
 enum GutterSystem {
   GUTTERTREE,
   STANDALONE,
@@ -25,15 +24,15 @@ private:
   bool _backup_in_mem = true;
 
   // The number of graph workers
-  size_t _num_groups = 1;
-
-  // How many OMP threads each graph worker uses
-  size_t _group_size = 1;
+  size_t _num_graph_workers = 1;
 
   // Option to create more sketches than for standard connected components
   // Ex factor of 1.5, 1.5 times the sketches
   //    factor of 1, normal quantity of sketches
-  double _adtl_skts_factor = 1;
+  double _sketches_factor = 1;
+
+  // Size of update batches as relative to the size of a Supernode
+  double _batch_factor = 1;
 
   // Configuration for the guttering system
   GutteringConfiguration _gutter_conf;
@@ -50,11 +49,11 @@ public:
 
   GraphConfiguration& backup_in_mem(bool backup_in_mem);
 
-  GraphConfiguration& num_groups(size_t num_groups);
+  GraphConfiguration& num_graph_workers(size_t num_groups);
 
-  GraphConfiguration& group_size(size_t group_size);
+  GraphConfiguration& sketches_factor(double factor);
 
-  GraphConfiguration& adtl_skts_factor(double factor);
+  GraphConfiguration& batch_factor(double factor);
 
   GutteringConfiguration& gutter_conf();
 
