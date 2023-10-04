@@ -215,7 +215,7 @@ public:
   static constexpr double num_sketches_div = log2(3) - 1;
 #else
   static constexpr size_t default_num_columns = 2;
-  static constexpr double num_sketches_div = log2(4) - log2(3);
+  static constexpr double num_sketches_div = log2(3) - 1;
 #endif
 };
 
