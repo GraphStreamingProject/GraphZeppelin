@@ -1,7 +1,7 @@
 # GraphZeppelin: A C++ Library for Solving the Connected Components Problem on Large, Dense Graph Streams
 This is the source code of GraphZeppelin: a compact, fast, and scalable graph processing system. Graph Zeppelin is described in detail in our paper published in [SIGMOD2022](https://dl.acm.org/doi/10.1145/3514221.3526146).
 
-The full experiments for our SIGMOD paper can be found in our [Experiments Repository](https://github.com/GraphStreamingProject/ZeppelinExperiments).
+The full experiments for our SIGMOD paper can be found in our [Experiments Repository](https://github.com/GraphStreamingProject/ZeppelinExperiments). Our experiments were replicated by the SIGMOD reproducibility committee, details can be found in the [reproducibility report](https://reproducibility.sigmod.org/rep_rep/2023/Dayan-SIGMODReproReport26.pdf).
 
 ## Installing and Running GraphZeppelin
 ### Requirements
