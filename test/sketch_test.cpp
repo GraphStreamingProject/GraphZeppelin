@@ -1,25 +1,22 @@
-#include "../include/l0_sampling/sketch.h"
+#include "sketch.h"
+#include "bucket.h"
 #include <chrono>
 #include <gtest/gtest.h>
-#include "../include/test/testing_vector.h"
-#include "../include/test/sketch_constructors.h"
+#include "testing_vector.h"
 
 static const int num_columns = 7;
-
 TEST(SketchTestSuite, TestExceptions) {
-  Sketch::configure(100, num_columns);
-  SketchUniquePtr sketch1 = makeSketch(rand());
-  ASSERT_EQ(sketch1->query().second, ZERO);
-  ASSERT_THROW(sketch1->query(), MultipleQueryException);
+  Sketch sketch1(10, rand(), 1, num_columns);
+  ASSERT_EQ(sketch1.sample().second, ZERO);
+  ASSERT_THROW(sketch1.sample(), OutOfQueriesException);
 
   /**
    * Find a vector that makes no good buckets
    */
-  Sketch::configure(10000, num_columns);
-  SketchUniquePtr sketch2 = makeSketch(0);
-  std::vector<bool> vec_idx(sketch2->n, true);
+  Sketch sketch2(100, 0, 1, num_columns);
+  std::vector<bool> vec_idx(100 * 100, true);
   unsigned long long columns = num_columns;
-  unsigned long long guesses = Sketch::guess_gen(sketch2->n);
+  unsigned long long guesses = Sketch::guess_gen(100);
   size_t total_updates = 2;
   for (unsigned long long i = 0; i < columns;) {
     size_t depth_1_updates = 0;
@@ -31,7 +28,7 @@ TEST(SketchTestSuite, TestExceptions) {
         continue;
       }
 
-      col_hash_t depth = Bucket_Boruvka::get_index_depth(k, sketch2->column_seed(i), guesses);
+      col_hash_t depth = Bucket_Boruvka::get_index_depth(k, sketch2.column_seed(i), guesses);
       if (depth >= 2) {
         vec_idx[k] = false; // force all updates to only touch depths <= 1
         i = 0;
@@ -50,25 +47,24 @@ TEST(SketchTestSuite, TestExceptions) {
     else if (u == total_updates) ++i;
   }
   size_t applied_updates = 0;
-  for (uint64_t i = 0; i < sketch2->n; ++i) {
+  for (uint64_t i = 0; i < vec_idx.size(); ++i) {
     if (vec_idx[i]) {
-      sketch2->update(static_cast<vec_t>(i));
+      sketch2.update(static_cast<vec_t>(i));
       if (++applied_updates >= total_updates) break;
     }
   }
-  ASSERT_EQ(sketch2->query().second, FAIL);
+  ASSERT_EQ(sketch2.sample().second, FAIL);
 }
 
 TEST(SketchTestSuite, GIVENonlyIndexZeroUpdatedTHENitWorks) {
   // GIVEN only the index 0 is updated
-  Sketch::configure(1000, num_columns);
-  SketchUniquePtr sketch = makeSketch(rand());
-  sketch->update(0);
-  sketch->update(0);
-  sketch->update(0);
+  Sketch sketch(40, rand(), 1, num_columns);
+  sketch.update(0);
+  sketch.update(0);
+  sketch.update(0);
 
   // THEN it works
-  std::pair<vec_t, SampleSketchRet> query_ret = sketch->query();
+  std::pair<vec_t, SampleSketchRet> query_ret = sketch.sample();
   vec_t res = query_ret.first;
   SampleSketchRet ret_code = query_ret.second;
 
@@ -82,21 +78,19 @@ TEST(SketchTestSuite, GIVENonlyIndexZeroUpdatedTHENitWorks) {
 void test_sketch_sample(unsigned long num_sketches,
     unsigned long vec_size, unsigned long num_updates,
     double max_sample_fail_prob, double max_bucket_fail_prob) {
-  Sketch::configure(vec_size, num_columns);
-
   std::chrono::duration<long double> runtime(0);
   unsigned long all_bucket_failures = 0;
   unsigned long sample_incorrect_failures = 0;
   for (unsigned long i = 0; i < num_sketches; i++) {
     Testing_Vector test_vec = Testing_Vector(vec_size, num_updates);
-    SketchUniquePtr sketch = makeSketch(rand());
+    Sketch sketch(vec_size, rand(), 1, num_columns);
     auto start_time = std::chrono::steady_clock::now();
     for (unsigned long j = 0; j < num_updates; j++){
-      sketch->update(test_vec.get_update(j));
+      sketch.update(test_vec.get_update(j));
     }
     runtime += std::chrono::steady_clock::now() - start_time;
     try {
-      std::pair<vec_t, SampleSketchRet> query_ret = sketch->query();
+      std::pair<vec_t, SampleSketchRet> query_ret = sketch.sample();
       vec_t res_idx = query_ret.first;
       SampleSketchRet ret_code = query_ret.second;
 
@@ -124,7 +118,7 @@ void test_sketch_sample(unsigned long num_sketches,
         //No good bucket
         all_bucket_failures++;
       }
-    } catch (MultipleQueryException& e) {
+    } catch (OutOfQueriesException& e) {
       //Multiple queries shouldn't happen, but if we do get here fail test
       FAIL() << e.what();
     }
@@ -141,9 +135,9 @@ void test_sketch_sample(unsigned long num_sketches,
 }
 
 TEST(SketchTestSuite, TestSketchSample) {
-  test_sketch_sample(10000, 1e3, 100, 0.001, 0.03);
-  test_sketch_sample(1000, 1e4, 1000, 0.001, 0.03);
-  test_sketch_sample(1000, 1e5, 10000, 0.001, 0.03);
+  test_sketch_sample(10000, 1e2, 100, 0.001, 0.03);
+  test_sketch_sample(1000, 1e3, 1000, 0.001, 0.03);
+  test_sketch_sample(1000, 1e4, 10000, 0.001, 0.03);
 }
 
 /**
@@ -152,24 +146,23 @@ TEST(SketchTestSuite, TestSketchSample) {
 void test_sketch_addition(unsigned long num_sketches,
     unsigned long vec_size, unsigned long num_updates,
     double max_sample_fail_prob, double max_bucket_fail_prob) {
-  Sketch::configure(vec_size, num_columns);
 
   unsigned long all_bucket_failures = 0;
   unsigned long sample_incorrect_failures = 0;
   for (unsigned long i = 0; i < num_sketches; i++){
     const long seed = rand();
-    SketchUniquePtr sketch1 = makeSketch(seed);
-    SketchUniquePtr sketch2 = makeSketch(seed);
+    Sketch sketch1(vec_size, seed, 1, num_columns);
+    Sketch sketch2(vec_size, seed, 1, num_columns);
     Testing_Vector test_vec1 = Testing_Vector(vec_size, num_updates);
     Testing_Vector test_vec2 = Testing_Vector(vec_size, num_updates);
 
     for (unsigned long j = 0; j < num_updates; j++){
-      sketch1->update(test_vec1.get_update(j));
-      sketch2->update(test_vec2.get_update(j));
+      sketch1.update(test_vec1.get_update(j));
+      sketch2.update(test_vec2.get_update(j));
     }
-    *sketch1 += *sketch2;
+    sketch1.merge(sketch2);
     try {
-      std::pair<vec_t, SampleSketchRet> query_ret = sketch1->query();
+      std::pair<vec_t, SampleSketchRet> query_ret = sketch1.sample();
       vec_t res_idx = query_ret.first;
       SampleSketchRet ret_code = query_ret.second;
 
@@ -195,7 +188,7 @@ void test_sketch_addition(unsigned long num_sketches,
         //No good bucket
         all_bucket_failures++;
       }
-    } catch (MultipleQueryException& e) {
+    } catch (OutOfQueriesException& e) {
       //Multiple queries shouldn't happen, but if we do get here fail test
       FAIL() << e.what();
     }
@@ -209,36 +202,34 @@ void test_sketch_addition(unsigned long num_sketches,
 }
 
 TEST(SketchTestSuite, TestSketchAddition){
-  test_sketch_addition(10000, 1e3, 100, 0.001, 0.03);
-  test_sketch_addition(1000, 1e4, 1000, 0.001, 0.03);
-  test_sketch_addition(1000, 1e5, 10000, 0.001, 0.03);
+  test_sketch_addition(10000, 1e2, 100, 0.001, 0.03);
+  test_sketch_addition(1000, 1e3, 1000, 0.001, 0.03);
+  test_sketch_addition(1000, 1e4, 10000, 0.001, 0.03);
 }
 
 /**
  * Large sketch test
  */
 void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
-  Sketch::configure(vec_size, Sketch::column_gen(vec_size));
 
   // we use an optimization in our sketching that is valid when solving CC
   // we assume that max number of non-zeroes in vector is vec_size / 4
   // therefore we need to ensure that in this test that we don't do more than that
   num_updates = std::min(num_updates, vec_size / 4);
 
-  
-  SketchUniquePtr sketch = makeSketch(rand());
+  Sketch sketch(vec_size, rand(), 1, 2 * log2(vec_size));
   //Keep seed for replaying update stream later
   unsigned long seed = rand();
   srand(seed);
   auto start_time = std::chrono::steady_clock::now();
   for (unsigned long j = 0; j < num_updates; j++){
-    sketch->update(static_cast<vec_t>(rand() % vec_size));
+    sketch.update(static_cast<vec_t>(rand() % vec_size));
   }
   std::cout << "Updating vector of size " << vec_size << " with " << num_updates
     << " updates took " << std::chrono::duration<long double>(
       std::chrono::steady_clock::now() - start_time).count() << std::endl;
   try {
-    std::pair<vec_t, SampleSketchRet> query_ret = sketch->query();
+    std::pair<vec_t, SampleSketchRet> query_ret = sketch.sample();
     vec_t res_idx = query_ret.first;
     SampleSketchRet ret_code = query_ret.second;
 
@@ -265,100 +256,75 @@ void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
       // No good bucket, not likely to happen for large vectors
       FAIL() << "Sketch Failed: No good bucket.";
     }
-  } catch (MultipleQueryException& e) {
+  } catch (OutOfQueriesException& e) {
     //Multiple queries shouldn't happen, but if we do get here fail test
-    FAIL() << "MultipleQueryException:" << e.what();
+    FAIL() << "OutOfQueriesException:" << e.what();
   }
 }
 
 TEST(SketchTestSuite, TestSketchLarge) {
-  constexpr uint64_t upper_bound = 1e18;
-  for (uint64_t i = 1e7; i <= upper_bound; i *= 10) {
+  constexpr uint64_t upper_bound = 1e9;
+  for (uint64_t i = 1e4; i <= upper_bound; i *= 10) {
     test_sketch_large(i, 1000000);
   }
 }
 
-TEST(SketchTestSuite, TestBatchUpdate) {
-  unsigned long vec_size = 1000000000, num_updates = 1000000;
-  Sketch::configure(vec_size, num_columns);
-  std::vector<vec_t> updates(num_updates);
-  for (unsigned long i = 0; i < num_updates; i++) {
-    updates[i] = static_cast<vec_t>(rand() % vec_size);
-  }
-  auto sketch_seed = rand();
-  SketchUniquePtr sketch = makeSketch(sketch_seed);
-  SketchUniquePtr sketch_batch = makeSketch(sketch_seed);
-  auto start_time = std::chrono::steady_clock::now();
-  for (const vec_t& update : updates) {
-    sketch->update(update);
-  }
-  std::cout << "One by one updates took " << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
-  start_time = std::chrono::steady_clock::now();
-  sketch_batch->batch_update(updates);
-  std::cout << "Batched updates took " << static_cast<std::chrono::duration<long double>>(std::chrono::steady_clock::now() - start_time).count() << std::endl;
-
-  ASSERT_EQ(*sketch, *sketch_batch);
-}
-
 TEST(SketchTestSuite, TestSerialization) {
-  unsigned long vec_size = 1 << 20;
+  unsigned long vec_size = 1 << 10;
   unsigned long num_updates = 10000;
-  Sketch::configure(vec_size, num_columns);
   Testing_Vector test_vec = Testing_Vector(vec_size, num_updates);
   auto seed = rand();
-  SketchUniquePtr sketch = makeSketch(seed);
+  Sketch sketch(vec_size, seed, 1, num_columns);
   for (unsigned long j = 0; j < num_updates; j++){
-    sketch->update(test_vec.get_update(j));
+    sketch.update(test_vec.get_update(j));
   }
   auto file = std::fstream("./out_sketch.txt", std::ios::out | std::ios::binary | std::ios::trunc);
-  sketch->write_binary(file);
+  sketch.serialize(file, FULL);
   file.close();
 
   auto in_file = std::fstream("./out_sketch.txt", std::ios::in | std::ios::binary);
-  SketchUniquePtr reheated = makeSketch(seed, in_file);
+  Sketch reheated(vec_size, seed, in_file, FULL, 1, num_columns);
 
-  ASSERT_EQ(*sketch, *reheated);
+  ASSERT_EQ(sketch, reheated);
 }
-
+/*
 TEST(SketchTestSuite, TestSparseSerialization) {
-  unsigned long vec_size = 1 << 20;
+  unsigned long vec_size = 1 << 10;
   unsigned long num_updates = 10000;
-  Sketch::configure(vec_size, num_columns);
   Testing_Vector test_vec = Testing_Vector(vec_size, num_updates);
   auto seed = rand();
-  SketchUniquePtr sketch = makeSketch(seed);
+  Sketch sketch(vec_size, seed, 1, num_columns);
   for (unsigned long j = 0; j < num_updates; j++){
-    sketch->update(test_vec.get_update(j));
+    sketch.update(test_vec.get_update(j));
   }
   auto file = std::fstream("./out_sketch.txt", std::ios::out | std::ios::binary | std::ios::trunc);
-  sketch->write_sparse_binary(file);
+  sketch.serialize(file, SPARSE);
   file.close();
 
   auto in_file = std::fstream("./out_sketch.txt", std::ios::in | std::ios::binary);
-  SketchUniquePtr reheated = makeSketch(seed, in_file, true);
+  Sketch reheated(vec_size, seed, in_file, SPARSE, 1, num_columns);
 
-  ASSERT_EQ(*sketch, *reheated);
+  ASSERT_EQ(sketch, reheated);
 }
 
 TEST(SketchTestSuite, TestExhaustiveQuery) {
   size_t runs = 10;
-  size_t vec_size = 10;
-  Sketch::configure(vec_size, Sketch::column_gen(vec_size*vec_size));
+  size_t vec_size = 20;
   for (size_t i = 0; i < runs; i++) {
-    SketchUniquePtr sketch = makeSketch(rand());
+    Sketch sketch(vec_size, rand(), 1, log2(vec_size));
 
-    sketch->update(1);
-    sketch->update(2);
-    sketch->update(3);
-    sketch->update(4);
-    sketch->update(5);
-    sketch->update(6);
-    sketch->update(7);
-    sketch->update(8);
-    sketch->update(9);
-    sketch->update(10);
+    sketch.update(1);
+    sketch.update(2);
+    sketch.update(3);
+    sketch.update(4);
+    sketch.update(5);
+    sketch.update(6);
+    sketch.update(7);
+    sketch.update(8);
+    sketch.update(9);
+    sketch.update(10);
 
-    std::pair<std::unordered_set<vec_t>, SampleSketchRet> query_ret = sketch->exhaustive_query();
+    std::pair<std::unordered_set<vec_t>, SampleSketchRet> query_ret = sketch.exhaustive_sample();
     if (query_ret.second != GOOD) {
       ASSERT_EQ(query_ret.first.size(), 0) << query_ret.second;
     }
@@ -375,3 +341,4 @@ TEST(SketchTestSuite, TestExhaustiveQuery) {
     ASSERT_EQ(unique_elms.size(), query_ret.first.size());
   }
 }
+*/

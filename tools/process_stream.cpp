@@ -79,7 +79,7 @@ int main(int argc, char **argv) {
   std::cout << std::endl;
 
   auto config = GraphConfiguration()
-                .gutter_sys(STANDALONE)
+                .gutter_sys(CACHETREE)
                 .num_graph_workers(num_threads)
                 .batch_factor(1);
   Graph g{num_nodes, config, reader_threads};

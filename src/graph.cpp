@@ -10,7 +10,7 @@
 #include <map>
 #include <random>
 
-#include "../include/graph_worker.h"
+#include "../include/worker_thread.h"
 
 // static variable for enforcing that only one graph is open at a time
 bool Graph::open_graph = false;
@@ -22,9 +22,8 @@ Graph::Graph(node_id_t num_nodes, GraphConfiguration config, int num_inserters)
 #ifdef VERIFY_SAMPLES_F
   std::cout << "Verifying samples..." << std::endl;
 #endif
-  Supernode::configure(num_nodes, Supernode::default_num_columns, config._sketches_factor);
   representatives = new std::set<node_id_t>();
-  supernodes = new Supernode *[num_nodes];
+  sketches = new Sketch *[num_nodes];
   parent = new std::remove_reference<decltype(*parent)>::type[num_nodes];
   size = new node_id_t[num_nodes];
   seed = std::chrono::duration_cast<std::chrono::microseconds>(
@@ -36,16 +35,16 @@ Graph::Graph(node_id_t num_nodes, GraphConfiguration config, int num_inserters)
   std::fill(size, size + num_nodes, 1);
   for (node_id_t i = 0; i < num_nodes; ++i) {
     representatives->insert(i);
-    supernodes[i] = Supernode::makeSupernode(num_nodes, seed);
+    sketches[i] = new Sketch(num_nodes, seed);
     parent[i] = i;
   }
 
   // set the leaf size of the guttering system appropriately
   if (config._gutter_conf.get_gutter_bytes() == GutteringConfiguration::uninit_param) {
-    config._gutter_conf.gutter_bytes(Supernode::get_size() * config._batch_factor);
+    config._gutter_conf.gutter_bytes(sketches[0]->sketch_bytes() * config._batch_factor);
   }
 
-  backup_file = config._disk_dir + "supernode_backup.data";
+  backup_file = config._disk_dir + "sketch_backup.data";
   // Create the guttering system
   if (config._gutter_sys == GUTTERTREE)
     gts = new GutterTree(config._disk_dir, num_nodes, config._num_graph_workers,
@@ -57,8 +56,7 @@ Graph::Graph(node_id_t num_nodes, GraphConfiguration config, int num_inserters)
     gts = new CacheGuttering(num_nodes, config._num_graph_workers, num_inserters,
                              config._gutter_conf);
 
-  GraphWorker::set_config(config._num_graph_workers);
-  GraphWorker::start_workers(this, gts, Supernode::get_size());
+  worker_group = new WorkerThreadGroup(config._num_graph_workers, this, gts);
   open_graph = true;
   spanning_forest = new std::unordered_set<node_id_t>[num_nodes];
   spanning_forest_mtx = new std::mutex[num_nodes];
@@ -70,36 +68,33 @@ Graph::Graph(const std::string &input_file, GraphConfiguration config, int num_i
     : config(config), num_updates(0) {
   if (open_graph) throw MultipleGraphsException();
 
-  vec_t sketch_num_columns;
   double sketches_factor;
   auto binary_in = std::fstream(input_file, std::ios::in | std::ios::binary);
   binary_in.read((char *)&seed, sizeof(seed));
   binary_in.read((char *)&num_nodes, sizeof(num_nodes));
-  binary_in.read((char *)&sketch_num_columns, sizeof(sketch_num_columns));
   binary_in.read((char *)&sketches_factor, sizeof(sketches_factor));
-  Supernode::configure(num_nodes, sketch_num_columns, sketches_factor);
 
 #ifdef VERIFY_SAMPLES_F
   std::cout << "Verifying samples..." << std::endl;
 #endif
   representatives = new std::set<node_id_t>();
-  supernodes = new Supernode *[num_nodes];
+  sketches = new Sketch *[num_nodes];
   parent = new std::remove_reference<decltype(*parent)>::type[num_nodes];
   size = new node_id_t[num_nodes];
   std::fill(size, size + num_nodes, 1);
   for (node_id_t i = 0; i < num_nodes; ++i) {
     representatives->insert(i);
-    supernodes[i] = Supernode::makeSupernode(num_nodes, seed, binary_in);
+    sketches[i] = new Sketch(num_nodes, seed, binary_in, FULL);
     parent[i] = i;
   }
   binary_in.close();
 
   // set the leaf size of the guttering system appropriately
   if (config._gutter_conf.get_gutter_bytes() == GutteringConfiguration::uninit_param) {
-    config._gutter_conf.gutter_bytes(Supernode::get_size() * config._batch_factor);
+    config._gutter_conf.gutter_bytes(sketches[0]->sketch_bytes() * config._batch_factor);
   }
 
-  backup_file = config._disk_dir + "supernode_backup.data";
+  backup_file = config._disk_dir + "sketch_backup.data";
   // Create the guttering system
   if (config._gutter_sys == GUTTERTREE)
     gts = new GutterTree(config._disk_dir, num_nodes, config._num_graph_workers,
@@ -111,8 +106,7 @@ Graph::Graph(const std::string &input_file, GraphConfiguration config, int num_i
     gts = new CacheGuttering(num_nodes, config._num_graph_workers, num_inserters,
                              config._gutter_conf);
 
-  GraphWorker::set_config(config._num_graph_workers);
-  GraphWorker::start_workers(this, gts, Supernode::get_size());
+  worker_group = new WorkerThreadGroup(config._num_graph_workers, this, gts);
   open_graph = true;
   spanning_forest = new std::unordered_set<node_id_t>[num_nodes];
   spanning_forest_mtx = new std::mutex[num_nodes];
@@ -122,40 +116,35 @@ Graph::Graph(const std::string &input_file, GraphConfiguration config, int num_i
 
 Graph::~Graph() {
   for (unsigned i = 0; i < num_nodes; ++i)
-    free(supernodes[i]);  // free because memory is malloc'd in make_supernode
-  delete[] supernodes;
+    free(sketches[i]);  // free because memory is malloc'd in make_supernode
+  delete[] sketches;
   delete[] parent;
   delete[] size;
   delete representatives;
-  GraphWorker::stop_workers();  // join the worker threads
+  delete worker_group;
   delete gts;
   open_graph = false;
   delete[] spanning_forest;
   delete[] spanning_forest_mtx;
 }
 
-void Graph::generate_delta_node(node_id_t node_n, uint64_t node_seed, node_id_t src,
-                                const std::vector<node_id_t> &edges, Supernode *delta_loc) {
-  std::vector<vec_t> updates;
-  updates.reserve(edges.size());
-  for (const auto &edge : edges) {
-    if (src < edge) {
-      updates.push_back(static_cast<vec_t>(concat_pairing_fn(src, edge)));
+void Graph::apply_batch_updates(node_id_t src, const std::vector<node_id_t> &edges,
+                                Sketch &delta_sketch) {
+  if (update_locked) throw UpdateLockedException();
+  num_updates += edges.size();
+  delta_sketch.zero_contents();
+
+  for (const auto &dst : edges) {
+    if (src < dst) {
+      delta_sketch.update(static_cast<vec_t>(concat_pairing_fn(src, dst)));
     } else {
-      updates.push_back(static_cast<vec_t>(concat_pairing_fn(edge, src)));
+      delta_sketch.update(static_cast<vec_t>(concat_pairing_fn(dst, src)));
     }
   }
-  Supernode::delta_supernode(node_n, node_seed, updates, delta_loc);
-}
-void Graph::batch_update(node_id_t src, const std::vector<node_id_t> &edges, Supernode *delta_loc) {
-  if (update_locked) throw UpdateLockedException();
-
-  num_updates += edges.size();
-  generate_delta_node(supernodes[src]->n, supernodes[src]->seed, src, edges, delta_loc);
-  supernodes[src]->apply_delta_update(delta_loc);
+  sketches[src]->merge(delta_sketch);
 }
 
-inline void Graph::sample_supernodes(std::pair<Edge, SampleSketchRet> *query,
+void Graph::sample_supernodes(std::pair<Edge, SampleSketchRet> *query,
                                      std::vector<node_id_t> &reps) {
   bool except = false;
   std::exception_ptr err;
@@ -163,7 +152,9 @@ inline void Graph::sample_supernodes(std::pair<Edge, SampleSketchRet> *query,
   for (node_id_t i = 0; i < reps.size(); ++i) {  // NOLINT(modernize-loop-convert)
     // wrap in a try/catch because exiting through exception is undefined behavior in OMP
     try {
-      query[reps[i]] = supernodes[reps[i]]->sample();
+      std::pair<vec_t, SampleSketchRet> query_ret = sketches[reps[i]]->sample();
+      Edge e = inv_concat_pairing_fn(query_ret.first);
+      query[reps[i]] = {e, query_ret.second};
 
     } catch (...) {
       except = true;
@@ -174,7 +165,7 @@ inline void Graph::sample_supernodes(std::pair<Edge, SampleSketchRet> *query,
   if (except) std::rethrow_exception(err);
 }
 
-inline std::vector<std::vector<node_id_t>> Graph::supernodes_to_merge(
+std::vector<std::vector<node_id_t>> Graph::supernodes_to_merge(
     std::pair<Edge, SampleSketchRet> *query, std::vector<node_id_t> &reps) {
   std::vector<std::vector<node_id_t>> to_merge(num_nodes);
   std::vector<node_id_t> new_reps;
@@ -232,7 +223,7 @@ inline std::vector<std::vector<node_id_t>> Graph::supernodes_to_merge(
   return to_merge;
 }
 
-void Graph::merge_supernodes(Supernode **copy_supernodes, std::vector<node_id_t> &new_reps,
+void Graph::merge_supernodes(Sketch **copy_sketches, std::vector<node_id_t> &new_reps,
                              std::vector<std::vector<node_id_t>> &to_merge, bool make_copy) {
   bool except = false;
   std::exception_ptr err;
@@ -243,12 +234,12 @@ void Graph::merge_supernodes(Supernode **copy_supernodes, std::vector<node_id_t>
     node_id_t a = new_reps[i];
     try {
       if (make_copy && config._backup_in_mem) {  // make a copy of a
-        copy_supernodes[a] = Supernode::makeSupernode(*supernodes[a]);
+        copy_sketches[a] = new Sketch(*sketches[a]);
       }
 
       // perform merging of nodes b into node a
       for (node_id_t b : to_merge[a]) {
-        supernodes[a]->merge(*supernodes[b]);
+        sketches[a]->merge(*sketches[b]);
       }
     } catch (...) {
       except = true;
@@ -267,27 +258,27 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
 
   cc_alg_start = std::chrono::steady_clock::now();
   bool first_round = true;
-  Supernode **copy_supernodes;
-  if (make_copy && config._backup_in_mem) copy_supernodes = new Supernode *[num_nodes];
+  Sketch **copy_sketches;
+  if (make_copy && config._backup_in_mem) copy_sketches = new Sketch *[num_nodes];
   std::pair<Edge, SampleSketchRet> *query = new std::pair<Edge, SampleSketchRet>[num_nodes];
   std::vector<node_id_t> reps(num_nodes);
   std::vector<node_id_t> backed_up;
   std::fill(size, size + num_nodes, 1);
   for (node_id_t i = 0; i < num_nodes; ++i) {
     reps[i] = i;
-    if (make_copy && config._backup_in_mem) copy_supernodes[i] = nullptr;
+    if (make_copy && config._backup_in_mem) copy_sketches[i] = nullptr;
   }
 
-  // function to restore supernodes after CC if make_copy is specified
-  auto cleanup_copy = [&make_copy, this, &backed_up, &copy_supernodes]() {
+  // function to restore sketches after CC if make_copy is specified
+  auto cleanup_copy = [&make_copy, this, &backed_up, &copy_sketches]() {
     if (make_copy) {
       if (config._backup_in_mem) {
-        // restore original supernodes and free memory
+        // restore original sketches and free memory
         for (node_id_t i : backed_up) {
-          if (supernodes[i] != nullptr) free(supernodes[i]);
-          supernodes[i] = copy_supernodes[i];
+          if (sketches[i] != nullptr) free(sketches[i]);
+          sketches[i] = copy_sketches[i];
         }
-        delete[] copy_supernodes;
+        delete[] copy_sketches;
       } else {
         restore_from_disk(backed_up);
       }
@@ -310,7 +301,7 @@ std::vector<std::set<node_id_t>> Graph::boruvka_emulation(bool make_copy) {
         if (!config._backup_in_mem) backup_to_disk(backed_up);
       }
 
-      merge_supernodes(copy_supernodes, reps, to_merge, first_round && make_copy);
+      merge_supernodes(copy_sketches, reps, to_merge, first_round && make_copy);
 
 #ifdef VERIFY_SAMPLES_F
       if (!first_round && fail_round_2) throw OutOfQueriesException();
@@ -341,12 +332,12 @@ void Graph::backup_to_disk(const std::vector<node_id_t> &ids_to_backup) {
     exit(EXIT_FAILURE);
   }
   for (node_id_t idx : ids_to_backup) {
-    supernodes[idx]->write_binary(binary_out);
+    sketches[idx]->serialize(binary_out, FULL);
   }
   binary_out.close();
 }
 
-// given a list of ids restore those supernodes from disk
+// given a list of ids restore those sketches from disk
 // IMPORTANT: ids_to_restore must be the same as ids_to_backup
 void Graph::restore_from_disk(const std::vector<node_id_t> &ids_to_restore) {
   // restore from disk
@@ -356,8 +347,8 @@ void Graph::restore_from_disk(const std::vector<node_id_t> &ids_to_restore) {
     exit(EXIT_FAILURE);
   }
   for (node_id_t idx : ids_to_restore) {
-    free(this->supernodes[idx]);
-    this->supernodes[idx] = Supernode::makeSupernode(num_nodes, seed, binary_in);
+    delete this->sketches[idx];
+    this->sketches[idx] = new Sketch(num_nodes, seed, binary_in, FULL);
   }
 }
 
@@ -386,7 +377,7 @@ std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
 
   flush_start = std::chrono::steady_clock::now();
   gts->force_flush();            // flush everything in guttering system to make final updates
-  GraphWorker::pause_workers();  // wait for the workers to finish applying the updates
+  worker_group->flush_workers(); // wait for the workers to finish applying the updates
   flush_end = std::chrono::steady_clock::now();
   // after this point all updates have been processed from the buffer tree
 
@@ -415,10 +406,10 @@ std::vector<std::set<node_id_t>> Graph::connected_components(bool cont) {
   // get ready for ingesting more from the stream
   // reset dsu and resume graph workers
   for (node_id_t i = 0; i < num_nodes; i++) {
-    supernodes[i]->reset_query_state();
+    sketches[i]->reset_sample_state();
   }
+  worker_group->resume_workers();
   update_locked = false;
-  GraphWorker::unpause_workers();
 
   // check if boruvka errored
   if (except) std::rethrow_exception(err);
@@ -454,7 +445,7 @@ bool Graph::point_query(node_id_t a, node_id_t b) {
 
   flush_start = std::chrono::steady_clock::now();
   gts->force_flush();            // flush everything in guttering system to make final updates
-  GraphWorker::pause_workers();  // wait for the workers to finish applying the updates
+  worker_group->flush_workers(); // wait for the workers to finish applying the updates
   flush_end = std::chrono::steady_clock::now();
   // after this point all updates have been processed from the buffer tree
 
@@ -473,12 +464,11 @@ bool Graph::point_query(node_id_t a, node_id_t b) {
   // get ready for ingesting more from the stream
   // reset dsu and resume graph workers
   for (node_id_t i = 0; i < num_nodes; i++) {
-    supernodes[i]->reset_query_state();
+    sketches[i]->reset_sample_state();
     parent[i] = i;
     size[i] = 1;
   }
   update_locked = false;
-  GraphWorker::unpause_workers();
 
   // check if boruvka errored
   if (except) std::rethrow_exception(err);
@@ -493,17 +483,15 @@ node_id_t Graph::get_parent(node_id_t node) {
 
 void Graph::write_binary(const std::string &filename) {
   gts->force_flush();            // flush everything in buffering system to make final updates
-  GraphWorker::pause_workers();  // wait for the workers to finish applying the updates
+  worker_group->flush_workers(); // wait for the workers to finish applying the updates
   // after this point all updates have been processed from the buffering system
 
   auto binary_out = std::fstream(filename, std::ios::out | std::ios::binary);
-  vec_t sketch_num_columns = Sketch::get_columns();
   binary_out.write((char *)&seed, sizeof(seed));
   binary_out.write((char *)&num_nodes, sizeof(num_nodes));
-  binary_out.write((char *)&sketch_num_columns, sizeof(sketch_num_columns));
   binary_out.write((char *)&config._sketches_factor, sizeof(config._sketches_factor));
   for (node_id_t i = 0; i < num_nodes; ++i) {
-    supernodes[i]->write_binary(binary_out);
+    sketches[i]->serialize(binary_out, FULL);
   }
   binary_out.close();
 }

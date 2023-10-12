@@ -100,39 +100,36 @@ set(BUILD_SHARED_LIBS "${SAVED_BUILD_SHARED_LIBS}" CACHE BOOL "" FORCE)
 add_library(GraphZeppelin
   src/graph.cpp
   src/graph_configuration.cpp
-  src/supernode.cpp
-  src/graph_worker.cpp
-  src/l0_sampling/sketch.cpp
+  src/worker_thread.cpp
+  src/sketch.cpp
   src/util.cpp)
 add_dependencies(GraphZeppelin GutterTree)
 target_link_libraries(GraphZeppelin PUBLIC xxhash GutterTree)
-target_include_directories(GraphZeppelin PUBLIC include/ include/l0_sampling/)
+target_include_directories(GraphZeppelin PUBLIC include/)
 target_compile_options(GraphZeppelin PUBLIC -fopenmp)
 target_link_options(GraphZeppelin PUBLIC -fopenmp)
-target_compile_definitions(GraphZeppelin PUBLIC XXH_INLINE_ALL USE_EAGER_DSU)
+target_compile_definitions(GraphZeppelin PUBLIC XXH_INLINE_ALL)
 
 add_library(GraphZeppelinVerifyCC
   src/graph.cpp
   src/graph_configuration.cpp
-  src/supernode.cpp
-  src/graph_worker.cpp
-  src/l0_sampling/sketch.cpp
+  src/worker_thread.cpp
+  src/sketch.cpp
   src/util.cpp
   test/util/file_graph_verifier.cpp
   test/util/mat_graph_verifier.cpp)
 add_dependencies(GraphZeppelinVerifyCC GutterTree)
 target_link_libraries(GraphZeppelinVerifyCC PUBLIC xxhash GutterTree)
-target_include_directories(GraphZeppelinVerifyCC PUBLIC include/ include/l0_sampling/ include/test/)
+target_include_directories(GraphZeppelinVerifyCC PUBLIC include/ include/test/)
 target_compile_options(GraphZeppelinVerifyCC PUBLIC -fopenmp)
 target_link_options(GraphZeppelinVerifyCC PUBLIC -fopenmp)
-target_compile_definitions(GraphZeppelinVerifyCC PUBLIC XXH_INLINE_ALL VERIFY_SAMPLES_F USE_EAGER_DSU)
+target_compile_definitions(GraphZeppelinVerifyCC PUBLIC XXH_INLINE_ALL VERIFY_SAMPLES_F)
 
 if (BUILD_EXE)
   add_executable(tests
     test/test_runner.cpp
     test/graph_test.cpp
     test/sketch_test.cpp
-    test/supernode_test.cpp
     test/dsu_test.cpp
     test/util_test.cpp
     test/util/file_graph_verifier.cpp

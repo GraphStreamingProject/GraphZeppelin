@@ -4,6 +4,7 @@
 #include <iostream>
 #include <algorithm>
 #include <cassert>
+#include <fstream>
 
 FileGraphVerifier::FileGraphVerifier(node_id_t n, const std::string &input_file) {
   std::ifstream in(input_file);

@@ -13,7 +13,6 @@
 #include "binary_graph_stream.h"
 #include "bucket.h"
 #include "dsu.h"
-#include "test/sketch_constructors.h"
 
 constexpr uint64_t KB = 1024;
 constexpr uint64_t MB = KB * KB;
@@ -193,17 +192,16 @@ static void BM_Sketch_Update(benchmark::State& state) {
   size_t vec_size = state.range(0);
   vec_t input = vec_size / 3;
   // initialize sketches
-  Sketch::configure(vec_size, Supernode::default_num_columns);
-  SketchUniquePtr skt = makeSketch(seed);
+  Sketch skt(vec_size, seed, 1, Sketch::default_cols_per_sample);
 
   // Test the speed of updating the sketches
   for (auto _ : state) {
     ++input;
-    skt->update(input);
+    skt.update(input);
   }
   state.counters["Updates"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
   state.counters["Hashes"] =
-      benchmark::Counter(state.iterations() * (Sketch::get_columns() + 1), benchmark::Counter::kIsRate);
+      benchmark::Counter(state.iterations() * (skt.get_columns() + 1), benchmark::Counter::kIsRate);
 }
 BENCHMARK(BM_Sketch_Update)->RangeMultiplier(4)->Ranges({{KB << 4, MB << 4}});
 
@@ -214,10 +212,9 @@ static void BM_Sketch_Query(benchmark::State& state) {
   double density = ((double)state.range(0)) / 100;
 
   // initialize sketches
-  Sketch::configure(vec_size, 100);
-  SketchUniquePtr sketches[num_sketches];
+  Sketch* sketches[num_sketches];
   for (size_t i = 0; i < num_sketches; i++) {
-    sketches[i] = makeSketch(seed + i);
+    sketches[i] = new Sketch(vec_size, seed, 1, Sketch::default_cols_per_sample);
   }
 
   // perform updates (do at least 1)
@@ -231,8 +228,8 @@ static void BM_Sketch_Query(benchmark::State& state) {
   for (auto _ : state) {
     // perform queries
     for (size_t j = 0; j < num_sketches; j++) {
-      benchmark::DoNotOptimize(q_ret = sketches[j]->query());
-      sketches[j]->reset_queried();
+      benchmark::DoNotOptimize(q_ret = sketches[j]->sample());
+      sketches[j]->reset_sample_state();
     }
   }
   state.counters["Query Rate"] =
@@ -240,64 +237,54 @@ static void BM_Sketch_Query(benchmark::State& state) {
 }
 BENCHMARK(BM_Sketch_Query)->DenseRange(0, 90, 10);
 
-static void BM_Supernode_Merge(benchmark::State& state) {
+static void BM_Sketch_Merge(benchmark::State& state) {
   size_t n = state.range(0);
   size_t upds = n / 100;
-  Supernode::configure(n);
-  Supernode* s1 = Supernode::makeSupernode(n, seed);
-  Supernode* s2 = Supernode::makeSupernode(n, seed);
+  Sketch s1(n, seed);
+  Sketch s2(n, seed);
 
   for (size_t i = 0; i < upds; i++) {
-    s1->update(static_cast<vec_t>(concat_pairing_fn(rand() % n, rand() % n)));
-    s2->update(static_cast<vec_t>(concat_pairing_fn(rand() % n, rand() % n)));
+    s1.update(static_cast<vec_t>(concat_pairing_fn(rand() % n, rand() % n)));
+    s2.update(static_cast<vec_t>(concat_pairing_fn(rand() % n, rand() % n)));
   }
 
   for (auto _ : state) {
-    s1->merge(*s2);
+    s1.merge(s2);
   }
-
-  free(s1);
-  free(s2);
 }
-BENCHMARK(BM_Supernode_Merge)->RangeMultiplier(10)->Range(1e3, 1e6);
+BENCHMARK(BM_Sketch_Merge)->RangeMultiplier(10)->Range(1e3, 1e6);
 
-static void BM_Supernode_Serialize(benchmark::State& state) {
+static void BM_Sketch_Serialize(benchmark::State& state) {
   size_t n = state.range(0);
   size_t upds = n / 100;
-  Supernode::configure(n);
-  Supernode* s1 = Supernode::makeSupernode(n, seed);
+  Sketch s1(n, seed);
 
   for (size_t i = 0; i < upds; i++) {
-    s1->update(static_cast<vec_t>(concat_pairing_fn(rand() % n, rand() % n)));
+    s1.update(static_cast<vec_t>(concat_pairing_fn(rand() % n, rand() % n)));
   }
 
   for (auto _ : state) {
     std::stringstream stream;
-    s1->write_binary(stream);
+    s1.serialize(stream, FULL);
   }
-
-  free(s1);
 }
-BENCHMARK(BM_Supernode_Serialize)->RangeMultiplier(10)->Range(1e3, 1e6);
+BENCHMARK(BM_Sketch_Serialize)->RangeMultiplier(10)->Range(1e3, 1e6);
 
-static void BM_Supernode_Sparse_Serialize(benchmark::State& state) {
+static void BM_Sketch_Sparse_Serialize(benchmark::State& state) {
   size_t n = state.range(0);
   size_t upds = n / 100;
-  Supernode::configure(n);
-  Supernode* s1 = Supernode::makeSupernode(n, seed);
+  Sketch s1(n, seed);
 
   for (size_t i = 0; i < upds; i++) {
-    s1->update(static_cast<vec_t>(concat_pairing_fn(rand() % n, rand() % n)));
+    s1.update(static_cast<vec_t>(concat_pairing_fn(rand() % n, rand() % n)));
   }
 
   for (auto _ : state) {
     std::stringstream stream;
-    s1->write_binary(stream, true);
+    s1.serialize(stream, SPARSE);
   }
-
-  free(s1);
 }
-BENCHMARK(BM_Supernode_Sparse_Serialize)->RangeMultiplier(10)->Range(1e3, 1e6);
+BENCHMARK(BM_Sketch_Sparse_Serialize)->RangeMultiplier(10)->Range(1e3, 1e6);
 
 // Benchmark speed of DSU merges when the sequence of merges is adversarial
 // This means we avoid joining roots wherever possible

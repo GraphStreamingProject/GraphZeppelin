@@ -6,10 +6,10 @@
 #include <algorithm>
 #include <fstream>
 
-#include "../graph_worker.h"
-#include "../include/test/file_graph_verifier.h"
-#include "../include/test/graph_gen.h"
-#include "../include/test/mat_graph_verifier.h"
+#include "worker_thread.h"
+#include "file_graph_verifier.h"
+#include "graph_gen.h"
+#include "mat_graph_verifier.h"
 
 /**
  * For many of these tests (especially for those upon very sparse and small graphs)
@@ -92,19 +92,17 @@ TEST(GraphTest, TestSupernodeRestoreAfterCCFailure) {
         std::make_unique<FileGraphVerifier>(1024, curr_dir + "/res/multiples_graph_1024.txt"));
     g.should_fail_CC();
 
-    // flush to make sure copy supernodes is consistent with graph supernodes
+    // flush to make sure copy sketches is consistent with graph sketches
     g.gts->force_flush();
-    GraphWorker::pause_workers();
-    Supernode* copy_supernodes[num_nodes];
+    g.worker_group->flush_workers();
+    Sketch* copy_sketches[num_nodes];
     for (node_id_t i = 0; i < num_nodes; ++i) {
-      copy_supernodes[i] = Supernode::makeSupernode(*g.supernodes[i]);
+      copy_sketches[i] = new Sketch(*g.sketches[i]);
     }
 
     ASSERT_THROW(g.connected_components(true), OutOfQueriesException);
     for (node_id_t i = 0; i < num_nodes; ++i) {
-      for (int j = 0; j < Supernode::get_max_sketches(); ++j) {
-        ASSERT_TRUE(*copy_supernodes[i]->get_sketch(j) == *g.supernodes[i]->get_sketch(j));
-      }
+      ASSERT_TRUE(*copy_sketches[i] == *g.sketches[i]);
     }
   }
 }
