@@ -1,5 +1,4 @@
 #pragma once
-#include <guttering_system.h>
 
 #include <atomic>  // REMOVE LATER
 #include <cstdlib>
@@ -9,10 +8,11 @@
 #include <mutex>
 #include <set>
 #include <unordered_set>
+#include <vector>
+#include <memory>
 
 #include "graph_configuration.h"
 #include "sketch.h"
-#include "worker_thread.h"
 
 #ifdef VERIFY_SAMPLES_F
 #include "test/graph_verifier.h"
@@ -26,17 +26,11 @@ class UpdateLockedException : public std::exception {
   }
 };
 
-class MultipleGraphsException : public std::exception {
-  virtual const char *what() const throw() {
-    return "Only one Graph may be open at one time. The other Graph must be deleted.";
-  }
-};
-
 /**
  * Undirected graph object with n nodes labelled 0 to n-1, no self-edges,
  * multiple edges, or weights.
  */
-class Graph {
+class CCSketchAlg {
  protected:
   node_id_t num_nodes;
   uint64_t seed;
@@ -46,22 +40,29 @@ class Graph {
   std::set<node_id_t> *representatives;
   Sketch **sketches;
   // DSU representation of supernode relationship
-#ifdef USE_EAGER_DSU
+#ifndef NO_EAGER_DSU
   std::atomic<node_id_t> *parent;
 #else
   node_id_t *parent;
 #endif
   node_id_t *size;
   node_id_t get_parent(node_id_t node);
+  
+  // if dsu valid then we have a cached query answer. Additionally, we need to update the DSU in
+  // pre_insert()
   bool dsu_valid = true;
+  
+  // for accessing if the DSU is valid from threads that do not perform updates
+  std::atomic<bool> shared_dsu_valid;
 
   std::unordered_set<node_id_t> *spanning_forest;
   std::mutex *spanning_forest_mtx;
 
-  // Guttering system for batching updates
-  GutteringSystem *gts;
+  // threads use these sketches to apply delta updates to our sketches
+  Sketch **delta_sketches;
 
-  WorkerThreadGroup *worker_group;
+  // the number of updates we'd like in each update batch
+  size_t num_updates_per_batch;
 
   void backup_to_disk(const std::vector<node_id_t> &ids_to_backup);
   void restore_from_disk(const std::vector<node_id_t> &ids_to_restore);
@@ -71,8 +72,7 @@ class Graph {
    * @param query  an array of sketch sample results
    * @param reps   an array containing node indices for the representative of each supernode
    */
-  virtual void sample_supernodes(std::pair<Edge, SampleSketchRet> *query,
-                                 std::vector<node_id_t> &reps);
+  void sample_supernodes(std::pair<Edge, SampleSketchRet> *query, std::vector<node_id_t> &reps);
 
   /**
    * @param copy_sketches  an array to be filled with sketches
@@ -96,7 +96,7 @@ class Graph {
    * Main parallel algorithm utilizing Boruvka and L_0 sampling.
    * @return a vector of the connected components in the graph.
    */
-  std::vector<std::set<node_id_t>> boruvka_emulation(bool make_copy);
+  std::vector<std::set<node_id_t>> boruvka_emulation();
 
   /**
    * Generates connected components from this graph's dsu
@@ -111,58 +111,44 @@ class Graph {
 
   GraphConfiguration config;
 
-  static bool open_graph;
-
  public:
-  explicit Graph(node_id_t num_nodes, int num_inserters = 1)
-      : Graph(num_nodes, GraphConfiguration(), num_inserters){};
-  explicit Graph(const std::string &input_file, int num_inserters = 1)
-      : Graph(input_file, GraphConfiguration(), num_inserters){};
-  explicit Graph(const std::string &input_file, GraphConfiguration config, int num_inserters = 1);
-  explicit Graph(node_id_t num_nodes, GraphConfiguration config, int num_inserters = 1);
+  CCSketchAlg(std::string input_file, GraphConfiguration config = GraphConfiguration());
+  CCSketchAlg(node_id_t num_nodes, GraphConfiguration config = GraphConfiguration());
+  ~CCSketchAlg();
 
-  virtual ~Graph();
+  /**
+   * Returns the number of buffered updates we would like to have in the update batches
+   */
+  size_t get_desired_updates_per_batch() { return num_updates_per_batch; }
 
-  inline void update(GraphUpdate upd, int thr_id = 0) {
-    if (update_locked) throw UpdateLockedException();
-    Edge &edge = upd.edge;
-
-    gts->insert({edge.src, edge.dst}, thr_id);
-    std::swap(edge.src, edge.dst);
-    gts->insert({edge.src, edge.dst}, thr_id);
-#ifdef USE_EAGER_DSU
-    if (dsu_valid) {
-      auto src = std::min(edge.src, edge.dst);
-      auto dst = std::max(edge.src, edge.dst);
-      std::lock_guard<std::mutex> sflock(spanning_forest_mtx[src]);
-      if (spanning_forest[src].find(dst) != spanning_forest[src].end()) {
-        dsu_valid = false;
-      } else {
-        node_id_t a = src, b = dst;
-        while ((a = get_parent(a)) != (b = get_parent(b))) {
-          if (size[a] < size[b]) {
-            std::swap(a, b);
-          }
-          if (std::atomic_compare_exchange_weak(&parent[b], &b, a)) {
-            size[a] += size[b];
-            spanning_forest[src].insert(dst);
-            break;
-          }
-        }
-      }
-    }
-#else
-    unlikely_if(dsu_valid) dsu_valid = false;
-#endif  // USE_EAGER_DSU
-  }
+  /**
+   * Action to take on an update before inserting it to the guttering system.
+   * We use this function to manage the eager dsu.
+   */
+  void pre_insert(GraphUpdate upd, int thr_id = 0);
 
   /**
    * Update all the sketches for a node, given a batch of updates.
-   * @param src        The node where the edges originate.
-   * @param edges      A vector of destinations.
-   * @param delta_loc  Memory location where we should initialize the delta sketch.
+   * @param thr_id         The id of the thread performing the update [0, num_threads)
+   * @param src_vertex     The vertex where the edges originate.
+   * @param dst_vertices   A vector of destinations.
    */
-  void batch_update(node_id_t src, const std::vector<node_id_t> &edges, Sketch *delta_loc);
+  void apply_update_batch(int thr_id, node_id_t src_vertex,
+                          const std::vector<node_id_t> &dst_vertices);
+
+  /**
+   * The function performs a direct update to the associated sketch.
+   * For performance reasons, do not use this function if possible.
+   * 
+   * This function is not thread-safe
+   */
+  void update(GraphUpdate upd);
+
+  /**
+   * Return if we have cached an answer to query.
+   * This allows the driver to avoid flushing the gutters before calling query functions.
+   */
+  bool has_cached_query() { return shared_dsu_valid; }
 
   /**
    * Main parallel query algorithm utilizing Boruvka and L_0 sampling.
@@ -170,7 +156,7 @@ class Graph {
    * @param cont
    * @return a vector of the connected components in the graph.
    */
-  std::vector<std::set<node_id_t>> connected_components(bool cont = false);
+  std::vector<std::set<node_id_t>> connected_components();
 
   /**
    * Point query algorithm utilizing Boruvka and L_0 sampling.
@@ -195,25 +181,12 @@ class Graph {
   std::atomic<uint64_t> num_updates;
 
   /**
-   * Generate a delta node for the purposes of updating a node sketch
-   * (Sketch).
-   * @param src           the src id.
-   * @param edges         a list of node ids to which src is connected.
-   * @param delta_sketch  the sketch to use as the delta.
-   * @returns nothing (Sketch delta is in delta_sketch).
-   */
-  void apply_batch_updates(node_id_t src, const std::vector<node_id_t> &edges,
-                           Sketch &delta_sketch);
-
-  /**
    * Serialize the graph data to a binary file.
    * @param filename the name of the file to (over)write data to.
    */
   void write_binary(const std::string &filename);
 
   // time hooks for experiments
-  std::chrono::steady_clock::time_point flush_start;
-  std::chrono::steady_clock::time_point flush_end;
   std::chrono::steady_clock::time_point cc_alg_start;
   std::chrono::steady_clock::time_point cc_alg_end;
 

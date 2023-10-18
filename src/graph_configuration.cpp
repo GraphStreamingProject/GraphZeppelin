@@ -17,12 +17,12 @@ GraphConfiguration& GraphConfiguration::backup_in_mem(bool backup_in_mem) {
   return *this;
 }
 
-GraphConfiguration& GraphConfiguration::num_graph_workers(size_t num_graph_workers) {
-  _num_graph_workers = num_graph_workers;
-  if (_num_graph_workers < 1) {
-    std::cout << "num_graph_workers="<< _num_graph_workers << " is out of bounds. [1, infty)"
+GraphConfiguration& GraphConfiguration::worker_threads(size_t num_worker_threads) {
+  _num_worker_threads = num_worker_threads;
+  if (_num_worker_threads < 1) {
+    std::cout << "num_worker_threads="<< _num_worker_threads << " is out of bounds. [1, infty)"
               << "Defaulting to 1." << std::endl;
-    _num_graph_workers = 1;
+    _num_worker_threads = 1;
   }
   return *this;
 }
@@ -68,10 +68,15 @@ std::ostream& operator<< (std::ostream &out, const GraphConfiguration &conf) {
 #else
     out << " Sketching algorithm   = CameoSketch" << std::endl;
 #endif
+#ifndef NO_EAGER_DSU
+    out << " Using Eager DSU       = True" << std::endl;
+#else
+    out << " Using Eager DSU       = False" << std::endl;
+#endif
     out << " Guttering system      = " << gutter_system << std::endl;
     out << " Num sketches factor   = " << conf._sketches_factor << std::endl;
     out << " Batch size factor     = " << conf._batch_factor << std::endl;
-    out << " Graph worker count    = " << conf._num_graph_workers << std::endl;
+    out << " Worker thread count   = " << conf._num_worker_threads << std::endl;
     out << " On disk data location = " << conf._disk_dir << std::endl;
     out << " Backup sketch to RAM  = " << (conf._backup_in_mem? "ON" : "OFF") << std::endl;
     out << conf._gutter_conf;

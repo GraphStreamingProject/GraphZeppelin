@@ -47,7 +47,7 @@ Sketch::Sketch(node_id_t n, uint64_t seed, std::istream &binary_in, SerialType t
   // Read the serialized Sketch contents
   if (type == FULL) {
     binary_in.read((char *)bucket_memory, num_buckets * (sizeof(vec_t) + sizeof(vec_hash_t)));
-  } else if (type == PARTIAL) {
+  } else if (type == RANGE) {
     for (size_t i = 0; i < num_buckets; ++i) {
       bucket_a[i] = 0;
       bucket_c[i] = 0;
@@ -55,7 +55,7 @@ Sketch::Sketch(node_id_t n, uint64_t seed, std::istream &binary_in, SerialType t
 
     // TODO!
     exit(EXIT_FAILURE);
-  } else {
+  } else { // SPARSE
     for (size_t i = 0; i < num_buckets; ++i) {
       bucket_a[i] = 0;
       bucket_c[i] = 0;
@@ -186,7 +186,7 @@ void Sketch::serialize(std::ostream &binary_out, SerialType type) const {
   if (type == FULL) {
     binary_out.write((char*) bucket_memory, num_buckets * (sizeof(vec_t) + sizeof(vec_hash_t)));
   }
-  else if (type == PARTIAL) {
+  else if (type == RANGE) {
     // TODO!
     exit(EXIT_FAILURE);
   }

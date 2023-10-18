@@ -91,16 +91,18 @@ set(BUILD_SHARED_LIBS "${SAVED_BUILD_SHARED_LIBS}" CACHE BOOL "" FORCE)
 # AVAILABLE COMPILATION DEFINITIONS:
 # VERIFY_SAMPLES_F   Use a deterministic connected-components
 #                    algorithm to verify post-processing.
-# USE_EAGER_DSU      Use the eager DSU query optimization if
-#                    this flag is present.
+# NO_EAGER_DSU       Do not use the eager DSU query optimization
+#                    if this flag is present.
 # L0_SAMPLING        Run the CubeSketch l0 sampling algorithm
 #                    to ensure that we sample uniformly.
 #                    Otherwise, run a support finding algorithm.
+#
+# Example:
+# cmake -DCMAKE_CXX_FLAGS="-DL0_Sampling" ..
 
 add_library(GraphZeppelin
-  src/graph.cpp
+  src/cc_sketch_alg.cpp
   src/graph_configuration.cpp
-  src/worker_thread.cpp
   src/sketch.cpp
   src/util.cpp)
 add_dependencies(GraphZeppelin GutterTree)
@@ -111,9 +113,8 @@ target_link_options(GraphZeppelin PUBLIC -fopenmp)
 target_compile_definitions(GraphZeppelin PUBLIC XXH_INLINE_ALL)
 
 add_library(GraphZeppelinVerifyCC
-  src/graph.cpp
+  src/cc_sketch_alg.cpp
   src/graph_configuration.cpp
-  src/worker_thread.cpp
   src/sketch.cpp
   src/util.cpp
   test/util/file_graph_verifier.cpp

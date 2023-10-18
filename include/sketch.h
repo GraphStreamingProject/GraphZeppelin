@@ -12,7 +12,7 @@
 
 enum SerialType {
   FULL,
-  PARTIAL,
+  RANGE,
   SPARSE,
 };
 
@@ -54,6 +54,9 @@ class Sketch {
   Sketch(const Sketch& s);
 
   ~Sketch();
+
+  void lock() { mutex.lock(); }
+  void unlock() { mutex.unlock(); }
 
   /**
    * Update a sketch based on information about one of its indices.
@@ -109,7 +112,7 @@ class Sketch {
     sample_idx = 0;
   }
 
-  // return the size of the sketching datastructure in bytes
+  // return the size of the sketching datastructure in bytes (just the buckets, not the metadata)
   inline size_t sketch_bytes() { return num_buckets * (sizeof(vec_t) + sizeof(vec_hash_t)); }
 
   inline const char* get_bucket_memory_buffer() const { return (char*)bucket_memory; }

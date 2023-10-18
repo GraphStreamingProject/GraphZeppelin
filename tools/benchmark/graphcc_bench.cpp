@@ -10,9 +10,10 @@
 #include <vector>
 #include <sstream>
 
-#include "binary_graph_stream.h"
+#include "binary_file_stream.h"
 #include "bucket.h"
 #include "dsu.h"
+#include "sketch.h"
 
 constexpr uint64_t KB = 1024;
 constexpr uint64_t MB = KB * KB;
@@ -40,7 +41,7 @@ static void BM_FileIngest(benchmark::State& state) {
   // determine the number of edges in the graph
   uint64_t num_edges;
   {
-    BinaryGraphStream stream("/mnt/ssd2/binary_streams/kron_15_stream_binary", 1024);
+    BinaryFileStream stream("/mnt/ssd2/binary_streams/kron_15_stream_binary");
     num_edges = stream.edges();
   }
 
@@ -49,12 +50,19 @@ static void BM_FileIngest(benchmark::State& state) {
 
   // perform benchmark
   for (auto _ : state) {
-    BinaryGraphStream stream("/mnt/ssd2/binary_streams/kron_15_stream_binary", state.range(0));
+    BinaryFileStream stream("/mnt/ssd2/binary_streams/kron_15_stream_binary");
 
-    uint64_t m = stream.edges();
-    GraphUpdate upd;
-    while (m--) {
-      benchmark::DoNotOptimize(upd = stream.get_edge());
+    bool reading = true;
+    while (reading) {
+      GraphStreamUpdate upds[state.range(0)];
+      size_t num_updates = stream->get_update_buffer(upds, state.range(0));
+      for (size_t i = 0; i < num_updates; i++) {
+        GraphStreamUpdate &upd = upds[i];
+        if (upd.type == BREAKPOINT) {
+          reading = false;
+          break;
+        }
+      }
     }
   }
   state.counters["Ingestion_Rate"] =
@@ -67,7 +75,7 @@ static void BM_MTFileIngest(benchmark::State& state) {
   // determine the number of edges in the graph
   uint64_t num_edges;
   {
-    BinaryGraphStream_MT stream("/mnt/ssd2/binary_streams/kron_15_stream_binary", 1024);
+    BinaryFileStream stream("/mnt/ssd2/binary_streams/kron_15_stream_binary");
     num_edges = stream.edges();
   }
 
@@ -79,14 +87,21 @@ static void BM_MTFileIngest(benchmark::State& state) {
     std::vector<std::thread> threads;
     threads.reserve(state.range(0));
 
-    BinaryGraphStream_MT stream("/mnt/ssd2/binary_streams/kron_15_stream_binary", 32 * 1024);
+    BinaryFileStream stream("/mnt/ssd2/binary_streams/kron_15_stream_binary");
 
     auto task = [&]() {
-      MT_StreamReader reader(stream);
-      GraphUpdate upd;
-      do {
-        upd = reader.get_edge();
-      } while (upd.type != BREAKPOINT);
+      bool reading = true;
+      while (reading) {
+        GraphStreamUpdate upds[1024];
+        size_t num_updates = stream->get_update_buffer(upds, 1024);
+        for (size_t i = 0; i < num_updates; i++) {
+          GraphStreamUpdate &upd = upds[i];
+          if (upd.type == BREAKPOINT) {
+            reading = false;
+            break;
+          }
+        }
+      }
     };
 
     for (int i = 0; i < state.range(0); i++) threads.emplace_back(task);
