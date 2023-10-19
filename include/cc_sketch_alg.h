@@ -47,11 +47,11 @@ class CCSketchAlg {
 #endif
   node_id_t *size;
   node_id_t get_parent(node_id_t node);
-  
+
   // if dsu valid then we have a cached query answer. Additionally, we need to update the DSU in
   // pre_insert()
   bool dsu_valid = true;
-  
+
   // for accessing if the DSU is valid from threads that do not perform updates
   std::atomic<bool> shared_dsu_valid;
 
@@ -135,6 +135,11 @@ class CCSketchAlg {
    */
   void apply_update_batch(int thr_id, node_id_t src_vertex,
                           const std::vector<node_id_t> &dst_vertices);
+
+  /**
+   * 
+   */
+  void apply_raw_buckets_update(node_id_t src_vertex, vec_t *raw_buckets);
 
   /**
    * The function performs a direct update to the associated sketch.

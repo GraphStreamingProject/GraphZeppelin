@@ -333,7 +333,7 @@ void CCSketchAlg::backup_to_disk(const std::vector<node_id_t> &ids_to_backup) {
     exit(EXIT_FAILURE);
   }
   for (node_id_t idx : ids_to_backup) {
-    sketches[idx]->serialize(binary_out, FULL);
+    sketches[idx]->serialize(binary_out);
   }
   binary_out.close();
 }
@@ -349,7 +349,7 @@ void CCSketchAlg::restore_from_disk(const std::vector<node_id_t> &ids_to_restore
   }
   for (node_id_t idx : ids_to_restore) {
     delete this->sketches[idx];
-    this->sketches[idx] = new Sketch(num_nodes, seed, binary_in, FULL);
+    this->sketches[idx] = new Sketch(num_nodes, seed, binary_in);
   }
 }
 
@@ -466,7 +466,7 @@ void CCSketchAlg::write_binary(const std::string &filename) {
   binary_out.write((char *)&num_nodes, sizeof(num_nodes));
   binary_out.write((char *)&config._sketches_factor, sizeof(config._sketches_factor));
   for (node_id_t i = 0; i < num_nodes; ++i) {
-    sketches[i]->serialize(binary_out, FULL);
+    sketches[i]->serialize(binary_out);
   }
   binary_out.close();
 }

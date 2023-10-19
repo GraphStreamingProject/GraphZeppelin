@@ -22,6 +22,13 @@ enum SampleSketchRet {
   FAIL   // querying this sketch failed to produce a single non-zero value
 };
 
+#pragma pack(push,1)
+struct Bucket {
+  vec_t alpha;
+  vec_hash_t gamma;
+};
+#pragma pack(pop)
+
 /**
  * Sketch for graph processing, either CubeSketch or CameoSketch.
  * Sub-linear representation of a vector.
@@ -39,18 +46,14 @@ class Sketch {
   std::mutex mutex;       // lock the sketch for applying updates in multithreaded processing
 
   // bucket data
-  vec_t* bucket_memory;
-
-  // pointers to bucket data
-  vec_t* bucket_a;
-  vec_hash_t* bucket_c;
+  Bucket* buckets;
 
  public:
   // Constructors for the sketch object
   // 0 means that we should use the default value for samples = log_3/2(n) and cols = 2
   Sketch(node_id_t n, uint64_t seed, size_t num_samples = 0, size_t cols_per_sample = 0);
-  Sketch(node_id_t n, uint64_t seed, std::istream& binary_in, SerialType type,
-         size_t num_samples = 0, size_t cols_per_sample = 0);
+  Sketch(node_id_t n, uint64_t seed, std::istream& binary_in, size_t num_samples = 0,
+         size_t cols_per_sample = 0);
   Sketch(const Sketch& s);
 
   ~Sketch();
@@ -84,6 +87,14 @@ class Sketch {
   void merge(Sketch& other);
 
   /**
+   * Perform an in-place merge function without another Sketch and instead
+   * use a raw bucket memory.
+   * 
+   * We also allow for only a portion of the buckets to be merge at once
+   */
+  void merge_raw_bucket_buffer(vec_t *buckets, size_t start_sample, size_t num_samples);
+
+  /**
    * Zero out all the buckets of a sketch.
    */
   void zero_contents();
@@ -104,18 +115,17 @@ class Sketch {
   /**
    * Serialize the sketch to a binary output stream.
    * @param binary_out   the stream to write to.
-   * @param type         the type of serialization to perform.
    */
-  void serialize(std::ostream& binary_out, SerialType type) const;
+  void serialize(std::ostream& binary_out) const;
 
   void reset_sample_state() {
     sample_idx = 0;
   }
 
   // return the size of the sketching datastructure in bytes (just the buckets, not the metadata)
-  inline size_t sketch_bytes() { return num_buckets * (sizeof(vec_t) + sizeof(vec_hash_t)); }
+  inline size_t sketch_bytes() { return num_buckets * sizeof(Bucket); }
 
-  inline const char* get_bucket_memory_buffer() const { return (char*)bucket_memory; }
+  inline const char* get_bucket_memory_buffer() const { return (char*)buckets; }
   inline uint64_t get_seed() const { return seed; }
   inline size_t column_seed(size_t column_idx) const { return seed + column_idx * 5; }
   inline size_t checksum_seed() const { return seed; }

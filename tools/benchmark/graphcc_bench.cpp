@@ -280,26 +280,26 @@ static void BM_Sketch_Serialize(benchmark::State& state) {
 
   for (auto _ : state) {
     std::stringstream stream;
-    s1.serialize(stream, FULL);
+    s1.serialize(stream);
   }
 }
 BENCHMARK(BM_Sketch_Serialize)->RangeMultiplier(10)->Range(1e3, 1e6);
 
-static void BM_Sketch_Sparse_Serialize(benchmark::State& state) {
-  size_t n = state.range(0);
-  size_t upds = n / 100;
-  Sketch s1(n, seed);
+// static void BM_Sketch_Sparse_Serialize(benchmark::State& state) {
+//   size_t n = state.range(0);
+//   size_t upds = n / 100;
+//   Sketch s1(n, seed);
 
-  for (size_t i = 0; i < upds; i++) {
-    s1.update(static_cast<vec_t>(concat_pairing_fn(rand() % n, rand() % n)));
-  }
+//   for (size_t i = 0; i < upds; i++) {
+//     s1.update(static_cast<vec_t>(concat_pairing_fn(rand() % n, rand() % n)));
+//   }
 
-  for (auto _ : state) {
-    std::stringstream stream;
-    s1.serialize(stream, SPARSE);
-  }
-}
-BENCHMARK(BM_Sketch_Sparse_Serialize)->RangeMultiplier(10)->Range(1e3, 1e6);
+//   for (auto _ : state) {
+//     std::stringstream stream;
+//     s1.serialize(stream, SPARSE);
+//   }
+// }
+// BENCHMARK(BM_Sketch_Sparse_Serialize)->RangeMultiplier(10)->Range(1e3, 1e6);
 
 // Benchmark speed of DSU merges when the sequence of merges is adversarial
 // This means we avoid joining roots wherever possible

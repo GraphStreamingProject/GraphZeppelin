@@ -88,13 +88,11 @@ class GraphSketchDriver {
 
       while (true) {
         size_t updates = stream->get_update_buffer(update_array, update_array_size);
-        total_updates += updates;
         for (size_t i = 0; i < updates; i++) {
           GraphUpdate upd;
           upd.edge = update_array[i].edge;
           upd.type = static_cast<UpdateType>(update_array[i].type);
           if (upd.type == BREAKPOINT) {
-            --total_updates;
             return;
           }
           else {
@@ -131,6 +129,7 @@ class GraphSketchDriver {
 
   void batch_callback(int thr_id, node_id_t src_vertex,
                       const std::vector<node_id_t> &dst_vertices) {
+    total_updates += dst_vertices.size();
     sketching_alg->apply_update_batch(thr_id, src_vertex, dst_vertices);
   }
 

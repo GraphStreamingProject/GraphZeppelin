@@ -279,11 +279,11 @@ TEST(SketchTestSuite, TestSerialization) {
     sketch.update(test_vec.get_update(j));
   }
   auto file = std::fstream("./out_sketch.txt", std::ios::out | std::ios::binary | std::ios::trunc);
-  sketch.serialize(file, FULL);
+  sketch.serialize(file);
   file.close();
 
   auto in_file = std::fstream("./out_sketch.txt", std::ios::in | std::ios::binary);
-  Sketch reheated(vec_size, seed, in_file, FULL, 1, num_columns);
+  Sketch reheated(vec_size, seed, in_file, 1, num_columns);
 
   ASSERT_EQ(sketch, reheated);
 }
