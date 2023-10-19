@@ -121,16 +121,15 @@ void CCSketchAlg::pre_insert(GraphUpdate upd, int /* thr_id */) {
 void CCSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
                                      const std::vector<node_id_t> &dst_vertices) {
   if (update_locked) throw UpdateLockedException();
-  num_updates += dst_vertices.size();
   Sketch &delta_sketch = *delta_sketches[thr_id];
   delta_sketch.zero_contents();
 
-  for (const auto &dst : dst_vertices)
+  for (const auto &dst : dst_vertices) {
     delta_sketch.update(static_cast<vec_t>(concat_pairing_fn(src_vertex, dst)));
+  }
 
-  sketches[src_vertex]->lock();
+  std::unique_lock<std::mutex>(sketches[src_vertex]->mutex);
   sketches[src_vertex]->merge(delta_sketch);
-  sketches[src_vertex]->unlock();
 }
 
 // Note: for performance reasons route updates through the driver instead of calling this function

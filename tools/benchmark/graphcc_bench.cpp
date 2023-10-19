@@ -187,17 +187,15 @@ static void BM_index_hash(benchmark::State& state) {
 BENCHMARK(BM_index_hash);
 
 static void BM_update_bucket(benchmark::State& state) {
-  vec_t a = 0;
-  vec_hash_t c = 0;
+  Bucket bkt;
   vec_t input = 0x0EADBEEF;
   vec_hash_t checksum = 0x0EEDBEEF;
 
   for (auto _ : state) {
     ++input;
     ++checksum;
-    Bucket_Boruvka::update(a, c, input, checksum);
-    benchmark::DoNotOptimize(a);
-    benchmark::DoNotOptimize(c);
+    Bucket_Boruvka::update(bkt, input, checksum);
+    benchmark::DoNotOptimize(bkt);
   }
 }
 BENCHMARK(BM_update_bucket);

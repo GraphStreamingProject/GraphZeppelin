@@ -127,8 +127,8 @@ class GraphSketchDriver {
     flush_end = std::chrono::steady_clock::now();
   }
 
-  void batch_callback(int thr_id, node_id_t src_vertex,
-                      const std::vector<node_id_t> &dst_vertices) {
+  inline void batch_callback(int thr_id, node_id_t src_vertex,
+                             const std::vector<node_id_t> &dst_vertices) {
     total_updates += dst_vertices.size();
     sketching_alg->apply_update_batch(thr_id, src_vertex, dst_vertices);
   }

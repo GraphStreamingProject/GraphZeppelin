@@ -1,5 +1,4 @@
 #include "sketch.h"
-#include "bucket.h"
 
 #include <cstring>
 #include <iostream>
@@ -52,8 +51,7 @@ void Sketch::update(const vec_t update_idx) {
   vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update_idx, checksum_seed());
 
   // Update depth 0 bucket
-  Bucket_Boruvka::update(buckets[num_buckets - 1].alpha, buckets[num_buckets - 1].gamma, update_idx,
-                         checksum);
+  Bucket_Boruvka::updates(buckets[num_buckets - 1], update_idx, checksum);
 
   // Update higher depth buckets
   for (unsigned i = 0; i < num_columns; ++i) {
@@ -61,8 +59,7 @@ void Sketch::update(const vec_t update_idx) {
     likely_if(depth < num_guesses) {
       for (col_hash_t j = 0; j <= depth; ++j) {
         size_t bucket_id = i * num_guesses + j;
-        Bucket_Boruvka::update(buckets[bucket_id].alpha, buckets[bucket_id].gamma, update_idx,
-                               checksum);
+        Bucket_Boruvka::update(buckets[bucket_id], update_idx, checksum);
       }
     }
   }
@@ -72,16 +69,14 @@ void Sketch::update(const vec_t update_idx) {
   vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update_idx, checksum_seed());
 
   // Update depth 0 bucket
-  Bucket_Boruvka::update(buckets[num_buckets - 1].alpha, buckets[num_buckets - 1].gamma, update_idx,
-                         checksum);
+  Bucket_Boruvka::update(buckets[num_buckets - 1], update_idx, checksum);
 
   // Update higher depth buckets
   for (unsigned i = 0; i < num_columns; ++i) {
     col_hash_t depth = Bucket_Boruvka::get_index_depth(update_idx, column_seed(i), num_guesses);
     size_t bucket_id = i * num_guesses + depth;
     likely_if(depth < num_guesses) {
-      Bucket_Boruvka::update(buckets[bucket_id].alpha, buckets[bucket_id].gamma, update_idx,
-                               checksum);
+      Bucket_Boruvka::update(buckets[bucket_id], update_idx, checksum);
     }
   }
 }
@@ -105,15 +100,13 @@ std::pair<vec_t, SampleSketchRet> Sketch::sample() {
   if (buckets[num_buckets - 1].alpha == 0 && buckets[num_buckets - 1].gamma == 0)
     return {0, ZERO};  // the "first" bucket is deterministic so if all zero then no edges to return
 
-  if (Bucket_Boruvka::is_good(buckets[num_buckets - 1].alpha, buckets[num_buckets - 1].gamma,
-                              checksum_seed()))
+  if (Bucket_Boruvka::is_good(buckets[num_buckets - 1], checksum_seed()))
     return {buckets[num_buckets - 1].alpha, GOOD};
 
   for (unsigned i = 0; i < cols_per_sample; ++i) {
     for (unsigned j = 0; j < num_guesses; ++j) {
       unsigned bucket_id = (i + first_column) * num_guesses + j;
-      if (Bucket_Boruvka::is_good(buckets[bucket_id].alpha, buckets[bucket_id].gamma,
-                                  checksum_seed()))
+      if (Bucket_Boruvka::is_good(buckets[bucket_id], checksum_seed()))
         return {buckets[bucket_id].alpha, GOOD};
     }
   }
@@ -168,18 +161,20 @@ bool operator==(const Sketch &sketch1, const Sketch &sketch2) {
 }
 
 std::ostream &operator<<(std::ostream &os, const Sketch &sketch) {
-  vec_t a = sketch.buckets[sketch.num_buckets - 1].alpha;
-  vec_hash_t c = sketch.buckets[sketch.num_buckets - 1].gamma;
-  bool good = Bucket_Boruvka::is_good(a, c, sketch.checksum_seed());
+  Bucket bkt = sketch.buckets[sketch.num_buckets - 1];
+  bool good = Bucket_Boruvka::is_good(bkt, sketch.checksum_seed());
+  vec_t a = bkt.alpha;
+  vec_hash_t c = bkt.gamma;
 
   os << " a:" << a << " c:" << c << (good ? " good" : " bad") << std::endl;
 
   for (unsigned i = 0; i < sketch.num_columns; ++i) {
     for (unsigned j = 0; j < sketch.num_guesses; ++j) {
       unsigned bucket_id = i * sketch.num_guesses + j;
-      vec_t a = sketch.buckets[bucket_id].alpha;
-      vec_hash_t c = sketch.buckets[bucket_id].gamma;
-      bool good = Bucket_Boruvka::is_good(a, c, sketch.checksum_seed());
+      Bucket bkt = sketch.buckets[bucket_id];
+      vec_t a = bkt.alpha;
+      vec_hash_t c = bkt.gamma;
+      bool good = Bucket_Boruvka::is_good(bkt, sketch.checksum_seed());
 
       os << " a:" << a << " c:" << c << (good ? " good" : " bad") << std::endl;
     }

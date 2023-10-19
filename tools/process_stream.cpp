@@ -90,9 +90,9 @@ int main(int argc, char **argv) {
   std::thread querier(track_insertions, num_updates, &driver, ins_start);
 
   driver.process_stream_until(END_OF_STREAM);
-  driver.prep_query();
 
   auto cc_start = std::chrono::steady_clock::now();
+  driver.prep_query();
   auto CC_num = cc_alg.connected_components().size();
   std::chrono::duration<double> insert_time = driver.flush_end - ins_start;
   std::chrono::duration<double> cc_time = std::chrono::steady_clock::now() - cc_start;

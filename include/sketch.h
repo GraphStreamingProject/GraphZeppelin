@@ -9,6 +9,7 @@
 #include <mutex>
 
 #include "util.h"
+#include "bucket.h"
 
 enum SerialType {
   FULL,
@@ -21,13 +22,6 @@ enum SampleSketchRet {
   ZERO,  // querying this sketch returned that there are no non-zero values
   FAIL   // querying this sketch failed to produce a single non-zero value
 };
-
-#pragma pack(push,1)
-struct Bucket {
-  vec_t alpha;
-  vec_hash_t gamma;
-};
-#pragma pack(pop)
 
 /**
  * Sketch for graph processing, either CubeSketch or CameoSketch.
@@ -42,8 +36,7 @@ class Sketch {
   size_t num_guesses;      // number of buckets per column
   size_t num_buckets;      // number of total buckets (product of above 2)
 
-  size_t sample_idx = 0;  // number of samples performed so far
-  std::mutex mutex;       // lock the sketch for applying updates in multithreaded processing
+  size_t sample_idx = 0;   // number of samples performed so far
 
   // bucket data
   Bucket* buckets;
@@ -57,9 +50,6 @@ class Sketch {
   Sketch(const Sketch& s);
 
   ~Sketch();
-
-  void lock() { mutex.lock(); }
-  void unlock() { mutex.unlock(); }
 
   /**
    * Update a sketch based on information about one of its indices.
@@ -79,6 +69,8 @@ class Sketch {
    * @return   A pair with the result indices and a code indicating the type of result.
    */
   std::pair<std::unordered_set<vec_t>, SampleSketchRet> exhaustive_sample();
+
+  std::mutex mutex; // lock the sketch for applying updates in multithreaded processing
 
   /**
    * In-place merge function.
@@ -118,12 +110,12 @@ class Sketch {
    */
   void serialize(std::ostream& binary_out) const;
 
-  void reset_sample_state() {
+  inline void reset_sample_state() {
     sample_idx = 0;
   }
 
   // return the size of the sketching datastructure in bytes (just the buckets, not the metadata)
-  inline size_t sketch_bytes() { return num_buckets * sizeof(Bucket); }
+  inline size_t sketch_bytes() const { return num_buckets * sizeof(Bucket); }
 
   inline const char* get_bucket_memory_buffer() const { return (char*)buckets; }
   inline uint64_t get_seed() const { return seed; }
