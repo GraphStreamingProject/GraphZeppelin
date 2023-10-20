@@ -33,7 +33,8 @@ CCSketchAlg::CCSketchAlg(node_id_t num_nodes, CCAlgConfiguration config)
   std::cout << config << std::endl;  // print the graph configuration
 }
 
-CCSketchAlg::CCSketchAlg(std::string input_file, CCAlgConfiguration config) : config(config) {
+CCSketchAlg::CCSketchAlg(const std::string &input_file, CCAlgConfiguration config)
+    : config(config) {
   double sketches_factor;
   auto binary_in = std::fstream(input_file, std::ios::in | std::ios::binary);
   binary_in.read((char *)&seed, sizeof(seed));
@@ -47,7 +48,7 @@ CCSketchAlg::CCSketchAlg(std::string input_file, CCAlgConfiguration config) : co
   std::fill(size, size + num_nodes, 1);
   for (node_id_t i = 0; i < num_nodes; ++i) {
     representatives->insert(i);
-    sketches[i] = new Sketch(num_nodes, seed, binary_in, FULL);
+    sketches[i] = new Sketch(num_nodes, seed, binary_in);
     parent[i] = i;
   }
   binary_in.close();
@@ -76,7 +77,14 @@ CCSketchAlg::~CCSketchAlg() {
 }
 
 void CCSketchAlg::pre_insert(GraphUpdate upd, int /* thr_id */) {
-#ifndef NO_EAGER_DSU
+#ifdef NO_EAGER_DSU
+  (void)upd;
+  // reason we have an if statement: avoiding cache coherency issues
+  unlikely_if(dsu_valid) {
+    dsu_valid = false;
+    shared_dsu_valid = false;
+  }
+#else
   if (dsu_valid) {
     Edge edge = upd.edge;
     auto src = std::min(edge.src, edge.dst);
@@ -98,12 +106,6 @@ void CCSketchAlg::pre_insert(GraphUpdate upd, int /* thr_id */) {
         }
       }
     }
-  }
-#else
-  (void)upd;
-  unlikely_if(dsu_valid) {
-    dsu_valid = false;
-    shared_dsu_valid = false;
   }
 #endif  // NO_EAGER_DSU
 }

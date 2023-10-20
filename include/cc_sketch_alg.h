@@ -110,15 +110,15 @@ class CCSketchAlg {
   CCAlgConfiguration config;
 
  public:
-  CCSketchAlg(std::string input_file, CCAlgConfiguration config = CCAlgConfiguration());
   CCSketchAlg(node_id_t num_nodes, CCAlgConfiguration config = CCAlgConfiguration());
+  CCSketchAlg(const std::string &input_file, CCAlgConfiguration config = CCAlgConfiguration());
   ~CCSketchAlg();
 
   /**
    * Returns the number of buffered updates we would like to have in the update batches
    */
   size_t get_desired_updates_per_batch() { 
-    size_t num = sketches[0]->sketch_bytes() / sizeof(node_id_t);
+    size_t num = sketches[0]->bucket_array_bytes() / sizeof(node_id_t);
     num *= config._batch_factor;
     return num;
   }

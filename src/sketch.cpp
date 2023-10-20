@@ -30,7 +30,7 @@ Sketch::Sketch(node_id_t n, uint64_t seed, std::istream &binary_in, size_t _samp
   buckets = new Bucket[num_buckets];
 
   // Read the serialized Sketch contents
-  binary_in.read((char *)buckets, num_buckets * sizeof(Bucket));
+  binary_in.read((char *)buckets, bucket_array_bytes());
 }
 
 Sketch::Sketch(const Sketch &s) : seed(s.seed) {
@@ -41,7 +41,7 @@ Sketch::Sketch(const Sketch &s) : seed(s.seed) {
   num_buckets = s.num_buckets;
   buckets = new Bucket[num_buckets];
 
-  std::memcpy(buckets, s.buckets, num_buckets * sizeof(Bucket));
+  std::memcpy(buckets, s.buckets, bucket_array_bytes());
 }
 
 Sketch::~Sketch() { delete[] buckets; }
@@ -87,6 +87,7 @@ void Sketch::zero_contents() {
     buckets[i].alpha = 0;
     buckets[i].gamma = 0;
   }
+  reset_sample_state();
 }
 
 std::pair<vec_t, SampleSketchRet> Sketch::sample() {
@@ -94,11 +95,11 @@ std::pair<vec_t, SampleSketchRet> Sketch::sample() {
     throw OutOfQueriesException();
   }
 
-  size_t idx = sample_idx++;
-  size_t first_column = idx * cols_per_sample;
-
   if (buckets[num_buckets - 1].alpha == 0 && buckets[num_buckets - 1].gamma == 0)
     return {0, ZERO};  // the "first" bucket is deterministic so if all zero then no edges to return
+
+  size_t idx = sample_idx++;
+  size_t first_column = idx * cols_per_sample;
 
   if (Bucket_Boruvka::is_good(buckets[num_buckets - 1], checksum_seed()))
     return {buckets[num_buckets - 1].alpha, GOOD};
@@ -119,12 +120,6 @@ std::pair<std::unordered_set<vec_t>, SampleSketchRet> Sketch::exhaustive_sample(
 }
 
 void Sketch::merge(Sketch &other) {
-  if (other.buckets[num_buckets-1].alpha == 0 && other.buckets[num_buckets-1].gamma == 0) {
-    // other sketch is empty so just return
-    return;
-  }
-
-  // perform the merge
   for (size_t i = 0; i < num_buckets; ++i) {
     buckets[i].alpha ^= other.buckets[i].alpha;
     buckets[i].gamma ^= other.buckets[i].gamma;
@@ -137,22 +132,16 @@ void Sketch::merge_raw_bucket_buffer(vec_t *buckets, size_t start_sample, size_t
 }
 
 void Sketch::serialize(std::ostream &binary_out) const {
-  binary_out.write((char*) buckets, num_buckets * sizeof(Bucket));
+  binary_out.write((char*) buckets, bucket_array_bytes());
 }
 
 bool operator==(const Sketch &sketch1, const Sketch &sketch2) {
-  if (sketch1.num_buckets != sketch2.num_buckets || sketch1.seed != sketch2.seed) {
-    std::cout << "sketch1 = " << sketch1 << std::endl;
-    std::cout << "sketch2 = " << sketch2 << std::endl;
+  if (sketch1.num_buckets != sketch2.num_buckets || sketch1.seed != sketch2.seed)
     return false;
-  }
 
   for (size_t i = 0; i < sketch1.num_buckets; ++i) {
     if (sketch1.buckets[i].alpha != sketch2.buckets[i].alpha ||
         sketch1.buckets[i].gamma != sketch2.buckets[i].gamma) {
-      std::cout << i << std::endl;
-      std::cout << "sketch1 = " << sketch1 << std::endl;
-      std::cout << "sketch2 = " << sketch2 << std::endl;
       return false;
     }
   }

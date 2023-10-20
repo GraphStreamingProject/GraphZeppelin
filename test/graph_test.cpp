@@ -60,11 +60,11 @@ TEST(GraphTest, TestSupernodeRestoreAfterCCFailure) {
         std::make_unique<FileGraphVerifier>(1024, curr_dir + "/res/multiples_graph_1024.txt"));
     cc_alg.should_fail_CC();
 
-    // flush to make sure copy sketches is consistent with graph sketches
+    // process the stream
     GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, DriverConfiguration());
     driver.process_stream_until(END_OF_STREAM);
 
-    // manually ensure we have flushed
+    // manually ensure we have flushed (do not allow DSU to intervene)
     driver.gts->force_flush();
     driver.worker_threads->flush_workers();
 

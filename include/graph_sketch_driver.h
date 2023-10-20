@@ -38,7 +38,6 @@ class GraphSketchDriver {
 
   std::atomic<size_t> total_updates;
   FRIEND_TEST(GraphTest, TestSupernodeRestoreAfterCCFailure);
-
  public:
   GraphSketchDriver(Alg *sketching_alg, GraphStream *stream, DriverConfiguration config,
                     size_t num_inserters = 1)

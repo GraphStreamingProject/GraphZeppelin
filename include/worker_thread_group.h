@@ -163,6 +163,7 @@ class WorkerThreadGroup {
     // unpause the WorkerThreads
     for (size_t i = 0; i < num_workers; i++) workers[i]->unpause();
 
+    gts->set_non_block(false); // make WorkerThreads wait on the queue
     flush_condition.notify_all();
   }
 };

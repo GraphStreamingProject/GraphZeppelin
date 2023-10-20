@@ -5,9 +5,11 @@
 #include "testing_vector.h"
 
 static const int num_columns = 7;
-TEST(SketchTestSuite, TestExceptions) {
+TEST(SketchTestSuite, TestSampleResults) {
   Sketch sketch1(10, rand(), 1, num_columns);
   ASSERT_EQ(sketch1.sample().second, ZERO);
+  sketch1.update(1);
+  ASSERT_EQ(sketch1.sample().second, GOOD);
   ASSERT_THROW(sketch1.sample(), OutOfQueriesException);
 
   /**

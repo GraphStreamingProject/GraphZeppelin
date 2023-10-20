@@ -11,11 +11,11 @@
 #include "util.h"
 #include "bucket.h"
 
-enum SerialType {
-  FULL,
-  RANGE,
-  SPARSE,
-};
+// enum SerialType {
+//   FULL,
+//   RANGE,
+//   SPARSE,
+// };
 
 enum SampleSketchRet {
   GOOD,  // querying this sketch returned a single non-zero value
@@ -115,7 +115,7 @@ class Sketch {
   }
 
   // return the size of the sketching datastructure in bytes (just the buckets, not the metadata)
-  inline size_t sketch_bytes() const { return num_buckets * sizeof(Bucket); }
+  inline size_t bucket_array_bytes() const { return num_buckets * sizeof(Bucket); }
 
   inline const char* get_bucket_memory_buffer() const { return (char*)buckets; }
   inline uint64_t get_seed() const { return seed; }
