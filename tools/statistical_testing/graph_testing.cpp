@@ -5,14 +5,14 @@
 #include "graph_gen.h"
 #include "file_graph_verifier.h"
 
-static GraphConfiguration config;
+static DriverConfiguration driver_config;
 
 static inline int do_run() {
     AsciiFileStream stream{"./sample.txt"};
     node_id_t n = stream.vertices();
     CCSketchAlg cc_alg{n};
     cc_alg.set_verifier(std::make_unique<FileGraphVerifier>(n, "./cumul_sample.txt"));
-    GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, config);
+    GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, driver_config);
     driver.process_stream_until(END_OF_STREAM);
     driver.prep_query();
     try {
@@ -52,8 +52,8 @@ int main() {
         bool use_tree = (bool) i;
 
         // setup configuration file per buffering
-        config.gutter_sys(use_tree ? GUTTERTREE : STANDALONE);
-        config.worker_threads(4);
+        driver_config.gutter_sys(use_tree ? GUTTERTREE : STANDALONE);
+        driver_config.worker_threads(4);
         std::string prefix = use_tree? "tree" : "gutters";
         std::string test_name;
 

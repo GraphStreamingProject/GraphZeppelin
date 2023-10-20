@@ -28,18 +28,18 @@ INSTANTIATE_TEST_SUITE_P(GraphTestSuite, GraphTest,
                          testing::Values(GUTTERTREE, STANDALONE, CACHETREE));
 
 TEST_P(GraphTest, SmallGraphConnectivity) {
-  auto config = GraphConfiguration().gutter_sys(GetParam());
+  auto driver_config = DriverConfiguration().gutter_sys(GetParam());
   const std::string fname = __FILE__;
   size_t pos = fname.find_last_of("\\/");
   const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
   AsciiFileStream stream{curr_dir + "/res/multiples_graph_1024.txt", false};
   node_id_t num_nodes = stream.vertices();
 
-  CCSketchAlg cc_alg{num_nodes, config};
+  CCSketchAlg cc_alg{num_nodes};
   cc_alg.set_verifier(
       std::make_unique<FileGraphVerifier>(1024, curr_dir + "/res/multiples_graph_1024.txt"));
 
-  GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, config);
+  GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, driver_config);
   driver.process_stream_until(END_OF_STREAM);
   driver.prep_query();
   ASSERT_EQ(78, cc_alg.connected_components().size());
@@ -48,20 +48,20 @@ TEST_P(GraphTest, SmallGraphConnectivity) {
 TEST(GraphTest, TestSupernodeRestoreAfterCCFailure) {
   for (int s = 0; s < 2; s++) {
     std::cerr << "Running iteration..." << std::endl;
-    auto config = GraphConfiguration().backup_in_mem(s == 0);
+    auto cc_config = CCAlgConfiguration().backup_in_mem(s == 0);
     const std::string fname = __FILE__;
     size_t pos = fname.find_last_of("\\/");
     const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
     AsciiFileStream stream{curr_dir + "/res/multiples_graph_1024.txt", false};
     node_id_t num_nodes = stream.vertices();
     
-    CCSketchAlg cc_alg{num_nodes, config};
+    CCSketchAlg cc_alg{num_nodes, cc_config};
     cc_alg.set_verifier(
         std::make_unique<FileGraphVerifier>(1024, curr_dir + "/res/multiples_graph_1024.txt"));
     cc_alg.should_fail_CC();
 
     // flush to make sure copy sketches is consistent with graph sketches
-    GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, config);
+    GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, DriverConfiguration());
     driver.process_stream_until(END_OF_STREAM);
 
     // manually ensure we have flushed
@@ -82,17 +82,17 @@ TEST(GraphTest, TestSupernodeRestoreAfterCCFailure) {
 }
 
 TEST_P(GraphTest, TestCorrectnessOnSmallRandomGraphs) {
-  auto config = GraphConfiguration().gutter_sys(GetParam());
+  auto driver_config = DriverConfiguration().gutter_sys(GetParam());
   int num_trials = 5;
   while (num_trials--) {
     generate_stream();
     AsciiFileStream stream{"./sample.txt"};
     node_id_t num_nodes = stream.vertices();
 
-    CCSketchAlg cc_alg{num_nodes, config};
+    CCSketchAlg cc_alg{num_nodes};
     cc_alg.set_verifier(std::make_unique<FileGraphVerifier>(1024, "./cumul_sample.txt"));
 
-    GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, config);
+    GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, driver_config);
     driver.process_stream_until(END_OF_STREAM);
     driver.prep_query();
 
@@ -101,17 +101,17 @@ TEST_P(GraphTest, TestCorrectnessOnSmallRandomGraphs) {
 }
 
 TEST_P(GraphTest, TestCorrectnessOnSmallSparseGraphs) {
-  auto config = GraphConfiguration().gutter_sys(GetParam());
+  auto driver_config = DriverConfiguration().gutter_sys(GetParam());
   int num_trials = 5;
   while (num_trials--) {
     generate_stream({1024, 0.002, 0.5, 0, "./sample.txt", "./cumul_sample.txt"});
     AsciiFileStream stream{"./sample.txt"};
     node_id_t num_nodes = stream.vertices();
 
-    CCSketchAlg cc_alg{num_nodes, config};
+    CCSketchAlg cc_alg{num_nodes};
     cc_alg.set_verifier(std::make_unique<FileGraphVerifier>(1024, "./cumul_sample.txt"));
 
-    GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, config);
+    GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, driver_config);
     driver.process_stream_until(END_OF_STREAM);
     driver.prep_query();
 
@@ -120,7 +120,7 @@ TEST_P(GraphTest, TestCorrectnessOnSmallSparseGraphs) {
 }
 
 TEST_P(GraphTest, TestCorrectnessOfReheating) {
-  auto config = GraphConfiguration().gutter_sys(GetParam());
+  auto driver_config = DriverConfiguration().gutter_sys(GetParam());
   int num_trials = 5;
   while (num_trials--) {
     generate_stream({1024, 0.002, 0.5, 0, "./sample.txt", "./cumul_sample.txt"});
@@ -128,10 +128,10 @@ TEST_P(GraphTest, TestCorrectnessOfReheating) {
     AsciiFileStream stream{"./sample.txt"};
     node_id_t num_nodes = stream.vertices();
 
-    CCSketchAlg cc_alg{num_nodes, config};
+    CCSketchAlg cc_alg{num_nodes};
     cc_alg.set_verifier(std::make_unique<FileGraphVerifier>(1024, "./cumul_sample.txt"));
 
-    GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, config);
+    GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, driver_config);
     driver.process_stream_until(END_OF_STREAM);
     driver.prep_query();
 
@@ -156,17 +156,17 @@ TEST_P(GraphTest, TestCorrectnessOfReheating) {
 
 // Test the multithreaded system by using multiple worker threads
 TEST_P(GraphTest, MultipleWorkers) {
-  auto config = GraphConfiguration().gutter_sys(GetParam()).worker_threads(8);
+  auto driver_config = DriverConfiguration().gutter_sys(GetParam()).worker_threads(8);
   int num_trials = 5;
   while (num_trials--) {
     generate_stream({1024, 0.002, 0.5, 0, "./sample.txt", "./cumul_sample.txt"});
     AsciiFileStream stream{"./sample.txt"};
     node_id_t num_nodes = stream.vertices();
 
-    CCSketchAlg cc_alg{num_nodes, config};
+    CCSketchAlg cc_alg{num_nodes};
     cc_alg.set_verifier(std::make_unique<FileGraphVerifier>(1024, "./cumul_sample.txt"));
 
-    GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, config);
+    GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, driver_config);
     driver.process_stream_until(END_OF_STREAM);
     driver.prep_query();
     cc_alg.connected_components();
@@ -174,18 +174,18 @@ TEST_P(GraphTest, MultipleWorkers) {
 }
 
 TEST_P(GraphTest, TestPointQuery) {
-  auto config = GraphConfiguration().gutter_sys(GetParam());
+  auto driver_config = DriverConfiguration().gutter_sys(GetParam());
   const std::string fname = __FILE__;
   size_t pos = fname.find_last_of("\\/");
   const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
   AsciiFileStream stream{curr_dir + "/res/multiples_graph_1024.txt", false};
   node_id_t num_nodes = stream.vertices();
 
-  CCSketchAlg cc_alg{num_nodes, config};
+  CCSketchAlg cc_alg{num_nodes};
   cc_alg.set_verifier(
       std::make_unique<FileGraphVerifier>(1024, curr_dir + "/res/multiples_graph_1024.txt"));
 
-  GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, config);
+  GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, driver_config);
   driver.process_stream_until(END_OF_STREAM);
   driver.prep_query();
 
@@ -206,7 +206,8 @@ TEST_P(GraphTest, TestPointQuery) {
 }
 
 TEST(GraphTest, TestQueryDuringStream) {
-  auto config = GraphConfiguration().gutter_sys(STANDALONE).backup_in_mem(false);
+  auto driver_config = DriverConfiguration().gutter_sys(STANDALONE);
+  auto cc_config = CCAlgConfiguration().backup_in_mem(false);
   auto test = [&]() {
     generate_stream({1024, 0.002, 0.5, 0, "./sample.txt", "./cumul_sample.txt"});
     std::ifstream in{"./sample.txt"};
@@ -215,8 +216,8 @@ TEST(GraphTest, TestQueryDuringStream) {
     edge_id_t num_edges = stream.edges();
     edge_id_t tenth     = num_edges / 10;
 
-    CCSketchAlg cc_alg{num_nodes, config};
-    GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, config);
+    CCSketchAlg cc_alg{num_nodes, cc_config};
+    GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, driver_config);
     MatGraphVerifier verify(num_nodes);
 
 
@@ -251,7 +252,7 @@ TEST(GraphTest, TestQueryDuringStream) {
     cc_alg.connected_components();
   };
   test();
-  config.backup_in_mem(true);
+  cc_config.backup_in_mem(true);
   test();
 }
 
@@ -305,7 +306,7 @@ TEST(GraphTest, EagerDSUTest) {
 
 TEST(GraphTest, MTStreamWithMultipleQueries) {
   for (int t = 1; t <= 3; t++) {
-    auto config = GraphConfiguration().gutter_sys(STANDALONE);
+    auto driver_config = DriverConfiguration().gutter_sys(STANDALONE);
 
     const std::string fname = __FILE__;
     size_t pos = fname.find_last_of("\\/");
@@ -318,8 +319,8 @@ TEST(GraphTest, MTStreamWithMultipleQueries) {
 
     std::cerr << num_nodes << " " << num_edges << std::endl;
 
-    CCSketchAlg cc_alg{num_nodes, config};
-    GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, config, 4);
+    CCSketchAlg cc_alg{num_nodes};
+    GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, driver_config, 4);
     MatGraphVerifier verify(num_nodes);
 
     size_t num_queries = 10;

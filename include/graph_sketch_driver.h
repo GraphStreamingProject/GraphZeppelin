@@ -3,7 +3,7 @@
 #include <gutter_tree.h>
 #include <standalone_gutters.h>
 
-#include "graph_configuration.h"
+#include "driver_configuration.h"
 #include "graph_stream.h"
 #include "worker_thread_group.h"
 
@@ -13,13 +13,16 @@
  * templatized by the algorithm.
  * 
  * Algorithms need to implement the following functions to be managed by the driver
- *    1) get_desired_updates_per_batch()
  * 
- *    2) pre_insert(upd, thr_id)
+ *    1) allocate_worker_memory()
+ * 
+ *    2) get_desired_updates_per_batch()
+ * 
+ *    3) pre_insert(upd, thr_id)
  *    
- *    3) apply_update_batch(thr_id, src_vertex, dst_vertices)
+ *    4) apply_update_batch(thr_id, src_vertex, dst_vertices)
  *    
- *    4) has_cached_query() 
+ *    5) has_cached_query() 
  */
 template <class Alg>
 class GraphSketchDriver {
@@ -37,10 +40,10 @@ class GraphSketchDriver {
   FRIEND_TEST(GraphTest, TestSupernodeRestoreAfterCCFailure);
 
  public:
-  GraphSketchDriver(Alg *sketching_alg, GraphStream *stream, GraphConfiguration config,
+  GraphSketchDriver(Alg *sketching_alg, GraphStream *stream, DriverConfiguration config,
                     size_t num_inserters = 1)
       : sketching_alg(sketching_alg), stream(stream), num_stream_threads(num_inserters) {
-    std::cerr << "Creating GraphSketchDriver!" << std::endl;
+    sketching_alg->allocate_worker_memory(config.get_worker_threads());
     // set the leaf size of the guttering system appropriately
     if (config.gutter_conf().get_gutter_bytes() == GutteringConfiguration::uninit_param) {
       config.gutter_conf().gutter_bytes(sketching_alg->get_desired_updates_per_batch() *
@@ -67,7 +70,7 @@ class GraphSketchDriver {
     }
 
     total_updates = 0;
-    std::cout << config << std::endl;  // print the graph configuration
+    std::cout << config << std::endl << std::endl;
   }
 
   ~GraphSketchDriver() {
@@ -110,9 +113,6 @@ class GraphSketchDriver {
 
     // wait for threads to finish
     for (size_t i = 0; i < num_stream_threads; i++) threads[i].join();
-
-    std::cerr << "Exiting because of breakpoint after " << total_updates << " updates" << std::endl;
-    std::cerr << "Original target was: " << break_edge_idx << std::endl;
   }
 
   void prep_query() {

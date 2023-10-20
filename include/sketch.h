@@ -33,7 +33,7 @@ class Sketch {
   size_t num_samples;      // number of samples we can perform
   size_t cols_per_sample;  // number of columns to use on each sample
   size_t num_columns;      // Total number of columns. (product of above 2)
-  size_t num_guesses;      // number of buckets per column
+  size_t bkt_per_col;      // number of buckets per column
   size_t num_buckets;      // number of total buckets (product of above 2)
 
   size_t sample_idx = 0;   // number of samples performed so far
@@ -124,8 +124,8 @@ class Sketch {
   inline size_t get_columns() const { return num_columns; }
 
   // max number of non-zeroes in vector is n/2*n/2=n^2/4
-  static size_t guess_gen(size_t n) { return 2 * log2(n) - 2; }
-  static size_t samples_gen(size_t n) { return ceil(log2(n) / num_samples_div); }
+  static size_t calc_bkt_per_col(size_t n) { return ceil(2 * log2(n) - 2); }
+  static size_t calc_cc_samples(size_t n) { return ceil(log2(n) / num_samples_div); }
 
 #ifdef L0_SAMPLING
   static constexpr size_t default_cols_per_sample = 7;

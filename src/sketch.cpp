@@ -6,11 +6,11 @@
 #include <cassert>
 
 Sketch::Sketch(node_id_t n, uint64_t seed, size_t _samples, size_t _cols) : seed(seed) {
-  num_samples = _samples == 0 ? samples_gen(n) : _samples;
+  num_samples = _samples == 0 ? calc_cc_samples(n) : _samples;
   cols_per_sample = _cols == 0 ? default_cols_per_sample : _cols;
   num_columns = num_samples * cols_per_sample;
-  num_guesses = guess_gen(n);
-  num_buckets = num_columns * num_guesses + 1; // plus 1 for deterministic bucket
+  bkt_per_col = calc_bkt_per_col(n);
+  num_buckets = num_columns * bkt_per_col + 1; // plus 1 for deterministic bucket
   buckets = new Bucket[num_buckets];
 
   // initialize bucket values
@@ -22,11 +22,11 @@ Sketch::Sketch(node_id_t n, uint64_t seed, size_t _samples, size_t _cols) : seed
 
 Sketch::Sketch(node_id_t n, uint64_t seed, std::istream &binary_in, size_t _samples, size_t _cols)
     : seed(seed) {
-  num_samples = _samples == 0 ? samples_gen(n) : _samples;
+  num_samples = _samples == 0 ? calc_cc_samples(n) : _samples;
   cols_per_sample = _cols == 0 ? default_cols_per_sample : _cols;
   num_columns = num_samples * cols_per_sample;
-  num_guesses = guess_gen(n);
-  num_buckets = num_columns * num_guesses + 1; // plus 1 for deterministic bucket
+  bkt_per_col = calc_bkt_per_col(n);
+  num_buckets = num_columns * bkt_per_col + 1; // plus 1 for deterministic bucket
   buckets = new Bucket[num_buckets];
 
   // Read the serialized Sketch contents
@@ -37,7 +37,7 @@ Sketch::Sketch(const Sketch &s) : seed(s.seed) {
   num_samples = s.num_samples;
   cols_per_sample = s.cols_per_sample;
   num_columns = s.num_columns;
-  num_guesses = s.num_guesses;
+  bkt_per_col = s.bkt_per_col;
   num_buckets = s.num_buckets;
   buckets = new Bucket[num_buckets];
 
@@ -51,14 +51,14 @@ void Sketch::update(const vec_t update_idx) {
   vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update_idx, checksum_seed());
 
   // Update depth 0 bucket
-  Bucket_Boruvka::updates(buckets[num_buckets - 1], update_idx, checksum);
+  Bucket_Boruvka::update(buckets[num_buckets - 1], update_idx, checksum);
 
   // Update higher depth buckets
   for (unsigned i = 0; i < num_columns; ++i) {
-    col_hash_t depth = Bucket_Boruvka::get_index_depth(update_idx, column_seed(i), num_guesses);
-    likely_if(depth < num_guesses) {
+    col_hash_t depth = Bucket_Boruvka::get_index_depth(update_idx, column_seed(i), bkt_per_col);
+    likely_if(depth < bkt_per_col) {
       for (col_hash_t j = 0; j <= depth; ++j) {
-        size_t bucket_id = i * num_guesses + j;
+        size_t bucket_id = i * bkt_per_col + j;
         Bucket_Boruvka::update(buckets[bucket_id], update_idx, checksum);
       }
     }
@@ -73,9 +73,9 @@ void Sketch::update(const vec_t update_idx) {
 
   // Update higher depth buckets
   for (unsigned i = 0; i < num_columns; ++i) {
-    col_hash_t depth = Bucket_Boruvka::get_index_depth(update_idx, column_seed(i), num_guesses);
-    size_t bucket_id = i * num_guesses + depth;
-    likely_if(depth < num_guesses) {
+    col_hash_t depth = Bucket_Boruvka::get_index_depth(update_idx, column_seed(i), bkt_per_col);
+    size_t bucket_id = i * bkt_per_col + depth;
+    likely_if(depth < bkt_per_col) {
       Bucket_Boruvka::update(buckets[bucket_id], update_idx, checksum);
     }
   }
@@ -104,8 +104,8 @@ std::pair<vec_t, SampleSketchRet> Sketch::sample() {
     return {buckets[num_buckets - 1].alpha, GOOD};
 
   for (unsigned i = 0; i < cols_per_sample; ++i) {
-    for (unsigned j = 0; j < num_guesses; ++j) {
-      unsigned bucket_id = (i + first_column) * num_guesses + j;
+    for (unsigned j = 0; j < bkt_per_col; ++j) {
+      unsigned bucket_id = (i + first_column) * bkt_per_col + j;
       if (Bucket_Boruvka::is_good(buckets[bucket_id], checksum_seed()))
         return {buckets[bucket_id].alpha, GOOD};
     }
@@ -169,8 +169,8 @@ std::ostream &operator<<(std::ostream &os, const Sketch &sketch) {
   os << " a:" << a << " c:" << c << (good ? " good" : " bad") << std::endl;
 
   for (unsigned i = 0; i < sketch.num_columns; ++i) {
-    for (unsigned j = 0; j < sketch.num_guesses; ++j) {
-      unsigned bucket_id = i * sketch.num_guesses + j;
+    for (unsigned j = 0; j < sketch.bkt_per_col; ++j) {
+      unsigned bucket_id = i * sketch.bkt_per_col + j;
       Bucket bkt = sketch.buckets[bucket_id];
       vec_t a = bkt.alpha;
       vec_hash_t c = bkt.gamma;

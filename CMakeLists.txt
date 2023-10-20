@@ -102,7 +102,8 @@ set(BUILD_SHARED_LIBS "${SAVED_BUILD_SHARED_LIBS}" CACHE BOOL "" FORCE)
 
 add_library(GraphZeppelin
   src/cc_sketch_alg.cpp
-  src/graph_configuration.cpp
+  src/driver_configuration.cpp
+  src/cc_alg_configuration.cpp
   src/sketch.cpp
   src/util.cpp)
 add_dependencies(GraphZeppelin GutterTree)
@@ -114,7 +115,8 @@ target_compile_definitions(GraphZeppelin PUBLIC XXH_INLINE_ALL)
 
 add_library(GraphZeppelinVerifyCC
   src/cc_sketch_alg.cpp
-  src/graph_configuration.cpp
+  src/driver_configuration.cpp
+  src/cc_alg_configuration.cpp
   src/sketch.cpp
   src/util.cpp
   test/util/file_graph_verifier.cpp

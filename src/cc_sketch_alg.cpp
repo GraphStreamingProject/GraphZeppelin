@@ -6,8 +6,8 @@
 #include <map>
 #include <random>
 
-CCSketchAlg::CCSketchAlg(node_id_t num_nodes, GraphConfiguration config)
-    : num_nodes(num_nodes), config(config), num_updates(0) {
+CCSketchAlg::CCSketchAlg(node_id_t num_nodes, CCAlgConfiguration config)
+    : num_nodes(num_nodes), config(config) {
   representatives = new std::set<node_id_t>();
   sketches = new Sketch *[num_nodes];
   parent = new std::remove_reference<decltype(*parent)>::type[num_nodes];
@@ -24,24 +24,16 @@ CCSketchAlg::CCSketchAlg(node_id_t num_nodes, GraphConfiguration config)
     sketches[i] = new Sketch(num_nodes, seed);
     parent[i] = i;
   }
-
-  delta_sketches = new Sketch *[config._num_worker_threads];
-  for (size_t i = 0; i < config._num_worker_threads; i++)
-    delta_sketches[i] = new Sketch(num_nodes, seed);
-
   backup_file = config._disk_dir + "supernode_backup.data";
 
   spanning_forest = new std::unordered_set<node_id_t>[num_nodes];
   spanning_forest_mtx = new std::mutex[num_nodes];
   dsu_valid = true;
   shared_dsu_valid = true;
-  num_updates_per_batch = delta_sketches[0]->sketch_bytes() / sizeof(node_id_t);
-  num_updates_per_batch *= config._batch_factor;
   std::cout << config << std::endl;  // print the graph configuration
 }
 
-CCSketchAlg::CCSketchAlg(std::string input_file, GraphConfiguration config)
-    : config(config), num_updates(0) {
+CCSketchAlg::CCSketchAlg(std::string input_file, CCAlgConfiguration config) : config(config) {
   double sketches_factor;
   auto binary_in = std::fstream(input_file, std::ios::in | std::ios::binary);
   binary_in.read((char *)&seed, sizeof(seed));
@@ -59,25 +51,23 @@ CCSketchAlg::CCSketchAlg(std::string input_file, GraphConfiguration config)
     parent[i] = i;
   }
   binary_in.close();
-
   backup_file = config._disk_dir + "supernode_backup.data";
-  delta_sketches = new Sketch *[config._num_worker_threads];
-  for (size_t i = 0; i < config._num_worker_threads; i++)
-    delta_sketches[i] = new Sketch(num_nodes, seed);
 
   spanning_forest = new std::unordered_set<node_id_t>[num_nodes];
   spanning_forest_mtx = new std::mutex[num_nodes];
   dsu_valid = false;
   shared_dsu_valid = false;
-  num_updates_per_batch = delta_sketches[0]->sketch_bytes() / sizeof(node_id_t);
-  num_updates_per_batch *= config._batch_factor;
   std::cout << config << std::endl;  // print the graph configuration
 }
 
 CCSketchAlg::~CCSketchAlg() {
-  for (unsigned i = 0; i < num_nodes; ++i)
-    free(sketches[i]);  // free because memory is malloc'd in make_supernode
+  for (size_t i = 0; i < num_nodes; ++i) delete sketches[i];
   delete[] sketches;
+  if (delta_sketches != nullptr) {
+    for (size_t i = 0; i < num_delta_sketches; i++) delete delta_sketches[i];
+    delete[] delta_sketches;
+  }
+
   delete[] parent;
   delete[] size;
   delete representatives;
@@ -250,7 +240,6 @@ void CCSketchAlg::merge_supernodes(Sketch **copy_sketches, std::vector<node_id_t
 }
 
 std::vector<std::set<node_id_t>> CCSketchAlg::boruvka_emulation() {
-  printf("Total number of updates to sketches before CC %lu\n", num_updates.load());
   update_locked = true;
 
   cc_alg_start = std::chrono::steady_clock::now();

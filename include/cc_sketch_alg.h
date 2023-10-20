@@ -11,7 +11,7 @@
 #include <vector>
 #include <memory>
 
-#include "graph_configuration.h"
+#include "cc_alg_configuration.h"
 #include "sketch.h"
 
 #ifdef VERIFY_SAMPLES_F
@@ -59,10 +59,8 @@ class CCSketchAlg {
   std::mutex *spanning_forest_mtx;
 
   // threads use these sketches to apply delta updates to our sketches
-  Sketch **delta_sketches;
-
-  // the number of updates we'd like in each update batch
-  size_t num_updates_per_batch;
+  Sketch **delta_sketches = nullptr;
+  size_t num_delta_sketches;
 
   void backup_to_disk(const std::vector<node_id_t> &ids_to_backup);
   void restore_from_disk(const std::vector<node_id_t> &ids_to_restore);
@@ -109,23 +107,37 @@ class CCSketchAlg {
   FRIEND_TEST(GraphTestSuite, TestCorrectnessOfReheating);
   FRIEND_TEST(GraphTest, TestSupernodeRestoreAfterCCFailure);
 
-  GraphConfiguration config;
+  CCAlgConfiguration config;
 
  public:
-  CCSketchAlg(std::string input_file, GraphConfiguration config = GraphConfiguration());
-  CCSketchAlg(node_id_t num_nodes, GraphConfiguration config = GraphConfiguration());
+  CCSketchAlg(std::string input_file, CCAlgConfiguration config = CCAlgConfiguration());
+  CCSketchAlg(node_id_t num_nodes, CCAlgConfiguration config = CCAlgConfiguration());
   ~CCSketchAlg();
 
   /**
    * Returns the number of buffered updates we would like to have in the update batches
    */
-  size_t get_desired_updates_per_batch() { return num_updates_per_batch; }
+  size_t get_desired_updates_per_batch() { 
+    size_t num = sketches[0]->sketch_bytes() / sizeof(node_id_t);
+    num *= config._batch_factor;
+    return num;
+  }
 
   /**
    * Action to take on an update before inserting it to the guttering system.
    * We use this function to manage the eager dsu.
    */
   void pre_insert(GraphUpdate upd, int thr_id = 0);
+
+  /**
+   * Allocate memory for the worker threads to use when updating this algorithm's sketches
+   */
+  void allocate_worker_memory(size_t num_workers) {
+    num_delta_sketches = num_workers;
+    delta_sketches = new Sketch *[num_delta_sketches];
+    for (size_t i = 0; i < num_delta_sketches; i++)
+      delta_sketches[i] = new Sketch(num_nodes, seed);
+  }
 
   /**
    * Update all the sketches for a node, given a batch of updates.
@@ -181,9 +193,6 @@ class CCSketchAlg {
   bool fail_round_2 = false;
   void should_fail_CC() { fail_round_2 = true; }
 #endif
-
-  // number of updates
-  std::atomic<uint64_t> num_updates;
 
   /**
    * Serialize the graph data to a binary file.

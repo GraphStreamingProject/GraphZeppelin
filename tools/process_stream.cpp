@@ -79,12 +79,10 @@ int main(int argc, char **argv) {
   std::cout << "num_updates = " << num_updates << std::endl;
   std::cout << std::endl;
 
-  auto config = GraphConfiguration()
-                .gutter_sys(CACHETREE)
-                .worker_threads(num_threads)
-                .batch_factor(1);
-  CCSketchAlg cc_alg{num_nodes, config};
-  GraphSketchDriver<CCSketchAlg> driver{&cc_alg, &stream, config, reader_threads};
+  auto driver_config = DriverConfiguration().gutter_sys(CACHETREE).worker_threads(num_threads);
+  auto cc_config = CCAlgConfiguration().batch_factor(1);
+  CCSketchAlg cc_alg{num_nodes, cc_config};
+  GraphSketchDriver<CCSketchAlg> driver{&cc_alg, &stream, driver_config, reader_threads};
 
   auto ins_start = std::chrono::steady_clock::now();
   std::thread querier(track_insertions, num_updates, &driver, ins_start);

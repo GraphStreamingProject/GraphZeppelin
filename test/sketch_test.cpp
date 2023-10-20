@@ -16,7 +16,7 @@ TEST(SketchTestSuite, TestExceptions) {
   Sketch sketch2(100, 0, 1, num_columns);
   std::vector<bool> vec_idx(100 * 100, true);
   unsigned long long columns = num_columns;
-  unsigned long long guesses = Sketch::guess_gen(100);
+  unsigned long long guesses = Sketch::calc_bkt_per_col(100);
   size_t total_updates = 2;
   for (unsigned long long i = 0; i < columns;) {
     size_t depth_1_updates = 0;
