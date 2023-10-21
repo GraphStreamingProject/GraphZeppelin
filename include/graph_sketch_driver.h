@@ -9,20 +9,34 @@
 
 /**
  * GraphSketchDriver class:
- * Driver for sketching algorithms on a single machine
- * templatized by the algorithm.
- * 
+ * Driver for sketching algorithms on a single machine.
+ * Templatized by the "top level" sketching algorithm to manage.
+ *
  * Algorithms need to implement the following functions to be managed by the driver
+ *
+ *    1) void allocate_worker_memory(size_t num_workers)
+ *          For performance reasons it is often helpful for the algorithm to allocate some scratch
+ *          space to be used by an individual worker threads. For example, in the connected
+ *          components algorithm, we allocate a delta sketch for each worker.
+ *
+ *    2) size_t get_desired_updates_per_batch()
+ *          Return the number of updates the algorithm would like us to batch. This serves as the
+ *          maximum number of updates in a batch. We only provide smaller batches if force_flush'd
  * 
- *    1) allocate_worker_memory()
- * 
- *    2) get_desired_updates_per_batch()
- * 
- *    3) pre_insert(upd, thr_id)
- *    
- *    4) apply_update_batch(thr_id, src_vertex, dst_vertices)
- *    
- *    5) has_cached_query() 
+ *    3) node_id_t get_num_vertices()
+ *          Returns the number of vertices in the Graph or an appropriate upper bound.
+ *
+ *    4) void pre_insert(GraphUpdate upd, node_id_t thr_id)
+ *          Called before each update is added to the guttering system for the purpose of eager
+ *          query heuristics. This function must be fast executing.
+ *
+ *    5) void apply_update_batch(size_t thr_id, node_id_t src_vertex, const std::vector<node_id_t>
+ *                               &dst_vertices)
+ *          Called by worker threads to apply a batch of updates destined for a single vertex.
+ *
+ *    6) bool has_cached_query()
+ *          Check if the algorithm already has a cached answer for its query type. If so, the driver
+ *          can skip flushing the updates and applying them in prep_query().
  */
 template <class Alg>
 class GraphSketchDriver {
@@ -73,7 +87,6 @@ class GraphSketchDriver {
   }
 
   ~GraphSketchDriver() {
-    std::cerr << "Shutting down GraphSketchDriver" << std::endl;
     delete worker_threads;
     delete gts;
   }

@@ -260,9 +260,9 @@ std::vector<std::set<node_id_t>> CCSketchAlg::boruvka_emulation() {
   // function to restore sketches after CC or failure
   auto cleanup_copy = [this, &backed_up, &copy_sketches]() {
     if (config._backup_in_mem) {
-      // restore original sketches and free memory
+      // restore original sketches and delete copies
       for (node_id_t i : backed_up) {
-        if (sketches[i] != nullptr) free(sketches[i]);
+        if (sketches[i] != nullptr) delete sketches[i];
         sketches[i] = copy_sketches[i];
       }
       delete[] copy_sketches;
