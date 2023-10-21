@@ -12,28 +12,10 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, ubuntu-20.04]
-        sketch: [cameo, cube]
-        no_dsu: [yes, no]
-
-    variables:
-      - name: cmake_flags
-        ${{ if and(eq(matrix.sketch, 'cube'), eq(matrix.no_dsu, yes) }}:
-          value: '-DCMAKE_CXX_FLAGS="-DL0_SAMPLING -DNO_EAGER_DSU"'
-        ${{ if and(eq(matrix.sketch, 'cube'), eq(matrix.no_dsu, no) }}:
-          value: '-DCMAKE_CXX_FLAGS="-DL0_SAMPLING"'
-        ${{ if and(ne(matrix.sketch, 'cameo'), eq(matrix.no_dsu, yes) }}:
-          value: '-DCMAKE_CXX_FLAGS="-DNO_EAGER_DSU"'
-        ${{ if and(ne(matrix.sketch, 'cameo'), eq(matrix.no_dsu, yes) }}:
-          value: ''
+        flags: ['"-DL0_SAMPLING -DNO_EAGER_DSU"', '"-DL0_SAMPLING"', '"-DNO_EAGER_DSU"', '""']
 
     steps:
       - uses: actions/checkout@v2
-
-      # - uses: actions/cache@v2
-      #   id: InstalledDependencyCache
-      #   with:
-      #     path: ${{runner.workspace}}/install
-      #     key: InstalledDependencyCache
 
       - name: Create Build Environment
         # Some projects don't allow in-source building, so create a separate build directory
@@ -45,13 +27,13 @@ jobs:
         # access regardless of the host operating system
         shell: bash
         working-directory: ${{runner.workspace}}/build
-        run: cmake ${{cmake_flags}} -DCMAKE_INSTALL_PREFIX=${{runner.workspace}}/install -DCMAKE_INSTALL_INCLUDEDIR=${{runner.workspace}}/install/include $GITHUB_WORKSPACE
+        run: cmake -DCMAKE_CXX_FLAGS=${{matrix.flags}} -DCMAKE_INSTALL_PREFIX=${{runner.workspace}}/install -DCMAKE_INSTALL_INCLUDEDIR=${{runner.workspace}}/install/include $GITHUB_WORKSPACE
 
       - name: Build
         working-directory: ${{runner.workspace}}/build
         shell: bash
         # Execute the build.  You can specify a specific target with "--target <NAME>"
-        run: cmake --build . --config $BUILD_TYPE
+        run: cmake --build .
 
       - name: Unit Testing
         working-directory: ${{runner.workspace}}/build
