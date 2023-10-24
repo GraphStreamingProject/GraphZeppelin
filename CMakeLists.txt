@@ -98,7 +98,7 @@ set(BUILD_SHARED_LIBS "${SAVED_BUILD_SHARED_LIBS}" CACHE BOOL "" FORCE)
 #                    Otherwise, run a support finding algorithm.
 #
 # Example:
-# cmake -DCMAKE_CXX_FLAGS="-DL0_Sampling" ..
+# cmake -DCMAKE_CXX_FLAGS="-DL0_SAMPLING" ..
 
 add_library(GraphZeppelin
   src/cc_sketch_alg.cpp

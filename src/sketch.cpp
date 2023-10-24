@@ -5,11 +5,11 @@
 #include <vector>
 #include <cassert>
 
-Sketch::Sketch(node_id_t n, uint64_t seed, size_t _samples, size_t _cols) : seed(seed) {
-  num_samples = _samples == 0 ? calc_cc_samples(n) : _samples;
-  cols_per_sample = _cols == 0 ? default_cols_per_sample : _cols;
+Sketch::Sketch(vec_t vector_len, uint64_t seed, size_t _samples, size_t _cols) : seed(seed) {
+  num_samples = _samples;
+  cols_per_sample = _cols;
   num_columns = num_samples * cols_per_sample;
-  bkt_per_col = calc_bkt_per_col(n);
+  bkt_per_col = calc_bkt_per_col(vector_len);
   num_buckets = num_columns * bkt_per_col + 1; // plus 1 for deterministic bucket
   buckets = new Bucket[num_buckets];
 
@@ -20,12 +20,13 @@ Sketch::Sketch(node_id_t n, uint64_t seed, size_t _samples, size_t _cols) : seed
   }
 }
 
-Sketch::Sketch(node_id_t n, uint64_t seed, std::istream &binary_in, size_t _samples, size_t _cols)
+Sketch::Sketch(vec_t vector_len, uint64_t seed, std::istream &binary_in, size_t _samples,
+               size_t _cols)
     : seed(seed) {
-  num_samples = _samples == 0 ? calc_cc_samples(n) : _samples;
-  cols_per_sample = _cols == 0 ? default_cols_per_sample : _cols;
+  num_samples = _samples;
+  cols_per_sample = _cols;
   num_columns = num_samples * cols_per_sample;
-  bkt_per_col = calc_bkt_per_col(n);
+  bkt_per_col = calc_bkt_per_col(vector_len);
   num_buckets = num_columns * bkt_per_col + 1; // plus 1 for deterministic bucket
   buckets = new Bucket[num_buckets];
 

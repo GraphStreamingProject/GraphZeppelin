@@ -135,8 +135,10 @@ class CCSketchAlg {
   void allocate_worker_memory(size_t num_workers) {
     num_delta_sketches = num_workers;
     delta_sketches = new Sketch *[num_delta_sketches];
-    for (size_t i = 0; i < num_delta_sketches; i++)
-      delta_sketches[i] = new Sketch(num_nodes, seed);
+    for (size_t i = 0; i < num_delta_sketches; i++) {
+      delta_sketches[i] = new Sketch(Sketch::calc_vector_length(num_nodes), seed,
+                                     Sketch::calc_cc_samples(num_nodes));
+    }
   }
 
   /**
@@ -151,7 +153,7 @@ class CCSketchAlg {
   /**
    * 
    */
-  void apply_raw_buckets_update(node_id_t src_vertex, vec_t *raw_buckets);
+  void apply_raw_buckets_update(node_id_t src_vertex, Bucket *raw_buckets);
 
   /**
    * The function performs a direct update to the associated sketch.
@@ -169,8 +171,6 @@ class CCSketchAlg {
 
   /**
    * Main parallel query algorithm utilizing Boruvka and L_0 sampling.
-   * If cont is true, allow for additional updates when done.
-   * @param cont
    * @return a vector of the connected components in the graph.
    */
   std::vector<std::set<node_id_t>> connected_components();
@@ -182,6 +182,14 @@ class CCSketchAlg {
    * @return true if a and b are in the same connected component, false otherwise.
    */
   bool point_query(node_id_t a, node_id_t b);
+
+  /**
+   * Return a spanning forest of the graph utilizing Boruvka and L_0 sampling
+   * IMPORTANT: The updates to this algorithm MUST NOT be a function of the output of this query
+   * that is, unless you really know what you're doing.
+   * @return an adjacency list representation of the spanning forest of the graph
+   */
+  std::vector<std::pair<node_id_t, std::vector<node_id_t>>> calc_spanning_forest();
 
 #ifdef VERIFY_SAMPLES_F
   std::unique_ptr<GraphVerifier> verifier;

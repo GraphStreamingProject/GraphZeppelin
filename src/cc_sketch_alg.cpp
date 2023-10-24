@@ -17,11 +17,13 @@ CCSketchAlg::CCSketchAlg(node_id_t num_nodes, CCAlgConfiguration config)
              .count();
   std::mt19937_64 r(seed);
   seed = r();
-
   std::fill(size, size + num_nodes, 1);
+
+  vec_t sketch_vec_len = Sketch::calc_vector_length(num_nodes);
+  size_t sketch_num_samples = Sketch::calc_cc_samples(num_nodes);
   for (node_id_t i = 0; i < num_nodes; ++i) {
     representatives->insert(i);
-    sketches[i] = new Sketch(num_nodes, seed);
+    sketches[i] = new Sketch(sketch_vec_len, seed, sketch_num_samples);
     parent[i] = i;
   }
   backup_file = config._disk_dir + "supernode_backup.data";
@@ -46,9 +48,12 @@ CCSketchAlg::CCSketchAlg(const std::string &input_file, CCAlgConfiguration confi
   parent = new std::remove_reference<decltype(*parent)>::type[num_nodes];
   size = new node_id_t[num_nodes];
   std::fill(size, size + num_nodes, 1);
+
+  vec_t sketch_vec_len = Sketch::calc_vector_length(num_nodes);
+  size_t sketch_num_samples = Sketch::calc_cc_samples(num_nodes);
   for (node_id_t i = 0; i < num_nodes; ++i) {
     representatives->insert(i);
-    sketches[i] = new Sketch(num_nodes, seed, binary_in);
+    sketches[i] = new Sketch(sketch_vec_len, seed, binary_in, sketch_num_samples);
     parent[i] = i;
   }
   binary_in.close();
@@ -339,13 +344,13 @@ void CCSketchAlg::restore_from_disk(const std::vector<node_id_t> &ids_to_restore
   }
   for (node_id_t idx : ids_to_restore) {
     delete this->sketches[idx];
-    this->sketches[idx] = new Sketch(num_nodes, seed, binary_in);
+    this->sketches[idx] = new Sketch(Sketch::calc_vector_length(num_nodes), seed, binary_in,
+                                     Sketch::calc_cc_samples(num_nodes));
   }
 }
 
 std::vector<std::set<node_id_t>> CCSketchAlg::connected_components() {
-  // DSU check before calling force_flush()
-  // TODO! Move this into the needs_query function!
+  // if the DSU holds the answer, use that
   if (shared_dsu_valid
 #ifdef VERIFY_SAMPLES_F
       && !fail_round_2
@@ -391,6 +396,25 @@ std::vector<std::set<node_id_t>> CCSketchAlg::connected_components() {
   if (except) std::rethrow_exception(err);
 
   return ret;
+}
+
+std::vector<std::pair<node_id_t, std::vector<node_id_t>>> CCSketchAlg::calc_spanning_forest() {
+  // TODO: Could probably optimize this a bit by writing new code
+  connected_components();
+  
+  std::vector<std::pair<node_id_t, std::vector<node_id_t>>> forest;
+
+  for (node_id_t src = 0; src < num_nodes; src++) {
+    if (spanning_forest[src].size() > 0) {
+      std::vector<node_id_t> edge_list;
+      edge_list.reserve(spanning_forest[src].size());
+      for (node_id_t dst : spanning_forest[src]) {
+        edge_list.push_back(dst);
+      }
+      forest.push_back({src, edge_list});
+    }
+  }
+  return forest;
 }
 
 std::vector<std::set<node_id_t>> CCSketchAlg::cc_from_dsu() {

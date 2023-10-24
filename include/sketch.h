@@ -29,7 +29,7 @@ enum SampleSketchRet {
  */
 class Sketch {
  private:
-  const uint64_t seed;     // seed for random number generators
+  const uint64_t seed;     // seed for hash functions
   size_t num_samples;      // number of samples we can perform
   size_t cols_per_sample;  // number of columns to use on each sample
   size_t num_columns;      // Total number of columns. (product of above 2)
@@ -42,11 +42,42 @@ class Sketch {
   Bucket* buckets;
 
  public:
-  // Constructors for the sketch object
-  // 0 means that we should use the default value for samples = log_3/2(n) and cols = 2
-  Sketch(node_id_t n, uint64_t seed, size_t num_samples = 0, size_t cols_per_sample = 0);
-  Sketch(node_id_t n, uint64_t seed, std::istream& binary_in, size_t num_samples = 0,
-         size_t cols_per_sample = 0);
+  /**
+   * The below constructors use vector length as their input. However, in graph sketching our input
+   * is the number of vertices. This function converts from number of graph vertices to vector
+   * length.
+   * @param num_vertices  Number of graph vertices
+   * @return              The length of the vector to sketch
+   */
+  static vec_t calc_vector_length(node_id_t num_vertices) {
+    return ceil(double(num_vertices) * (num_vertices - 1) / 2);
+  }
+
+  /**
+   * Construct a sketch object
+   * @param vector_len       Length of the vector we are sketching
+   * @param seed             Random seed of the sketch
+   * @param num_samples      [Optional] Number of samples this sketch supports (default = 1)
+   * @param cols_per_sample  [Optional] Number of sketch columns for each sample (default = 1)
+   */
+  Sketch(vec_t vector_len, uint64_t seed, size_t num_samples = 1,
+         size_t cols_per_sample = default_cols_per_sample);
+
+  /**
+   * Construct a sketch from a serialized stream
+   * @param vector_len       Length of the vector we are sketching
+   * @param seed             Random seed of the sketch
+   * @param binary_in        Stream holding serialized sketch object
+   * @param num_samples      [Optional] Number of samples this sketch supports (default = 1)
+   * @param cols_per_sample  [Optional] Number of sketch columns for each sample (default = 1)
+   */
+  Sketch(vec_t vector_len, uint64_t seed, std::istream& binary_in, size_t num_samples = 1,
+         size_t cols_per_sample = default_cols_per_sample);
+
+  /**
+   * Sketch copy constructor
+   * @param s  The sketch to copy.
+   */
   Sketch(const Sketch& s);
 
   ~Sketch();
@@ -123,15 +154,14 @@ class Sketch {
   inline size_t checksum_seed() const { return seed; }
   inline size_t get_columns() const { return num_columns; }
 
-  // max number of non-zeroes in vector is n/2*n/2=n^2/4
-  static size_t calc_bkt_per_col(size_t n) { return ceil(2 * log2(n) - 2); }
+  static size_t calc_bkt_per_col(size_t n) { return ceil(log2(n)) + 1; }
   static size_t calc_cc_samples(size_t n) { return ceil(log2(n) / num_samples_div); }
 
 #ifdef L0_SAMPLING
   static constexpr size_t default_cols_per_sample = 7;
   static constexpr double num_samples_div = log2(3) - 1;
 #else
-  static constexpr size_t default_cols_per_sample = 2;
+  static constexpr size_t default_cols_per_sample = 1;
   static constexpr double num_samples_div = log2(3) - 1;
 #endif
 };
