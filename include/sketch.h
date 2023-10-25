@@ -107,30 +107,32 @@ class Sketch {
    * In-place merge function.
    * @param other  Sketch to merge into caller
    */
-  void merge(Sketch& other);
-
-  /**
-   * Perform an in-place merge function without another Sketch and instead
-   * use a raw bucket memory.
-   * 
-   * We also allow for only a portion of the buckets to be merge at once
-   */
-  void merge_raw_bucket_buffer(vec_t *buckets, size_t start_sample, size_t num_samples);
-
-  /**
-   * Zero out all the buckets of a sketch.
-   */
-  void zero_contents();
+  void merge(const Sketch &other);
 
   /**
    * In-place range merge function. Updates the caller Sketch.
    * The range merge only merges some of the Sketches
    * This function should only be used if you know what you're doing
-   * @param other       Sketch to merge into caller
-   * @param start_idx   Index of first sample to merge
-   * @param num_merge   How many samples to merge
+   * @param other         Sketch to merge into caller
+   * @param start_sample  Index of first sample to merge
+   * @param n_samples     Number of samples to merge
    */
-  void range_merge(Sketch& other, size_t start_idx, size_t num_merge);
+  void range_merge(const Sketch &other, size_t start_sample, size_t n_samples);
+
+  /**
+   * Perform an in-place merge function without another Sketch and instead
+   * use a raw bucket memory.
+   * We also allow for only a portion of the buckets to be merge at once
+   * @param raw_bucket    Raw bucket data to merge into this sketch
+   * @param start_sample  Index of first sample to merge
+   * @param n_samples     Number of samples to merge
+   */
+  void merge_raw_bucket_buffer(Bucket *raw_buckets, size_t start_sample, size_t n_samples);
+
+  /**
+   * Zero out all the buckets of a sketch.
+   */
+  void zero_contents();
 
   friend bool operator==(const Sketch& sketch1, const Sketch& sketch2);
   friend std::ostream& operator<<(std::ostream& os, const Sketch& sketch);

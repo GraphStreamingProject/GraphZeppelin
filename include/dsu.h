@@ -143,13 +143,7 @@ class DisjointSetUnion_MT {
       size[i] = oth.size[i].load();
     }
   }
-
-  // move the DSU to a new object
-  DisjointSetUnion_MT(DisjointSetUnion_MT&& oth) : n(oth.n), parent(oth.parent), size(oth.size) {
-    oth.n = 0;
-    oth.parent = nullptr;
-    oth.size = nullptr;
-  }
+  DisjointSetUnion_MT& operator=(const DisjointSetUnion_MT& oth) = default;
 
   inline T find_root(T u) {
     assert(0 <= u && u < n);

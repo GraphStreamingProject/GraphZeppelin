@@ -7,11 +7,6 @@ CCAlgConfiguration& CCAlgConfiguration::disk_dir(std::string disk_dir) {
   return *this;
 }
 
-CCAlgConfiguration& CCAlgConfiguration::backup_in_mem(bool backup_in_mem) {
-  _backup_in_mem = backup_in_mem;
-  return *this;
-}
-
 CCAlgConfiguration& CCAlgConfiguration::sketches_factor(double factor) {
   _sketches_factor = factor;
   if (_sketches_factor <= 0) {
@@ -51,7 +46,6 @@ std::ostream& operator<< (std::ostream &out, const CCAlgConfiguration &conf) {
 #endif
     out << " Num sketches factor   = " << conf._sketches_factor << std::endl;
     out << " Batch size factor     = " << conf._batch_factor << std::endl;
-    out << " On disk data location = " << conf._disk_dir << std::endl;
-    out << " Backup sketch to RAM  = " << (conf._backup_in_mem? "ON" : "OFF");
+    out << " On disk data location = " << conf._disk_dir;
     return out;
   }

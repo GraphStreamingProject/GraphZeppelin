@@ -96,18 +96,18 @@ std::pair<vec_t, SampleSketchRet> Sketch::sample() {
     throw OutOfQueriesException();
   }
 
-  if (buckets[num_buckets - 1].alpha == 0 && buckets[num_buckets - 1].gamma == 0)
-    return {0, ZERO};  // the "first" bucket is deterministic so if all zero then no edges to return
-
   size_t idx = sample_idx++;
   size_t first_column = idx * cols_per_sample;
+
+  if (buckets[num_buckets - 1].alpha == 0 && buckets[num_buckets - 1].gamma == 0)
+    return {0, ZERO};  // the "first" bucket is deterministic so if all zero then no edges to return
 
   if (Bucket_Boruvka::is_good(buckets[num_buckets - 1], checksum_seed()))
     return {buckets[num_buckets - 1].alpha, GOOD};
 
-  for (unsigned i = 0; i < cols_per_sample; ++i) {
-    for (unsigned j = 0; j < bkt_per_col; ++j) {
-      unsigned bucket_id = (i + first_column) * bkt_per_col + j;
+  for (size_t i = 0; i < cols_per_sample; ++i) {
+    for (size_t j = 0; j < bkt_per_col; ++j) {
+      size_t bucket_id = (i + first_column) * bkt_per_col + j;
       if (Bucket_Boruvka::is_good(buckets[bucket_id], checksum_seed()))
         return {buckets[bucket_id].alpha, GOOD};
     }
@@ -116,20 +116,70 @@ std::pair<vec_t, SampleSketchRet> Sketch::sample() {
 }
 
 std::pair<std::unordered_set<vec_t>, SampleSketchRet> Sketch::exhaustive_sample() {
-  // TODO!
-  exit(EXIT_FAILURE);
+  std::unordered_set<vec_t> ret;
+
+  size_t idx = sample_idx++;
+  size_t first_column = idx * cols_per_sample;
+
+  unlikely_if (buckets[num_buckets - 1].alpha == 0 && buckets[num_buckets - 1].gamma == 0)
+    return {ret, ZERO}; // the "first" bucket is deterministic so if zero then no edges to return
+
+  unlikely_if (Bucket_Boruvka::is_good(buckets[num_buckets - 1], checksum_seed())) {
+    ret.insert(buckets[num_buckets - 1].alpha);
+    return {ret, GOOD};
+  }
+
+  for (size_t i = 0; i < cols_per_sample; ++i) {
+    for (size_t j = 0; j < bkt_per_col; ++j) {
+      size_t bucket_id = (i + first_column) * bkt_per_col + j;
+      unlikely_if (Bucket_Boruvka::is_good(buckets[bucket_id], checksum_seed())) {
+        ret.insert(buckets[bucket_id].alpha);
+      }
+    }
+  }
+
+  unlikely_if (ret.size() == 0)
+    return {ret, FAIL};
+  return {ret, GOOD};
 }
 
-void Sketch::merge(Sketch &other) {
+void Sketch::merge(const Sketch &other) {
   for (size_t i = 0; i < num_buckets; ++i) {
     buckets[i].alpha ^= other.buckets[i].alpha;
     buckets[i].gamma ^= other.buckets[i].gamma;
   }
 }
 
-void Sketch::merge_raw_bucket_buffer(vec_t *buckets, size_t start_sample, size_t num_samples) {
-  // TODO!
-  exit(EXIT_FAILURE);
+void Sketch::range_merge(const Sketch &other, size_t start_sample, size_t n_samples) {
+  assert(start_sample + n_samples <= num_samples);
+
+  // merge deterministic buffer
+  buckets[num_buckets - 1].alpha ^= other.buckets[num_buckets - 1].alpha;
+  buckets[num_buckets - 1].gamma ^= other.buckets[num_buckets - 1].gamma;
+
+  // merge other buckets
+  size_t start_bucket_id = start_sample * cols_per_sample * bkt_per_col;
+  size_t n_buckets = n_samples * cols_per_sample * bkt_per_col;
+
+  for (size_t i = 0; i < n_buckets; i++) {
+    size_t bucket_id = start_bucket_id + i;
+    buckets[bucket_id].alpha ^= other.buckets[bucket_id].alpha;
+    buckets[bucket_id].gamma ^= other.buckets[bucket_id].gamma;
+  }
+}
+
+void Sketch::merge_raw_bucket_buffer(Bucket *raw_buckets, size_t start_sample, size_t n_samples) {
+  assert(start_sample + n_samples <= num_samples);
+
+  // TODO: What do we do about the deterministic buffer?
+
+  size_t start_bucket_id = start_sample * cols_per_sample * bkt_per_col;
+  size_t n_buckets = n_samples * cols_per_sample * bkt_per_col;
+  for (size_t i = 0; i < n_buckets; i++) {
+    size_t bucket_id = start_bucket_id + i;
+    buckets[bucket_id].alpha ^= raw_buckets[i].alpha;
+    buckets[bucket_id].gamma ^= raw_buckets[i].gamma;
+  }
 }
 
 void Sketch::serialize(std::ostream &binary_out) const {

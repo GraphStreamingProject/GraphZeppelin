@@ -51,7 +51,7 @@ void track_insertions(uint64_t total, GraphSketchDriver<CCSketchAlg> *driver,
     printf("| %i%% -- %lu per second\r", progress * 5, ins_per_sec); fflush(stdout);
   }
 
-  printf("Progress:====================| Done                \n");
+  printf("Progress:====================| Done                             \n");
   return;
 }
 

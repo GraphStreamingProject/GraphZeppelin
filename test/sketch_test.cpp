@@ -9,7 +9,6 @@ TEST(SketchTestSuite, TestSampleResults) {
   Sketch sketch1(10, rand(), 1, num_columns);
   ASSERT_EQ(sketch1.sample().second, ZERO);
   sketch1.update(1);
-  ASSERT_EQ(sketch1.sample().second, GOOD);
   ASSERT_THROW(sketch1.sample(), OutOfQueriesException);
 
   /**
@@ -17,10 +16,10 @@ TEST(SketchTestSuite, TestSampleResults) {
    */
   Sketch sketch2(100, 0, 1, num_columns);
   std::vector<bool> vec_idx(100 * 100, true);
-  unsigned long long columns = num_columns;
-  unsigned long long guesses = Sketch::calc_bkt_per_col(100);
+  size_t columns = num_columns;
+  size_t guesses = Sketch::calc_bkt_per_col(100);
   size_t total_updates = 2;
-  for (unsigned long long i = 0; i < columns;) {
+  for (size_t i = 0; i < columns;) {
     size_t depth_1_updates = 0;
     size_t k = 0;
     size_t u = 0;
@@ -143,9 +142,9 @@ TEST(SketchTestSuite, TestSketchSample) {
 }
 
 /**
- * Make sure sketch addition works
+ * Make sure sketch merging works
  */
-void test_sketch_addition(unsigned long num_sketches,
+void test_sketch_merge(unsigned long num_sketches,
     unsigned long vec_size, unsigned long num_updates,
     double max_sample_fail_prob, double max_bucket_fail_prob) {
 
@@ -203,10 +202,27 @@ void test_sketch_addition(unsigned long num_sketches,
     << " times (expected less than " << max_bucket_fail_prob << ')';
 }
 
-TEST(SketchTestSuite, TestSketchAddition){
-  test_sketch_addition(10000, 1e2, 100, 0.001, 0.03);
-  test_sketch_addition(1000, 1e3, 1000, 0.001, 0.03);
-  test_sketch_addition(1000, 1e4, 10000, 0.001, 0.03);
+TEST(SketchTestSuite, TestSketchMerge) {
+  test_sketch_merge(10000, 1e2, 100, 0.001, 0.03);
+  test_sketch_merge(1000, 1e3, 1000, 0.001, 0.03);
+  test_sketch_merge(1000, 1e4, 10000, 0.001, 0.03);
+}
+
+TEST(SketchTestSuite, TestSketchRangeMerge) {
+  Sketch skt1(2048, rand(), 10, 3);
+  Sketch skt2(2048, rand(), 10, 3);
+
+  skt1.sample();
+  skt1.range_merge(skt2, 1, 1);
+
+  skt1.sample();
+  skt1.range_merge(skt2, 2, 1);
+
+  skt1.sample();
+  skt1.range_merge(skt2, 3, 1);
+
+  skt1.sample();
+  skt1.range_merge(skt2, 4, 1);
 }
 
 /**

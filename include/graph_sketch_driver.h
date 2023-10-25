@@ -63,9 +63,10 @@ class GraphSketchDriver {
                                         sizeof(node_id_t));
     }
 
+    std::cout << config << std::endl;
     // Create the guttering system
     if (config.get_gutter_sys() == GUTTERTREE)
-      gts = new GutterTree(config.get_disk_dir(), sketching_alg->get_num_vertices(),
+      gts = new GutterTree(config.get_disk_dir() + "/", sketching_alg->get_num_vertices(),
                            config.get_worker_threads(), config.gutter_conf(), true);
     else if (config.get_gutter_sys() == STANDALONE)
       gts = new StandAloneGutters(sketching_alg->get_num_vertices(), config.get_worker_threads(),
@@ -83,7 +84,7 @@ class GraphSketchDriver {
     }
 
     total_updates = 0;
-    std::cout << config << std::endl << std::endl;
+    std::cout << std::endl;
   }
 
   ~GraphSketchDriver() {

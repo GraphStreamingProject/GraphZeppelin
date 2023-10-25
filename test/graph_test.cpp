@@ -45,42 +45,6 @@ TEST_P(GraphTest, SmallGraphConnectivity) {
   ASSERT_EQ(78, cc_alg.connected_components().size());
 }
 
-TEST(GraphTest, TestSupernodeRestoreAfterCCFailure) {
-  for (int s = 0; s < 2; s++) {
-    std::cerr << "Running iteration..." << std::endl;
-    auto cc_config = CCAlgConfiguration().backup_in_mem(s == 0);
-    const std::string fname = __FILE__;
-    size_t pos = fname.find_last_of("\\/");
-    const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
-    AsciiFileStream stream{curr_dir + "/res/multiples_graph_1024.txt", false};
-    node_id_t num_nodes = stream.vertices();
-    
-    CCSketchAlg cc_alg{num_nodes, cc_config};
-    cc_alg.set_verifier(
-        std::make_unique<FileGraphVerifier>(1024, curr_dir + "/res/multiples_graph_1024.txt"));
-    cc_alg.should_fail_CC();
-
-    // process the stream
-    GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, DriverConfiguration());
-    driver.process_stream_until(END_OF_STREAM);
-
-    // manually ensure we have flushed (do not allow DSU to intervene)
-    driver.gts->force_flush();
-    driver.worker_threads->flush_workers();
-
-    // make copy sketches
-    Sketch* copy_sketches[num_nodes];
-    for (node_id_t i = 0; i < num_nodes; ++i) {
-      copy_sketches[i] = new Sketch(*cc_alg.sketches[i]);
-    }
-
-    ASSERT_THROW(cc_alg.connected_components(), OutOfQueriesException);
-    for (node_id_t i = 0; i < num_nodes; ++i) {
-      ASSERT_TRUE(*copy_sketches[i] == *cc_alg.sketches[i]);
-    }
-  }
-}
-
 TEST_P(GraphTest, TestCorrectnessOnSmallRandomGraphs) {
   auto driver_config = DriverConfiguration().gutter_sys(GetParam());
   int num_trials = 5;
@@ -140,9 +104,9 @@ TEST_P(GraphTest, TestCorrectnessOfReheating) {
     orig_cc = cc_alg.connected_components();
     printf("number of CC = %lu\n", orig_cc.size());
 
-    CCSketchAlg reheat_alg{"./out_temp.txt"};
-    reheat_alg.set_verifier(std::make_unique<FileGraphVerifier>(1024, "./cumul_sample.txt"));
-    auto reheat_cc = reheat_alg.connected_components();
+    CCSketchAlg *reheat_alg = CCSketchAlg::construct_from_serialized_data("./out_temp.txt");
+    reheat_alg->set_verifier(std::make_unique<FileGraphVerifier>(1024, "./cumul_sample.txt"));
+    auto reheat_cc = reheat_alg->connected_components();
     printf("number of reheated CC = %lu\n", reheat_cc.size());
     ASSERT_EQ(orig_cc.size(), reheat_cc.size());
     for (unsigned i = 0; i < orig_cc.size(); ++i) {
@@ -151,6 +115,7 @@ TEST_P(GraphTest, TestCorrectnessOfReheating) {
                                     reheat_cc[i].end(), std::back_inserter(symdif));
       ASSERT_EQ(0, symdif.size());
     }
+    delete reheat_alg;
   }
 }
 
@@ -207,53 +172,48 @@ TEST_P(GraphTest, TestPointQuery) {
 
 TEST(GraphTest, TestQueryDuringStream) {
   auto driver_config = DriverConfiguration().gutter_sys(STANDALONE);
-  auto cc_config = CCAlgConfiguration().backup_in_mem(false);
-  auto test = [&]() {
-    generate_stream({1024, 0.002, 0.5, 0, "./sample.txt", "./cumul_sample.txt"});
-    std::ifstream in{"./sample.txt"};
-    AsciiFileStream stream{"./sample.txt"};
-    node_id_t num_nodes = stream.vertices();
-    edge_id_t num_edges = stream.edges();
-    edge_id_t tenth     = num_edges / 10;
+  auto cc_config = CCAlgConfiguration();
+  generate_stream({1024, 0.002, 0.5, 0, "./sample.txt", "./cumul_sample.txt"});
+  std::ifstream in{"./sample.txt"};
+  AsciiFileStream stream{"./sample.txt"};
+  node_id_t num_nodes = stream.vertices();
+  edge_id_t num_edges = stream.edges();
+  edge_id_t tenth     = num_edges / 10;
 
-    CCSketchAlg cc_alg{num_nodes, cc_config};
-    GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, driver_config);
-    MatGraphVerifier verify(num_nodes);
+  CCSketchAlg cc_alg{num_nodes, cc_config};
+  GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, driver_config);
+  MatGraphVerifier verify(num_nodes);
 
 
-    int type;
-    node_id_t a, b;
+  int type;
+  node_id_t a, b;
 
-    // read header from verify stream
-    in >> a >> b;
+  // read header from verify stream
+  in >> a >> b;
 
-    for (int j = 0; j < 9; j++) {
-      for (edge_id_t i = 0; i < tenth; i++) {
-        in >> type >> a >> b;
-        verify.edge_update(a, b);
-      }
-      verify.reset_cc_state();
-      
-      driver.process_stream_until(tenth * (j+1));
-      driver.prep_query();
-      cc_alg.set_verifier(std::make_unique<MatGraphVerifier>(verify));
-      cc_alg.connected_components();
-    }
-    num_edges -= 9 * tenth;
-    while (num_edges--) {
+  for (int j = 0; j < 9; j++) {
+    for (edge_id_t i = 0; i < tenth; i++) {
       in >> type >> a >> b;
       verify.edge_update(a, b);
     }
     verify.reset_cc_state();
 
-    driver.process_stream_until(END_OF_STREAM);
+    driver.process_stream_until(tenth * (j+1));
     driver.prep_query();
     cc_alg.set_verifier(std::make_unique<MatGraphVerifier>(verify));
     cc_alg.connected_components();
-  };
-  test();
-  cc_config.backup_in_mem(true);
-  test();
+  }
+  num_edges -= 9 * tenth;
+  while (num_edges--) {
+    in >> type >> a >> b;
+    verify.edge_update(a, b);
+  }
+  verify.reset_cc_state();
+
+  driver.process_stream_until(END_OF_STREAM);
+  driver.prep_query();
+  cc_alg.set_verifier(std::make_unique<MatGraphVerifier>(verify));
+  cc_alg.connected_components();
 }
 
 TEST(GraphTest, EagerDSUTest) {
