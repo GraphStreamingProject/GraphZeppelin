@@ -124,10 +124,8 @@ class Sketch {
    * use a raw bucket memory.
    * We also allow for only a portion of the buckets to be merge at once
    * @param raw_bucket    Raw bucket data to merge into this sketch
-   * @param start_sample  Index of first sample to merge
-   * @param n_samples     Number of samples to merge
    */
-  void merge_raw_bucket_buffer(Bucket *raw_buckets, size_t start_sample, size_t n_samples);
+  void merge_raw_bucket_buffer(Bucket *raw_buckets);
 
   /**
    * Zero out all the buckets of a sketch.

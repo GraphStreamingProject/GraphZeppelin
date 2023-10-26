@@ -66,18 +66,18 @@ class CCSketchAlg {
                          const std::unordered_set<node_id_t> &roots);
 
   /**
-   * @param reps      an array containing node indices for the representative of each supernode
-   * @param to_merge  a list of lists of supernodes to be merged
+   * @param reps         set containing the roots of each supernode
+   * @param merge_instr  a list of lists of supernodes to be merged
    */
   void merge_supernodes(const size_t cur_round,
-                        const std::vector<std::vector<node_id_t>> &to_merge);
+                        const std::vector<node_id_t> &merge_instr);
 
   /**
-   * @param reps      an array containing node indices for the representative of each supernode
-   * @param to_merge  a list of lists of supernodes to be merged
+   * @param reps         set containing the roots of each supernode
+   * @param merge_instr  an array where each vertex indicates its supernode root
    */
   void undo_merge_supernodes(const size_t prev_round,
-                             const std::vector<std::vector<node_id_t>> &to_merge);
+                             const std::vector<node_id_t> &merge_instr);
 
   /**
    * Run the disjoint set union to determine what supernodes should be merged together.
@@ -85,9 +85,9 @@ class CCSketchAlg {
    * @param query  an array of sketch sample results
    * @param reps   an array containing node indices for the representative of each supernode
    */
-  void supernodes_to_merge(const std::pair<Edge, SampleSketchRet> *query,
-                           std::unordered_set<node_id_t> &roots,
-                           std::vector<std::vector<node_id_t>> &to_merge);
+  void calc_merge_instructions(const std::pair<Edge, SampleSketchRet> *query,
+                               std::unordered_set<node_id_t> &roots,
+                               std::vector<node_id_t> &merge_vector);
 
   /**
    * Main parallel algorithm utilizing Boruvka and L_0 sampling.
@@ -154,7 +154,10 @@ class CCSketchAlg {
                           const std::vector<node_id_t> &dst_vertices);
 
   /**
-   * 
+   * Apply a batch of updates that have already been processed into a sketch delta.
+   * Specifically, the delta is in the form of a pointer to raw bucket data.
+   * @param src_vertex   The vertex where the all edges originate.
+   * @param raw_buckets  Pointer to the array of buckets from the delta sketch
    */
   void apply_raw_buckets_update(node_id_t src_vertex, Bucket *raw_buckets);
 

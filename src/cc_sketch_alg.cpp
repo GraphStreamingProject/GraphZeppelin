@@ -118,6 +118,11 @@ void CCSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
   sketches[src_vertex]->merge(delta_sketch);
 }
 
+void CCSketchAlg::apply_raw_buckets_update(node_id_t src_vertex, Bucket *raw_buckets) {
+  std::unique_lock<std::mutex>(sketches[src_vertex]->mutex);
+  sketches[src_vertex]->merge_raw_bucket_buffer(raw_buckets);
+}
+
 // Note: for performance reasons route updates through the driver instead of calling this function
 //       whenever possible.
 void CCSketchAlg::update(GraphUpdate upd) {
@@ -156,9 +161,9 @@ void CCSketchAlg::sample_supernodes(std::pair<Edge, SampleSketchRet> *query,
   if (except) std::rethrow_exception(err);
 }
 
-void CCSketchAlg::supernodes_to_merge(const std::pair<Edge, SampleSketchRet> *query,
-                                      std::unordered_set<node_id_t> &roots,
-                                      std::vector<std::vector<node_id_t>> &to_merge) {
+void CCSketchAlg::calc_merge_instructions(const std::pair<Edge, SampleSketchRet> *query,
+                                          std::unordered_set<node_id_t> &roots,
+                                          std::vector<node_id_t> &merge_instr) {
   for (auto it = roots.begin(); it != roots.end();) {
     // unpack query result
     node_id_t root = *it;
@@ -173,7 +178,7 @@ void CCSketchAlg::supernodes_to_merge(const std::pair<Edge, SampleSketchRet> *qu
     // This root will not grow anymore, so remove it from the set
     else if (ret_code == ZERO) {
       it = roots.erase(it);
-      to_merge[root].clear();
+      merge_instr[root] = root;
       continue;
     }
 
@@ -190,11 +195,6 @@ void CCSketchAlg::supernodes_to_merge(const std::pair<Edge, SampleSketchRet> *qu
         roots.erase(m_ret.child);
       }
 
-      // add b and any of the nodes to merge with it to a's vector
-      to_merge[m_ret.root].push_back(m_ret.child);
-      to_merge[m_ret.root].insert(to_merge[m_ret.root].end(), to_merge[m_ret.child].begin(), to_merge[m_ret.child].end());
-      to_merge[m_ret.child].clear();
-
       // Update spanning forest
       auto src = std::min(edge.src, edge.dst);
       auto dst = std::max(edge.src, edge.dst);
@@ -203,24 +203,52 @@ void CCSketchAlg::supernodes_to_merge(const std::pair<Edge, SampleSketchRet> *qu
       ++it;
     }
   }
+
+  // compute the root of each vertex
+#pragma omp parallel for
+  for (size_t i = 0; i < num_nodes; i++) {
+    node_id_t root = dsu.find_root(i);
+    if (roots.count(root) > 0)
+      merge_instr[i] = root;
+    else
+      merge_instr[i] = i;
+  }
 }
 
-// TODO: There's probably a better way to do this. Let's try this for now though
 void CCSketchAlg::merge_supernodes(const size_t cur_round,
-                                   const std::vector<std::vector<node_id_t>> &to_merge) {
-#pragma omp parallel for default(shared)
-  for (node_id_t root = 0; root < num_nodes; root++) {
-    // single thread merge (not worth cost to parallelize)
-    for (node_id_t child : to_merge[root]) {
-      sketches[root]->range_merge(*sketches[child], cur_round, 1);
-      assert(dsu.find_root(child) == root);
+                                   const std::vector<node_id_t> &merge_instr) {
+#pragma omp parallel default(shared)
+  {
+    Sketch local_sketch(Sketch::calc_vector_length(num_nodes), seed,
+                        Sketch::calc_cc_samples(num_nodes));
+    node_id_t cur_root = -1;
+#pragma omp for
+    for (node_id_t i = 0; i < num_nodes; i++) {
+      if (merge_instr[i] == i) continue;
+
+      node_id_t root = merge_instr[i];
+      if (root != cur_root) {
+        if (cur_root != (node_id_t) -1) {
+          std::unique_lock<std::mutex> lk(sketches[cur_root]->mutex);
+          sketches[cur_root]->range_merge(local_sketch, cur_round, 1);
+        }
+        cur_root = root;
+        local_sketch.zero_contents();
+      }
+
+      local_sketch.range_merge(*sketches[i], cur_round, 1);
+    }
+
+    if (cur_root != (node_id_t) -1) {
+      std::unique_lock<std::mutex> lk(sketches[cur_root]->mutex);
+      sketches[cur_root]->range_merge(local_sketch, cur_round, 1);
     }
   }
 }
 
 void CCSketchAlg::undo_merge_supernodes(const size_t prev_round,
-                                        const std::vector<std::vector<node_id_t>> &to_merge) {
-  if (prev_round > 0) merge_supernodes(prev_round, to_merge);
+                                        const std::vector<node_id_t> &merge_instr) {
+  if (prev_round > 0) merge_supernodes(prev_round, merge_instr);
 }
 
 std::vector<std::set<node_id_t>> CCSketchAlg::boruvka_emulation() {
@@ -229,7 +257,7 @@ std::vector<std::set<node_id_t>> CCSketchAlg::boruvka_emulation() {
   cc_alg_start = std::chrono::steady_clock::now();
   std::pair<Edge, SampleSketchRet> *query = new std::pair<Edge, SampleSketchRet>[num_nodes];
   std::unordered_set<node_id_t> roots;
-  std::vector<std::vector<node_id_t>> to_merge(num_nodes);
+  std::vector<node_id_t> merge_instr(num_nodes);
 
   dsu.reset();
   for (node_id_t i = 0; i < num_nodes; ++i) {
@@ -243,7 +271,7 @@ std::vector<std::set<node_id_t>> CCSketchAlg::boruvka_emulation() {
       sample_supernodes(query, roots);
     } catch (...) {
       delete[] query;
-      undo_merge_supernodes(round_num, to_merge);
+      undo_merge_supernodes(round_num, merge_instr);
       std::rethrow_exception(std::current_exception());
     }
     std::cout << "sample: "
@@ -251,20 +279,20 @@ std::vector<std::set<node_id_t>> CCSketchAlg::boruvka_emulation() {
               << std::endl;
 
     start = std::chrono::steady_clock::now();
-    undo_merge_supernodes(round_num, to_merge);
+    undo_merge_supernodes(round_num, merge_instr);
     std::cout << "undo merge: "
               << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
               << std::endl;
 
     start = std::chrono::steady_clock::now();
-    supernodes_to_merge(query, roots, to_merge);
+    calc_merge_instructions(query, roots, merge_instr);
     std::cout << "parse samples: "
               << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
               << std::endl;
 
     // prepare for the next round by merging
     start = std::chrono::steady_clock::now();
-    merge_supernodes(round_num + 1, to_merge);
+    merge_supernodes(round_num + 1, merge_instr);
     std::cout << "merge: "
               << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
               << std::endl;
@@ -272,7 +300,7 @@ std::vector<std::set<node_id_t>> CCSketchAlg::boruvka_emulation() {
     ++round_num;
   } while (roots.size() > 1);
 
-  undo_merge_supernodes(round_num, to_merge);
+  undo_merge_supernodes(round_num, merge_instr);
   delete[] query;
   dsu_valid = true;
   shared_dsu_valid = true;

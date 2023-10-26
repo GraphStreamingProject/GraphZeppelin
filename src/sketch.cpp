@@ -168,17 +168,10 @@ void Sketch::range_merge(const Sketch &other, size_t start_sample, size_t n_samp
   }
 }
 
-void Sketch::merge_raw_bucket_buffer(Bucket *raw_buckets, size_t start_sample, size_t n_samples) {
-  assert(start_sample + n_samples <= num_samples);
-
-  // TODO: What do we do about the deterministic buffer?
-
-  size_t start_bucket_id = start_sample * cols_per_sample * bkt_per_col;
-  size_t n_buckets = n_samples * cols_per_sample * bkt_per_col;
-  for (size_t i = 0; i < n_buckets; i++) {
-    size_t bucket_id = start_bucket_id + i;
-    buckets[bucket_id].alpha ^= raw_buckets[i].alpha;
-    buckets[bucket_id].gamma ^= raw_buckets[i].gamma;
+void Sketch::merge_raw_bucket_buffer(Bucket *raw_buckets) {
+  for (size_t i = 0; i < num_buckets; i++) {
+    buckets[i].alpha ^= raw_buckets[i].alpha;
+    buckets[i].gamma ^= raw_buckets[i].gamma;
   }
 }
 
