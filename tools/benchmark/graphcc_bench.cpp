@@ -236,12 +236,12 @@ static void BM_Sketch_Query(benchmark::State& state) {
       sketches[i]->update(j + 1);
     }
   }
-  std::pair<vec_t, SampleSketchRet> q_ret;
+  SketchSample sample_ret;
 
   for (auto _ : state) {
     // perform queries
     for (size_t j = 0; j < num_sketches; j++) {
-      benchmark::DoNotOptimize(q_ret = sketches[j]->sample());
+      benchmark::DoNotOptimize(sample_ret = sketches[j]->sample());
       sketches[j]->reset_sample_state();
     }
   }

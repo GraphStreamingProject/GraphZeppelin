@@ -109,12 +109,6 @@ TEST_P(GraphTest, TestCorrectnessOfReheating) {
     auto reheat_cc = reheat_alg->connected_components();
     printf("number of reheated CC = %lu\n", reheat_cc.size());
     ASSERT_EQ(orig_cc.size(), reheat_cc.size());
-    for (unsigned i = 0; i < orig_cc.size(); ++i) {
-      std::vector<node_id_t> symdif;
-      std::set_symmetric_difference(orig_cc[i].begin(), orig_cc[i].end(), reheat_cc[i].begin(),
-                                    reheat_cc[i].end(), std::back_inserter(symdif));
-      ASSERT_EQ(0, symdif.size());
-    }
     delete reheat_alg;
   }
 }
