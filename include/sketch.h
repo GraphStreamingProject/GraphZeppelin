@@ -176,9 +176,9 @@ class Sketch {
 #endif
 };
 
-class OutOfQueriesException : public std::exception {
+class OutOfSamplesException : public std::exception {
  public:
   virtual const char* what() const throw() {
-    return "This supernode cannot be sampled more times!";
+    return "This sketch cannot be sampled more times!";
   }
 };

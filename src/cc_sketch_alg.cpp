@@ -137,14 +137,16 @@ bool CCSketchAlg::sample_supernodes(std::vector<node_id_t> &merge_instr) {
   bool except = false;
   bool modified = false;
   std::exception_ptr err;
-#pragma omp parallel default(shared)
+// #pragma omp parallel default(shared)
   {
-#pragma omp for
+// #pragma omp for
     for (node_id_t root = 0; root < num_nodes; root++) {
       if (merge_instr[root] != root) {
         // don't query non-roots
         continue;
       }
+
+      std::cout << "querying: " << root;
 
       SketchSample sample_result;
 
@@ -160,6 +162,7 @@ bool CCSketchAlg::sample_supernodes(std::vector<node_id_t> &merge_instr) {
       SampleResult result_type = sample_result.result;
 
       if (result_type == FAIL) {
+        std::cout << " failure";
         modified = true;
       } else if (result_type == GOOD) {
         DSUMergeRet<node_id_t> m_ret = dsu.merge(e.src, e.dst);
@@ -167,6 +170,7 @@ bool CCSketchAlg::sample_supernodes(std::vector<node_id_t> &merge_instr) {
 #ifdef VERIFY_SAMPLES_F
           verifier->verify_edge(e);
 #endif
+	  std::cout << " merged!";
           modified = true;
           // Update spanning forest
           auto src = std::min(e.src, e.dst);
@@ -177,8 +181,9 @@ bool CCSketchAlg::sample_supernodes(std::vector<node_id_t> &merge_instr) {
           }
         }
       }
+      std::cout << std::endl;
     }
-#pragma omp for
+// #pragma omp for
     for (node_id_t i = 0; i < num_nodes; i++)
       merge_instr[i] = dsu.find_root(i);
   }
@@ -190,14 +195,14 @@ bool CCSketchAlg::sample_supernodes(std::vector<node_id_t> &merge_instr) {
 
 void CCSketchAlg::merge_supernodes(const size_t next_round,
                                    const std::vector<node_id_t> &merge_instr) {
-#pragma omp parallel default(shared)
+// #pragma omp parallel default(shared)
   {
     // some thread local variables
     Sketch local_sketch(Sketch::calc_vector_length(num_nodes), seed,
                         Sketch::calc_cc_samples(num_nodes));
     node_id_t cur_root = 0;
     bool first_root = true;
-#pragma omp for
+// #pragma omp for
     for (node_id_t i = 0; i < num_nodes; i++) {
       if (merge_instr[i] == i) continue;
 
@@ -239,7 +244,6 @@ std::vector<std::set<node_id_t>> CCSketchAlg::boruvka_emulation() {
     spanning_forest[i].clear();
   }
   size_t round_num = 0;
-  node_id_t active_roots = num_nodes;
   bool modified = true;
   while (true) {
     auto start = std::chrono::steady_clock::now();
@@ -267,7 +271,6 @@ std::vector<std::set<node_id_t>> CCSketchAlg::boruvka_emulation() {
     std::cout << "merge: "
               << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
               << std::endl;
-    std::cout << round_num << " remaining nodes = " << active_roots << std::endl;
     ++round_num;
   }
 

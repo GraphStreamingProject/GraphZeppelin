@@ -9,7 +9,7 @@ TEST(SketchTestSuite, TestSampleResults) {
   Sketch sketch1(10, rand(), 1, num_columns);
   ASSERT_EQ(sketch1.sample().result, ZERO);
   sketch1.update(1);
-  ASSERT_THROW(sketch1.sample(), OutOfQueriesException);
+  ASSERT_THROW(sketch1.sample(), OutOfSamplesException);
 
   /**
    * Find a vector that makes no good buckets
@@ -119,7 +119,7 @@ void test_sketch_sample(unsigned long num_sketches,
         //No good bucket
         all_bucket_failures++;
       }
-    } catch (OutOfQueriesException& e) {
+    } catch (OutOfSamplesException& e) {
       //Multiple queries shouldn't happen, but if we do get here fail test
       FAIL() << e.what();
     }
@@ -189,7 +189,7 @@ void test_sketch_merge(unsigned long num_sketches,
         //No good bucket
         all_bucket_failures++;
       }
-    } catch (OutOfQueriesException& e) {
+    } catch (OutOfSamplesException& e) {
       //Multiple queries shouldn't happen, but if we do get here fail test
       FAIL() << e.what();
     }
@@ -274,9 +274,9 @@ void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
       // No good bucket, not likely to happen for large vectors
       FAIL() << "Sketch Failed: No good bucket.";
     }
-  } catch (OutOfQueriesException& e) {
+  } catch (OutOfSamplesException& e) {
     //Multiple queries shouldn't happen, but if we do get here fail test
-    FAIL() << "OutOfQueriesException:" << e.what();
+    FAIL() << "OutOfSamplesException:" << e.what();
   }
 }
 

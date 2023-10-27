@@ -93,7 +93,7 @@ void Sketch::zero_contents() {
 
 SketchSample Sketch::sample() {
   if (sample_idx >= num_samples) {
-    throw OutOfQueriesException();
+    throw OutOfSamplesException();
   }
 
   size_t idx = sample_idx++;
@@ -116,6 +116,9 @@ SketchSample Sketch::sample() {
 }
 
 ExhaustiveSketchSample Sketch::exhaustive_sample() {
+  if (sample_idx >= num_samples) {
+    throw OutOfSamplesException();
+  }
   std::unordered_set<vec_t> ret;
 
   size_t idx = sample_idx++;
@@ -151,7 +154,10 @@ void Sketch::merge(const Sketch &other) {
 }
 
 void Sketch::range_merge(const Sketch &other, size_t start_sample, size_t n_samples) {
-  assert(start_sample + n_samples <= num_samples);
+  if (start_sample + n_samples > num_samples) {
+    assert(false);
+    return;
+  }
 
   // merge deterministic buffer
   buckets[num_buckets - 1].alpha ^= other.buckets[num_buckets - 1].alpha;
