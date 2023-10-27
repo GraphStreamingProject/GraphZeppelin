@@ -133,144 +133,119 @@ void CCSketchAlg::update(GraphUpdate upd) {
   sketches[edge.dst]->update(static_cast<vec_t>(concat_pairing_fn(edge.src, edge.dst)));
 }
 
-void CCSketchAlg::sample_supernodes(std::pair<Edge, SampleSketchRet> *query,
-                                    const std::unordered_set<node_id_t> &roots) {
+bool CCSketchAlg::sample_supernodes(std::vector<node_id_t> &merge_instr) {
   bool except = false;
+  bool modified = false;
   std::exception_ptr err;
-#pragma omp parallel for default(none) shared(query, roots, except, err)
-  for (node_id_t root = 0; root < num_nodes; root++) {
-    if (roots.count(root) == 0) {
-      // don't query non-roots
-      continue;
-    }
-
-    std::pair<vec_t, SampleSketchRet> query_ret;
-
-    // wrap in a try/catch because exiting through exception is undefined behavior in OMP
-    try {
-      query_ret = sketches[root]->sample();
-    } catch (...) {
-      except = true;
-      err = std::current_exception();
-    }
-
-    Edge e = inv_concat_pairing_fn(query_ret.first);
-    query[root] = {e, query_ret.second};
-  }
-  // Did one of our threads produce an exception?
-  if (except) std::rethrow_exception(err);
-}
-
-void CCSketchAlg::calc_merge_instructions(const std::pair<Edge, SampleSketchRet> *query,
-                                          std::unordered_set<node_id_t> &roots,
-                                          std::vector<node_id_t> &merge_instr) {
-  for (auto it = roots.begin(); it != roots.end();) {
-    // unpack query result
-    node_id_t root = *it;
-    Edge edge = query[root].first;
-    SampleSketchRet ret_code = query[root].second;
-
-    // try this query again next round as it failed this round
-    if (ret_code == FAIL) {
-      ++it;
-      continue;
-    }
-    // This root will not grow anymore, so remove it from the set
-    else if (ret_code == ZERO) {
-      it = roots.erase(it);
-      merge_instr[root] = root;
-      continue;
-    }
-
-    // query dsu
-    DSUMergeRet<node_id_t> m_ret = dsu.merge(edge.src, edge.dst);
-    if (m_ret.merged) {
-#ifdef VERIFY_SAMPLES_F
-      verifier->verify_edge(edge);
-#endif
-
-      if (m_ret.child == root) {
-        it = roots.erase(it);
-      } else {
-        roots.erase(m_ret.child);
+#pragma omp parallel default(shared)
+  {
+#pragma omp for
+    for (node_id_t root = 0; root < num_nodes; root++) {
+      if (merge_instr[root] != root) {
+        // don't query non-roots
+        continue;
       }
 
-      // Update spanning forest
-      auto src = std::min(edge.src, edge.dst);
-      auto dst = std::max(edge.src, edge.dst);
-      spanning_forest[src].insert(dst);
-    } else {
-      ++it;
-    }
-  }
+      SketchSample sample_result;
 
-  // compute the root of each vertex
-#pragma omp parallel for
-  for (size_t i = 0; i < num_nodes; i++) {
-    node_id_t root = dsu.find_root(i);
-    if (roots.count(root) > 0)
-      merge_instr[i] = root;
-    else
-      merge_instr[i] = i;
+      // wrap in a try/catch because exiting through exception is undefined behavior in OMP
+      try {
+        sample_result = sketches[root]->sample();
+      } catch (...) {
+        except = true;
+        err = std::current_exception();
+      }
+
+      Edge e = inv_concat_pairing_fn(sample_result.idx);
+      SampleResult result_type = sample_result.result;
+
+      if (result_type == FAIL) {
+        modified = true;
+      } else if (result_type == GOOD) {
+        DSUMergeRet<node_id_t> m_ret = dsu.merge(e.src, e.dst);
+        if (m_ret.merged) {
+#ifdef VERIFY_SAMPLES_F
+          verifier->verify_edge(e);
+#endif
+          modified = true;
+          // Update spanning forest
+          auto src = std::min(e.src, e.dst);
+          auto dst = std::max(e.src, e.dst);
+          {
+            std::unique_lock<std::mutex> lk(spanning_forest_mtx[src]);
+            spanning_forest[src].insert(dst);
+          }
+        }
+      }
+    }
+#pragma omp for
+    for (node_id_t i = 0; i < num_nodes; i++)
+      merge_instr[i] = dsu.find_root(i);
   }
+  
+  // Did one of our threads produce an exception?
+  if (except) std::rethrow_exception(err);
+  return modified;
 }
 
-void CCSketchAlg::merge_supernodes(const size_t cur_round,
+void CCSketchAlg::merge_supernodes(const size_t next_round,
                                    const std::vector<node_id_t> &merge_instr) {
 #pragma omp parallel default(shared)
   {
+    // some thread local variables
     Sketch local_sketch(Sketch::calc_vector_length(num_nodes), seed,
                         Sketch::calc_cc_samples(num_nodes));
-    node_id_t cur_root = -1;
+    node_id_t cur_root = 0;
+    bool first_root = true;
 #pragma omp for
     for (node_id_t i = 0; i < num_nodes; i++) {
       if (merge_instr[i] == i) continue;
 
       node_id_t root = merge_instr[i];
-      if (root != cur_root) {
-        if (cur_root != (node_id_t) -1) {
+      if (root != cur_root || first_root) {
+        if (!first_root) {
           std::unique_lock<std::mutex> lk(sketches[cur_root]->mutex);
-          sketches[cur_root]->range_merge(local_sketch, cur_round, 1);
+          sketches[cur_root]->range_merge(local_sketch, next_round, 1);
         }
         cur_root = root;
         local_sketch.zero_contents();
+        first_root = false;
       }
 
-      local_sketch.range_merge(*sketches[i], cur_round, 1);
+      local_sketch.range_merge(*sketches[i], next_round, 1);
     }
 
-    if (cur_root != (node_id_t) -1) {
+    if (!first_root) {
       std::unique_lock<std::mutex> lk(sketches[cur_root]->mutex);
-      sketches[cur_root]->range_merge(local_sketch, cur_round, 1);
+      sketches[cur_root]->range_merge(local_sketch, next_round, 1);
     }
   }
 }
 
-void CCSketchAlg::undo_merge_supernodes(const size_t prev_round,
+void CCSketchAlg::undo_merge_supernodes(const size_t cur_round,
                                         const std::vector<node_id_t> &merge_instr) {
-  if (prev_round > 0) merge_supernodes(prev_round, merge_instr);
+  if (cur_round > 0) merge_supernodes(cur_round, merge_instr);
 }
 
 std::vector<std::set<node_id_t>> CCSketchAlg::boruvka_emulation() {
   update_locked = true;
 
   cc_alg_start = std::chrono::steady_clock::now();
-  std::pair<Edge, SampleSketchRet> *query = new std::pair<Edge, SampleSketchRet>[num_nodes];
-  std::unordered_set<node_id_t> roots;
   std::vector<node_id_t> merge_instr(num_nodes);
 
   dsu.reset();
   for (node_id_t i = 0; i < num_nodes; ++i) {
-    roots.insert(i);
+    merge_instr[i] = i;
     spanning_forest[i].clear();
   }
   size_t round_num = 0;
-  do {
+  node_id_t active_roots = num_nodes;
+  bool modified = true;
+  while (true) {
     auto start = std::chrono::steady_clock::now();
     try {
-      sample_supernodes(query, roots);
+      modified = sample_supernodes(merge_instr);
     } catch (...) {
-      delete[] query;
       undo_merge_supernodes(round_num, merge_instr);
       std::rethrow_exception(std::current_exception());
     }
@@ -284,11 +259,7 @@ std::vector<std::set<node_id_t>> CCSketchAlg::boruvka_emulation() {
               << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
               << std::endl;
 
-    start = std::chrono::steady_clock::now();
-    calc_merge_instructions(query, roots, merge_instr);
-    std::cout << "parse samples: "
-              << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
-              << std::endl;
+    if (!modified) break;
 
     // prepare for the next round by merging
     start = std::chrono::steady_clock::now();
@@ -296,12 +267,10 @@ std::vector<std::set<node_id_t>> CCSketchAlg::boruvka_emulation() {
     std::cout << "merge: "
               << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
               << std::endl;
-    std::cout << round_num << " remaining nodes = " << roots.size() << std::endl;
+    std::cout << round_num << " remaining nodes = " << active_roots << std::endl;
     ++round_num;
-  } while (roots.size() > 1);
+  }
 
-  undo_merge_supernodes(round_num, merge_instr);
-  delete[] query;
   dsu_valid = true;
   shared_dsu_valid = true;
 

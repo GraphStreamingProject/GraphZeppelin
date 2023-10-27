@@ -17,10 +17,20 @@
 //   SPARSE,
 // };
 
-enum SampleSketchRet {
-  GOOD,  // querying this sketch returned a single non-zero value
-  ZERO,  // querying this sketch returned that there are no non-zero values
-  FAIL   // querying this sketch failed to produce a single non-zero value
+enum SampleResult {
+  GOOD,  // sampling this sketch returned a single non-zero value
+  ZERO,  // sampling this sketch returned that there are no non-zero values
+  FAIL   // sampling this sketch failed to produce a single non-zero value
+};
+
+struct SketchSample {
+  vec_t idx;
+  SampleResult result;
+};
+
+struct ExhaustiveSketchSample {
+  std::unordered_set<vec_t> idxs;
+  SampleResult result;
 };
 
 /**
@@ -93,13 +103,13 @@ class Sketch {
    * cols_per_sample determines the number of columns we allocate to this query
    * @return   A pair with the result index and a code indicating the type of result.
    */
-  std::pair<vec_t, SampleSketchRet> sample();
+  SketchSample sample();
 
   /**
    * Function to sample from the appropriate columns to return 1 or more non-zero indices
    * @return   A pair with the result indices and a code indicating the type of result.
    */
-  std::pair<std::unordered_set<vec_t>, SampleSketchRet> exhaustive_sample();
+  ExhaustiveSketchSample exhaustive_sample();
 
   std::mutex mutex; // lock the sketch for applying updates in multithreaded processing
 

@@ -62,32 +62,21 @@ class CCSketchAlg {
    * @param query  an array of sketch sample results
    * @param reps   an array containing node indices for the representative of each supernode
    */
-  void sample_supernodes(std::pair<Edge, SampleSketchRet> *query,
-                         const std::unordered_set<node_id_t> &roots);
+  bool sample_supernodes(std::vector<node_id_t> &merge_instr);
 
   /**
    * @param reps         set containing the roots of each supernode
    * @param merge_instr  a list of lists of supernodes to be merged
    */
-  void merge_supernodes(const size_t cur_round,
+  void merge_supernodes(const size_t next_round,
                         const std::vector<node_id_t> &merge_instr);
 
   /**
    * @param reps         set containing the roots of each supernode
    * @param merge_instr  an array where each vertex indicates its supernode root
    */
-  void undo_merge_supernodes(const size_t prev_round,
+  void undo_merge_supernodes(const size_t cur_round,
                              const std::vector<node_id_t> &merge_instr);
-
-  /**
-   * Run the disjoint set union to determine what supernodes should be merged together.
-   * Map from nodes to a vector of nodes to merge with them
-   * @param query  an array of sketch sample results
-   * @param reps   an array containing node indices for the representative of each supernode
-   */
-  void calc_merge_instructions(const std::pair<Edge, SampleSketchRet> *query,
-                               std::unordered_set<node_id_t> &roots,
-                               std::vector<node_id_t> &merge_vector);
 
   /**
    * Main parallel algorithm utilizing Boruvka and L_0 sampling.

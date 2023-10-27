@@ -91,7 +91,7 @@ void Sketch::zero_contents() {
   reset_sample_state();
 }
 
-std::pair<vec_t, SampleSketchRet> Sketch::sample() {
+SketchSample Sketch::sample() {
   if (sample_idx >= num_samples) {
     throw OutOfQueriesException();
   }
@@ -115,7 +115,7 @@ std::pair<vec_t, SampleSketchRet> Sketch::sample() {
   return {0, FAIL};
 }
 
-std::pair<std::unordered_set<vec_t>, SampleSketchRet> Sketch::exhaustive_sample() {
+ExhaustiveSketchSample Sketch::exhaustive_sample() {
   std::unordered_set<vec_t> ret;
 
   size_t idx = sample_idx++;

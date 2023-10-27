@@ -7,7 +7,7 @@
 static const int num_columns = 7;
 TEST(SketchTestSuite, TestSampleResults) {
   Sketch sketch1(10, rand(), 1, num_columns);
-  ASSERT_EQ(sketch1.sample().second, ZERO);
+  ASSERT_EQ(sketch1.sample().result, ZERO);
   sketch1.update(1);
   ASSERT_THROW(sketch1.sample(), OutOfQueriesException);
 
@@ -54,7 +54,7 @@ TEST(SketchTestSuite, TestSampleResults) {
       if (++applied_updates >= total_updates) break;
     }
   }
-  ASSERT_EQ(sketch2.sample().second, FAIL);
+  ASSERT_EQ(sketch2.sample().result, FAIL);
 }
 
 TEST(SketchTestSuite, GIVENonlyIndexZeroUpdatedTHENitWorks) {
@@ -65,9 +65,9 @@ TEST(SketchTestSuite, GIVENonlyIndexZeroUpdatedTHENitWorks) {
   sketch.update(0);
 
   // THEN it works
-  std::pair<vec_t, SampleSketchRet> query_ret = sketch.sample();
-  vec_t res = query_ret.first;
-  SampleSketchRet ret_code = query_ret.second;
+  SketchSample query_ret = sketch.sample();
+  vec_t res = query_ret.idx;
+  SampleResult ret_code = query_ret.result;
 
   ASSERT_EQ(res, 0) << "Expected: 0" << std::endl << "Actual: " << res;
   ASSERT_EQ(ret_code, GOOD);
@@ -84,16 +84,16 @@ void test_sketch_sample(unsigned long num_sketches,
   unsigned long sample_incorrect_failures = 0;
   for (unsigned long i = 0; i < num_sketches; i++) {
     Testing_Vector test_vec = Testing_Vector(vec_size, num_updates);
-    Sketch sketch(vec_size, rand(), 1, num_columns);
+    Sketch sketch(vec_size, rand() + i * 7, 1, num_columns);
     auto start_time = std::chrono::steady_clock::now();
     for (unsigned long j = 0; j < num_updates; j++){
       sketch.update(test_vec.get_update(j));
     }
     runtime += std::chrono::steady_clock::now() - start_time;
     try {
-      std::pair<vec_t, SampleSketchRet> query_ret = sketch.sample();
-      vec_t res_idx = query_ret.first;
-      SampleSketchRet ret_code = query_ret.second;
+      SketchSample query_ret = sketch.sample();
+      vec_t res_idx = query_ret.idx;
+      SampleResult ret_code = query_ret.result;
 
       if (ret_code == GOOD) {
         //Multiple queries shouldn't happen, but if we do get here fail test
@@ -151,7 +151,7 @@ void test_sketch_merge(unsigned long num_sketches,
   unsigned long all_bucket_failures = 0;
   unsigned long sample_incorrect_failures = 0;
   for (unsigned long i = 0; i < num_sketches; i++){
-    const long seed = rand();
+    const long seed = rand() + 7 * i;
     Sketch sketch1(vec_size, seed, 1, num_columns);
     Sketch sketch2(vec_size, seed, 1, num_columns);
     Testing_Vector test_vec1 = Testing_Vector(vec_size, num_updates);
@@ -163,9 +163,9 @@ void test_sketch_merge(unsigned long num_sketches,
     }
     sketch1.merge(sketch2);
     try {
-      std::pair<vec_t, SampleSketchRet> query_ret = sketch1.sample();
-      vec_t res_idx = query_ret.first;
-      SampleSketchRet ret_code = query_ret.second;
+      SketchSample query_ret = sketch1.sample();
+      vec_t res_idx = query_ret.idx;
+      SampleResult ret_code = query_ret.result;
 
       if (ret_code == GOOD) {
         ASSERT_LT(res_idx, vec_size) << "Sampled index out of bounds";
@@ -247,9 +247,9 @@ void test_sketch_large(unsigned long vec_size, unsigned long num_updates) {
     << " updates took " << std::chrono::duration<long double>(
       std::chrono::steady_clock::now() - start_time).count() << std::endl;
   try {
-    std::pair<vec_t, SampleSketchRet> query_ret = sketch.sample();
-    vec_t res_idx = query_ret.first;
-    SampleSketchRet ret_code = query_ret.second;
+    SketchSample query_ret = sketch.sample();
+    vec_t res_idx = query_ret.idx;
+    SampleResult ret_code = query_ret.result;
 
     if (ret_code == GOOD) {
       //Multiple queries shouldn't happen, but if we do get here fail test
@@ -292,7 +292,7 @@ TEST(SketchTestSuite, TestSerialization) {
   unsigned long num_updates = 10000;
   Testing_Vector test_vec = Testing_Vector(vec_size, num_updates);
   auto seed = rand();
-  Sketch sketch(vec_size, seed, 1, num_columns);
+  Sketch sketch(vec_size, seed, 3, num_columns);
   for (unsigned long j = 0; j < num_updates; j++){
     sketch.update(test_vec.get_update(j));
   }
@@ -301,10 +301,119 @@ TEST(SketchTestSuite, TestSerialization) {
   file.close();
 
   auto in_file = std::fstream("./out_sketch.txt", std::ios::in | std::ios::binary);
-  Sketch reheated(vec_size, seed, in_file, 1, num_columns);
+  Sketch reheated(vec_size, seed, in_file, 3, num_columns);
 
   ASSERT_EQ(sketch, reheated);
 }
+
+TEST(SketchTestSuite, TestSamplesHaveUniqueSeed) {
+  size_t num_samples = 50;
+  size_t cols_per_sample = 3;
+  Sketch sketch(10000, 1024, num_samples, cols_per_sample);
+  std::set<size_t> seeds;
+
+  for (size_t i = 0; i < num_samples * cols_per_sample; i++) {
+    size_t seed = sketch.column_seed(i);
+    ASSERT_EQ(seeds.count(seed), 0);
+    seeds.insert(seed);
+  }
+}
+
+TEST(SketchTestSuite, TestExhaustiveQuery) {
+  size_t runs = 10;
+  size_t vec_size = 2000;
+  for (size_t i = 0; i < runs; i++) {
+    Sketch sketch(vec_size, rand() + 7 * i, 1, log2(vec_size));
+
+    sketch.update(1);
+    sketch.update(2);
+    sketch.update(3);
+    sketch.update(4);
+    sketch.update(5);
+    sketch.update(6);
+    sketch.update(7);
+    sketch.update(8);
+    sketch.update(9);
+    sketch.update(10);
+
+    ExhaustiveSketchSample query_ret = sketch.exhaustive_sample();
+    if (query_ret.result != GOOD) {
+      ASSERT_EQ(query_ret.idxs.size(), 0) << query_ret.result;
+    }
+
+    // assert everything returned is valid and <= 10 things
+    ASSERT_LE(query_ret.idxs.size(), 10);
+    for (vec_t non_zero : query_ret.idxs) {
+      ASSERT_GT(non_zero, 0);
+      ASSERT_LE(non_zero, 10);
+    }
+
+    // assert everything returned is unique
+    std::set<vec_t> unique_elms(query_ret.idxs.begin(), query_ret.idxs.end());
+    ASSERT_EQ(unique_elms.size(), query_ret.idxs.size());
+  }
+}
+
+TEST(SketchTestSuite, TestSampleInsertGrinder) {
+  size_t nodes = 1024;
+  Sketch sketch(Sketch::calc_vector_length(nodes), rand(), Sketch::calc_cc_samples(nodes));
+
+  for (size_t src = 0; src < nodes - 1; src++) {
+    for (size_t dst = src + 7; dst < nodes; dst += 7) {
+      sketch.update(concat_pairing_fn(src, dst));
+    }
+  }
+
+  size_t successes = 0;
+  for (size_t i = 0; i < Sketch::calc_cc_samples(nodes); i++) {
+    SketchSample ret = sketch.sample();
+    if (ret.result == FAIL) continue;
+
+    ++successes;
+    ASSERT_EQ(ret.result, GOOD); // ZERO is not allowed
+
+    // validate the result we got
+    Edge e = inv_concat_pairing_fn(ret.idx);
+    ASSERT_EQ((e.dst - e.src) % 7, 0);
+  }
+  ASSERT_GE(successes, log2(nodes));
+}
+
+TEST(SketchTestSuite, TestSampleDeleteGrinder) {
+  size_t nodes = 1024;
+  Sketch sketch(Sketch::calc_vector_length(nodes), rand(), Sketch::calc_cc_samples(nodes));
+
+  // insert
+  for (size_t src = 0; src < nodes - 1; src++) {
+    for (size_t dst = src + 7; dst < nodes; dst += 7) {
+      sketch.update(concat_pairing_fn(src, dst));
+    }
+  }
+
+  // delete all odd src
+  for (size_t src = 1; src < nodes - 1; src += 2) {
+    for (size_t dst = src + 7; dst < nodes; dst += 7) {
+      sketch.update(concat_pairing_fn(src, dst));
+    }
+  }
+
+  size_t successes = 0;
+  for (size_t i = 0; i < Sketch::calc_cc_samples(nodes); i++) {
+    SketchSample ret = sketch.sample();
+    if (ret.result == FAIL) continue;
+
+    ++successes;
+    ASSERT_EQ(ret.result, GOOD); // ZERO is not allowed
+
+    // validate the result we got
+    Edge e = inv_concat_pairing_fn(ret.idx);
+    ASSERT_EQ((e.dst - e.src) % 7, 0);
+    ASSERT_EQ(e.src % 2, 0);
+  }
+  ASSERT_GE(successes, log2(nodes));
+}
+
+
 /*
 TEST(SketchTestSuite, TestSparseSerialization) {
   unsigned long vec_size = 1 << 10;
@@ -323,40 +432,5 @@ TEST(SketchTestSuite, TestSparseSerialization) {
   Sketch reheated(vec_size, seed, in_file, SPARSE, 1, num_columns);
 
   ASSERT_EQ(sketch, reheated);
-}
-
-TEST(SketchTestSuite, TestExhaustiveQuery) {
-  size_t runs = 10;
-  size_t vec_size = 20;
-  for (size_t i = 0; i < runs; i++) {
-    Sketch sketch(vec_size, rand(), 1, log2(vec_size));
-
-    sketch.update(1);
-    sketch.update(2);
-    sketch.update(3);
-    sketch.update(4);
-    sketch.update(5);
-    sketch.update(6);
-    sketch.update(7);
-    sketch.update(8);
-    sketch.update(9);
-    sketch.update(10);
-
-    std::pair<std::unordered_set<vec_t>, SampleSketchRet> query_ret = sketch.exhaustive_sample();
-    if (query_ret.second != GOOD) {
-      ASSERT_EQ(query_ret.first.size(), 0) << query_ret.second;
-    }
-
-    // assert everything returned is valid and <= 10 things
-    ASSERT_LE(query_ret.first.size(), 10);
-    for (vec_t non_zero : query_ret.first) {
-      ASSERT_GT(non_zero, 0);
-      ASSERT_LE(non_zero, 10);
-    }
-
-    // assert everything returned is unique
-    std::set<vec_t> unique_elms(query_ret.first.begin(), query_ret.first.end());
-    ASSERT_EQ(unique_elms.size(), query_ret.first.size());
-  }
 }
 */
