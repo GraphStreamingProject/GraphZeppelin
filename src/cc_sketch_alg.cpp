@@ -235,22 +235,22 @@ std::vector<std::set<node_id_t>> CCSketchAlg::boruvka_emulation() {
   size_t round_num = 0;
   bool modified = true;
   while (true) {
-    auto start = std::chrono::steady_clock::now();
+    // auto start = std::chrono::steady_clock::now();
     try {
       modified = sample_supernodes(merge_instr);
     } catch (...) {
       undo_merge_supernodes(round_num, merge_instr);
       std::rethrow_exception(std::current_exception());
     }
-    std::cout << "sample: "
-              << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
-              << std::endl;
+    // std::cout << "sample: "
+    //           << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
+    //           << std::endl;
 
-    start = std::chrono::steady_clock::now();
+    // start = std::chrono::steady_clock::now();
     undo_merge_supernodes(round_num, merge_instr);
-    std::cout << "undo merge: "
-              << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
-              << std::endl;
+    // std::cout << "undo merge: "
+    //           << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
+    //           << std::endl;
 
     if (!modified) break;
 
@@ -260,18 +260,18 @@ std::vector<std::set<node_id_t>> CCSketchAlg::boruvka_emulation() {
       merge_instr[i] = dsu.find_root(i);
 
     // prepare for the next round by merging
-    start = std::chrono::steady_clock::now();
+    // start = std::chrono::steady_clock::now();
     merge_supernodes(round_num + 1, merge_instr);
-    std::cout << "merge: "
-              << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
-              << std::endl;
+    // std::cout << "merge: "
+    //           << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
+    //           << std::endl;
     ++round_num;
   }
 
   dsu_valid = true;
   shared_dsu_valid = true;
 
-  std::cout << "Query complete in " << round_num << " rounds." << std::endl;
+  // std::cout << "Query complete in " << round_num << " rounds." << std::endl;
   auto retval = cc_from_dsu();
   cc_alg_end = std::chrono::steady_clock::now();
   update_locked = false;
