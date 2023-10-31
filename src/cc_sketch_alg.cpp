@@ -27,7 +27,6 @@ CCSketchAlg::CCSketchAlg(node_id_t num_nodes, CCAlgConfiguration config)
   spanning_forest_mtx = new std::mutex[num_nodes];
   dsu_valid = true;
   shared_dsu_valid = true;
-  std::cout << config << std::endl;  // print the graph configuration
 }
 
 CCSketchAlg *CCSketchAlg::construct_from_serialized_data(const std::string &input_file,
@@ -63,7 +62,6 @@ CCSketchAlg::CCSketchAlg(node_id_t num_nodes, size_t seed, std::ifstream &binary
   spanning_forest_mtx = new std::mutex[num_nodes];
   dsu_valid = false;
   shared_dsu_valid = false;
-  std::cout << config << std::endl;  // print the graph configuration
 }
 
 CCSketchAlg::~CCSketchAlg() {

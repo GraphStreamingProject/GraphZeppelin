@@ -14,6 +14,7 @@ struct DSUMergeRet {
 
 template <class T>
 class DisjointSetUnion {
+ private:
   // number of items in the DSU
   T n;
 

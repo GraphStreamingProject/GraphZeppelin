@@ -22,7 +22,7 @@
  *    2) size_t get_desired_updates_per_batch()
  *          Return the number of updates the algorithm would like us to batch. This serves as the
  *          maximum number of updates in a batch. We only provide smaller batches if force_flush'd
- * 
+ *
  *    3) node_id_t get_num_vertices()
  *          Returns the number of vertices in the Graph or an appropriate upper bound.
  *
@@ -37,6 +37,10 @@
  *    6) bool has_cached_query()
  *          Check if the algorithm already has a cached answer for its query type. If so, the driver
  *          can skip flushing the updates and applying them in prep_query().
+ *
+ *    7) void print_configuration()
+ *          Print the configuration of the algorithm. The algorithm may choose to print the
+ *          configurations of subalgorithms as well.
  */
 template <class Alg>
 class GraphSketchDriver {
@@ -76,6 +80,7 @@ class GraphSketchDriver {
                                num_stream_threads, config.gutter_conf());
 
     worker_threads = new WorkerThreadGroup<Alg>(config.get_worker_threads(), this, gts);
+    sketching_alg->print_configuration();
 
     if (num_stream_threads > 1 && !stream->get_update_is_thread_safe()) {
       std::cerr << "WARNING: stream get_update is not thread safe. Setting num inserters to 1"

@@ -143,6 +143,19 @@ class CCSketchAlg {
                           const std::vector<node_id_t> &dst_vertices);
 
   /**
+   * Return if we have cached an answer to query.
+   * This allows the driver to avoid flushing the gutters before calling query functions.
+   */
+  bool has_cached_query() { return shared_dsu_valid; }
+
+  /**
+   * Print the configuration of the connected components graph sketching.
+   */
+  void print_configuration() {
+    std::cout << config << std::endl;
+  }
+
+  /**
    * Apply a batch of updates that have already been processed into a sketch delta.
    * Specifically, the delta is in the form of a pointer to raw bucket data.
    * @param src_vertex   The vertex where the all edges originate.
@@ -157,12 +170,6 @@ class CCSketchAlg {
    * This function is not thread-safe
    */
   void update(GraphUpdate upd);
-
-  /**
-   * Return if we have cached an answer to query.
-   * This allows the driver to avoid flushing the gutters before calling query functions.
-   */
-  bool has_cached_query() { return shared_dsu_valid; }
 
   /**
    * Main parallel query algorithm utilizing Boruvka and L_0 sampling.
