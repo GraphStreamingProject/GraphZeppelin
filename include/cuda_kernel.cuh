@@ -1,4 +1,5 @@
 #pragma once
+#include <atomic>
 #include <graph.h>
 #include <sketch.h>
 #include "../src/cuda_library.cu"
@@ -48,6 +49,8 @@ class CudaUpdateParams {
   public:
     // Value of k
     int k;
+
+    int num_inserted_updates = 0;
 
     // List of edge ids that thread will be responsble for updating
     vec_t *h_edgeUpdates, *d_edgeUpdates;

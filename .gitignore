@@ -66,3 +66,4 @@ test/statistical_testing/stat_config.txt
 # Dataset files
 /datasets
 /CUDAtest
+/results

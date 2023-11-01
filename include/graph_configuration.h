@@ -35,6 +35,7 @@ private:
 
   friend class Graph;
   friend class KConnectedGraph;
+  friend class MinCutGraph;
 
 public:
   GraphConfiguration() {};
@@ -60,5 +61,7 @@ public:
   // moving and copying allowed
   GraphConfiguration(const GraphConfiguration &oth) = default;
   GraphConfiguration (GraphConfiguration &&) = default;
+
+  size_t get_num_groups() { return _num_groups; }
 
 };

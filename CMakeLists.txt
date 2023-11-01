@@ -138,6 +138,22 @@ target_compile_options(GraphZeppelinKConnect PUBLIC -fopenmp)
 target_link_options(GraphZeppelinKConnect PUBLIC -fopenmp)
 target_compile_definitions(GraphZeppelinKConnect PUBLIC XXH_INLINE_ALL USE_EAGER_DSU)
 
+add_library(GraphZeppelinMinCut
+  src/cuda_kernel.cu
+  src/mincut_graph.cpp
+  src/graph.cpp
+  src/graph_configuration.cpp
+  src/supernode.cpp
+  src/graph_worker.cpp
+  src/l0_sampling/sketch.cpp
+  src/util.cpp)
+add_dependencies(GraphZeppelinMinCut GutterTree)
+target_link_libraries(GraphZeppelinMinCut PUBLIC xxhash GutterTree CUDALibrary)
+target_include_directories(GraphZeppelinMinCut PUBLIC include/ include/l0_sampling/)
+target_compile_options(GraphZeppelinMinCut PUBLIC -fopenmp)
+target_link_options(GraphZeppelinMinCut PUBLIC -fopenmp)
+target_compile_definitions(GraphZeppelinMinCut PUBLIC XXH_INLINE_ALL USE_EAGER_DSU)
+
 add_library(GraphZeppelinVerifyCC
   src/cuda_kernel.cu
   src/graph.cpp
@@ -210,7 +226,7 @@ if (BUILD_EXE)
 
   add_executable(min_cut
     tools/min_cut.cu)
-  target_link_libraries(min_cut PRIVATE GraphZeppelinKConnect)
+  target_link_libraries(min_cut PRIVATE GraphZeppelinMinCut)
 
   add_executable(test_main
     tools/test.cpp)

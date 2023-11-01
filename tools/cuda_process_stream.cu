@@ -37,7 +37,7 @@ int main(int argc, char **argv) {
               .fanout(64)
               .queue_factor(8)
               .num_flushers(2)
-              .gutter_factor(1)
+              .gutter_bytes(32 * 1024)
               .wq_batch_per_elm(8);
   Graph g{num_nodes, config, &cudaGraph, 1, reader_threads};
 
@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
   
   CudaUpdateParams* cudaUpdateParams;
   gpuErrchk(cudaMallocManaged(&cudaUpdateParams, sizeof(CudaUpdateParams)));
-  cudaUpdateParams[0] = CudaUpdateParams(num_nodes, num_updates, num_sketches, num_elems, num_columns, num_guesses, num_threads, batch_size, stream_multiplier);
+  cudaUpdateParams = new CudaUpdateParams(num_nodes, num_updates, num_sketches, num_elems, num_columns, num_guesses, num_threads, batch_size, stream_multiplier);
 
   long* sketchSeeds;
   gpuErrchk(cudaMallocManaged(&sketchSeeds, num_nodes * num_sketches * sizeof(long)));

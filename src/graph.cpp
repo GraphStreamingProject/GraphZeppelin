@@ -136,7 +136,48 @@ Graph::Graph(node_id_t num_nodes, GraphConfiguration config, CudaGraph* cudaGrap
   spanning_forest = new std::unordered_set<node_id_t>[num_nodes];
   spanning_forest_mtx = new std::mutex[num_nodes];
   dsu_valid = true;
+  main_gts = true;
   std::cout << config << std::endl; // print the graph configuration
+}
+
+Graph::Graph(node_id_t num_nodes, GraphConfiguration config, GutteringSystem* gutteringSystem, CudaGraph* cudaGraph, int k, int num_inserters) : 
+ num_nodes(num_nodes), config(config), cudaGraph(cudaGraph), num_updates(0) {
+  // Commenting this out for min-cut problem
+  //if (open_graph) throw MultipleGraphsException();
+
+#ifdef VERIFY_SAMPLES_F
+  std::cout << "Verifying samples..." << std::endl;
+#endif
+  Supernode::configure(num_nodes);
+  representatives = new std::set<node_id_t>();
+  //supernodes = new Supernode*[num_nodes];
+  supernodes = new Supernode*[num_nodes * k];
+  parent = new std::remove_reference<decltype(*parent)>::type[num_nodes * k];
+  size = new node_id_t[num_nodes];
+  seed = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+  std::mt19937_64 r(seed);
+  seed = r();
+
+  std::fill(size, size + num_nodes, 1);
+  for (node_id_t i = 0; i < num_nodes; ++i) {
+    representatives->insert(i);
+    for (int k_id = 0; k_id < k; k_id++) {
+      supernodes[(i * k) + k_id] = Supernode::makeSupernode(num_nodes,seed);
+      parent[(i * k) + k_id] = i;
+    }
+  }
+  
+  backup_file = config._disk_dir + "supernode_backup.data";
+  gts = gutteringSystem;
+
+  //GraphWorker::set_config(config._num_groups, config._group_size);
+  //GraphWorker::start_workers(this, gts, cudaGraph, Supernode::get_size());
+
+  open_graph = true;
+  spanning_forest = new std::unordered_set<node_id_t>[num_nodes];
+  spanning_forest_mtx = new std::mutex[num_nodes];
+  dsu_valid = true;
+  //std::cout << config << std::endl; // print the graph configuration
 }
 
 Graph::Graph(const std::string& input_file, GraphConfiguration config, int num_inserters) : 
@@ -190,8 +231,10 @@ Graph::~Graph() {
   delete[] parent;
   delete[] size;
   delete representatives;
-  GraphWorker::stop_workers(); // join the worker threads
-  delete gts;
+  if (main_gts) {
+    GraphWorker::stop_workers(); // join the worker threads
+    delete gts;    
+  }
   open_graph = false;
   delete[] spanning_forest;
   delete[] spanning_forest_mtx;

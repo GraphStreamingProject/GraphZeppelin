@@ -82,6 +82,7 @@ protected:
   CudaGraph *cudaGraph;
 
   static bool open_graph;
+  bool main_gts = false;
 
 public:
   explicit Graph(node_id_t num_nodes, int num_inserters=1) : 
@@ -91,6 +92,7 @@ public:
   explicit Graph(const std::string &input_file, GraphConfiguration config, int num_inserters=1);
   explicit Graph(node_id_t num_nodes, GraphConfiguration config, int num_inserters=1);
   explicit Graph(node_id_t num_nodes, GraphConfiguration config, CudaGraph* cudaGraph, int k, int num_inserters=1);
+  explicit Graph(node_id_t num_nodes, GraphConfiguration config, GutteringSystem* gutteringSystem, CudaGraph* cudaGraph, int k, int num_inserters=1);
 
   virtual ~Graph();
 
@@ -99,6 +101,8 @@ public:
   GutteringSystem* getGTS() { return gts; }
 
   bool getModified() { return modified; }
+
+  uint64_t getSeed() { return seed;}
 
   inline void setModified(bool newModified) { modified = newModified; }
 
@@ -242,4 +246,5 @@ public:
   std::chrono::steady_clock::time_point cc_alg_end;
 
   friend class KConnectedGraph;
+  friend class MinCutGraph;
 };

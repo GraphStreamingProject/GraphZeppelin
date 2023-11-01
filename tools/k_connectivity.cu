@@ -6,7 +6,9 @@
 #include <cuda_graph.cuh>
 #include <k_connected_graph.h>
 
-constexpr size_t k = 4;
+// NOT WORKING PROPERLY: K-CONFIGURE NEEDS TO BE FIXED
+
+constexpr size_t k = 2;
 //constexpr size_t vert_multiple = 2;
 
 int main(int argc, char **argv) {
@@ -51,7 +53,7 @@ int main(int argc, char **argv) {
               .fanout(64)
               .queue_factor(8)
               .num_flushers(2)
-              .gutter_factor(1)
+              .gutter_bytes(32 * 1024)
               .wq_batch_per_elm(8);
   /*GraphConfiguration conf;
   int num_threads = 12;
@@ -85,8 +87,8 @@ int main(int argc, char **argv) {
   
   CudaUpdateParams* cudaUpdateParams;
   gpuErrchk(cudaMallocManaged(&cudaUpdateParams, sizeof(CudaUpdateParams)));
-  cudaUpdateParams[0] = CudaUpdateParams(num_nodes, num_updates, num_sketches, num_elems, num_columns, num_guesses, num_threads, batch_size, stream_multiplier, k);
-
+  cudaUpdateParams = new CudaUpdateParams(num_nodes, num_updates, num_sketches, num_elems, num_columns, num_guesses, num_threads, batch_size, stream_multiplier);
+  
   std::cout << "Initialized cudaUpdateParams\n";
 
   long* sketchSeeds;
@@ -113,7 +115,7 @@ int main(int argc, char **argv) {
   // Prefetch memory to device  
   gpuErrchk(cudaMemPrefetchAsync(sketchSeeds, k * num_nodes * num_sketches * sizeof(long), device_id));
 
-  cudaGraph.k_configure(cudaUpdateParams, k_supernodes, sketchSeeds, num_threads, k);
+  cudaGraph.k_configure(cudaUpdateParams, &k_supernodes, sketchSeeds, num_threads, k, 1);
 
   MT_StreamReader reader(stream);
   GraphUpdate upd;
