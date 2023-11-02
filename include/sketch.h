@@ -135,7 +135,7 @@ class Sketch {
    * We also allow for only a portion of the buckets to be merge at once
    * @param raw_bucket    Raw bucket data to merge into this sketch
    */
-  void merge_raw_bucket_buffer(Bucket *raw_buckets);
+  void merge_raw_bucket_buffer(const Bucket *raw_buckets);
 
   /**
    * Zero out all the buckets of a sketch.
@@ -158,11 +158,12 @@ class Sketch {
   // return the size of the sketching datastructure in bytes (just the buckets, not the metadata)
   inline size_t bucket_array_bytes() const { return num_buckets * sizeof(Bucket); }
 
-  inline const char* get_readonly_bucket_ptr() const { return (const char*) buckets; }
+  inline const Bucket* get_readonly_bucket_ptr() const { return (const Bucket*) buckets; }
   inline uint64_t get_seed() const { return seed; }
   inline size_t column_seed(size_t column_idx) const { return seed + column_idx * 5; }
   inline size_t checksum_seed() const { return seed; }
   inline size_t get_columns() const { return num_columns; }
+  inline size_t get_buckets() const { return num_buckets; }
 
   static size_t calc_bkt_per_col(size_t n) { return ceil(log2(n)) + 1; }
   static size_t calc_cc_samples(size_t n) { return ceil(log2(n) / num_samples_div); }

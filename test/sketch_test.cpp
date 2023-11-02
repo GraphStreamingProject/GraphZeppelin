@@ -413,24 +413,37 @@ TEST(SketchTestSuite, TestSampleDeleteGrinder) {
   ASSERT_GE(successes, log2(nodes));
 }
 
+TEST(SketchTestSuite, TestRawBucketUpdate) {
+  size_t successes = 0;
+  for (size_t t = 0; t < 20; t++) {
+    size_t seed = rand() + 5 * t;
+    Sketch sk1(4096, seed, 1, 1);
+    Sketch sk2(4096, seed, 1, 1);
 
-/*
-TEST(SketchTestSuite, TestSparseSerialization) {
-  unsigned long vec_size = 1 << 10;
-  unsigned long num_updates = 10000;
-  Testing_Vector test_vec = Testing_Vector(vec_size, num_updates);
-  auto seed = rand();
-  Sketch sketch(vec_size, seed, 1, num_columns);
-  for (unsigned long j = 0; j < num_updates; j++){
-    sketch.update(test_vec.get_update(j));
+    for (size_t i = 0; i < 1024; i++) {
+      sk1.update(i);
+    }
+
+    const Bucket *data = sk1.get_readonly_bucket_ptr();
+
+    sk2.merge_raw_bucket_buffer(data);
+
+    SketchSample sample = sk2.sample();
+
+    ASSERT_NE(sample.result, ZERO);
+    if (sample.result == GOOD) {
+      ++successes;
+      ASSERT_GE(sample.idx, 0);
+      ASSERT_LT(sample.idx, 1024);
+    }
+
+    Bucket *copy_data = new Bucket[sk1.get_buckets()];
+    memcpy(copy_data, data, sk1.bucket_array_bytes());
+    sk2.merge_raw_bucket_buffer(copy_data);
+
+    sk2.reset_sample_state();
+    sample = sk2.sample();
+    ASSERT_EQ(sample.result, ZERO);
   }
-  auto file = std::fstream("./out_sketch.txt", std::ios::out | std::ios::binary | std::ios::trunc);
-  sketch.serialize(file, SPARSE);
-  file.close();
-
-  auto in_file = std::fstream("./out_sketch.txt", std::ios::in | std::ios::binary);
-  Sketch reheated(vec_size, seed, in_file, SPARSE, 1, num_columns);
-
-  ASSERT_EQ(sketch, reheated);
+  ASSERT_GT(successes, 0);
 }
-*/

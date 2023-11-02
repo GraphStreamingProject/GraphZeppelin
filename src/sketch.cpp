@@ -174,7 +174,7 @@ void Sketch::range_merge(const Sketch &other, size_t start_sample, size_t n_samp
   }
 }
 
-void Sketch::merge_raw_bucket_buffer(Bucket *raw_buckets) {
+void Sketch::merge_raw_bucket_buffer(const Bucket *raw_buckets) {
   for (size_t i = 0; i < num_buckets; i++) {
     buckets[i].alpha ^= raw_buckets[i].alpha;
     buckets[i].gamma ^= raw_buckets[i].gamma;
