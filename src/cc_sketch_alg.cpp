@@ -265,11 +265,11 @@ std::vector<std::set<node_id_t>> CCSketchAlg::boruvka_emulation() {
     //           << std::endl;
     ++round_num;
   }
+  last_query_rounds = round_num;
 
   dsu_valid = true;
   shared_dsu_valid = true;
 
-  // std::cout << "Query complete in " << round_num << " rounds." << std::endl;
   auto retval = cc_from_dsu();
   cc_alg_end = std::chrono::steady_clock::now();
   update_locked = false;

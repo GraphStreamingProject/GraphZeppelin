@@ -20,11 +20,10 @@
 #include "test/graph_verifier.h"
 #endif
 
-// Exceptions the Graph class may throw
+// Exceptions the Connected Components algorithm may throw
 class UpdateLockedException : public std::exception {
   virtual const char *what() const throw() {
-    return "The graph cannot be updated: Connected components algorithm has "
-           "already started";
+    return "Cannot update the algorithm: Connected components currently running";
   }
 };
 
@@ -209,6 +208,7 @@ class CCSketchAlg {
   // time hooks for experiments
   std::chrono::steady_clock::time_point cc_alg_start;
   std::chrono::steady_clock::time_point cc_alg_end;
+  size_t last_query_rounds = 0;
 
   // getters
   inline node_id_t get_num_vertices() { return num_nodes; }

@@ -166,6 +166,11 @@ if (BUILD_EXE)
     tools/process_stream.cpp)
   target_link_libraries(process_stream PRIVATE GraphZeppelin)
 
+  # executable for performing in depth correctness testing
+  add_executable(test_correctness
+    tools/test_correctness.cpp)
+  target_link_libraries(test_correctness PRIVATE GraphZeppelinVerifyCC)
+
   # tool for validating that a binary stream appears correct  
   add_executable(validate_binary_stream
     tools/validate_binary_stream.cpp
