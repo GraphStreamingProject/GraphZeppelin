@@ -6,6 +6,25 @@
 
 static bool shutdown = false;
 
+class TwoEdgeConnect{
+public:
+    CCSketchAlg cc_alg_1;
+    CCSketchAlg cc_alg_2;
+    node_id_t num_nodes;
+
+    explicit TwoEdgeConnect(node_id_t num_nodes,
+                            const CCAlgConfiguration& config_1, const CCAlgConfiguration& config_2)
+            : cc_alg_1(num_nodes, config_1), cc_alg_2(num_nodes, config_2) {
+
+    }
+
+    void update(GraphUpdate upd){
+
+    }
+
+};
+
+
 static double get_max_mem_used() {
   struct rusage data;
   getrusage(RUSAGE_SELF, &data);
@@ -82,13 +101,22 @@ int main(int argc, char **argv) {
 
     auto driver_config = DriverConfiguration().gutter_sys(CACHETREE).worker_threads(num_threads);
     auto cc_config = CCAlgConfiguration().batch_factor(1);
-    CCSketchAlg cc_alg{num_nodes, cc_config};
-    GraphSketchDriver<CCSketchAlg> driver{&cc_alg, &stream, driver_config, reader_threads};
-
     auto driver_config2 = DriverConfiguration().gutter_sys(CACHETREE).worker_threads(num_threads);
     auto cc_config2 = CCAlgConfiguration().batch_factor(1);
-    CCSketchAlg cc_alg2{num_nodes, cc_config2};
-    GraphSketchDriver<CCSketchAlg> driver2{&cc_alg2, &stream2, driver_config2, reader_threads};
+
+    TwoEdgeConnect two_edge_alg{num_nodes, cc_config, cc_config2};
+
+    // CCSketchAlg cc_alg{num_nodes, cc_config};
+    GraphSketchDriver<CCSketchAlg> driver{&two_edge_alg.cc_alg_1, &stream, driver_config, reader_threads};
+
+    /************
+     * The plan is to use the constructor as follows.
+     * GraphSketchDriver<TwoEdgeConnect> driver{&two_edge_alg, &stream, driver_config, reader_threads};
+     *
+    **************/
+
+    // CCSketchAlg cc_alg2{num_nodes, cc_config2};
+    GraphSketchDriver<CCSketchAlg> driver2{&two_edge_alg.cc_alg_2, &stream2, driver_config2, reader_threads};
 
     auto ins_start = std::chrono::steady_clock::now();
     std::thread querier(track_insertions, num_updates, &driver, ins_start);
@@ -99,9 +127,9 @@ int main(int argc, char **argv) {
     auto cc_start = std::chrono::steady_clock::now();
     driver.prep_query();
     driver2.prep_query();
-    auto CC_num = cc_alg.connected_components().size();
+    auto CC_num = two_edge_alg.cc_alg_1.connected_components().size();
 
-    std::vector<std::pair<node_id_t, std::vector<node_id_t>>> forest = cc_alg.calc_spanning_forest();
+    std::vector<std::pair<node_id_t, std::vector<node_id_t>>> forest = two_edge_alg.cc_alg_1.calc_spanning_forest();
 
     GraphUpdate temp_edge;
 
@@ -110,18 +138,17 @@ int main(int argc, char **argv) {
     for(unsigned int j=0;j<forest.size();j++)
     {
         std::cout <<"Node "<< j <<": " << std::endl;
-        cc_alg2.apply_update_batch(0,forest[j].first,forest[j].second);
+        two_edge_alg.cc_alg_2.apply_update_batch(0,forest[j].first,forest[j].second);
         for(unsigned int i=0;i<forest[j].second.size();i++)
         {
             std::cout <<"Nbr "<< i <<": " << forest[j].second[i] << std::endl;
             temp_edge.edge.src=forest[j].first;
             temp_edge.edge.dst=forest[j].second[i];
-            cc_alg2.update(temp_edge);
+            two_edge_alg.cc_alg_2.update(temp_edge);
         }
     }
 
-
-    std::vector<std::pair<node_id_t, std::vector<node_id_t>>> forest2 = cc_alg2.calc_spanning_forest();
+    std::vector<std::pair<node_id_t, std::vector<node_id_t>>> forest2 = two_edge_alg.cc_alg_2.calc_spanning_forest();
 
     for(unsigned int j=0;j<forest2.size();j++)
     {
@@ -132,12 +159,12 @@ int main(int argc, char **argv) {
         }
     }
 
-    auto CC_num2 = cc_alg2.connected_components().size();
+    auto CC_num2 = two_edge_alg.cc_alg_2.connected_components().size();
 
     std::chrono::duration<double> insert_time = driver.flush_end - ins_start;
     std::chrono::duration<double> cc_time = std::chrono::steady_clock::now() - cc_start;
     std::chrono::duration<double> flush_time = driver.flush_end - driver.flush_start;
-    std::chrono::duration<double> cc_alg_time = cc_alg.cc_alg_end - cc_alg.cc_alg_start;
+    std::chrono::duration<double> cc_alg_time = two_edge_alg.cc_alg_1.cc_alg_end - two_edge_alg.cc_alg_1.cc_alg_start;
 
     shutdown = true;
     querier.join();
