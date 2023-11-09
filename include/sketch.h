@@ -155,9 +155,11 @@ class Sketch {
     sample_idx = 0;
   }
 
+  #ifndef L0_SAMPLING
   vec_hash_t get_checksum(const vec_t update_idx);
   std::vector<size_t> const get_bucket_ids(const vec_t update_idx);
   void update_buckets(const vec_t update_idx, const vec_hash_t checksum, const std::vector<size_t>& bucket_ids);
+  #endif
   
   // return the size of the sketching datastructure in bytes (just the buckets, not the metadata)
   inline size_t bucket_array_bytes() const { return num_buckets * sizeof(Bucket); }

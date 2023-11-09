@@ -448,12 +448,14 @@ TEST(SketchTestSuite, TestRawBucketUpdate) {
   ASSERT_GT(successes, 0);
 }
 
+#ifndef L0_SAMPLING
 TEST(SketchTestSuite, TestDecomposedUpdate) {
-  size_t runs = 10;
+  size_t runs = 1000;
   size_t vec_size = 2000;
   for (size_t i = 0; i < runs; i++) {
     long seed = rand();
-
+    
+    std::cout << "seed: " << seed << std::endl;
     Sketch sketch_1(vec_size, seed, 1, log2(vec_size));
     Sketch sketch_2(vec_size, seed, 1, log2(vec_size));
 
@@ -467,3 +469,4 @@ TEST(SketchTestSuite, TestDecomposedUpdate) {
 
   }
 }
+#endif
