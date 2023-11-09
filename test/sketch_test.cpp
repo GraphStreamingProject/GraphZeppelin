@@ -447,3 +447,23 @@ TEST(SketchTestSuite, TestRawBucketUpdate) {
   }
   ASSERT_GT(successes, 0);
 }
+
+TEST(SketchTestSuite, TestDecomposedUpdate) {
+  size_t runs = 10;
+  size_t vec_size = 2000;
+  for (size_t i = 0; i < runs; i++) {
+    long seed = rand();
+
+    Sketch sketch_1(vec_size, seed, 1, log2(vec_size));
+    Sketch sketch_2(vec_size, seed, 1, log2(vec_size));
+
+    sketch_1.update(1);
+    
+    vec_hash_t checksum = sketch_2.get_checksum(1);
+    std::vector<vec_t> bucket_ids = sketch_2.get_bucket_ids(1);
+    sketch_2.update_buckets(1, checksum, bucket_ids);
+
+    ASSERT_EQ(sketch_1, sketch_2) << "Sketches not the same";
+
+  }
+}
