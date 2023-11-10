@@ -1,6 +1,6 @@
 #pragma once
 
-#include <atomic>  // REMOVE LATER
+#include <atomic>
 #include <cstdlib>
 #include <exception>
 #include <fstream>
@@ -27,12 +27,39 @@ class UpdateLockedException : public std::exception {
   }
 };
 
+struct MergeInstr {
+  node_id_t root;
+  node_id_t child;
+
+  inline bool operator< (const MergeInstr &oth) const {
+    if (root == oth.root)
+      return child < oth.child;
+    return root < oth.root;
+  }
+};
+
+struct alignas(64) GlobalMergeData {
+  Sketch sketch;
+  std::mutex mtx;
+  size_t num_merge_needed = -1;
+  size_t num_merge_done = 0;
+
+  GlobalMergeData(node_id_t num_nodes, size_t seed)
+      : sketch(Sketch::calc_vector_length(num_nodes), seed, Sketch::calc_cc_samples(num_nodes)) {}
+      
+  GlobalMergeData(const GlobalMergeData&& other)
+  : sketch(other.sketch) {
+    num_merge_needed = other.num_merge_needed;
+    num_merge_done = other.num_merge_done;
+  }
+};
+
 /**
  * Algorithm for computing connected components on undirected graph streams
  * (no self-edges or multi-edges)
  */
 class CCSketchAlg {
- protected:
+ private:
   node_id_t num_nodes;
   size_t seed;
   bool update_locked = false;
@@ -61,21 +88,14 @@ class CCSketchAlg {
    * @param query  an array of sketch sample results
    * @param reps   an array containing node indices for the representative of each supernode
    */
-  bool sample_supernodes(std::vector<node_id_t> &merge_instr);
+  bool sample_supernode(Sketch &skt);
 
   /**
    * @param reps         set containing the roots of each supernode
    * @param merge_instr  a list of lists of supernodes to be merged
    */
-  void merge_supernodes(const size_t next_round,
-                        const std::vector<node_id_t> &merge_instr);
-
-  /**
-   * @param reps         set containing the roots of each supernode
-   * @param merge_instr  an array where each vertex indicates its supernode root
-   */
-  void undo_merge_supernodes(const size_t cur_round,
-                             const std::vector<node_id_t> &merge_instr);
+  bool perform_boruvka_round(const size_t cur_round, const std::vector<MergeInstr> &merge_instr,
+                             std::vector<GlobalMergeData> &global_merges);
 
   /**
    * Main parallel algorithm utilizing Boruvka and L_0 sampling.
