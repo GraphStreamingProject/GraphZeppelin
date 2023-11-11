@@ -141,7 +141,7 @@ inline bool CCSketchAlg::sample_supernode(Sketch &skt) {
   Edge e = inv_concat_pairing_fn(sample.idx);
   SampleResult result_type = sample.result;
 
-  // std::cout << "Sample: " << result_type << " e:" << e.src << " " << e.dst << std::endl;
+  // std::cout << " " << result_type << " e:" << e.src << " " << e.dst << std::endl;
 
   if (result_type == FAIL) {
     modified = true;
@@ -231,9 +231,6 @@ bool CCSketchAlg::perform_boruvka_round(const size_t cur_round,
     global_merges[i].num_merge_done = 0;
   }
 
-  std::atomic<size_t> num_query;
-  num_query = 0;
-
 #pragma omp parallel default(shared) num_threads(8)
   {
     // some thread local variables
@@ -246,9 +243,6 @@ bool CCSketchAlg::perform_boruvka_round(const size_t cur_round,
     node_id_t start = partition.first;
     node_id_t end = partition.second;
     assert(start < end);
-
-#pragma omp critical
-    std::cout << thr_id << ": " << start << " " << end << std::endl;
 
     // node_id_t left_root = merge_instr[start].root;
     // node_id_t right_root = merge_instr[end - 1].root;
@@ -263,21 +257,22 @@ bool CCSketchAlg::perform_boruvka_round(const size_t cur_round,
     }
 
     node_id_t cur_root = merge_instr[start].root;
-#pragma omp critical
-  {
+
+    // std::cout << thr_id << std::endl;
+    // std::cout << "  Component " << cur_root << ":";
     for (node_id_t i = start; i < end; i++) {
       node_id_t root = merge_instr[i].root;
       node_id_t child = merge_instr[i].child;
-      std::cout << thr_id << ": " << child << " into " << root << std::endl;
-      std::cout << "root_from_left " << root_from_left << " root_exits_right " << root_exits_right << std::endl;
 
       if (root != cur_root) {
         if (root_from_left) {
           // we hold the global for this merge
+          // std::cout << " merge global (we own)" << std::endl;
           bool query_ready = merge_global(cur_round, local_sketch, global_merges[thr_id]);
           if (query_ready) {
+            // std::cout << "Performing query!";
             try {
-              num_query += 1;
+              // num_query += 1;
               if (sample_supernode(global_merges[thr_id].sketch) && !modified) modified = true;
             } catch (...) {
               except = true;
@@ -289,9 +284,9 @@ bool CCSketchAlg::perform_boruvka_round(const size_t cur_round,
           root_from_left = false;
         } else {
           // This is an entirely local computation
-          // std::cout << std::endl;
+          // std::cout << " query local";
           try {
-            num_query += 1;
+            // num_query += 1;
             if (sample_supernode(local_sketch) && !modified) modified = true;
           } catch (...) {
             except = true;
@@ -300,6 +295,7 @@ bool CCSketchAlg::perform_boruvka_round(const size_t cur_round,
         }
 
         cur_root = root;
+        // std::cout << "  Component " << cur_root << ":";
         local_sketch.zero_contents();
       }
 
@@ -310,6 +306,7 @@ bool CCSketchAlg::perform_boruvka_round(const size_t cur_round,
     if (root_exits_right || root_from_left) {
       // global merge where we may or may not own it
       size_t global_id = find_last_partition_of_root(merge_instr, cur_root, start, num_threads);
+      // std::cout << " merge global (" << global_id << ")" << std::endl;
       if (!root_from_left) {
         // Resolved root_from_left, so we are the first thread to encounter this root
         // set the number of threads that will merge into this component
@@ -318,9 +315,10 @@ bool CCSketchAlg::perform_boruvka_round(const size_t cur_round,
       }
       bool query_ready = merge_global(cur_round, local_sketch, global_merges[global_id]);
       if (query_ready) {
+        // std::cout << "Performing query!";
         try {
-          num_query += 1;
-          if (sample_supernode(global_merges[thr_id].sketch) && !modified) modified = true;
+          // num_query += 1;
+          if (sample_supernode(global_merges[global_id].sketch) && !modified) modified = true;
         } catch (...) {
           except = true;
           err = std::current_exception();
@@ -328,9 +326,9 @@ bool CCSketchAlg::perform_boruvka_round(const size_t cur_round,
       }
     } else {
       // This is an entirely local computation
-      // std::cout << std::endl;
+      // std::cout << " query local";
       try {
-        num_query += 1;
+        // num_query += 1;
         if (sample_supernode(local_sketch) && !modified) modified = true;
       } catch (...) {
         except = true;
@@ -338,9 +336,8 @@ bool CCSketchAlg::perform_boruvka_round(const size_t cur_round,
       }
     }
   }
-  }
 
-  std::cout << "Number of roots queried = " << num_query << std::endl;
+  // std::cout << "Number of roots queried = " << num_query << std::endl;
 
   if (except) {
     // if one of our threads produced an exception throw it here
@@ -385,20 +382,13 @@ std::vector<std::set<node_id_t>> CCSketchAlg::boruvka_emulation() {
     for (node_id_t i = 0; i < num_nodes; i++)
       merge_instr[i] = {dsu.find_root(i), i};
 
+    std::cout << "  finding roots = "
+              << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
+              << std::endl;
+
+    start = std::chrono::steady_clock::now();
     std::sort(merge_instr.begin(), merge_instr.end());
-
-    size_t num_roots = 1;
-    size_t cur_root = merge_instr[0].root;
-    for (size_t i = 1; i < num_nodes; i++) {
-      if (merge_instr[i].root != cur_root) {
-        num_roots += 1;
-        cur_root = merge_instr[i].root;
-      }
-    }
-    std::cout << "Number of roots = " << num_roots << std::endl;
-
-
-    std::cout << "post round processing = "
+    std::cout << "  sorting = "
               << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
               << std::endl;
     ++round_num;

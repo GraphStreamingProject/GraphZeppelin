@@ -444,6 +444,8 @@ TEST(SketchTestSuite, TestRawBucketUpdate) {
     sk2.reset_sample_state();
     sample = sk2.sample();
     ASSERT_EQ(sample.result, ZERO);
+
+    delete[] copy_data;
   }
   ASSERT_GT(successes, 0);
 }

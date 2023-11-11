@@ -28,10 +28,10 @@ else()
   message(STATUS "${CMAKE_CXX_COMPILER_ID} not recognized, no flags added")
 endif()
 
-add_compile_options(-fsanitize=address)
-add_link_options(-fsanitize=address)
-add_compile_options(-fsanitize=undefined)
-add_link_options(-fsanitize=undefined)
+#add_compile_options(-fsanitize=address)
+#add_link_options(-fsanitize=address)
+#add_compile_options(-fsanitize=undefined)
+#add_link_options(-fsanitize=undefined)
 
 # Check if this project is the top directory or build type is Debug
 # If so, build executables, otherwise, only build libraries
@@ -184,9 +184,3 @@ if (BUILD_BENCH)
   add_dependencies(bench_cc GraphZeppelin benchmark)
   target_link_libraries(bench_cc GraphZeppelin benchmark::benchmark xxhash)
 endif()
-
-
-add_executable(omp_test
-  test.cpp
-)
-target_link_libraries(omp_test PRIVATE GraphZeppelin)
