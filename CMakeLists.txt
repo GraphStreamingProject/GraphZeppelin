@@ -228,10 +228,6 @@ if (BUILD_EXE)
     tools/min_cut.cu)
   target_link_libraries(min_cut PRIVATE GraphZeppelinMinCut)
 
-  add_executable(test_main
-    tools/test.cpp)
-  target_link_libraries(test_main PRIVATE GraphZeppelinKConnect)  
-
   add_executable(xxhash_test
     test/xxhash_test.cu)
   target_link_libraries(xxhash_test PRIVATE GraphZeppelin)

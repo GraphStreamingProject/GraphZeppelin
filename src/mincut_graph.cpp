@@ -2,6 +2,11 @@
 #include <graph_worker.h>
 #include <types.h>
 #include <random>
+#include <algorithm>
+#include <map>
+
+typedef std::mt19937 MersenneTwister;
+static MersenneTwister m_mt;
 
 node_id_t MinCutGraph::k_get_parent(node_id_t node, int k_id) {
   if (parent[(node * k) + k_id] == node) return node;
@@ -244,6 +249,4 @@ MinCutGraph::~MinCutGraph() {
   }
 }
 
-void MinCutGraph::perform_minimum_cut() {
 
-}

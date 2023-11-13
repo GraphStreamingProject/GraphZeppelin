@@ -45,6 +45,4 @@ private:
 
   // verify the contents of the forests we've constructed
   void verify_spanning_forests(std::vector<std::vector<Edge>> forests);
-
-  void perform_minimum_cut();
 };

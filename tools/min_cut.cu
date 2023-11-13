@@ -1,6 +1,7 @@
 #include <vector>
 #include <map>
 #include <random>
+#include <fstream>
 
 #include <graph.h>
 #include <graph_worker.h>
@@ -35,14 +36,14 @@ int main(int argc, char **argv) {
   std::cout << std::endl;
 
   //size_t k = log2(num_nodes) / (epsilon * epsilon);
-  int k = 1;
+  int k = 2;
 
   // TODO: Check format of epsilon
   std::cout << "epsilon: " << epsilon << std::endl;
   std::cout << "k: " << k << std::endl;
 
   int num_graphs = 1 + (int)(2 * log2(num_nodes));
-  //num_graphs = 1;
+  //int num_graphs = 1;
   std::cout << "Total num_graphs: " << num_graphs << "\n";
 
   auto config = GraphConfiguration().gutter_sys(CACHETREE).num_groups(num_threads);
@@ -205,13 +206,57 @@ int main(int argc, char **argv) {
     std::cout << "  Subgraph G_" << i << ": " << graphs[i]->num_updates << "\n";
   }
   
-  std::cout << "\n";
+  /*std::cout << "\n";
   std::cout << "Getting CC for G_0:\n";
   auto CC_num = graphs[0]->connected_components().size();
-  std::cout << "Connected Components: " << CC_num << std::endl;
+  std::cout << "Connected Components: " << CC_num << std::endl;*/
 
   std::cout << "Getting k = " << k << " spanning forests\n";
   std::vector<std::vector<Edge>> forests = graphs[0]->k_spanning_forests(k);
+
+  int sampled_edges = 0;
+  for (int i = 0; i < k; i++) {
+    std::cout << "Size of forests: " << forests[i].size() << "\n"; 
+    sampled_edges += forests[i].size();
+  }
+  std::cout << "Total sampled edges: " << sampled_edges << "\n";
+
+  // Output a METIS format file by reading forests
+  std::ofstream cert ("certificate.metis");
+
+  // Read edges then categorize them based on src node
+  int sampled_num_nodes = 0;
+  int sampled_num_edges = 0;
+  std::map<node_id_t, std::vector<node_id_t>> nodes_list;
+  for (auto forest : forests) {
+    for (auto e : forest) {
+      if (nodes_list.find(e.src) == nodes_list.end()) { // Has not been inserted yet
+        nodes_list[e.src] = std::vector<node_id_t>();
+        sampled_num_nodes++;
+      }
+      nodes_list[e.src].push_back(e.dst);
+
+      if (nodes_list.find(e.dst) == nodes_list.end()) { // Has not been inserted yet
+        nodes_list[e.dst] = std::vector<node_id_t>();
+        sampled_num_nodes++;
+      }
+      nodes_list[e.dst].push_back(e.src); 
+
+      sampled_num_edges++;
+    }
+  }
+
+  // Write sampled num_nodes and num_edges to file
+  cert << sampled_num_nodes << " " << sampled_num_edges << "\n";
+
+  for (auto it = nodes_list.begin(); it != nodes_list.end(); it++) {
+    for (int neighbor = 0; neighbor < it->second.size() - 1; neighbor++) {
+      cert << it->second[neighbor] << " ";
+    }
+    cert << it->second[it->second.size() - 1] << "\n";
+  }
+
+  cert.close();
 
   for (int i = 0; i < num_graphs; i++) {
     delete graphs[i];
