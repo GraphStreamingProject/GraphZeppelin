@@ -84,6 +84,12 @@ class CCSketchAlg {
   size_t num_delta_sketches;
 
   /**
+   * Run the first round of Boruvka. We can do things faster here because we know there will
+   * be no merging we have to do.
+   */
+  bool run_round_zero();
+
+  /**
    * Update the query array with new samples
    * @param query  an array of sketch sample results
    * @param reps   an array containing node indices for the representative of each supernode

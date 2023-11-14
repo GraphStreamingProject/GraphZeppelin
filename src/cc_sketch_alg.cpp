@@ -219,9 +219,36 @@ inline bool merge_global(const size_t cur_round, const Sketch &local_sketch,
   return global.num_merge_done >= global.num_merge_needed;
 }
 
+// faster query procedure optimized for when we know there is no merging to do (i.e. round 0)
+inline bool CCSketchAlg::run_round_zero() {
+  bool modified = false;
+  bool except = false;
+  std::exception_ptr err;
+#pragma omp parallel for
+  for (node_id_t i = 0; i < num_nodes; i++) {
+    try {
+      // num_query += 1;
+      if (sample_supernode(*sketches[i]) && !modified) modified = true;
+    } catch (...) {
+      except = true;
+      err = std::current_exception();
+    }
+  }
+  if (except) {
+    // if one of our threads produced an exception throw it here
+    std::rethrow_exception(err);
+  }
+
+  return modified;
+}
+
 bool CCSketchAlg::perform_boruvka_round(const size_t cur_round,
                                         const std::vector<MergeInstr> &merge_instr,
                                         std::vector<GlobalMergeData> &global_merges) {
+  if (cur_round == 0) {
+    return run_round_zero();
+  }
+
   bool modified = false;
   bool except = false;
   std::exception_ptr err;
@@ -231,7 +258,7 @@ bool CCSketchAlg::perform_boruvka_round(const size_t cur_round,
     global_merges[i].num_merge_done = 0;
   }
 
-#pragma omp parallel default(shared) num_threads(8)
+#pragma omp parallel default(shared)
   {
     // some thread local variables
     Sketch local_sketch(Sketch::calc_vector_length(num_nodes), seed,
@@ -379,9 +406,10 @@ std::vector<std::set<node_id_t>> CCSketchAlg::boruvka_emulation() {
     // calculate updated merge instructions for next round
     start = std::chrono::steady_clock::now();
 #pragma omp parallel for
-    for (node_id_t i = 0; i < num_nodes; i++)
-      merge_instr[i] = {dsu.find_root(i), i};
-
+    for (node_id_t i = 0; i < num_nodes; i++) {
+      node_id_t child = merge_instr[i].child;
+      merge_instr[i].root = dsu.find_root(child);
+    }
     std::cout << "  finding roots = "
               << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
               << std::endl;

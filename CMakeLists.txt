@@ -184,3 +184,4 @@ if (BUILD_BENCH)
   add_dependencies(bench_cc GraphZeppelin benchmark)
   target_link_libraries(bench_cc GraphZeppelin benchmark::benchmark xxhash)
 endif()
+
