@@ -83,37 +83,51 @@ void Sketch::update(const vec_t update_idx) {
 }
 #endif
 
-#ifndef L0_SAMPLING
-vec_hash_t Sketch::get_checksum(const vec_t update_idx) {
-  return Bucket_Boruvka::get_index_hash(update_idx, checksum_seed());
-}
-
-std::vector<size_t> const Sketch::get_bucket_ids(const vec_t update_idx) {
-  std::vector<size_t> bucket_ids;
-  bucket_ids.reserve(num_columns);
+SketchDelta const Sketch::get_delta(const vec_t update_idx) {
+  SketchDelta delta;
+  delta.update_idx = update_idx;
+  std::vector<size_t>& bucket_ids = delta.bucket_ids;
+  bucket_ids.resize(num_columns, -1); // avoids else, can use reserve
 
   for (unsigned i = 0; i < num_columns; ++i) {
     col_hash_t depth = Bucket_Boruvka::get_index_depth(update_idx, column_seed(i), bkt_per_col);
     size_t bucket_id = i * bkt_per_col + depth;
     likely_if(depth < bkt_per_col) {
-      bucket_ids.push_back(bucket_id);
-    } else {
-      bucket_ids.push_back(-1);
+      bucket_ids[i] = bucket_id;
     }
   }
-  return bucket_ids;
+  delta.checksum = Bucket_Boruvka::get_index_hash(update_idx, checksum_seed());
+
+  return delta;
 }
 
-void Sketch::update_buckets(const vec_t update_idx, const vec_hash_t checksum, const std::vector<size_t>& bucket_ids) {
-
+#ifdef L0_SAMPLING
+void Sketch::apply_delta(const SketchDelta delta) {
+  
   // Update depth 0 bucket
-  Bucket_Boruvka::update(buckets[num_buckets - 1], update_idx, checksum);
+  Bucket_Boruvka::update(buckets[num_buckets - 1], delta.update_idx, delta.checksum);
 
   // Update higher depth buckets
   for (unsigned i = 0; i < num_columns; ++i) {
-    size_t bucket_id = bucket_ids[i];
+    size_t bucket_id = delta.bucket_ids[i];
     likely_if (bucket_id < (size_t)(-1)) {
-      Bucket_Boruvka::update(buckets[bucket_id], update_idx, checksum);
+      for (size_t j = i * bkt_per_col; j <= bucket_id; ++j) {
+        Bucket_Boruvka::update(buckets[j], delta.update_idx, delta.checksum);
+      }
+    }
+  }
+}
+#else
+void Sketch::apply_delta(const SketchDelta delta) {
+  
+  // Update depth 0 bucket
+  Bucket_Boruvka::update(buckets[num_buckets - 1], delta.update_idx, delta.checksum);
+
+  // Update higher depth buckets
+  for (unsigned i = 0; i < num_columns; ++i) {
+    size_t bucket_id = delta.bucket_ids[i];
+    likely_if (bucket_id < (size_t)(-1)) {
+      Bucket_Boruvka::update(buckets[bucket_id], delta.update_idx, delta.checksum);
     }
   }
 }
