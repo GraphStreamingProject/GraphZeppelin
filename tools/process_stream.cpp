@@ -69,14 +69,13 @@ class TwoEdgeConnect {
 
     std::cout << "SPANNING FOREST 2" << std::endl;
     for (unsigned int j = 0; j < forest.size(); j++) {
-      std::cout << forest[j].first << ":";
-      for (auto dst : forest[j].second) {
-        std::cout << " " << dst;
-      }
-      std::cout << std::endl;
+        std::cout << forest[j].first << ":";
+        for (auto dst: forest[j].second) {
+            std::cout << " " << dst;
+        }
+        std::cout << std::endl;
     }
 
-    auto CC_num2 = cc_alg_2.connected_components().size();
     // TODO: reinsert into alg 2?
   }
 };
@@ -175,6 +174,9 @@ int main(int argc, char **argv) {
   driver.prep_query();
   two_edge_alg.query();
 
+  auto CC_num_1 = two_edge_alg.cc_alg_1.connected_components().size();
+  auto CC_num_2 = two_edge_alg.cc_alg_2.connected_components().size();
+
   std::chrono::duration<double> insert_time = driver.flush_end - ins_start;
   std::chrono::duration<double> cc_time = std::chrono::steady_clock::now() - cc_start;
   std::chrono::duration<double> flush_time = driver.flush_end - driver.flush_start;
@@ -190,7 +192,7 @@ int main(int argc, char **argv) {
   std::cout << "Total CC query latency:       " << cc_time.count() << std::endl;
   std::cout << "  Flush Gutters(sec):           " << flush_time.count() << std::endl;
   std::cout << "  Boruvka's Algorithm(sec):     " << cc_alg_time.count() << std::endl;
-  // std::cout << "Connected Components:         " << CC_num << std::endl;
-  // std::cout << "Connected Components2:         " << CC_num2 << std::endl;
+  std::cout << "Connected Components:         " << CC_num_1 << std::endl;
+  std::cout << "Connected Components2:         " << CC_num_2 << std::endl;
   std::cout << "Maximum Memory Usage(MiB):    " << get_max_mem_used() << std::endl;
 }
