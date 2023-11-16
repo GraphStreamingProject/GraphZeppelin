@@ -201,7 +201,8 @@ void MinCutGraph::trim_spanning_forest(std::vector<Edge> &forest) {
 //   ++Supernode::query_rotation;
 // }
 
-void MinCutGraph::verify_spanning_forests(std::vector<std::vector<Edge>> forests) {
+void verify_edges(std::vector<std::vector<Edge>> forests) {
+  // Check for duplicate edges and if edges exist in graph
   std::set<Edge> edges;
   for (auto& forest : forests) {
     for (auto& e : forest) {
@@ -214,6 +215,15 @@ void MinCutGraph::verify_spanning_forests(std::vector<std::vector<Edge>> forests
       }
     }
   }
+}
+
+void verify_solns(std::vector<std::vector<Edge>> forests) {
+  
+}
+
+void MinCutGraph::verify_spanning_forests(std::vector<std::vector<Edge>> forests) {
+  verify_edges(forests);
+  verify_solns(forests);
 }
 
 std::vector<std::vector<Edge>> MinCutGraph::k_spanning_forests(size_t k) {

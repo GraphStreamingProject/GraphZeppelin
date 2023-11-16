@@ -208,7 +208,7 @@ class CudaGraph {
 
             for (int graph_id = 0; graph_id <= streams_num_graphs[stream_id]; graph_id++) {
                 cudaMemcpyAsync(&cudaUpdateParams[graph_id].d_edgeUpdates[start_index], &cudaUpdateParams[graph_id].h_edgeUpdates[start_index], edge_count[graph_id] * sizeof(vec_t), cudaMemcpyHostToDevice, streams[stream_id]);
-                cudaKernel.k_gtsStreamUpdate(num_device_threads, num_device_blocks, k, (stream_id * sketch_size * k), src, streams[stream_id], start_index, edge_count[graph_id], &cudaUpdateParams[graph_id], &sketchSeeds[graph_id * num_nodes * num_sketches * k]);
+                cudaKernel.k_gtsStreamUpdate(num_device_threads, num_device_blocks, graph_id, k, (stream_id * sketch_size * k), src, streams[stream_id], start_index, edge_count[graph_id], &cudaUpdateParams[graph_id], &sketchSeeds[graph_id * num_nodes * num_sketches * k]);
             }
             
         }

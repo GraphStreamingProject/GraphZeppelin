@@ -2,6 +2,8 @@
 #include <map>
 #include <random>
 #include <fstream>
+#include <string>
+#include <sstream>
 
 #include <graph.h>
 #include <graph_worker.h>
@@ -10,6 +12,17 @@
 #include <mincut_graph.h>
 
 constexpr size_t epsilon = 1;
+
+static uint64_t fast_atoi(const std::string& str, size_t* line_ptr) {
+    uint64_t x = 0;
+
+    while (str[*line_ptr] >= '0' && str[*line_ptr] <= '9') {
+        x = (x * 10) + (str[*line_ptr] - '0');
+        ++(*line_ptr);
+    }
+    ++(*line_ptr);
+    return x;
+}
 
 int main(int argc, char **argv) {
   if (argc != 4) {
@@ -42,8 +55,8 @@ int main(int argc, char **argv) {
   std::cout << "epsilon: " << epsilon << std::endl;
   std::cout << "k: " << k << std::endl;
 
-  int num_graphs = 1 + (int)(2 * log2(num_nodes));
-  //int num_graphs = 1;
+  //int num_graphs = 1 + (int)(2 * log2(num_nodes));
+  int num_graphs = 2;
   std::cout << "Total num_graphs: " << num_graphs << "\n";
 
   auto config = GraphConfiguration().gutter_sys(CACHETREE).num_groups(num_threads);
@@ -121,15 +134,18 @@ int main(int argc, char **argv) {
     all_supernodes.push_back(graph_supernodes);
   }
 
+  int maxBytes = num_elems * num_sketches * sizeof(vec_t_cu) + num_elems * num_sketches * sizeof(vec_hash_t);
+  cudaGraph.cudaKernel.kernelUpdateSharedMemory(maxBytes);
 
   int device_id = cudaGetDevice(&device_id);
   int device_count = 0;
   cudaGetDeviceCount(&device_count);
+  struct cudaDeviceProp props;
+  cudaGetDeviceProperties(&props, device_id);
   std::cout << "CUDA Device Count: " << device_count << "\n";
   std::cout << "CUDA Device ID: " << device_id << "\n";
-
-  int maxBytes = num_elems * num_sketches * sizeof(vec_t_cu) + num_elems * num_sketches * sizeof(vec_hash_t);
-  cudaGraph.cudaKernel.kernelUpdateSharedMemory(maxBytes);
+  std::cout << "Maximum Shared Memory per block: " << props.sharedMemPerBlock << " bytes\n";
+  std::cout << "Maximum Shared Memory per block Optin: " << props.sharedMemPerBlockOptin << " bytes\n";
 
   cudaGraph.k_configure(cudaUpdateParams, all_supernodes.data(), sketchSeeds, num_threads, k, num_graphs);
 
@@ -212,63 +228,74 @@ int main(int argc, char **argv) {
   std::cout << "Connected Components: " << CC_num << std::endl;*/
 
   std::cout << "Getting k = " << k << " spanning forests\n";
-  std::vector<std::vector<Edge>> forests = graphs[0]->k_spanning_forests(k);
 
-  int sampled_edges = 0;
-  for (int i = 0; i < k; i++) {
-    std::cout << "Size of forests: " << forests[i].size() << "\n"; 
-    sampled_edges += forests[i].size();
-  }
-  std::cout << "Total sampled edges: " << sampled_edges << "\n";
+  // Get spanning forests then create a METIS format file
+  std::cout << "Generating Certificates...\n";
+  for (int i = 0; i < num_graphs; i++) {
+    std::cout << "  Subgraph G_" << i << ":\n";
+    std::vector<std::vector<Edge>> forests = graphs[0]->k_spanning_forests(k); // Note: Getting k spanning forests for only the first graph 
 
-  // Output a METIS format file by reading forests
-  std::ofstream cert ("certificate.metis");
-
-  // Read edges then categorize them based on src node
-  int sampled_num_nodes = 0;
-  int sampled_num_edges = 0;
-  std::map<node_id_t, std::vector<node_id_t>> nodes_list;
-  for (auto forest : forests) {
-    for (auto e : forest) {
-      if (nodes_list.find(e.src) == nodes_list.end()) { // Has not been inserted yet
-        nodes_list[e.src] = std::vector<node_id_t>();
-        sampled_num_nodes++;
-      }
-      nodes_list[e.src].push_back(e.dst);
-
-      if (nodes_list.find(e.dst) == nodes_list.end()) { // Has not been inserted yet
-        nodes_list[e.dst] = std::vector<node_id_t>();
-        sampled_num_nodes++;
-      }
-      nodes_list[e.dst].push_back(e.src); 
-
-      sampled_num_edges++;
+    int sampled_edges = 0;
+    for (int k_id = 0; k_id < k; k_id++) {
+      std::cout << "    Size of forests #" << k_id << ": " << forests[k_id].size() << "\n"; 
+      sampled_edges += forests[k_id].size();
     }
-  }
+    std::cout << "  Total sampled edges: " << sampled_edges << "\n";
 
-  // Write sampled num_nodes and num_edges to file
-  cert << sampled_num_nodes << " " << sampled_num_edges << "\n";
+    std::string file_name = "certificates" + std::to_string(i) + ".metis";
+    std::ofstream cert (file_name);
 
-  for (auto it = nodes_list.begin(); it != nodes_list.end(); it++) {
-    for (int neighbor = 0; neighbor < it->second.size() - 1; neighbor++) {
-      cert << it->second[neighbor] << " ";
+    // Read edges then categorize them based on src node
+    int sampled_num_nodes = 0;
+    int sampled_num_edges = 0;
+    std::map<node_id_t, std::vector<node_id_t>> nodes_list;
+    for (auto forest : forests) {
+      for (auto e : forest) {
+        if (nodes_list.find(e.src) == nodes_list.end()) { // Has not been inserted yet
+          nodes_list[e.src] = std::vector<node_id_t>();
+          sampled_num_nodes++;
+        }
+        nodes_list[e.src].push_back(e.dst);
+
+        if (nodes_list.find(e.dst) == nodes_list.end()) { // Has not been inserted yet
+          nodes_list[e.dst] = std::vector<node_id_t>();
+          sampled_num_nodes++;
+        }
+        nodes_list[e.dst].push_back(e.src); 
+
+        sampled_num_edges++;
+      }
     }
-    cert << it->second[it->second.size() - 1] << "\n";
+
+    // Write sampled num_nodes and num_edges to file
+    cert << sampled_num_nodes << " " << sampled_num_edges << " 0" << "\n";
+    for (auto it = nodes_list.begin(); it != nodes_list.end(); it++) {
+      for (size_t neighbor = 0; neighbor < it->second.size() - 1; neighbor++) {
+        cert << it->second[neighbor] + 1 << " ";
+      }
+      cert << it->second[it->second.size() - 1] + 1 << "\n";
+    }
+    cert.close();
   }
 
-  cert.close();
+  std::cout << "Getting minimum cut of certificates...\n";
+  for (int i = 0; i < num_graphs; i++) {
+    std::string file_name = "certificates" + std::to_string(i) + ".metis";
+    std::string command = "../VieCut/build/mincut_parallel " + file_name + " exact";
+    std::system(command.data());
+  }
 
   for (int i = 0; i < num_graphs; i++) {
     delete graphs[i];
   }
 
-  /*std::chrono::duration<double> insert_time = flush_end - ins_start;
+  std::chrono::duration<double> insert_time = flush_end - ins_start;
   std::chrono::duration<double> flush_time = flush_end - flush_start;
-  std::chrono::duration<double> k_cc_time = std::chrono::steady_clock::now() - k_cc_start;
+  //std::chrono::duration<double> k_cc_time = std::chrono::steady_clock::now() - k_cc_start;
 
   double num_seconds = insert_time.count();
   std::cout << "Total insertion time(sec): " << num_seconds << std::endl;
   std::cout << "Updates per second: " << stream.edges() / num_seconds << std::endl;
   std::cout << "Flush Gutters(sec): " << flush_time.count() << std::endl;
-  std::cout << "K_CC(sec): " << k_cc_time.count() << std::endl;*/
+  //std::cout << "K_CC(sec): " << k_cc_time.count() << std::endl;
 }

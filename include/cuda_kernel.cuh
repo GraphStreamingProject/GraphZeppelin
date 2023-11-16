@@ -50,7 +50,7 @@ class CudaUpdateParams {
     // Value of k
     int k;
 
-    int num_inserted_updates = 0;
+    size_t num_inserted_updates = 0;
 
     // List of edge ids that thread will be responsble for updating
     vec_t *h_edgeUpdates, *d_edgeUpdates;
@@ -204,7 +204,7 @@ class CudaKernel {
     */
 
     void gtsStreamUpdate(int num_threads, int num_blocks, vec_t bucket_id, node_id_t src, cudaStream_t stream, vec_t prev_offset, size_t update_size, CudaUpdateParams* cudaUpdateParams, long* sketchSeeds);
-    void k_gtsStreamUpdate(int num_threads, int num_blocks, int k, vec_t bucket_id, node_id_t src, cudaStream_t stream, vec_t prev_offset, size_t update_size, CudaUpdateParams* cudaUpdateParams, long* sketchSeeds);
+    void k_gtsStreamUpdate(int num_threads, int num_blocks, int graph_id, int k, vec_t bucket_id, node_id_t src, cudaStream_t stream, vec_t prev_offset, size_t update_size, CudaUpdateParams* cudaUpdateParams, long* sketchSeeds);
  
     void kernelUpdateSharedMemory(int maxBytes);
 
