@@ -7,6 +7,96 @@
 
 static bool shutdown = false;
 
+class KEdgeConnect {
+public:
+    const node_id_t num_nodes;
+    const int num_forest;
+    std::vector<std::unique_ptr<CCSketchAlg>> cc_alg;
+
+    explicit KEdgeConnect(node_id_t num_nodes, int num_forest, const std::vector<CCAlgConfiguration> &config_vec)
+            : num_nodes(num_nodes), num_forest(num_forest) {
+        for(int i=0;i<num_forest;i++)
+        {
+            cc_alg.push_back(std::make_unique<CCSketchAlg>(num_nodes, config_vec[i]));
+        }
+    }
+
+    void allocate_worker_memory(size_t num_workers) {
+        for(int i=0;i<num_forest;i++){
+            cc_alg[i]->allocate_worker_memory(num_workers);
+        }
+    }
+
+    size_t get_desired_updates_per_batch() {
+        // I don't want to return double because the updates are sent to both
+        // I copied from the two-edge-connect-class and did not understand 'updates are sent to both' -- Chen
+        return cc_alg[0]->get_desired_updates_per_batch();
+    }
+
+    node_id_t get_num_vertices() { return num_nodes; }
+
+    void pre_insert(GraphUpdate upd, node_id_t thr_id) {
+        for(int i=0;i<num_forest;i++) {
+            cc_alg[i]->pre_insert(upd, thr_id);
+        }
+    }
+
+    void apply_update_batch(size_t thr_id, node_id_t src_vertex,
+                            const std::vector<node_id_t> &dst_vertices) {
+        for(int i=0;i<num_forest;i++) {
+            cc_alg[i]->apply_update_batch(thr_id, src_vertex, dst_vertices);
+        }
+    }
+
+    bool has_cached_query() {
+        bool cached_query_flag = true;
+        for (int i=0;i<num_forest;i++) {
+            cached_query_flag = cached_query_flag && cc_alg[i]->has_cached_query();
+        }
+
+        return cached_query_flag;
+    }
+
+    void print_configuration() { cc_alg[0]->print_configuration(); }
+
+    void query() {
+        std::vector<std::vector<std::pair<node_id_t, std::vector<node_id_t>>>> forests_collection;
+        GraphUpdate temp_edge;
+        temp_edge.type = DELETE;
+
+        for(int i=0;i<num_forest-1;i++) {
+            std::cout << "SPANNING FOREST " << (i+1) << std::endl;
+            // getting the spanning forest from the i-th cc-alg
+            std::vector<std::pair<node_id_t, std::vector<node_id_t>>> temp_forest = cc_alg[i]->calc_spanning_forest();
+            forests_collection.push_back(temp_forest);
+
+            for (unsigned int j = 0; j < temp_forest.size(); j++) {
+                std::cout << temp_forest[j].first << ":";
+                for (auto dst: temp_forest[j].second) {
+                    std::cout << " " << dst;
+                    temp_edge.edge.src = temp_forest[j].first;
+                    temp_edge.edge.dst = dst;
+                    for (int l=i+1;l<num_forest;l++){
+                        cc_alg[l]->update(temp_edge);
+                    }
+                }
+                std::cout << std::endl;
+            }
+        }
+
+        std::cout << "THE LAST SPANNING FOREST" << std::endl;
+        std::vector<std::pair<node_id_t, std::vector<node_id_t>>> temp_forest = cc_alg[num_forest-1]->calc_spanning_forest();
+        forests_collection.push_back(temp_forest);
+        for (unsigned int j = 0; j < temp_forest.size(); j++) {
+            std::cout << temp_forest[j].first << ":";
+            for (auto dst: temp_forest[j].second) {
+                std::cout << " " << dst;
+            }
+            std::cout << std::endl;
+        }
+    }
+};
+
 class TwoEdgeConnect {
  public:
   const node_id_t num_nodes;
@@ -93,7 +183,7 @@ static double get_max_mem_used() {
  * @param g           the graph object to query
  * @param start_time  the time that we started stream ingestion
  */
-void track_insertions(uint64_t total, GraphSketchDriver<TwoEdgeConnect> *driver,
+void track_insertions(uint64_t total, GraphSketchDriver<KEdgeConnect> *driver,
                       std::chrono::steady_clock::time_point start_time) {
   total = total * 2;  // we insert 2 edge updates per edge
 
@@ -146,6 +236,11 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
   size_t reader_threads = std::atol(argv[3]);
+  int num_edge_connect = 5;
+
+  // TODO: 1. change all necessary int to unsigned int; 2. make num_edge_connect an input argument;
+  // TODO: The temp_forest variable is repeatedly defined (make it a reference variable)
+  // TODO: track_insertion now is hardcoded with the class name -- change it to be flexible
 
   BinaryFileStream stream(stream_file);
   BinaryFileStream stream2(stream_file);
@@ -157,13 +252,16 @@ int main(int argc, char **argv) {
   std::cout << std::endl;
 
   auto driver_config = DriverConfiguration().gutter_sys(CACHETREE).worker_threads(num_threads);
-  auto cc_config = CCAlgConfiguration().batch_factor(1);
-  auto cc_config2 = CCAlgConfiguration().batch_factor(1);
+  std::vector<CCAlgConfiguration> config_vec;
 
-  TwoEdgeConnect two_edge_alg{num_nodes, cc_config, cc_config2};
+  for (int i=0;i<num_edge_connect;i++){
+      config_vec.push_back(CCAlgConfiguration().batch_factor(1));
+  }
+
+ KEdgeConnect k_edge_alg{num_nodes, num_edge_connect, config_vec};
 
   // The plan is to use the constructor as follows.
-  GraphSketchDriver<TwoEdgeConnect> driver{&two_edge_alg, &stream, driver_config, reader_threads};
+  GraphSketchDriver<KEdgeConnect> driver{&k_edge_alg, &stream, driver_config, reader_threads};
 
   auto ins_start = std::chrono::steady_clock::now();
   std::thread querier(track_insertions, num_updates, &driver, ins_start);
@@ -172,16 +270,18 @@ int main(int argc, char **argv) {
 
   auto cc_start = std::chrono::steady_clock::now();
   driver.prep_query();
-  two_edge_alg.query();
+  k_edge_alg.query();
 
-  auto CC_num_1 = two_edge_alg.cc_alg_1.connected_components().size();
-  auto CC_num_2 = two_edge_alg.cc_alg_2.connected_components().size();
+  unsigned long CC_nums[num_edge_connect];
+  for(int i=0;i<num_edge_connect;i++){
+      CC_nums[i]= k_edge_alg.cc_alg[i]->connected_components().size();
+  }
 
   std::chrono::duration<double> insert_time = driver.flush_end - ins_start;
   std::chrono::duration<double> cc_time = std::chrono::steady_clock::now() - cc_start;
   std::chrono::duration<double> flush_time = driver.flush_end - driver.flush_start;
   std::chrono::duration<double> cc_alg_time =
-      two_edge_alg.cc_alg_1.cc_alg_end - two_edge_alg.cc_alg_1.cc_alg_start;
+          k_edge_alg.cc_alg[num_edge_connect-1]->cc_alg_end - k_edge_alg.cc_alg[0]->cc_alg_start;
 
   shutdown = true;
   querier.join();
@@ -192,7 +292,8 @@ int main(int argc, char **argv) {
   std::cout << "Total CC query latency:       " << cc_time.count() << std::endl;
   std::cout << "  Flush Gutters(sec):           " << flush_time.count() << std::endl;
   std::cout << "  Boruvka's Algorithm(sec):     " << cc_alg_time.count() << std::endl;
-  std::cout << "Connected Components:         " << CC_num_1 << std::endl;
-  std::cout << "Connected Components2:         " << CC_num_2 << std::endl;
+  for(int i=0;i<num_edge_connect;i++){
+      std::cout << "Number of connected Component in :         " << i+1 << " is " << CC_nums[i] << std::endl;
+  }
   std::cout << "Maximum Memory Usage(MiB):    " << get_max_mem_used() << std::endl;
 }
