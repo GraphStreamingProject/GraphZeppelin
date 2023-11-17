@@ -96,6 +96,12 @@ class CCSketchAlg {
    */
   bool sample_supernode(Sketch &skt);
 
+
+  /**
+   * Calculate the instructions for what vertices to merge to form each component
+   */
+  void create_merge_instructions(std::vector<MergeInstr> &merge_instr);
+
   /**
    * @param reps         set containing the roots of each supernode
    * @param merge_instr  a list of lists of supernodes to be merged

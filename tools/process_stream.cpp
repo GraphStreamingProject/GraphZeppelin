@@ -92,8 +92,8 @@ int main(int argc, char **argv) {
   auto cc_start = std::chrono::steady_clock::now();
   driver.prep_query();
   auto CC_num = cc_alg.connected_components().size();
-  std::chrono::duration<double> insert_time = driver.flush_end - ins_start;
   std::chrono::duration<double> cc_time = std::chrono::steady_clock::now() - cc_start;
+  std::chrono::duration<double> insert_time = driver.flush_end - ins_start;
   std::chrono::duration<double> flush_time = driver.flush_end - driver.flush_start;
   std::chrono::duration<double> cc_alg_time = cc_alg.cc_alg_end - cc_alg.cc_alg_start;
 
@@ -108,4 +108,21 @@ int main(int argc, char **argv) {
   std::cout << "  Boruvka's Algorithm(sec):     " << cc_alg_time.count() << std::endl;
   std::cout << "Connected Components:         " << CC_num << std::endl;
   std::cout << "Maximum Memory Usage(MiB):    " << get_max_mem_used() << std::endl;
+
+
+  cc_start = std::chrono::steady_clock::now();
+  driver.prep_query();
+  CC_num = cc_alg.connected_components().size();
+  cc_time = std::chrono::steady_clock::now() - cc_start;
+  insert_time = driver.flush_end - ins_start;
+  flush_time = driver.flush_end - driver.flush_start;
+  cc_alg_time = cc_alg.cc_alg_end - cc_alg.cc_alg_start;
+
+  std::cout << "SECOND QUERY" << std::endl;
+  std::cout << "Total CC query latency:       " << cc_time.count() << std::endl;
+  std::cout << "  Flush Gutters(sec):           " << flush_time.count() << std::endl;
+  std::cout << "  Boruvka's Algorithm(sec):     " << cc_alg_time.count() << std::endl;
+  std::cout << "Connected Components:         " << CC_num << std::endl;
+  std::cout << "Maximum Memory Usage(MiB):    " << get_max_mem_used() << std::endl;
+
 }

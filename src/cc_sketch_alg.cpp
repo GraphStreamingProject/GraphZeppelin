@@ -6,6 +6,7 @@
 #include <map>
 #include <random>
 #include <omp.h>
+#include <unordered_map>
 
 CCSketchAlg::CCSketchAlg(node_id_t num_nodes, CCAlgConfiguration config)
     : num_nodes(num_nodes), dsu(num_nodes), config(config) {
@@ -269,7 +270,7 @@ bool CCSketchAlg::perform_boruvka_round(const size_t cur_round,
     std::pair<node_id_t, node_id_t> partition = get_ith_partition(num_nodes, thr_id, num_threads);
     node_id_t start = partition.first;
     node_id_t end = partition.second;
-    assert(start < end);
+    assert(start <= end);
 
     // node_id_t left_root = merge_instr[start].root;
     // node_id_t right_root = merge_instr[end - 1].root;
@@ -374,7 +375,90 @@ bool CCSketchAlg::perform_boruvka_round(const size_t cur_round,
   return modified;
 }
 
+inline void CCSketchAlg::create_merge_instructions(std::vector<MergeInstr> &merge_instr) {
+  std::vector<node_id_t> cc_prefix(num_nodes, 0);
+  node_id_t range_sums[omp_get_max_threads()];
+
+#pragma omp parallel default(shared)
+  {
+    // thread local variables
+    std::unordered_map<node_id_t, std::vector<node_id_t>> local_ccs;
+    std::vector<node_id_t> local_cc_idx;
+
+    size_t thr_id = omp_get_thread_num();
+    size_t num_threads = omp_get_num_threads();
+    std::pair<node_id_t, node_id_t> partition = get_ith_partition(num_nodes, thr_id, num_threads);
+    node_id_t start = partition.first;
+    node_id_t end = partition.second;
+
+    for (node_id_t i = start; i < end; i++) {
+      node_id_t child = merge_instr[i].child;
+      node_id_t root = dsu.find_root(child);
+      if (local_ccs.count(root) == 0) {
+        local_ccs[root] = {child};
+      } else {
+        local_ccs[root].push_back(child);
+      }
+    }
+
+    // each thread loops over its local_ccs and updates cc_prefix
+    for (auto const &cc : local_ccs) {
+      node_id_t root = cc.first;
+      const std::vector<node_id_t> &vertices = cc.second;
+
+      node_id_t idx;
+#pragma omp atomic capture
+      {idx = cc_prefix[root]; cc_prefix[root] += vertices.size(); }
+
+      local_cc_idx.push_back(idx);
+    }
+#pragma omp barrier
+
+    // perform a prefix sum over cc_prefix
+    for (node_id_t i = start + 1; i < end; i++) {
+      cc_prefix[i] += cc_prefix[i-1];
+    }
+#pragma omp barrier
+
+    // perform single threaded prefix sum of the resulting sums from each thread
+#pragma omp single
+    {
+      range_sums[0] = 0;
+      for (int t = 1; t < omp_get_num_threads(); t++) {
+        node_id_t cur = get_ith_partition(num_nodes, t - 1, num_threads).second - 1;
+        range_sums[t] = cc_prefix[cur] + range_sums[t - 1];
+      }
+    }
+
+    // in parallel finish the prefix sums
+    if (thr_id > 0) {
+      for (node_id_t i = start; i < end; i++) {
+        cc_prefix[i] += range_sums[thr_id];
+      }
+    }
+#pragma omp barrier
+
+    // Finally, write the local_ccs to the correct portion of the merge_instr array
+    node_id_t i = 0;
+    for (auto const &cc : local_ccs) {
+      node_id_t root = cc.first;
+      const std::vector<node_id_t> &vertices = cc.second;
+      node_id_t thr_idx = local_cc_idx[i];
+
+      node_id_t placement = thr_idx;
+      if (root > 0)
+        placement += cc_prefix[root - 1];
+
+      for (size_t j = 0; j < vertices.size(); j++) {
+        merge_instr[placement + j] = {root, vertices[j]};
+      }
+      i++;
+    }
+  }
+}
+
 std::vector<std::set<node_id_t>> CCSketchAlg::boruvka_emulation() {
+  auto start = std::chrono::steady_clock::now();
   update_locked = true;
 
   cc_alg_start = std::chrono::steady_clock::now();
@@ -394,10 +478,16 @@ std::vector<std::set<node_id_t>> CCSketchAlg::boruvka_emulation() {
   }
   size_t round_num = 0;
   bool modified = true;
+  std::cout << std::endl;
+  std::cout << "  pre boruvka processing = "
+              << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
+              << std::endl;
+
   while (true) {
-    auto start = std::chrono::steady_clock::now();
+    std::cout << "   Round: " << round_num << std::endl;
+    start = std::chrono::steady_clock::now();
     modified = perform_boruvka_round(round_num, merge_instr, global_merges);
-    std::cout << "round: " << round_num << " = "
+    std::cout << "     perform_boruvka_round = "
               << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
               << std::endl;
 
@@ -405,37 +495,32 @@ std::vector<std::set<node_id_t>> CCSketchAlg::boruvka_emulation() {
 
     // calculate updated merge instructions for next round
     start = std::chrono::steady_clock::now();
-#pragma omp parallel for
-    for (node_id_t i = 0; i < num_nodes; i++) {
-      node_id_t child = merge_instr[i].child;
-      merge_instr[i].root = dsu.find_root(child);
-    }
-    std::cout << "  finding roots = "
-              << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
-              << std::endl;
-
-    start = std::chrono::steady_clock::now();
-    std::sort(merge_instr.begin(), merge_instr.end());
-    std::cout << "  sorting = "
+    create_merge_instructions(merge_instr);
+    std::cout << "     create_merge_instructions = "
               << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
               << std::endl;
     ++round_num;
   }
+  start = std::chrono::steady_clock::now();
   last_query_rounds = round_num;
 
   dsu_valid = true;
   shared_dsu_valid = true;
 
   auto retval = cc_from_dsu();
-  cc_alg_end = std::chrono::steady_clock::now();
   update_locked = false;
+  std::cout << "  post boruvka processing = "
+              << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
+              << std::endl;
+
   return retval;
 }
 
 std::vector<std::set<node_id_t>> CCSketchAlg::connected_components() {
+  cc_alg_start = std::chrono::steady_clock::now();
+
   // if the DSU holds the answer, use that
   if (shared_dsu_valid) {
-    cc_alg_start = std::chrono::steady_clock::now();
 #ifdef VERIFY_SAMPLES_F
     for (node_id_t src = 0; src < num_nodes; ++src) {
       for (const auto &dst : spanning_forest[src]) {
@@ -455,6 +540,7 @@ std::vector<std::set<node_id_t>> CCSketchAlg::connected_components() {
 
   bool except = false;
   std::exception_ptr err;
+  auto start = std::chrono::steady_clock::now();
   try {
     ret = boruvka_emulation();
 #ifdef VERIFY_SAMPLES_F
@@ -464,9 +550,11 @@ std::vector<std::set<node_id_t>> CCSketchAlg::connected_components() {
     except = true;
     err = std::current_exception();
   }
+  std::cout << "boruvka_emulation = "
+            << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
+            << std::endl;
 
-  // get ready for ingesting more from the stream
-  // reset dsu and resume graph workers
+  // get ready for ingesting more from the stream by resetting the sketches sample state
   for (node_id_t i = 0; i < num_nodes; i++) {
     sketches[i]->reset_sample_state();
   }
@@ -474,6 +562,7 @@ std::vector<std::set<node_id_t>> CCSketchAlg::connected_components() {
   // check if boruvka error'd
   if (except) std::rethrow_exception(err);
 
+  cc_alg_end = std::chrono::steady_clock::now();
   return ret;
 }
 
@@ -538,13 +627,29 @@ bool CCSketchAlg::point_query(node_id_t a, node_id_t b) {
   return ret;
 }
 
-std::vector<std::set<node_id_t>> CCSketchAlg::cc_from_dsu() {
+inline std::vector<std::set<node_id_t>> CCSketchAlg::cc_from_dsu() {
   // calculate connected components using DSU structure
-  std::map<node_id_t, std::set<node_id_t>> temp;
-  for (node_id_t i = 0; i < num_nodes; ++i) temp[dsu.find_root(i)].insert(i);
+  std::vector<MergeInstr> merge_instr(num_nodes);
+  for (node_id_t i = 0; i < num_nodes; ++i) {
+    merge_instr[i] = {i, i};
+  }
+
+  create_merge_instructions(merge_instr);
+
   std::vector<std::set<node_id_t>> retval;
-  retval.reserve(temp.size());
-  for (const auto &it : temp) retval.push_back(it.second);
+  std::set<node_id_t> cc;
+  cc.insert(merge_instr[0].child);
+  node_id_t cur_root = merge_instr[0].root;
+  for (node_id_t i = 1; i < num_nodes; i++) {
+    if (merge_instr[i].root != cur_root) {
+      retval.push_back(cc);
+      cc.clear();
+      cur_root = merge_instr[i].root;
+    }
+    cc.insert(merge_instr[i].child);
+  }
+  retval.push_back(cc);
+
   return retval;
 }
 
