@@ -3,7 +3,7 @@
 #include <random>
 #include <fstream>
 #include <string>
-#include <sstream>
+#include <cmath>
 
 #include <graph.h>
 #include <graph_worker.h>
@@ -11,18 +11,7 @@
 #include <cuda_graph.cuh>
 #include <mincut_graph.h>
 
-constexpr size_t epsilon = 1;
-
-static uint64_t fast_atoi(const std::string& str, size_t* line_ptr) {
-    uint64_t x = 0;
-
-    while (str[*line_ptr] >= '0' && str[*line_ptr] <= '9') {
-        x = (x * 10) + (str[*line_ptr] - '0');
-        ++(*line_ptr);
-    }
-    ++(*line_ptr);
-    return x;
-}
+constexpr size_t epsilon = 2;
 
 int main(int argc, char **argv) {
   if (argc != 4) {
@@ -48,7 +37,7 @@ int main(int argc, char **argv) {
   std::cout << "num_updates = " << num_updates << std::endl;
   std::cout << std::endl;
 
-  //size_t k = log2(num_nodes) / (epsilon * epsilon);
+  //int k = log2(num_nodes) / (epsilon * epsilon);
   int k = 2;
 
   // TODO: Check format of epsilon
@@ -218,8 +207,10 @@ int main(int argc, char **argv) {
   auto ins_end = std::chrono::steady_clock::now();
 
   std::cout << "Number of inserted updates for each subgraph:\n";
+  int num_zero_graphs = 0;
   for (int i = 0; i < num_graphs; i++) {
-    std::cout << "  Subgraph G_" << i << ": " << graphs[i]->num_updates << "\n";
+    std::cout << "Subgraph G_" << i << ": " << graphs[i]->num_updates << "\n";
+    if (graphs[i]->num_updates == 0) num_zero_graphs++;
   }
   
   /*std::cout << "\n";
@@ -231,8 +222,9 @@ int main(int argc, char **argv) {
 
   // Get spanning forests then create a METIS format file
   std::cout << "Generating Certificates...\n";
-  for (int i = 0; i < num_graphs; i++) {
-    std::cout << "  Subgraph G_" << i << ":\n";
+  int num_sampled_zero_graphs = 0;
+  for (int i = 0; i < num_graphs - num_zero_graphs; i++) {
+    std::cout << "Subgraph G_" << i << ":\n";
     std::vector<std::vector<Edge>> forests = graphs[0]->k_spanning_forests(k); // Note: Getting k spanning forests for only the first graph 
 
     int sampled_edges = 0;
@@ -241,6 +233,11 @@ int main(int argc, char **argv) {
       sampled_edges += forests[k_id].size();
     }
     std::cout << "  Total sampled edges: " << sampled_edges << "\n";
+
+    if(sampled_edges == 0) {
+      num_sampled_zero_graphs++;
+      continue;
+    }
 
     std::string file_name = "certificates" + std::to_string(i) + ".metis";
     std::ofstream cert (file_name);
@@ -279,10 +276,44 @@ int main(int argc, char **argv) {
   }
 
   std::cout << "Getting minimum cut of certificates...\n";
-  for (int i = 0; i < num_graphs; i++) {
+  std::vector<int> mincut_values;
+  for (int i = 0; i < num_graphs - num_zero_graphs - num_sampled_zero_graphs; i++) {
     std::string file_name = "certificates" + std::to_string(i) + ".metis";
-    std::string command = "../VieCut/build/mincut_parallel " + file_name + " exact";
+    std::string output_name = "mincut" + std::to_string(i) + ".txt";
+    std::string command = "../VieCut/build/mincut_parallel " + file_name + " exact >" + output_name; // Run VieCut and store the output
     std::system(command.data());
+
+    std::string line;
+    std::ifstream output_file(output_name);
+    if(output_file.is_open()) {
+      std::getline(output_file, line); // Skip first line
+      std::getline(output_file, line);
+
+      int start_index = line.find("cut=");
+      int end_index = line.find(" n=");
+
+      if (start_index != std::string::npos || end_index != std::string::npos ) {
+        int cut = stoi(line.substr((start_index + 4), ((end_index) - (start_index + 4)))); 
+        std::cout << "  G_" << i << ": " << cut << "\n";
+        mincut_values.push_back(cut);
+      }
+      else {
+        std::cout << "Error: Couldn't find 'cut=' or 'n=' in the output file\n";
+      }
+
+    }
+    else {
+      std::cout << "Error: Couldn't find file name: " << output_name << "!\n";
+    }
+  }
+
+  // Go through min cut values of each subgraph and find the minimum cut of subgraph that is smaller than k
+  for (int i = 0; i < mincut_values.size(); i++) {
+    if(mincut_values[i] < k) {
+      std::cout << "Mincut value found! i: " << i << " mincut: " << mincut_values[i] << "\n";
+      std::cout << "Final mincut value: " << (mincut_values[i] * (pow(2, i))) << "\n";
+      break;
+     }
   }
 
   for (int i = 0; i < num_graphs; i++) {
