@@ -5,6 +5,12 @@
 
 #include <thread>
 
+// TODO: 1. change all necessary int to unsigned int; 2. make num_edge_connect an input argument;
+// TODO: The temp_forest variable is repeatedly defined (make it a reference variable)
+// TODO: track_insertion now is hardcoded with the class name -- change it to be flexible
+// TODO: add verifier to see whether the output spanning forest is a valid forest
+//        and whether the graph is indeed disconnected after removing k spanning forests
+
 static bool shutdown = false;
 
 class KEdgeConnect {
@@ -237,10 +243,6 @@ int main(int argc, char **argv) {
   }
   size_t reader_threads = std::atol(argv[3]);
   int num_edge_connect = 5;
-
-  // TODO: 1. change all necessary int to unsigned int; 2. make num_edge_connect an input argument;
-  // TODO: The temp_forest variable is repeatedly defined (make it a reference variable)
-  // TODO: track_insertion now is hardcoded with the class name -- change it to be flexible
 
   BinaryFileStream stream(stream_file);
   BinaryFileStream stream2(stream_file);
