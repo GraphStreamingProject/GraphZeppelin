@@ -32,8 +32,8 @@ class UpdateLockedException : public std::exception {
  * (no self-edges or multi-edges)
  */
 class CCSketchAlg {
- protected:
-  node_id_t num_nodes;
+ private:
+  node_id_t num_vertices;
   size_t seed;
   bool update_locked = false;
   // a set containing one "representative" from each supernode
@@ -94,11 +94,11 @@ class CCSketchAlg {
   CCAlgConfiguration config;
 
   // constructor for use when reading from a serialized file
-  CCSketchAlg(node_id_t num_nodes, size_t seed, std::ifstream &binary_stream,
+  CCSketchAlg(node_id_t num_vertices, size_t seed, std::ifstream &binary_stream,
               CCAlgConfiguration config);
 
  public:
-  CCSketchAlg(node_id_t num_nodes, CCAlgConfiguration config = CCAlgConfiguration());
+  CCSketchAlg(node_id_t num_vertices, size_t seed, CCAlgConfiguration config = CCAlgConfiguration());
   ~CCSketchAlg();
 
   // construct a CC algorithm from a serialized file
@@ -127,8 +127,8 @@ class CCSketchAlg {
     num_delta_sketches = num_workers;
     delta_sketches = new Sketch *[num_delta_sketches];
     for (size_t i = 0; i < num_delta_sketches; i++) {
-      delta_sketches[i] = new Sketch(Sketch::calc_vector_length(num_nodes), seed,
-                                     Sketch::calc_cc_samples(num_nodes));
+      delta_sketches[i] = new Sketch(Sketch::calc_vector_length(num_vertices), seed,
+                                     Sketch::calc_cc_samples(num_vertices));
     }
   }
 
@@ -211,6 +211,6 @@ class CCSketchAlg {
   size_t last_query_rounds = 0;
 
   // getters
-  inline node_id_t get_num_vertices() { return num_nodes; }
+  inline node_id_t get_num_vertices() { return num_vertices; }
   inline size_t get_seed() { return seed; }
 };

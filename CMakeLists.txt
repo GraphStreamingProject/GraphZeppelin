@@ -131,7 +131,7 @@ target_compile_definitions(GraphZeppelinVerifyCC PUBLIC XXH_INLINE_ALL VERIFY_SA
 if (BUILD_EXE)
   add_executable(tests
     test/test_runner.cpp
-    test/graph_test.cpp
+    test/cc_alg_test.cpp
     test/sketch_test.cpp
     test/dsu_test.cpp
     test/util_test.cpp

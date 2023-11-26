@@ -6,25 +6,20 @@
 #include <map>
 #include <random>
 
-CCSketchAlg::CCSketchAlg(node_id_t num_nodes, CCAlgConfiguration config)
-    : num_nodes(num_nodes), dsu(num_nodes), config(config) {
+CCSketchAlg::CCSketchAlg(node_id_t num_vertices, size_t seed, CCAlgConfiguration config)
+    : num_vertices(num_vertices), seed(seed), dsu(num_vertices), config(config) {
   representatives = new std::set<node_id_t>();
-  sketches = new Sketch *[num_nodes];
-  seed = std::chrono::duration_cast<std::chrono::microseconds>(
-             std::chrono::high_resolution_clock::now().time_since_epoch())
-             .count();
-  std::mt19937_64 r(seed);
-  seed = r();
+  sketches = new Sketch *[num_vertices];
 
-  vec_t sketch_vec_len = Sketch::calc_vector_length(num_nodes);
-  size_t sketch_num_samples = Sketch::calc_cc_samples(num_nodes);
-  for (node_id_t i = 0; i < num_nodes; ++i) {
+  vec_t sketch_vec_len = Sketch::calc_vector_length(num_vertices);
+  size_t sketch_num_samples = Sketch::calc_cc_samples(num_vertices);
+  for (node_id_t i = 0; i < num_vertices; ++i) {
     representatives->insert(i);
     sketches[i] = new Sketch(sketch_vec_len, seed, sketch_num_samples);
   }
 
-  spanning_forest = new std::unordered_set<node_id_t>[num_nodes];
-  spanning_forest_mtx = new std::mutex[num_nodes];
+  spanning_forest = new std::unordered_set<node_id_t>[num_vertices];
+  spanning_forest_mtx = new std::mutex[num_vertices];
   dsu_valid = true;
   shared_dsu_valid = true;
 }
@@ -34,38 +29,38 @@ CCSketchAlg *CCSketchAlg::construct_from_serialized_data(const std::string &inpu
   double sketches_factor;
   auto binary_in = std::ifstream(input_file, std::ios::binary);
   size_t seed;
-  node_id_t num_nodes;
+  node_id_t num_vertices;
   binary_in.read((char *)&seed, sizeof(seed));
-  binary_in.read((char *)&num_nodes, sizeof(num_nodes));
+  binary_in.read((char *)&num_vertices, sizeof(num_vertices));
   binary_in.read((char *)&sketches_factor, sizeof(sketches_factor));
 
   config.sketches_factor(sketches_factor);
 
-  return new CCSketchAlg(num_nodes, seed, binary_in, config);
+  return new CCSketchAlg(num_vertices, seed, binary_in, config);
 }
 
-CCSketchAlg::CCSketchAlg(node_id_t num_nodes, size_t seed, std::ifstream &binary_stream,
+CCSketchAlg::CCSketchAlg(node_id_t num_vertices, size_t seed, std::ifstream &binary_stream,
                          CCAlgConfiguration config)
-    : num_nodes(num_nodes), seed(seed), dsu(num_nodes), config(config) {
+    : num_vertices(num_vertices), seed(seed), dsu(num_vertices), config(config) {
   representatives = new std::set<node_id_t>();
-  sketches = new Sketch *[num_nodes];
+  sketches = new Sketch *[num_vertices];
 
-  vec_t sketch_vec_len = Sketch::calc_vector_length(num_nodes);
-  size_t sketch_num_samples = Sketch::calc_cc_samples(num_nodes);
-  for (node_id_t i = 0; i < num_nodes; ++i) {
+  vec_t sketch_vec_len = Sketch::calc_vector_length(num_vertices);
+  size_t sketch_num_samples = Sketch::calc_cc_samples(num_vertices);
+  for (node_id_t i = 0; i < num_vertices; ++i) {
     representatives->insert(i);
     sketches[i] = new Sketch(sketch_vec_len, seed, binary_stream, sketch_num_samples);
   }
   binary_stream.close();
 
-  spanning_forest = new std::unordered_set<node_id_t>[num_nodes];
-  spanning_forest_mtx = new std::mutex[num_nodes];
+  spanning_forest = new std::unordered_set<node_id_t>[num_vertices];
+  spanning_forest_mtx = new std::mutex[num_vertices];
   dsu_valid = false;
   shared_dsu_valid = false;
 }
 
 CCSketchAlg::~CCSketchAlg() {
-  for (size_t i = 0; i < num_nodes; ++i) delete sketches[i];
+  for (size_t i = 0; i < num_vertices; ++i) delete sketches[i];
   delete[] sketches;
   if (delta_sketches != nullptr) {
     for (size_t i = 0; i < num_delta_sketches; i++) delete delta_sketches[i];
@@ -136,7 +131,7 @@ bool CCSketchAlg::sample_supernodes(std::vector<node_id_t> &merge_instr) {
   bool modified = false;
   std::exception_ptr err;
 #pragma omp parallel for default(shared)
-    for (node_id_t root = 0; root < num_nodes; root++) {
+    for (node_id_t root = 0; root < num_vertices; root++) {
       if (merge_instr[root] != root) {
         // don't query non-roots
         continue;
@@ -185,12 +180,12 @@ void CCSketchAlg::merge_supernodes(const size_t next_round,
 #pragma omp parallel default(shared)
   {
     // some thread local variables
-    Sketch local_sketch(Sketch::calc_vector_length(num_nodes), seed,
-                        Sketch::calc_cc_samples(num_nodes));
+    Sketch local_sketch(Sketch::calc_vector_length(num_vertices), seed,
+                        Sketch::calc_cc_samples(num_vertices));
     node_id_t cur_root = 0;
     bool first_root = true;
 #pragma omp for
-    for (node_id_t i = 0; i < num_nodes; i++) {
+    for (node_id_t i = 0; i < num_vertices; i++) {
       if (merge_instr[i] == i) continue;
 
       node_id_t root = merge_instr[i];
@@ -223,10 +218,10 @@ std::vector<std::set<node_id_t>> CCSketchAlg::boruvka_emulation() {
   update_locked = true;
 
   cc_alg_start = std::chrono::steady_clock::now();
-  std::vector<node_id_t> merge_instr(num_nodes);
+  std::vector<node_id_t> merge_instr(num_vertices);
 
   dsu.reset();
-  for (node_id_t i = 0; i < num_nodes; ++i) {
+  for (node_id_t i = 0; i < num_vertices; ++i) {
     merge_instr[i] = i;
     spanning_forest[i].clear();
   }
@@ -254,7 +249,7 @@ std::vector<std::set<node_id_t>> CCSketchAlg::boruvka_emulation() {
 
     // calculate updated merge instructions
 #pragma omp parallel for
-    for (node_id_t i = 0; i < num_nodes; i++)
+    for (node_id_t i = 0; i < num_vertices; i++)
       merge_instr[i] = dsu.find_root(i);
 
     // prepare for the next round by merging
@@ -281,7 +276,7 @@ std::vector<std::set<node_id_t>> CCSketchAlg::connected_components() {
   if (shared_dsu_valid) {
     cc_alg_start = std::chrono::steady_clock::now();
 #ifdef VERIFY_SAMPLES_F
-    for (node_id_t src = 0; src < num_nodes; ++src) {
+    for (node_id_t src = 0; src < num_vertices; ++src) {
       for (const auto &dst : spanning_forest[src]) {
         verifier->verify_edge({src, dst});
       }
@@ -311,7 +306,7 @@ std::vector<std::set<node_id_t>> CCSketchAlg::connected_components() {
 
   // get ready for ingesting more from the stream
   // reset dsu and resume graph workers
-  for (node_id_t i = 0; i < num_nodes; i++) {
+  for (node_id_t i = 0; i < num_vertices; i++) {
     sketches[i]->reset_sample_state();
   }
 
@@ -327,7 +322,7 @@ std::vector<std::pair<node_id_t, std::vector<node_id_t>>> CCSketchAlg::calc_span
   
   std::vector<std::pair<node_id_t, std::vector<node_id_t>>> forest;
 
-  for (node_id_t src = 0; src < num_nodes; src++) {
+  for (node_id_t src = 0; src < num_vertices; src++) {
     if (spanning_forest[src].size() > 0) {
       std::vector<node_id_t> edge_list;
       edge_list.reserve(spanning_forest[src].size());
@@ -345,7 +340,7 @@ bool CCSketchAlg::point_query(node_id_t a, node_id_t b) {
   if (dsu_valid) {
     cc_alg_start = std::chrono::steady_clock::now();
 #ifdef VERIFY_SAMPLES_F
-    for (node_id_t src = 0; src < num_nodes; ++src) {
+    for (node_id_t src = 0; src < num_vertices; ++src) {
       for (const auto &dst : spanning_forest[src]) {
         verifier->verify_edge({src, dst});
       }
@@ -372,7 +367,7 @@ bool CCSketchAlg::point_query(node_id_t a, node_id_t b) {
 
   // get ready for ingesting more from the stream
   // reset dsu and resume graph workers
-  for (node_id_t i = 0; i < num_nodes; i++) {
+  for (node_id_t i = 0; i < num_vertices; i++) {
     sketches[i]->reset_sample_state();
   }
 
@@ -385,7 +380,7 @@ bool CCSketchAlg::point_query(node_id_t a, node_id_t b) {
 std::vector<std::set<node_id_t>> CCSketchAlg::cc_from_dsu() {
   // calculate connected components using DSU structure
   std::map<node_id_t, std::set<node_id_t>> temp;
-  for (node_id_t i = 0; i < num_nodes; ++i) temp[dsu.find_root(i)].insert(i);
+  for (node_id_t i = 0; i < num_vertices; ++i) temp[dsu.find_root(i)].insert(i);
   std::vector<std::set<node_id_t>> retval;
   retval.reserve(temp.size());
   for (const auto &it : temp) retval.push_back(it.second);
@@ -395,9 +390,9 @@ std::vector<std::set<node_id_t>> CCSketchAlg::cc_from_dsu() {
 void CCSketchAlg::write_binary(const std::string &filename) {
   auto binary_out = std::fstream(filename, std::ios::out | std::ios::binary);
   binary_out.write((char *)&seed, sizeof(seed));
-  binary_out.write((char *)&num_nodes, sizeof(num_nodes));
+  binary_out.write((char *)&num_vertices, sizeof(num_vertices));
   binary_out.write((char *)&config._sketches_factor, sizeof(config._sketches_factor));
-  for (node_id_t i = 0; i < num_nodes; ++i) {
+  for (node_id_t i = 0; i < num_vertices; ++i) {
     sketches[i]->serialize(binary_out);
   }
   binary_out.close();

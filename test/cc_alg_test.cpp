@@ -11,6 +11,11 @@
 #include "graph_sketch_driver.h"
 #include "mat_graph_verifier.h"
 
+static size_t get_seed() {
+  auto now = std::chrono::high_resolution_clock::now();
+  return std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
+}
+
 /**
  * For many of these tests (especially for those upon very sparse and small graphs)
  * we allow for a certain number of failures per test.
@@ -23,11 +28,11 @@
 
 // We create this class and instantiate a paramaterized test suite so that we
 // can run these tests both with the GutterTree and with StandAloneGutters
-class GraphTest : public testing::TestWithParam<GutterSystem> {};
-INSTANTIATE_TEST_SUITE_P(GraphTestSuite, GraphTest,
+class CCAlgTest : public testing::TestWithParam<GutterSystem> {};
+INSTANTIATE_TEST_SUITE_P(CCAlgTestSuite, CCAlgTest,
                          testing::Values(GUTTERTREE, STANDALONE, CACHETREE));
 
-TEST_P(GraphTest, SmallGraphConnectivity) {
+TEST_P(CCAlgTest, SmallGraphConnectivity) {
   auto driver_config = DriverConfiguration().gutter_sys(GetParam());
   const std::string fname = __FILE__;
   size_t pos = fname.find_last_of("\\/");
@@ -35,7 +40,7 @@ TEST_P(GraphTest, SmallGraphConnectivity) {
   AsciiFileStream stream{curr_dir + "/res/multiples_graph_1024.txt", false};
   node_id_t num_nodes = stream.vertices();
 
-  CCSketchAlg cc_alg{num_nodes};
+  CCSketchAlg cc_alg{num_nodes, get_seed()};
   cc_alg.set_verifier(
       std::make_unique<FileGraphVerifier>(1024, curr_dir + "/res/multiples_graph_1024.txt"));
 
@@ -45,7 +50,7 @@ TEST_P(GraphTest, SmallGraphConnectivity) {
   ASSERT_EQ(78, cc_alg.connected_components().size());
 }
 
-TEST_P(GraphTest, TestCorrectnessOnSmallRandomGraphs) {
+TEST_P(CCAlgTest, TestCorrectnessOnSmallRandomGraphs) {
   auto driver_config = DriverConfiguration().gutter_sys(GetParam());
   int num_trials = 5;
   while (num_trials--) {
@@ -53,7 +58,7 @@ TEST_P(GraphTest, TestCorrectnessOnSmallRandomGraphs) {
     AsciiFileStream stream{"./sample.txt"};
     node_id_t num_nodes = stream.vertices();
 
-    CCSketchAlg cc_alg{num_nodes};
+    CCSketchAlg cc_alg{num_nodes, get_seed()};
     cc_alg.set_verifier(std::make_unique<FileGraphVerifier>(1024, "./cumul_sample.txt"));
 
     GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, driver_config);
@@ -64,7 +69,7 @@ TEST_P(GraphTest, TestCorrectnessOnSmallRandomGraphs) {
   }
 }
 
-TEST_P(GraphTest, TestCorrectnessOnSmallSparseGraphs) {
+TEST_P(CCAlgTest, TestCorrectnessOnSmallSparseGraphs) {
   auto driver_config = DriverConfiguration().gutter_sys(GetParam());
   int num_trials = 5;
   while (num_trials--) {
@@ -72,7 +77,7 @@ TEST_P(GraphTest, TestCorrectnessOnSmallSparseGraphs) {
     AsciiFileStream stream{"./sample.txt"};
     node_id_t num_nodes = stream.vertices();
 
-    CCSketchAlg cc_alg{num_nodes};
+    CCSketchAlg cc_alg{num_nodes, get_seed()};
     cc_alg.set_verifier(std::make_unique<FileGraphVerifier>(1024, "./cumul_sample.txt"));
 
     GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, driver_config);
@@ -83,7 +88,7 @@ TEST_P(GraphTest, TestCorrectnessOnSmallSparseGraphs) {
   }
 }
 
-TEST_P(GraphTest, TestCorrectnessOfReheating) {
+TEST_P(CCAlgTest, TestCorrectnessOfReheating) {
   auto driver_config = DriverConfiguration().gutter_sys(GetParam());
   int num_trials = 5;
   while (num_trials--) {
@@ -92,7 +97,7 @@ TEST_P(GraphTest, TestCorrectnessOfReheating) {
     AsciiFileStream stream{"./sample.txt"};
     node_id_t num_nodes = stream.vertices();
 
-    CCSketchAlg cc_alg{num_nodes};
+    CCSketchAlg cc_alg{num_nodes, get_seed()};
     cc_alg.set_verifier(std::make_unique<FileGraphVerifier>(1024, "./cumul_sample.txt"));
 
     GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, driver_config);
@@ -114,7 +119,7 @@ TEST_P(GraphTest, TestCorrectnessOfReheating) {
 }
 
 // Test the multithreaded system by using multiple worker threads
-TEST_P(GraphTest, MultipleWorkers) {
+TEST_P(CCAlgTest, MultipleWorkers) {
   auto driver_config = DriverConfiguration().gutter_sys(GetParam()).worker_threads(8);
   int num_trials = 5;
   while (num_trials--) {
@@ -122,7 +127,7 @@ TEST_P(GraphTest, MultipleWorkers) {
     AsciiFileStream stream{"./sample.txt"};
     node_id_t num_nodes = stream.vertices();
 
-    CCSketchAlg cc_alg{num_nodes};
+    CCSketchAlg cc_alg{num_nodes, get_seed()};
     cc_alg.set_verifier(std::make_unique<FileGraphVerifier>(1024, "./cumul_sample.txt"));
 
     GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, driver_config);
@@ -132,7 +137,7 @@ TEST_P(GraphTest, MultipleWorkers) {
   }
 }
 
-TEST_P(GraphTest, TestPointQuery) {
+TEST_P(CCAlgTest, TestPointQuery) {
   auto driver_config = DriverConfiguration().gutter_sys(GetParam());
   const std::string fname = __FILE__;
   size_t pos = fname.find_last_of("\\/");
@@ -140,7 +145,7 @@ TEST_P(GraphTest, TestPointQuery) {
   AsciiFileStream stream{curr_dir + "/res/multiples_graph_1024.txt", false};
   node_id_t num_nodes = stream.vertices();
 
-  CCSketchAlg cc_alg{num_nodes};
+  CCSketchAlg cc_alg{num_nodes, get_seed()};
   cc_alg.set_verifier(
       std::make_unique<FileGraphVerifier>(1024, curr_dir + "/res/multiples_graph_1024.txt"));
 
@@ -164,7 +169,7 @@ TEST_P(GraphTest, TestPointQuery) {
   }
 }
 
-TEST(GraphTest, TestQueryDuringStream) {
+TEST(CCAlgTest, TestQueryDuringStream) {
   auto driver_config = DriverConfiguration().gutter_sys(STANDALONE);
   auto cc_config = CCAlgConfiguration();
   generate_stream({1024, 0.002, 0.5, 0, "./sample.txt", "./cumul_sample.txt"});
@@ -174,7 +179,7 @@ TEST(GraphTest, TestQueryDuringStream) {
   edge_id_t num_edges = stream.edges();
   edge_id_t tenth     = num_edges / 10;
 
-  CCSketchAlg cc_alg{num_nodes, cc_config};
+  CCSketchAlg cc_alg{num_nodes, get_seed(), cc_config};
   GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, driver_config);
   MatGraphVerifier verify(num_nodes);
 
@@ -210,9 +215,9 @@ TEST(GraphTest, TestQueryDuringStream) {
   cc_alg.connected_components();
 }
 
-TEST(GraphTest, EagerDSUTest) {
+TEST(CCAlgTest, EagerDSUTest) {
   node_id_t num_nodes = 100;
-  CCSketchAlg cc_alg{num_nodes};
+  CCSketchAlg cc_alg{num_nodes, get_seed()};
   MatGraphVerifier verify(num_nodes);
 
   // This should be a spanning forest edge
@@ -258,7 +263,7 @@ TEST(GraphTest, EagerDSUTest) {
   cc_alg.connected_components();
 }
 
-TEST(GraphTest, MTStreamWithMultipleQueries) {
+TEST(CCAlgTest, MTStreamWithMultipleQueries) {
   for (int t = 1; t <= 3; t++) {
     auto driver_config = DriverConfiguration().gutter_sys(STANDALONE);
 
@@ -273,7 +278,7 @@ TEST(GraphTest, MTStreamWithMultipleQueries) {
 
     std::cerr << num_nodes << " " << num_edges << std::endl;
 
-    CCSketchAlg cc_alg{num_nodes};
+    CCSketchAlg cc_alg{num_nodes, get_seed()};
     GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, driver_config, 4);
     MatGraphVerifier verify(num_nodes);
 
