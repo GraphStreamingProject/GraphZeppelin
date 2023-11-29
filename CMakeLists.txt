@@ -176,6 +176,11 @@ if (BUILD_EXE)
     tools/validate_binary_stream.cpp
   )
   target_link_libraries(validate_binary_stream PRIVATE GraphZeppelin)
+
+  add_executable(generate_stream
+    tools/stream_generators/single_cut_stream_generator.cpp
+  )
+  target_link_libraries(generate_stream PRIVATE GraphZeppelin)
 endif()
 
 if (BUILD_BENCH)
