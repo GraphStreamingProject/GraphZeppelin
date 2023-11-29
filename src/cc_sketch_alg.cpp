@@ -453,7 +453,7 @@ inline void CCSketchAlg::create_merge_instructions(std::vector<MergeInstr> &merg
 }
 
 void CCSketchAlg::boruvka_emulation() {
-  auto start = std::chrono::steady_clock::now();
+  // auto start = std::chrono::steady_clock::now();
   update_locked = true;
 
   cc_alg_start = std::chrono::steady_clock::now();
@@ -473,27 +473,27 @@ void CCSketchAlg::boruvka_emulation() {
   }
   size_t round_num = 0;
   bool modified = true;
-  std::cout << std::endl;
-  std::cout << "  pre boruvka processing = "
-              << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
-              << std::endl;
+  // std::cout << std::endl;
+  // std::cout << "  pre boruvka processing = "
+  //             << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
+  //             << std::endl;
 
   while (true) {
-    std::cout << "   Round: " << round_num << std::endl;
-    start = std::chrono::steady_clock::now();
+    // std::cout << "   Round: " << round_num << std::endl;
+    // start = std::chrono::steady_clock::now();
     modified = perform_boruvka_round(round_num, merge_instr, global_merges);
-    std::cout << "     perform_boruvka_round = "
-              << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
-              << std::endl;
+    // std::cout << "     perform_boruvka_round = "
+    //           << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
+    //           << std::endl;
 
     if (!modified) break;
 
     // calculate updated merge instructions for next round
-    start = std::chrono::steady_clock::now();
+    // start = std::chrono::steady_clock::now();
     create_merge_instructions(merge_instr);
-    std::cout << "     create_merge_instructions = "
-              << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
-              << std::endl;
+    // std::cout << "     create_merge_instructions = "
+    //           << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
+    //           << std::endl;
     ++round_num;
   }
   last_query_rounds = round_num;
@@ -521,11 +521,11 @@ ConnectedComponents CCSketchAlg::connected_components() {
     bool except = false;
     std::exception_ptr err;
     try {
-      auto start = std::chrono::steady_clock::now();
+      // auto start = std::chrono::steady_clock::now();
       boruvka_emulation();
-      std::cout << " boruvka's algorithm = "
-              << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
-              << std::endl;
+      // std::cout << " boruvka's algorithm = "
+      //         << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
+      //         << std::endl;
     } catch (...) {
       except = true;
       err = std::current_exception();
@@ -548,29 +548,18 @@ ConnectedComponents CCSketchAlg::connected_components() {
   return cc;
 }
 
-std::vector<std::pair<node_id_t, std::vector<node_id_t>>> CCSketchAlg::calc_spanning_forest() {
+SpanningForest CCSketchAlg::calc_spanning_forest() {
   // TODO: Could probably optimize this a bit by writing new code
   connected_components();
-  
-  std::vector<std::pair<node_id_t, std::vector<node_id_t>>> forest;
 
-  for (node_id_t src = 0; src < num_vertices; src++) {
-    if (spanning_forest[src].size() > 0) {
-      std::vector<node_id_t> edge_list;
-      edge_list.reserve(spanning_forest[src].size());
-      for (node_id_t dst : spanning_forest[src]) {
-        edge_list.push_back(dst);
-      }
-      forest.push_back({src, edge_list});
-    }
-  }
-  return forest;
+  return SpanningForest(num_vertices, spanning_forest);
 }
 
 bool CCSketchAlg::point_query(node_id_t a, node_id_t b) {
-  // DSU check before calling force_flush()
+  cc_alg_start = std::chrono::steady_clock::now();
+
+  // if the DSU holds the answer, use that
   if (dsu_valid) {
-    cc_alg_start = std::chrono::steady_clock::now();
 #ifdef VERIFY_SAMPLES_F
     for (node_id_t src = 0; src < num_vertices; ++src) {
       for (const auto &dst : spanning_forest[src]) {
@@ -578,37 +567,38 @@ bool CCSketchAlg::point_query(node_id_t a, node_id_t b) {
       }
     }
 #endif
-    bool retval = (dsu.find_root(a) == dsu.find_root(b));
-    cc_alg_end = std::chrono::steady_clock::now();
-    return retval;
+  } 
+  // The DSU does not hold the answer, make it so
+  else {
+    bool except = false;
+    std::exception_ptr err;
+    bool ret;
+    try {
+      boruvka_emulation();
+    } catch (...) {
+      except = true;
+      err = std::current_exception();
+    }
+
+    // get ready for ingesting more from the stream
+    // reset dsu and resume graph workers
+    for (node_id_t i = 0; i < num_vertices; i++) {
+      sketches[i]->reset_sample_state();
+    }
+
+    // check if boruvka errored
+    if (except) std::rethrow_exception(err);
   }
 
-  bool except = false;
-  std::exception_ptr err;
-  bool ret;
-  try {
-    boruvka_emulation();
 #ifdef VERIFY_SAMPLES_F
-    ConnectedComponents cc(num_vertices, dsu);
-    auto cc_sets = cc.get_component_sets();
-    verifier->verify_soln(cc_sets);
+  ConnectedComponents cc(num_vertices, dsu);
+  auto cc_sets = cc.get_component_sets();
+  verifier->verify_soln(cc_sets);
 #endif
-    ret = (dsu.find_root(a) == dsu.find_root(b));
-  } catch (...) {
-    except = true;
-    err = std::current_exception();
-  }
 
-  // get ready for ingesting more from the stream
-  // reset dsu and resume graph workers
-  for (node_id_t i = 0; i < num_vertices; i++) {
-    sketches[i]->reset_sample_state();
-  }
-
-  // check if boruvka errored
-  if (except) std::rethrow_exception(err);
-
-  return ret;
+  bool retval = (dsu.find_root(a) == dsu.find_root(b));
+  cc_alg_end = std::chrono::steady_clock::now();
+  return retval;
 }
 
 void CCSketchAlg::write_binary(const std::string &filename) {

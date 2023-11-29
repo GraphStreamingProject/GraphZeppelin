@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <iterator>
 #include <set>
+#include <unordered_set>
 #include <vector>
 
 #include "dsu.h"
@@ -23,10 +24,13 @@ class ConnectedComponents {
   node_id_t size() { return num_cc; }
 };
 
-// // This class defines a spanning forest of a graph
-// class SpanningForest {
-//  private:
+// This class defines a spanning forest of a graph
+class SpanningForest {
+ private:
+  std::vector<Edge> edges;
+  node_id_t num_vertices;
+ public:
+  SpanningForest(node_id_t num_vertices, const std::unordered_set<node_id_t> *spanning_forest);
 
-//  public:
-
-// };
+  const std::vector<Edge>& get_edges() { return edges; }
+};

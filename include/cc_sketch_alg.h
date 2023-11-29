@@ -218,7 +218,7 @@ class CCSketchAlg {
    * that is, unless you really know what you're doing.
    * @return an adjacency list representation of the spanning forest of the graph
    */
-  std::vector<std::pair<node_id_t, std::vector<node_id_t>>> calc_spanning_forest();
+  SpanningForest calc_spanning_forest();
 
 #ifdef VERIFY_SAMPLES_F
   std::unique_ptr<GraphVerifier> verifier;
