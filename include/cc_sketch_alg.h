@@ -13,6 +13,7 @@
 #include <cassert>
 
 #include "cc_alg_configuration.h"
+#include "return_types.h"
 #include "sketch.h"
 #include "dsu.h"
 
@@ -44,9 +45,10 @@ struct alignas(64) GlobalMergeData {
   size_t num_merge_needed = -1;
   size_t num_merge_done = 0;
 
-  GlobalMergeData(node_id_t num_nodes, size_t seed)
-      : sketch(Sketch::calc_vector_length(num_nodes), seed, Sketch::calc_cc_samples(num_nodes)) {}
-      
+  GlobalMergeData(node_id_t num_vertices, size_t seed)
+      : sketch(Sketch::calc_vector_length(num_vertices), seed,
+               Sketch::calc_cc_samples(num_vertices)) {}
+
   GlobalMergeData(const GlobalMergeData&& other)
   : sketch(other.sketch) {
     num_merge_needed = other.num_merge_needed;
@@ -60,7 +62,7 @@ struct alignas(64) GlobalMergeData {
  */
 class CCSketchAlg {
  private:
-  node_id_t num_nodes;
+  node_id_t num_vertices;
   size_t seed;
   bool update_locked = false;
   // a set containing one "representative" from each supernode
@@ -111,26 +113,20 @@ class CCSketchAlg {
 
   /**
    * Main parallel algorithm utilizing Boruvka and L_0 sampling.
-   * @return a vector of the connected components in the graph.
+   * Ensures that the DSU represents the Connected Components of the stream when called
    */
-  std::vector<std::set<node_id_t>> boruvka_emulation();
-
-  /**
-   * Generates connected components from this graph's dsu
-   * @return a vector of the connected components in the graph.
-   */
-  std::vector<std::set<node_id_t>> cc_from_dsu();
+  void boruvka_emulation();
 
   FRIEND_TEST(GraphTestSuite, TestCorrectnessOfReheating);
 
   CCAlgConfiguration config;
 
   // constructor for use when reading from a serialized file
-  CCSketchAlg(node_id_t num_nodes, size_t seed, std::ifstream &binary_stream,
+  CCSketchAlg(node_id_t num_vertices, size_t seed, std::ifstream &binary_stream,
               CCAlgConfiguration config);
 
  public:
-  CCSketchAlg(node_id_t num_nodes, CCAlgConfiguration config = CCAlgConfiguration());
+  CCSketchAlg(node_id_t num_vertices, size_t seed, CCAlgConfiguration config = CCAlgConfiguration());
   ~CCSketchAlg();
 
   // construct a CC algorithm from a serialized file
@@ -159,8 +155,8 @@ class CCSketchAlg {
     num_delta_sketches = num_workers;
     delta_sketches = new Sketch *[num_delta_sketches];
     for (size_t i = 0; i < num_delta_sketches; i++) {
-      delta_sketches[i] = new Sketch(Sketch::calc_vector_length(num_nodes), seed,
-                                     Sketch::calc_cc_samples(num_nodes));
+      delta_sketches[i] = new Sketch(Sketch::calc_vector_length(num_vertices), seed,
+                                     Sketch::calc_cc_samples(num_vertices));
     }
   }
 
@@ -206,7 +202,7 @@ class CCSketchAlg {
    * Main parallel query algorithm utilizing Boruvka and L_0 sampling.
    * @return a vector of the connected components in the graph.
    */
-  std::vector<std::set<node_id_t>> connected_components();
+  ConnectedComponents connected_components();
 
   /**
    * Point query algorithm utilizing Boruvka and L_0 sampling.
@@ -243,6 +239,6 @@ class CCSketchAlg {
   size_t last_query_rounds = 0;
 
   // getters
-  inline node_id_t get_num_vertices() { return num_nodes; }
+  inline node_id_t get_num_vertices() { return num_vertices; }
   inline size_t get_seed() { return seed; }
 };

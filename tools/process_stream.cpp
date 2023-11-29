@@ -12,6 +12,11 @@ static double get_max_mem_used() {
   return (double) data.ru_maxrss / 1024.0;
 }
 
+static size_t get_seed() {
+  auto now = std::chrono::high_resolution_clock::now();
+  return std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
+}
+
 /*
  * Function which is run in a seperate thread and will query
  * the graph for the number of updates it has processed
@@ -81,7 +86,7 @@ int main(int argc, char **argv) {
 
   auto driver_config = DriverConfiguration().gutter_sys(CACHETREE).worker_threads(num_threads);
   auto cc_config = CCAlgConfiguration().batch_factor(1);
-  CCSketchAlg cc_alg{num_nodes, cc_config};
+  CCSketchAlg cc_alg{num_nodes, get_seed(), cc_config};
   GraphSketchDriver<CCSketchAlg> driver{&cc_alg, &stream, driver_config, reader_threads};
 
   auto ins_start = std::chrono::steady_clock::now();

@@ -5,6 +5,9 @@
 #include <random>
 #include <vector>
 
+#define likely_if(x) if(__builtin_expect((bool)(x), true))
+#define unlikely_if(x) if (__builtin_expect((bool)(x), false))
+
 template <class T>
 struct DSUMergeRet {
   bool merged;  // true if a merge actually occured
@@ -131,7 +134,7 @@ class DisjointSetUnion_MT {
 
   // make a copy of the DSU
   DisjointSetUnion_MT(const DisjointSetUnion_MT& oth)
-      : n(oth.n), parent(new T[n]), priority(new T[n]) {
+      : n(oth.n), parent(new std::atomic<T>[n]), priority(new T[n]) {
     for (T i = 0; i < n; i++) {
       parent[i] = oth.parent[i].load();
       priority[i] = oth.priority[i];
