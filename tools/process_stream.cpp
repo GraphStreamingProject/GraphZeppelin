@@ -5,9 +5,7 @@
 
 #include <thread>
 
-// TODO: 1. change all necessary int to unsigned int; 2. make num_edge_connect an input argument;
-// TODO: The temp_forest variable is repeatedly defined (make it a reference variable)
-// TODO: track_insertion now is hardcoded with the class name -- change it to be flexible
+// TODO: make num_edge_connect an input argument;
 // TODO: add verifier to see whether the output spanning forest is a valid forest
 //        and whether the graph is indeed disconnected after removing k spanning forests
 
@@ -16,19 +14,19 @@ static bool shutdown = false;
 class KEdgeConnect {
 public:
     const node_id_t num_nodes;
-    const int num_forest;
+    const unsigned int num_forest;
     std::vector<std::unique_ptr<CCSketchAlg>> cc_alg;
 
-    explicit KEdgeConnect(node_id_t num_nodes, int num_forest, const std::vector<CCAlgConfiguration> &config_vec)
+    explicit KEdgeConnect(node_id_t num_nodes, unsigned int num_forest, const std::vector<CCAlgConfiguration> &config_vec)
             : num_nodes(num_nodes), num_forest(num_forest) {
-        for(int i=0;i<num_forest;i++)
+        for(unsigned int i=0;i<num_forest;i++)
         {
             cc_alg.push_back(std::make_unique<CCSketchAlg>(num_nodes, config_vec[i]));
         }
     }
 
     void allocate_worker_memory(size_t num_workers) {
-        for(int i=0;i<num_forest;i++){
+        for(unsigned int i=0;i<num_forest;i++){
             cc_alg[i]->allocate_worker_memory(num_workers);
         }
     }
@@ -42,21 +40,21 @@ public:
     node_id_t get_num_vertices() { return num_nodes; }
 
     void pre_insert(GraphUpdate upd, node_id_t thr_id) {
-        for(int i=0;i<num_forest;i++) {
+        for(unsigned int i=0;i<num_forest;i++) {
             cc_alg[i]->pre_insert(upd, thr_id);
         }
     }
 
     void apply_update_batch(size_t thr_id, node_id_t src_vertex,
                             const std::vector<node_id_t> &dst_vertices) {
-        for(int i=0;i<num_forest;i++) {
+        for(unsigned int i=0;i<num_forest;i++) {
             cc_alg[i]->apply_update_batch(thr_id, src_vertex, dst_vertices);
         }
     }
 
     bool has_cached_query() {
         bool cached_query_flag = true;
-        for (int i=0;i<num_forest;i++) {
+        for (unsigned int i=0;i<num_forest;i++) {
             cached_query_flag = cached_query_flag && cc_alg[i]->has_cached_query();
         }
 
@@ -70,10 +68,12 @@ public:
         GraphUpdate temp_edge;
         temp_edge.type = DELETE;
 
-        for(int i=0;i<num_forest-1;i++) {
+
+        std::vector<std::pair<node_id_t, std::vector<node_id_t>>> temp_forest;
+        for(unsigned int i=0;i<num_forest-1;i++) {
             std::cout << "SPANNING FOREST " << (i+1) << std::endl;
             // getting the spanning forest from the i-th cc-alg
-            std::vector<std::pair<node_id_t, std::vector<node_id_t>>> temp_forest = cc_alg[i]->calc_spanning_forest();
+            temp_forest = cc_alg[i]->calc_spanning_forest();
             forests_collection.push_back(temp_forest);
 
             for (unsigned int j = 0; j < temp_forest.size(); j++) {
@@ -91,7 +91,7 @@ public:
         }
 
         std::cout << "THE LAST SPANNING FOREST" << std::endl;
-        std::vector<std::pair<node_id_t, std::vector<node_id_t>>> temp_forest = cc_alg[num_forest-1]->calc_spanning_forest();
+        temp_forest = cc_alg[num_forest-1]->calc_spanning_forest();
         forests_collection.push_back(temp_forest);
         for (unsigned int j = 0; j < temp_forest.size(); j++) {
             std::cout << temp_forest[j].first << ":";
@@ -189,7 +189,9 @@ static double get_max_mem_used() {
  * @param g           the graph object to query
  * @param start_time  the time that we started stream ingestion
  */
-void track_insertions(uint64_t total, GraphSketchDriver<KEdgeConnect> *driver,
+template <typename DriverType>
+
+void track_insertions(uint64_t total, DriverType *driver,
                       std::chrono::steady_clock::time_point start_time) {
   total = total * 2;  // we insert 2 edge updates per edge
 
@@ -242,7 +244,7 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
   size_t reader_threads = std::atol(argv[3]);
-  int num_edge_connect = 5;
+  unsigned int num_edge_connect = 5;
 
   BinaryFileStream stream(stream_file);
   BinaryFileStream stream2(stream_file);
@@ -256,17 +258,17 @@ int main(int argc, char **argv) {
   auto driver_config = DriverConfiguration().gutter_sys(CACHETREE).worker_threads(num_threads);
   std::vector<CCAlgConfiguration> config_vec;
 
-  for (int i=0;i<num_edge_connect;i++){
+  for (unsigned int i=0;i<num_edge_connect;i++){
       config_vec.push_back(CCAlgConfiguration().batch_factor(1));
   }
 
- KEdgeConnect k_edge_alg{num_nodes, num_edge_connect, config_vec};
+  KEdgeConnect k_edge_alg{num_nodes, num_edge_connect, config_vec};
 
   // The plan is to use the constructor as follows.
   GraphSketchDriver<KEdgeConnect> driver{&k_edge_alg, &stream, driver_config, reader_threads};
 
   auto ins_start = std::chrono::steady_clock::now();
-  std::thread querier(track_insertions, num_updates, &driver, ins_start);
+  std::thread querier(track_insertions<GraphSketchDriver<KEdgeConnect>>, num_updates, &driver, ins_start);
 
   driver.process_stream_until(END_OF_STREAM);
 
@@ -275,7 +277,7 @@ int main(int argc, char **argv) {
   k_edge_alg.query();
 
   unsigned long CC_nums[num_edge_connect];
-  for(int i=0;i<num_edge_connect;i++){
+  for(unsigned int i=0;i<num_edge_connect;i++){
       CC_nums[i]= k_edge_alg.cc_alg[i]->connected_components().size();
   }
 
@@ -294,7 +296,7 @@ int main(int argc, char **argv) {
   std::cout << "Total CC query latency:       " << cc_time.count() << std::endl;
   std::cout << "  Flush Gutters(sec):           " << flush_time.count() << std::endl;
   std::cout << "  Boruvka's Algorithm(sec):     " << cc_alg_time.count() << std::endl;
-  for(int i=0;i<num_edge_connect;i++){
+  for(unsigned int i=0;i<num_edge_connect;i++){
       std::cout << "Number of connected Component in :         " << i+1 << " is " << CC_nums[i] << std::endl;
   }
   std::cout << "Maximum Memory Usage(MiB):    " << get_max_mem_used() << std::endl;
