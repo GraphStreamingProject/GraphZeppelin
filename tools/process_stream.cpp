@@ -5,6 +5,10 @@
 
 #include <thread>
 
+// #ifdef VERIFY_SAMPLES_F
+#include "test/graph_verifier.h"
+// #endif
+
 // TODO: make num_edge_connect an input argument;
 // TODO: add verifier to see whether the output spanning forest is a valid forest
 //        and whether the graph is indeed disconnected after removing k spanning forests
@@ -16,6 +20,13 @@ public:
     const node_id_t num_nodes;
     const unsigned int num_forest;
     std::vector<std::unique_ptr<CCSketchAlg>> cc_alg;
+
+    // #ifdef VERIFY_SAMPLES_F
+    std::unique_ptr<GraphVerifier> verifier;
+      void set_verifier(std::unique_ptr<GraphVerifier> verifier) {
+        this->verifier = std::move(verifier);
+      }
+    // #endif
 
     explicit KEdgeConnect(node_id_t num_nodes, unsigned int num_forest, const std::vector<CCAlgConfiguration> &config_vec)
             : num_nodes(num_nodes), num_forest(num_forest) {
@@ -82,6 +93,12 @@ public:
                     std::cout << " " << dst;
                     temp_edge.edge.src = temp_forest[j].first;
                     temp_edge.edge.dst = dst;
+                    // #ifdef VERIFY_SAMPLES_F
+                    if (i==0){
+                        verifier->verify_edge({temp_edge.edge.src, dst});
+                    }
+                    // As of Nov/30 this is not working (Segmentation fault)
+                    // #endif
                     for (int l=i+1;l<num_forest;l++){
                         cc_alg[l]->update(temp_edge);
                     }
