@@ -12,6 +12,9 @@
 // TODO: make num_edge_connect an input argument;
 // TODO: add verifier to see whether the output spanning forest is a valid forest
 //        and whether the graph is indeed disconnected after removing k spanning forests
+// TODO: idea to fix the verifier problem: make the KEdgeConnect a separate file for the class
+//        then, write unit tests based on the tests in the file graph_test.cpp. 
+
 
 static bool shutdown = false;
 
