@@ -159,6 +159,9 @@ void Sketch::range_merge(const Sketch &other, size_t start_sample, size_t n_samp
     return;
   }
 
+  // update sample idx to point at beginning of this range if before it
+  sample_idx = std::max(sample_idx, start_sample);
+
   // merge deterministic buffer
   buckets[num_buckets - 1].alpha ^= other.buckets[num_buckets - 1].alpha;
   buckets[num_buckets - 1].gamma ^= other.buckets[num_buckets - 1].gamma;

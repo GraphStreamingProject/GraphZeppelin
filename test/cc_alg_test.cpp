@@ -106,12 +106,12 @@ TEST_P(CCAlgTest, TestCorrectnessOfReheating) {
 
     cc_alg.write_binary("./out_temp.txt");
     std::vector<std::set<node_id_t>> orig_cc;
-    orig_cc = cc_alg.connected_components();
+    orig_cc = cc_alg.connected_components().get_component_sets();
     printf("number of CC = %lu\n", orig_cc.size());
 
     CCSketchAlg *reheat_alg = CCSketchAlg::construct_from_serialized_data("./out_temp.txt");
     reheat_alg->set_verifier(std::make_unique<FileGraphVerifier>(1024, "./cumul_sample.txt"));
-    auto reheat_cc = reheat_alg->connected_components();
+    auto reheat_cc = reheat_alg->connected_components().get_component_sets();
     printf("number of reheated CC = %lu\n", reheat_cc.size());
     ASSERT_EQ(orig_cc.size(), reheat_cc.size());
     delete reheat_alg;
@@ -153,7 +153,7 @@ TEST_P(CCAlgTest, TestPointQuery) {
   driver.process_stream_until(END_OF_STREAM);
   driver.prep_query();
 
-  std::vector<std::set<node_id_t>> ret = cc_alg.connected_components();
+  std::vector<std::set<node_id_t>> ret = cc_alg.connected_components().get_component_sets();
   std::vector<node_id_t> ccid(num_nodes);
   for (node_id_t i = 0; i < ret.size(); ++i) {
     for (const node_id_t node : ret[i]) {
