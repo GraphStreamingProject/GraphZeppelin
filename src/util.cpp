@@ -1,6 +1,7 @@
 //#include <stdexcept>
 #include <limits>
 #include <cmath>
+#include <cassert>
 #include <graph_zeppelin_common.h>
 #include "../include/util.h"
 

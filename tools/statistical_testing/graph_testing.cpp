@@ -1,27 +1,26 @@
 #include <iostream>
-#include "graph.h"
+#include "graph_sketch_driver.h"
+#include "cc_sketch_alg.h"
+#include "ascii_file_stream.h"
 #include "graph_gen.h"
 #include "file_graph_verifier.h"
 
-static GraphConfiguration config;
+static DriverConfiguration driver_config;
+static size_t get_seed() {
+  auto now = std::chrono::high_resolution_clock::now();
+  return std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
+}
 
 static inline int do_run() {
-    std::ifstream in{"./sample.txt"};
-    node_id_t n;
-    edge_id_t m;
-    in >> n >> m;
-    Graph g{n};
-    int type;
-    node_id_t a, b;
-    while (m--) {
-      in >> type >> a >> b;
-      if (type == INSERT) {
-        g.update({{a, b}, INSERT});
-      } else g.update({{a, b}, DELETE});
-    }
-    g.set_verifier(std::make_unique<FileGraphVerifier>(n, "./cumul_sample.txt"));
+    AsciiFileStream stream{"./sample.txt"};
+    node_id_t n = stream.vertices();
+    CCSketchAlg cc_alg{n, get_seed()};
+    cc_alg.set_verifier(std::make_unique<FileGraphVerifier>(n, "./cumul_sample.txt"));
+    GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, driver_config);
+    driver.process_stream_until(END_OF_STREAM);
+    driver.prep_query();
     try {
-        g.connected_components();
+        cc_alg.connected_components();
     } catch (std::exception const &err) {
         return 1;
     }
@@ -57,8 +56,8 @@ int main() {
         bool use_tree = (bool) i;
 
         // setup configuration file per buffering
-        config.gutter_sys(use_tree ? GUTTERTREE : STANDALONE);
-        config.num_graph_workers(4);
+        driver_config.gutter_sys(use_tree ? GUTTERTREE : STANDALONE);
+        driver_config.worker_threads(4);
         std::string prefix = use_tree? "tree" : "gutters";
         std::string test_name;
 

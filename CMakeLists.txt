@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 # Make the default build type Release. If user or another
 # project sets a different value than use that
@@ -90,48 +91,50 @@ set(BUILD_SHARED_LIBS "${SAVED_BUILD_SHARED_LIBS}" CACHE BOOL "" FORCE)
 # AVAILABLE COMPILATION DEFINITIONS:
 # VERIFY_SAMPLES_F   Use a deterministic connected-components
 #                    algorithm to verify post-processing.
-# USE_EAGER_DSU      Use the eager DSU query optimization if
-#                    this flag is present.
+# NO_EAGER_DSU       Do not use the eager DSU query optimization
+#                    if this flag is present.
 # L0_SAMPLING        Run the CubeSketch l0 sampling algorithm
 #                    to ensure that we sample uniformly.
 #                    Otherwise, run a support finding algorithm.
+#
+# Example:
+# cmake -DCMAKE_CXX_FLAGS="-DL0_SAMPLING" ..
 
 add_library(GraphZeppelin
-  src/graph.cpp
-  src/graph_configuration.cpp
-  src/supernode.cpp
-  src/graph_worker.cpp
-  src/l0_sampling/sketch.cpp
+  src/cc_sketch_alg.cpp
+  src/return_types.cpp
+  src/driver_configuration.cpp
+  src/cc_alg_configuration.cpp
+  src/sketch.cpp
   src/util.cpp)
 add_dependencies(GraphZeppelin GutterTree)
 target_link_libraries(GraphZeppelin PUBLIC xxhash GutterTree)
-target_include_directories(GraphZeppelin PUBLIC include/ include/l0_sampling/)
+target_include_directories(GraphZeppelin PUBLIC include/)
 target_compile_options(GraphZeppelin PUBLIC -fopenmp)
 target_link_options(GraphZeppelin PUBLIC -fopenmp)
-target_compile_definitions(GraphZeppelin PUBLIC XXH_INLINE_ALL USE_EAGER_DSU)
+target_compile_definitions(GraphZeppelin PUBLIC XXH_INLINE_ALL)
 
 add_library(GraphZeppelinVerifyCC
-  src/graph.cpp
-  src/graph_configuration.cpp
-  src/supernode.cpp
-  src/graph_worker.cpp
-  src/l0_sampling/sketch.cpp
+  src/cc_sketch_alg.cpp
+  src/return_types.cpp
+  src/driver_configuration.cpp
+  src/cc_alg_configuration.cpp
+  src/sketch.cpp
   src/util.cpp
   test/util/file_graph_verifier.cpp
   test/util/mat_graph_verifier.cpp)
 add_dependencies(GraphZeppelinVerifyCC GutterTree)
 target_link_libraries(GraphZeppelinVerifyCC PUBLIC xxhash GutterTree)
-target_include_directories(GraphZeppelinVerifyCC PUBLIC include/ include/l0_sampling/ include/test/)
+target_include_directories(GraphZeppelinVerifyCC PUBLIC include/ include/test/)
 target_compile_options(GraphZeppelinVerifyCC PUBLIC -fopenmp)
 target_link_options(GraphZeppelinVerifyCC PUBLIC -fopenmp)
-target_compile_definitions(GraphZeppelinVerifyCC PUBLIC XXH_INLINE_ALL VERIFY_SAMPLES_F USE_EAGER_DSU)
+target_compile_definitions(GraphZeppelinVerifyCC PUBLIC XXH_INLINE_ALL VERIFY_SAMPLES_F)
 
 if (BUILD_EXE)
   add_executable(tests
     test/test_runner.cpp
-    test/graph_test.cpp
+    test/cc_alg_test.cpp
     test/sketch_test.cpp
-    test/supernode_test.cpp
     test/dsu_test.cpp
     test/util_test.cpp
     test/util/file_graph_verifier.cpp
@@ -165,6 +168,11 @@ if (BUILD_EXE)
     tools/process_stream.cpp)
   target_link_libraries(process_stream PRIVATE GraphZeppelin)
 
+  # executable for performing in depth correctness testing
+  add_executable(test_correctness
+    tools/test_correctness.cpp)
+  target_link_libraries(test_correctness PRIVATE GraphZeppelinVerifyCC)
+
   # tool for validating that a binary stream appears correct  
   add_executable(validate_binary_stream
     tools/validate_binary_stream.cpp
@@ -178,3 +186,4 @@ if (BUILD_BENCH)
   add_dependencies(bench_cc GraphZeppelin benchmark)
   target_link_libraries(bench_cc GraphZeppelin benchmark::benchmark xxhash)
 endif()
+

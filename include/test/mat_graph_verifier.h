@@ -1,8 +1,9 @@
 #pragma once
-#include <set>
-#include "../supernode.h"
-#include "../dsu.h"
 #include "graph_verifier.h"
+
+#include <iostream>
+
+#include "dsu.h"
 
 /**
  * A plugin for the Graph class that runs Boruvka alongside the graph algorithm

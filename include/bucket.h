@@ -4,6 +4,13 @@
 #include <iostream>
 #include "types.h"
 
+#pragma pack(push,1)
+struct Bucket {
+  vec_t alpha;
+  vec_hash_t gamma;
+};
+#pragma pack(pop)
+
 namespace Bucket_Boruvka {
   static constexpr size_t col_hash_bits = sizeof(col_hash_t) * 8;
   /**
@@ -28,26 +35,24 @@ namespace Bucket_Boruvka {
 
   /**
    * Checks whether a Bucket is good, assuming the Bucket contains all elements.
-   * @param a            The bucket's a value.
-   * @param c            The bucket's c value.
+   * @param bucket       The bucket to check
    * @param sketch_seed  The seed of the Sketch this Bucket belongs to.
    * @return             true if this Bucket is good, else false.
    */
-  inline static bool is_good(const vec_t a, const vec_hash_t c, const long sketch_seed);
+  inline static bool is_good(const Bucket &bucket, const long sketch_seed);
 
   /**
    * Updates a Bucket with the given update index
-   * @param a The bucket's a value. Modified by this function.
-   * @param c The bucket's c value. Modified by this function.
-   * @param update_idx The update index
+   * @param bucket      The bucket to update
+   * @param update_idx  The update index
    * @param update_hash The hash of the update index, generated with Bucket::index_hash.
    */
-  inline static void update(vec_t& a, vec_hash_t& c, const vec_t update_idx, 
-   const vec_hash_t update_hash);
+  inline static void update(Bucket& bucket, const vec_t update_idx,
+                            const vec_hash_t update_hash);
 } // namespace Bucket_Boruvka
 
 inline col_hash_t Bucket_Boruvka::get_index_depth(const vec_t update_idx, const long seed_and_col,
- const vec_hash_t max_depth) {
+                                                  const vec_hash_t max_depth) {
   col_hash_t depth_hash = col_hash(&update_idx, sizeof(vec_t), seed_and_col);
   depth_hash |= (1ull << max_depth); // assert not > max_depth by ORing
   return __builtin_ctzll(depth_hash);
@@ -57,12 +62,12 @@ inline vec_hash_t Bucket_Boruvka::get_index_hash(const vec_t update_idx, const l
   return vec_hash(&update_idx, sizeof(vec_t), sketch_seed);
 }
 
-inline bool Bucket_Boruvka::is_good(const vec_t a, const vec_hash_t c, const long sketch_seed) {
-  return c == get_index_hash(a, sketch_seed);
+inline bool Bucket_Boruvka::is_good(const Bucket &bucket, const long sketch_seed) {
+  return bucket.gamma == get_index_hash(bucket.alpha, sketch_seed);
 }
 
-inline void Bucket_Boruvka::update(vec_t& a, vec_hash_t& c, const vec_t update_idx, 
- const vec_hash_t update_hash) {
-  a ^= update_idx;
-  c ^= update_hash;
+inline void Bucket_Boruvka::update(Bucket& bucket, const vec_t update_idx,
+                                   const vec_hash_t update_hash) {
+  bucket.alpha ^= update_idx;
+  bucket.gamma ^= update_hash;
 }

@@ -1,6 +1,8 @@
 #pragma once
 #include <set>
-#include "../supernode.h"
+#include <vector>
+
+#include "types.h"
 
 /**
  * A plugin for the Graph class that runs Boruvka alongside the graph algorithm

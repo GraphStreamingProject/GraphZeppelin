@@ -1,7 +1,12 @@
 #pragma once
 #include <atomic>
 #include <cassert>
+#include <chrono>
+#include <random>
 #include <vector>
+
+#define likely_if(x) if(__builtin_expect((bool)(x), true))
+#define unlikely_if(x) if (__builtin_expect((bool)(x), false))
 
 template <class T>
 struct DSUMergeRet {
@@ -12,55 +17,53 @@ struct DSUMergeRet {
 
 template <class T>
 class DisjointSetUnion {
+ private:
   // number of items in the DSU
   T n;
 
-  // parent and size arrays
+  // parent and priority arrays
   T* parent;
-  T* size;
+  T* priority;
 
   // Order based on size and break ties with
   // a simple fixed ordering of the edge
   // if sum even, smaller first
   // if sum odd, larger first
   inline void order_edge(T& a, T& b) {
-    if (size[a] < size[b])
-      std::swap(a, b);
-    else if (size[a] == size[b]) {
-      if ((a + b) % 2 == 0 && a > b) {
-        std::swap(a, b);
-      } else if ((a + b) % 2 == 1 && a < b) {
-        std::swap(a, b);
-      }
-    }
+    unlikely_if(priority[a] == priority[b] && a > b) std::swap(a, b);
+
+    if (priority[a] < priority[b]) std::swap(a, b);
   }
 
  public:
-  DisjointSetUnion(T n) : n(n), parent(new T[n]), size(new T[n]) {
+  DisjointSetUnion(T n) : n(n), parent(new T[n]), priority(new T[n]) {
+    auto now = std::chrono::high_resolution_clock::now().time_since_epoch();
+    size_t seed = std::chrono::duration_cast<std::chrono::microseconds>(now).count();
+    std::mt19937_64 prio_gen(seed);
     for (T i = 0; i < n; i++) {
       parent[i] = i;
-      size[i] = 1;
+      priority[i] = prio_gen();
     }
   }
 
   ~DisjointSetUnion() {
     delete[] parent;
-    delete[] size;
+    delete[] priority;
   }
 
   // make a copy of the DSU
-  DisjointSetUnion(const DisjointSetUnion& oth) : n(oth.n), parent(new T[n]), size(new T[n]) {
+  DisjointSetUnion(const DisjointSetUnion& oth) : n(oth.n), parent(new T[n]), priority(new T[n]) {
     for (T i = 0; i < n; i++) {
       parent[i] = oth.parent[i];
-      size[i] = oth.size[i];
+      priority[i] = oth.priority[i];
     }
   }
 
   // move the DSU to a new object
-  DisjointSetUnion(DisjointSetUnion&& oth) : n(oth.n), parent(oth.parent), size(oth.size) {
+  DisjointSetUnion(DisjointSetUnion&& oth) : n(oth.n), parent(oth.parent), priority(oth.priority) {
     oth.n = 0;
     oth.parent = nullptr;
-    oth.size = nullptr;
+    oth.priority = nullptr;
   }
 
   DisjointSetUnion operator=(const DisjointSetUnion& oth) = delete;
@@ -83,14 +86,12 @@ class DisjointSetUnion {
 
     order_edge(a, b);
     parent[b] = a;
-    size[a] += size[b];
     return {true, a, b};
   }
 
   inline void reset() {
     for (T i = 0; i < n; i++) {
       parent[i] = i;
-      size[i] = 1;
     }
   }
 };
@@ -103,53 +104,43 @@ class DisjointSetUnion_MT {
   // number of items in the DSU
   T n;
 
-  // parent and size arrays
+  // parent and node priority arrays
   std::atomic<T>* parent;
-  std::atomic<T>* size;
+  T* priority;
 
-  // Order based on size and break ties with
-  // a simple fixed ordering of the edge
-  // if sum even, smaller first
-  // if sum odd, larger first
+  // Order based on priority and break ties using node id.
+  // Smaller ids have higher priority.
   inline void order_edge(T& a, T& b) {
-    if (size[a] < size[b])
-      std::swap(a, b);
-    else if (size[a] == size[b]) {
-      if ((a + b) % 2 == 0 && a > b) {
-        std::swap(a, b);
-      } else if ((a + b) % 2 == 1 && a < b) {
-        std::swap(a, b);
-      }
-    }
+    unlikely_if(priority[a] == priority[b] && a > b) std::swap(a, b);
+
+    if (priority[a] < priority[b]) std::swap(a, b);
   }
 
  public:
-  DisjointSetUnion_MT(T n) : n(n), parent(new std::atomic<T>[n]), size(new std::atomic<T>[n]) {
+  DisjointSetUnion_MT(T n) : n(n), parent(new std::atomic<T>[n]), priority(new T[n]) {
+    auto now = std::chrono::high_resolution_clock::now().time_since_epoch();
+    size_t seed = std::chrono::duration_cast<std::chrono::microseconds>(now).count();
+    std::mt19937_64 prio_gen(seed);
     for (T i = 0; i < n; i++) {
       parent[i] = i;
-      size[i] = 1;
+      priority[i] = prio_gen();
     }
   }
 
   ~DisjointSetUnion_MT() {
     delete[] parent;
-    delete[] size;
+    delete[] priority;
   }
 
   // make a copy of the DSU
-  DisjointSetUnion_MT(const DisjointSetUnion_MT& oth) : n(oth.n), parent(new T[n]), size(new T[n]) {
+  DisjointSetUnion_MT(const DisjointSetUnion_MT& oth)
+      : n(oth.n), parent(new std::atomic<T>[n]), priority(new T[n]) {
     for (T i = 0; i < n; i++) {
       parent[i] = oth.parent[i].load();
-      size[i] = oth.size[i].load();
+      priority[i] = oth.priority[i];
     }
   }
-
-  // move the DSU to a new object
-  DisjointSetUnion_MT(DisjointSetUnion_MT&& oth) : n(oth.n), parent(oth.parent), size(oth.size) {
-    oth.n = 0;
-    oth.parent = nullptr;
-    oth.size = nullptr;
-  }
+  DisjointSetUnion_MT& operator=(const DisjointSetUnion_MT& oth) = default;
 
   inline T find_root(T u) {
     assert(0 <= u && u < n);
@@ -169,7 +160,6 @@ class DisjointSetUnion_MT {
 
       // if parent of b has not been modified by another thread -> replace with a
       if (parent[b].compare_exchange_weak(b, a)) {
-        size[a] += size[b];
         return {true, a, b};
       }
     }
@@ -179,7 +169,6 @@ class DisjointSetUnion_MT {
   inline void reset() {
     for (T i = 0; i < n; i++) {
       parent[i] = i;
-      size[i] = 1;
     }
   }
 };
