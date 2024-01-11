@@ -105,7 +105,9 @@ add_library(GraphZeppelin
   src/driver_configuration.cpp
   src/cc_alg_configuration.cpp
   src/sketch.cpp
-  src/util.cpp)
+  src/util.cpp
+        src/KEdgeConnect.cpp
+        include/KEdgeConnect.h)
 add_dependencies(GraphZeppelin GutterTree)
 target_link_libraries(GraphZeppelin PUBLIC xxhash GutterTree)
 target_include_directories(GraphZeppelin PUBLIC include/)
@@ -120,7 +122,9 @@ add_library(GraphZeppelinVerifyCC
   src/sketch.cpp
   src/util.cpp
   test/util/file_graph_verifier.cpp
-  test/util/mat_graph_verifier.cpp)
+  test/util/mat_graph_verifier.cpp
+        src/KEdgeConnect.cpp
+        include/KEdgeConnect.h)
 add_dependencies(GraphZeppelinVerifyCC GutterTree)
 target_link_libraries(GraphZeppelinVerifyCC PUBLIC xxhash GutterTree)
 target_include_directories(GraphZeppelinVerifyCC PUBLIC include/ include/test/)
@@ -170,6 +174,11 @@ if (BUILD_EXE)
   add_executable(test_correctness
     tools/test_correctness.cpp)
   target_link_libraries(test_correctness PRIVATE GraphZeppelinVerifyCC)
+
+  # executable for performing very shallow correctness testing for k-edge connectivity
+  add_executable(test_correctness_k_edge_connect
+          tools/test_correctness_k_edge_connect.cpp)
+  target_link_libraries(test_correctness_k_edge_connect PRIVATE GraphZeppelinVerifyCC)
 
   # tool for validating that a binary stream appears correct  
   add_executable(validate_binary_stream

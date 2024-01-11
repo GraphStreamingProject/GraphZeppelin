@@ -1,13 +1,10 @@
 #include <binary_file_stream.h>
 #include <cc_sketch_alg.h>
+#include <KEdgeConnect.h>
 #include <graph_sketch_driver.h>
 #include <sys/resource.h>  // for rusage
 
 #include <thread>
-
-// #ifdef VERIFY_SAMPLES_F
-#include "test/graph_verifier.h"
-// #endif
 
 // TODO: make num_edge_connect an input argument;
 // TODO: add verifier to see whether the output spanning forest is a valid forest
@@ -17,111 +14,6 @@
 
 
 static bool shutdown = false;
-
-class KEdgeConnect {
-public:
-    const node_id_t num_nodes;
-    const unsigned int num_forest;
-    std::vector<std::unique_ptr<CCSketchAlg>> cc_alg;
-
-    // #ifdef VERIFY_SAMPLES_F
-    std::unique_ptr<GraphVerifier> verifier;
-      void set_verifier(std::unique_ptr<GraphVerifier> verifier) {
-        this->verifier = std::move(verifier);
-      }
-    // #endif
-
-    explicit KEdgeConnect(node_id_t num_nodes, unsigned int num_forest, const std::vector<CCAlgConfiguration> &config_vec)
-            : num_nodes(num_nodes), num_forest(num_forest) {
-        for(unsigned int i=0;i<num_forest;i++)
-        {
-            cc_alg.push_back(std::make_unique<CCSketchAlg>(num_nodes, config_vec[i]));
-        }
-    }
-
-    void allocate_worker_memory(size_t num_workers) {
-        for(unsigned int i=0;i<num_forest;i++){
-            cc_alg[i]->allocate_worker_memory(num_workers);
-        }
-    }
-
-    size_t get_desired_updates_per_batch() {
-        // I don't want to return double because the updates are sent to both
-        // I copied from the two-edge-connect-class and did not understand 'updates are sent to both' -- Chen
-        return cc_alg[0]->get_desired_updates_per_batch();
-    }
-
-    node_id_t get_num_vertices() { return num_nodes; }
-
-    void pre_insert(GraphUpdate upd, node_id_t thr_id) {
-        for(unsigned int i=0;i<num_forest;i++) {
-            cc_alg[i]->pre_insert(upd, thr_id);
-        }
-    }
-
-    void apply_update_batch(size_t thr_id, node_id_t src_vertex,
-                            const std::vector<node_id_t> &dst_vertices) {
-        for(unsigned int i=0;i<num_forest;i++) {
-            cc_alg[i]->apply_update_batch(thr_id, src_vertex, dst_vertices);
-        }
-    }
-
-    bool has_cached_query() {
-        bool cached_query_flag = true;
-        for (unsigned int i=0;i<num_forest;i++) {
-            cached_query_flag = cached_query_flag && cc_alg[i]->has_cached_query();
-        }
-
-        return cached_query_flag;
-    }
-
-    void print_configuration() { cc_alg[0]->print_configuration(); }
-
-    void query() {
-        std::vector<std::vector<std::pair<node_id_t, std::vector<node_id_t>>>> forests_collection;
-        GraphUpdate temp_edge;
-        temp_edge.type = DELETE;
-
-
-        std::vector<std::pair<node_id_t, std::vector<node_id_t>>> temp_forest;
-        for(unsigned int i=0;i<num_forest-1;i++) {
-            std::cout << "SPANNING FOREST " << (i+1) << std::endl;
-            // getting the spanning forest from the i-th cc-alg
-            temp_forest = cc_alg[i]->calc_spanning_forest();
-            forests_collection.push_back(temp_forest);
-
-            for (unsigned int j = 0; j < temp_forest.size(); j++) {
-                std::cout << temp_forest[j].first << ":";
-                for (auto dst: temp_forest[j].second) {
-                    std::cout << " " << dst;
-                    temp_edge.edge.src = temp_forest[j].first;
-                    temp_edge.edge.dst = dst;
-                    // #ifdef VERIFY_SAMPLES_F
-                    if (i==0){
-                        verifier->verify_edge({temp_edge.edge.src, dst});
-                    }
-                    // As of Nov/30 this is not working (Segmentation fault)
-                    // #endif
-                    for (int l=i+1;l<num_forest;l++){
-                        cc_alg[l]->update(temp_edge);
-                    }
-                }
-                std::cout << std::endl;
-            }
-        }
-
-        std::cout << "THE LAST SPANNING FOREST" << std::endl;
-        temp_forest = cc_alg[num_forest-1]->calc_spanning_forest();
-        forests_collection.push_back(temp_forest);
-        for (unsigned int j = 0; j < temp_forest.size(); j++) {
-            std::cout << temp_forest[j].first << ":";
-            for (auto dst: temp_forest[j].second) {
-                std::cout << " " << dst;
-            }
-            std::cout << std::endl;
-        }
-    }
-};
 
 class TwoEdgeConnect {
  public:
