@@ -10,6 +10,7 @@
 
 /*******
  * TODO: delete all but one test to see if KedgeConnect is possible to run with a verifier
+ * TODO: put this on hold for now and write some unit tests similar to the tests in the test/ folder
  ********/
 
 struct CorrectnessResults {
