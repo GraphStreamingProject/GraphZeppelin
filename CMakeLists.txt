@@ -148,6 +148,11 @@ if (BUILD_EXE)
     test/util/graph_gen.cpp)
   add_dependencies(statistical_test GraphZeppelinVerifyCC)
   target_link_libraries(statistical_test PRIVATE GraphZeppelinVerifyCC)
+  
+  add_executable(statistical_sketch_test
+    tools/statistical_testing/sketch_testing.cpp)
+  add_dependencies(statistical_sketch_test GraphZeppelinVerifyCC)
+  target_link_libraries(statistical_sketch_test PRIVATE GraphZeppelinVerifyCC)
 
   # executables for experiment/benchmarking
   add_executable(efficient_gen
