@@ -47,7 +47,7 @@ __device__ bool bucket_is_good(const vec_t a, const vec_hash_t c, const long ske
 
 __device__ void bucket_update(vec_t_cu& a, vec_hash_t& c, const vec_t_cu& update_idx, const vec_hash_t& update_hash) {
   atomicXor(&a, update_idx);
-  atomicXor(&c, update_hash);
+  atomicXor((vec_t_cu*)&c, (vec_t_cu)update_hash);
 }
 
 /*
@@ -230,15 +230,24 @@ void CudaKernel::gtsStreamUpdate(int num_threads, int num_blocks, vec_t bucket_i
 // Function that calls sketch update kernel code. (K-Connectivity Version)
 void CudaKernel::k_gtsStreamUpdate(int num_threads, int num_blocks, int graph_id, int k, vec_t bucket_id, node_id_t src, cudaStream_t stream, vec_t prev_offset, size_t update_size, CudaUpdateParams* cudaUpdateParams, long* sketchSeeds) {
   // Unwarp variables from cudaUpdateParams
-  vec_t *edgeUpdates = cudaUpdateParams[graph_id].d_edgeUpdates;
+  vec_t *edgeUpdates = cudaUpdateParams[0].d_edgeUpdates;
 
-  node_id_t num_nodes = cudaUpdateParams[graph_id].num_nodes;
+  node_id_t num_nodes = cudaUpdateParams[0].num_nodes;
   
-  int num_sketches = cudaUpdateParams[graph_id].num_sketches;
+  int num_sketches = cudaUpdateParams[0].num_sketches;
 
-  size_t num_elems = cudaUpdateParams[graph_id].num_elems;
-  size_t num_columns = cudaUpdateParams[graph_id].num_columns;
-  size_t num_guesses = cudaUpdateParams[graph_id].num_guesses;
+  size_t num_elems = cudaUpdateParams[0].num_elems;
+  size_t num_columns = cudaUpdateParams[0].num_columns;
+  size_t num_guesses = cudaUpdateParams[0].num_guesses;
+
+  if ((num_nodes == 0 || num_sketches == 0) || (num_elems == 0 || num_columns == 0) || num_guesses == 0) {
+    std::cout << "graph_id: " << graph_id << "\n";
+    std::cout << "  num_nodes: " << num_nodes << "\n";
+    std::cout << "  num_sketches: " << num_sketches << "\n";
+    std::cout << "  num_elems: " << num_elems << "\n";
+    std::cout << "  num_columns: " << num_columns << "\n";
+    std::cout << "  num_guesses: " << num_guesses << "\n";
+  }
 
   int maxbytes = num_elems * num_sketches * sizeof(vec_t_cu) + num_elems * num_sketches * sizeof(vec_hash_t);
 

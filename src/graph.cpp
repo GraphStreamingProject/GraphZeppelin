@@ -112,11 +112,25 @@ Graph::Graph(node_id_t num_nodes, GraphConfiguration config, CudaGraph* cudaGrap
   std::mt19937_64 r(seed);
   seed = r();
 
+  total_sketch_size = num_nodes * k * Supernode::get_size();
+
+  if(total_sketch_size > 1000000000) {
+    std::cout << "Single Graph Sketch Memory Size: " << total_sketch_size / 1000000000 << " GB\n";
+  }
+  else if(total_sketch_size > 1000000) {
+    std::cout << "Single Graph Sketch Memory Size: " << total_sketch_size / 1000000 << " MB\n";
+  }
+  else {
+    std::cout << "Single Graph Sketch Memory Size: " << total_sketch_size / 1000 << " KB\n";
+  }
+
+  size_t sketch_width = Sketch::column_gen(Sketch::get_failure_factor());
+  size_t num_sketches = log2(num_nodes)/(log2(3)-1);
   std::fill(size, size + num_nodes, 1);
   for (node_id_t i = 0; i < num_nodes; ++i) {
     representatives->insert(i);
     for (int k_id = 0; k_id < k; k_id++) {
-      supernodes[(i * k) + k_id] = Supernode::makeSupernode(num_nodes,seed);
+      supernodes[(i * k) + k_id] = Supernode::makeSupernode(num_nodes,(seed + (k_id * num_sketches * sketch_width)));
       parent[(i * k) + k_id] = i;
     }
   }
@@ -158,14 +172,18 @@ Graph::Graph(node_id_t num_nodes, GraphConfiguration config, GutteringSystem* gu
   std::mt19937_64 r(seed);
   seed = r();
 
+  size_t sketch_width = Sketch::column_gen(Sketch::get_failure_factor());
+  size_t num_sketches = log2(num_nodes)/(log2(3)-1);
   std::fill(size, size + num_nodes, 1);
   for (node_id_t i = 0; i < num_nodes; ++i) {
     representatives->insert(i);
     for (int k_id = 0; k_id < k; k_id++) {
-      supernodes[(i * k) + k_id] = Supernode::makeSupernode(num_nodes,seed);
+      supernodes[(i * k) + k_id] = Supernode::makeSupernode(num_nodes,(seed + (k_id * num_sketches * sketch_width)));
       parent[(i * k) + k_id] = i;
     }
   }
+  
+  total_sketch_size = num_nodes * k * Supernode::get_size();
   
   backup_file = config._disk_dir + "supernode_backup.data";
   gts = gutteringSystem;

@@ -58,6 +58,8 @@ protected:
   node_id_t get_parent(node_id_t node);
   bool dsu_valid = true;
 
+  double total_sketch_size = 0;
+
   std::unordered_set<node_id_t>* spanning_forest;
   std::mutex* spanning_forest_mtx;
 
@@ -111,6 +113,8 @@ public:
   inline void setSize(int index, int value) { size[index] = value; }
 
   inline void setParent(int index, int value) { parent[index] = value; }
+
+  double getTotalSketchSize() { return total_sketch_size; }
 
   inline void update(GraphUpdate upd, int thr_id = 0) {
     if (update_locked) throw UpdateLockedException();

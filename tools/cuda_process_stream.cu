@@ -133,7 +133,7 @@ int main(int argc, char **argv) {
   gpuErrchk(cudaMemPrefetchAsync(d_bucket_a, num_nodes * num_sketches * num_elems * sizeof(vec_t), device_id));
   gpuErrchk(cudaMemPrefetchAsync(d_bucket_c, num_nodes * num_sketches * num_elems * sizeof(vec_hash_t), device_id));*/
 
-  cudaGraph.configure(cudaUpdateParams, supernodes, sketchSeeds, num_threads);
+  cudaGraph.configure(&cudaUpdateParams, supernodes, sketchSeeds, num_threads);
   
   MT_StreamReader reader(stream);
   GraphUpdate upd;

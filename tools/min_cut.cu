@@ -11,7 +11,7 @@
 #include <cuda_graph.cuh>
 #include <mincut_graph.h>
 
-constexpr size_t epsilon = 2;
+constexpr double epsilon = 0.2;
 
 int main(int argc, char **argv) {
   if (argc != 4) {
@@ -37,15 +37,12 @@ int main(int argc, char **argv) {
   std::cout << "num_updates = " << num_updates << std::endl;
   std::cout << std::endl;
 
-  //int k = log2(num_nodes) / (epsilon * epsilon);
-  int k = 2;
+  int k = log2(num_nodes) / (epsilon * epsilon);
 
-  // TODO: Check format of epsilon
   std::cout << "epsilon: " << epsilon << std::endl;
   std::cout << "k: " << k << std::endl;
 
-  //int num_graphs = 1 + (int)(2 * log2(num_nodes));
-  int num_graphs = 2;
+  int num_graphs = 1 + (int)(2 * log2(num_nodes));
   std::cout << "Total num_graphs: " << num_graphs << "\n";
 
   auto config = GraphConfiguration().gutter_sys(CACHETREE).num_groups(num_threads);
@@ -69,7 +66,18 @@ int main(int argc, char **argv) {
       // Reuse the GTS made from graphs[0]
       graphs[i] = new MinCutGraph{num_nodes, config, graphs[0]->getGTS(), &cudaGraph, k, reader_threads};
     }
-  
+  }
+
+  double total_graphs_sketch_size = graphs[0]->getTotalSketchSize() * num_graphs;
+
+  if(total_graphs_sketch_size > 1000000000) {
+    std::cout << "Total Graphs Sketch Memory Size: " << total_graphs_sketch_size / 1000000000 << " GB\n";
+  }
+  else if(total_graphs_sketch_size > 1000000) {
+    std::cout << "Total Graphs Sketch Memory Size: " << total_graphs_sketch_size / 1000000 << " MB\n";
+  }
+  else {
+    std::cout << "Total Graphs Sketch Memory Size: " << total_graphs_sketch_size / 1000 << " KB\n";
   }
 
   Supernode** supernodes;
@@ -97,15 +105,16 @@ int main(int argc, char **argv) {
 
   std::cout << "Batch_size: " << batch_size << "\n";
   
-  CudaUpdateParams* cudaUpdateParams;
-  gpuErrchk(cudaMallocManaged(&cudaUpdateParams, sizeof(CudaUpdateParams) * num_graphs));
+  CudaUpdateParams** cudaUpdateParams;
+  gpuErrchk(cudaMallocManaged(&cudaUpdateParams, sizeof(CudaUpdateParams*) * num_graphs));
   for (int i = 0; i < num_graphs; i++) {
-    cudaUpdateParams[i] = CudaUpdateParams(num_nodes, num_updates, num_sketches, num_elems, num_columns, num_guesses, num_threads, batch_size, stream_multiplier, k);
+    cudaUpdateParams[i] = new CudaUpdateParams(num_nodes, num_updates, num_sketches, num_elems, num_columns, num_guesses, num_threads, batch_size, stream_multiplier, k);
   }
-  
+
   std::cout << "Initialized cudaUpdateParams\n";
 
   long* sketchSeeds;
+  size_t sketch_width = Sketch::column_gen(Sketch::get_failure_factor());
   gpuErrchk(cudaMallocManaged(&sketchSeeds, num_graphs * num_nodes * num_sketches * k * sizeof(long)));
 
   // Initialize sketch seeds
@@ -114,10 +123,12 @@ int main(int argc, char **argv) {
   for (int graph_id = 0; graph_id < num_graphs; graph_id++) {
     Supernode** graph_supernodes;
     graph_supernodes = graphs[graph_id]->getSupernodes();
-    for (int node_id = 0; node_id < num_nodes * k; node_id++) {
-      for (int j = 0; j < num_sketches; j++) {
-        Sketch* sketch = graph_supernodes[node_id]->get_sketch(j);
-        sketchSeeds[(graph_id * num_nodes * num_sketches * k) + (node_id * num_sketches) + j] = sketch->get_seed();
+    for (int node_id = 0; node_id < num_nodes; node_id++) {
+      for (int k_id = 0; k_id < k; k_id++) {
+        for (int j = 0; j < num_sketches; j++) {
+          Sketch* sketch = graph_supernodes[(node_id * k) + k_id]->get_sketch(j);
+          sketchSeeds[(graph_id * num_nodes * num_sketches * k) + (node_id * num_sketches * k) + (k_id * num_sketches) + j] = sketch->get_seed();
+        }
       }
     }
     all_supernodes.push_back(graph_supernodes);
@@ -141,7 +152,7 @@ int main(int argc, char **argv) {
   std::cout << "Allocated Shared Memory of: " << maxBytes << "\n";
 
   // Prefetch memory to device  
-  gpuErrchk(cudaMemPrefetchAsync(sketchSeeds, k * num_nodes * num_sketches * sizeof(long), device_id));
+  gpuErrchk(cudaMemPrefetchAsync(sketchSeeds, num_graphs * num_nodes * num_sketches * k * sizeof(long), device_id));
 
   MT_StreamReader reader(stream);
   GraphUpdate upd;
@@ -194,7 +205,7 @@ int main(int argc, char **argv) {
   cudaGraph.k_applyFlushUpdates();
 
   for(int i = 0; i < num_graphs; i++) {
-    graphs[i]->num_updates += cudaUpdateParams[i].num_inserted_updates;
+    graphs[i]->num_updates += cudaUpdateParams[i]->num_inserted_updates;
   }
   
   auto flush_end = std::chrono::steady_clock::now();
@@ -209,27 +220,28 @@ int main(int argc, char **argv) {
   std::cout << "Number of inserted updates for each subgraph:\n";
   int num_zero_graphs = 0;
   for (int i = 0; i < num_graphs; i++) {
-    std::cout << "Subgraph G_" << i << ": " << graphs[i]->num_updates << "\n";
+    std::cout << "  Subgraph G_" << i << ": " << graphs[i]->num_updates << "\n";
     if (graphs[i]->num_updates == 0) num_zero_graphs++;
   }
   
-  /*std::cout << "\n";
-  std::cout << "Getting CC for G_0:\n";
-  auto CC_num = graphs[0]->connected_components().size();
-  std::cout << "Connected Components: " << CC_num << std::endl;*/
-
   std::cout << "Getting k = " << k << " spanning forests\n";
+
+  std::chrono::duration<double> spanning_forests_time = std::chrono::nanoseconds::zero();
+  std::chrono::duration<double> cert_write_time = std::chrono::nanoseconds::zero();
+  std::chrono::duration<double> viecut_time = std::chrono::nanoseconds::zero();
 
   // Get spanning forests then create a METIS format file
   std::cout << "Generating Certificates...\n";
   int num_sampled_zero_graphs = 0;
   for (int i = 0; i < num_graphs - num_zero_graphs; i++) {
     std::cout << "Subgraph G_" << i << ":\n";
-    std::vector<std::vector<Edge>> forests = graphs[0]->k_spanning_forests(k); // Note: Getting k spanning forests for only the first graph 
+
+    auto spanning_forests_start = std::chrono::steady_clock::now();
+    std::vector<std::vector<Edge>> forests = graphs[i]->k_spanning_forests(k, i);
+    spanning_forests_time += std::chrono::steady_clock::now() - spanning_forests_start;
 
     int sampled_edges = 0;
     for (int k_id = 0; k_id < k; k_id++) {
-      std::cout << "    Size of forests #" << k_id << ": " << forests[k_id].size() << "\n"; 
       sampled_edges += forests[k_id].size();
     }
     std::cout << "  Total sampled edges: " << sampled_edges << "\n";
@@ -239,43 +251,75 @@ int main(int argc, char **argv) {
       continue;
     }
 
+    auto cert_write_start = std::chrono::steady_clock::now();
+    
     std::string file_name = "certificates" + std::to_string(i) + ".metis";
     std::ofstream cert (file_name);
 
     // Read edges then categorize them based on src node
     int sampled_num_nodes = 0;
     int sampled_num_edges = 0;
+    node_id_t current_node_id = 1;
+    int num_self_edges = 0;
+
     std::map<node_id_t, std::vector<node_id_t>> nodes_list;
+    std::map<node_id_t, node_id_t> simplified_node_ids;
+
     for (auto forest : forests) {
       for (auto e : forest) {
-        if (nodes_list.find(e.src) == nodes_list.end()) { // Has not been inserted yet
-          nodes_list[e.src] = std::vector<node_id_t>();
-          sampled_num_nodes++;
-        }
-        nodes_list[e.src].push_back(e.dst);
+        if (simplified_node_ids.find(e.src) == simplified_node_ids.end()) { // Has not been inserted yet
+          simplified_node_ids[e.src] = current_node_id;
+          nodes_list[current_node_id] = std::vector<node_id_t>();
 
-        if (nodes_list.find(e.dst) == nodes_list.end()) { // Has not been inserted yet
-          nodes_list[e.dst] = std::vector<node_id_t>();
           sampled_num_nodes++;
+          current_node_id++;
         }
-        nodes_list[e.dst].push_back(e.src); 
+
+        if (simplified_node_ids.find(e.dst) == simplified_node_ids.end()) {
+          simplified_node_ids[e.dst] = current_node_id;
+          nodes_list[current_node_id] = std::vector<node_id_t>();
+
+          sampled_num_nodes++;
+          current_node_id++;
+        }
+      
+        node_id_t simplified_node1 = simplified_node_ids[e.src];
+        node_id_t simplified_node2 = simplified_node_ids[e.dst];
+        
+        if (simplified_node1 == simplified_node2) {
+          num_self_edges++;
+        }
+        
+        nodes_list[simplified_node1].push_back(simplified_node2);
+        nodes_list[simplified_node2].push_back(simplified_node1);
 
         sampled_num_edges++;
       }
     }
 
+    if (num_self_edges > 0) {
+      std::cout << "WARNING: There are self edges! " << num_self_edges << "\n";
+    }
+
     // Write sampled num_nodes and num_edges to file
     cert << sampled_num_nodes << " " << sampled_num_edges << " 0" << "\n";
-    for (auto it = nodes_list.begin(); it != nodes_list.end(); it++) {
-      for (size_t neighbor = 0; neighbor < it->second.size() - 1; neighbor++) {
-        cert << it->second[neighbor] + 1 << " ";
+
+    for (auto it : nodes_list) {
+      for (size_t neighbor = 0; neighbor < it.second.size(); neighbor++) {
+        if (it.second[neighbor] == it.first) {
+          continue;
+        }
+        cert << (it.second[neighbor]) << " ";
       }
-      cert << it->second[it->second.size() - 1] + 1 << "\n";
+      cert << "\n";  
     }
     cert.close();
+    cert_write_time += std::chrono::steady_clock::now() - cert_write_start;
   }
 
+
   std::cout << "Getting minimum cut of certificates...\n";
+  auto viecut_start = std::chrono::steady_clock::now();
   std::vector<int> mincut_values;
   for (int i = 0; i < num_graphs - num_zero_graphs - num_sampled_zero_graphs; i++) {
     std::string file_name = "certificates" + std::to_string(i) + ".metis";
@@ -300,12 +344,13 @@ int main(int argc, char **argv) {
       else {
         std::cout << "Error: Couldn't find 'cut=' or 'n=' in the output file\n";
       }
-
+      output_file.close();
     }
     else {
       std::cout << "Error: Couldn't find file name: " << output_name << "!\n";
     }
   }
+  viecut_time += std::chrono::steady_clock::now() - viecut_start;
 
   // Go through min cut values of each subgraph and find the minimum cut of subgraph that is smaller than k
   for (int i = 0; i < mincut_values.size(); i++) {
@@ -322,11 +367,25 @@ int main(int argc, char **argv) {
 
   std::chrono::duration<double> insert_time = flush_end - ins_start;
   std::chrono::duration<double> flush_time = flush_end - flush_start;
-  //std::chrono::duration<double> k_cc_time = std::chrono::steady_clock::now() - k_cc_start;
 
   double num_seconds = insert_time.count();
   std::cout << "Total insertion time(sec): " << num_seconds << std::endl;
   std::cout << "Updates per second: " << stream.edges() / num_seconds << std::endl;
   std::cout << "Flush Gutters(sec): " << flush_time.count() << std::endl;
-  //std::cout << "K_CC(sec): " << k_cc_time.count() << std::endl;
+  std::cout << "Spanning Forests Time(sec): " << spanning_forests_time.count() << std::endl;
+
+  double total_sampling_forests_time = 0;
+  double total_trimming_forests_time = 0;
+
+  for (int i = 0; i < num_graphs; i++) {
+    total_sampling_forests_time += graphs[i]->sampling_forests_time.count();
+    total_trimming_forests_time += graphs[i]->trimming_forests_time.count();
+  }
+
+  std::cout << "  Total Sampling Forests Time(sec): " << total_sampling_forests_time << std::endl;
+  std::cout << "  Total Trimming Forests Time(sec): " << total_trimming_forests_time << std::endl;
+
+  std::cout << "Certificate Writing Time(sec): " << cert_write_time.count() << std::endl;
+  std::cout << "VieCut Program Time(sec): " << viecut_time.count() << std::endl;
+
 }

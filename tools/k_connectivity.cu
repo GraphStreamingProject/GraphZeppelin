@@ -115,7 +115,7 @@ int main(int argc, char **argv) {
   // Prefetch memory to device  
   gpuErrchk(cudaMemPrefetchAsync(sketchSeeds, k * num_nodes * num_sketches * sizeof(long), device_id));
 
-  cudaGraph.k_configure(cudaUpdateParams, &k_supernodes, sketchSeeds, num_threads, k, 1);
+  cudaGraph.k_configure(&cudaUpdateParams, &k_supernodes, sketchSeeds, num_threads, k, 1);
 
   MT_StreamReader reader(stream);
   GraphUpdate upd;

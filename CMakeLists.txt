@@ -237,6 +237,21 @@ if (BUILD_EXE)
   #add_dependencies(cuda_sketch_test GraphZeppelinVerifyCUDA)
   #target_link_libraries(cuda_sketch_test PRIVATE GraphZeppelinVerifyCUDA)
 
+  add_executable(generate_stream
+    tools/stream_generators/non_trivial_stream_generator.cpp
+  )
+  target_link_libraries(generate_stream PRIVATE GraphZeppelin)
+
+  add_executable(metis_converter
+    tools/converter/metis_converter.cpp
+  )
+  target_link_libraries(metis_converter PRIVATE GraphZeppelin)
+
+  add_executable(stream_converter
+    tools/converter/stream_converter.cpp
+  )
+  target_link_libraries(stream_converter PRIVATE GraphZeppelin)
+
   # tool for validating that a binary stream appears correct  
   add_executable(validate_binary_stream
     tools/validate_binary_stream.cpp

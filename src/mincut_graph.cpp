@@ -178,7 +178,7 @@ std::vector<Edge> MinCutGraph::get_spanning_forest(int k_id) {
 
   delete[] copy_supernodes;
   delete[] query;
-  std::cout << "  round = " << round << " cc size = " << num_cc << std::endl;
+  std::cout << "  round = " << round << ", size = " << forest.size() << ", cc = " << num_cc << std::endl;
   return forest;
 }
 
@@ -210,7 +210,7 @@ void verify_edges(std::vector<std::vector<Edge>> forests) {
         edges.insert(e);
       }
       else {
-        std::cerr << "ERROR: duplicate error in forests!" << std::endl;
+        std::cerr << "ERROR: duplicate error in forests! {" << e.src << "," << e.dst << "}\n";
         exit(EXIT_FAILURE);
       }
     }
@@ -226,21 +226,32 @@ void MinCutGraph::verify_spanning_forests(std::vector<std::vector<Edge>> forests
   verify_solns(forests);
 }
 
-std::vector<std::vector<Edge>> MinCutGraph::k_spanning_forests(size_t k) {
+std::vector<std::vector<Edge>> MinCutGraph::k_spanning_forests(size_t k, int graph_id) {
   std::vector<std::vector<Edge>> forests;
+  cudaGraph->indiv_graph_enabled = true;
+  cudaGraph->indiv_graph_id = graph_id;
+
+  auto trimming_forests_start = std::chrono::steady_clock::now();
+  
   for (size_t i = 0; i < k; i++) {
     gts->force_flush(); // flush everything in guttering system to make final updates
     GraphWorker::pause_workers(); // wait for the workers to finish applying the updates
     cudaDeviceSynchronize();
     cudaGraph->k_applyFlushUpdates();
+    trimming_forests_time += std::chrono::steady_clock::now() - trimming_forests_start;
     std::cout << "Getting spanning forest " << i + 1 << ":" << std::endl;
+
+    auto sampling_forests_start = std::chrono::steady_clock::now();
     forests.push_back(get_spanning_forest(i));
+    sampling_forests_time += std::chrono::steady_clock::now() - sampling_forests_start;
 
     // get ready for ingesting more from the stream
     // reset supernodes and resume graph workers
-    for (node_id_t j = 0; j < num_nodes; j++) {
-      supernodes[(j * k) + i]->reset_query_state();
+    for (node_id_t j = 0; j < num_nodes * k; j++) {
+      supernodes[j]->reset_query_state();
     }
+
+    trimming_forests_start = std::chrono::steady_clock::now();
     GraphWorker::unpause_workers();
     trim_spanning_forest(forests[i]);
 
@@ -249,6 +260,11 @@ std::vector<std::vector<Edge>> MinCutGraph::k_spanning_forests(size_t k) {
   }
 
   verify_spanning_forests(forests);
+
+  // Reset cudaGraph indiv_graph_enabled
+  cudaGraph->indiv_graph_enabled = false;
+  cudaGraph->indiv_graph_id = -1;
+
   return forests;
 }
 

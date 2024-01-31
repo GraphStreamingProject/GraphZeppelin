@@ -1,12 +1,17 @@
 #include <graph.h>
+#include <chrono>
 
 class MinCutGraph : public Graph {
 public:
   // K-Value
   int k;
 
+
+  std::chrono::duration<double> sampling_forests_time = std::chrono::nanoseconds::zero();
+  std::chrono::duration<double> trimming_forests_time = std::chrono::nanoseconds::zero();
+
   // Returns k edge-disjoint spanning trees
-  std::vector<std::vector<Edge>> k_spanning_forests(size_t k);
+  std::vector<std::vector<Edge>> k_spanning_forests(size_t k, int graph_id);
 
   explicit MinCutGraph(node_id_t num_nodes, int num_inserters = 1)
       : Graph(num_nodes, GraphConfiguration(), num_inserters){};
