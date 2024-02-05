@@ -156,6 +156,7 @@ void Sketch::merge(const Sketch &other) {
 void Sketch::range_merge(const Sketch &other, size_t start_sample, size_t n_samples) {
   if (start_sample + n_samples > num_samples) {
     assert(false);
+    sample_idx = num_samples; // sketch is in a fail state!
     return;
   }
 

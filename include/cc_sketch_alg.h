@@ -241,4 +241,5 @@ class CCSketchAlg {
   // getters
   inline node_id_t get_num_vertices() { return num_vertices; }
   inline size_t get_seed() { return seed; }
+  inline size_t max_rounds() { return sketches[0]->get_num_samples(); }
 };
