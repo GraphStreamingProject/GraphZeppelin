@@ -1,9 +1,11 @@
+#include "graph_gen.h"
+#include "types.h"
+#include "util.h"
+
 #include <fstream>
 #include <algorithm>
 #include <random>
 #include <iostream>
-#include "../../include/test/graph_gen.h"
-#include "../../include/graph.h"
 
 #define endl '\n'
 

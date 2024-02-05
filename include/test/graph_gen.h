@@ -1,5 +1,6 @@
 #pragma once
 #include <utility>
+#include <string>
 
 typedef struct genSet {
   long n;            // number of nodes

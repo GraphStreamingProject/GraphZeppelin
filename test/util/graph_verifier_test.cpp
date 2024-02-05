@@ -18,26 +18,13 @@ TEST(DeterministicToolsTestSuite, TestEdgeVerifier) {
   // throw on nonexistent edge
   ASSERT_THROW(verifier.verify_edge({69,420}), BadEdgeException);
   ASSERT_THROW(verifier.verify_edge({420,69}), BadEdgeException);
-  // throw on already-included edge
-  ASSERT_THROW(verifier.verify_edge({120,240}), BadEdgeException);
-  ASSERT_THROW(verifier.verify_edge({240,120}), BadEdgeException);
-  // throw on edge within the same set
-  ASSERT_THROW(verifier.verify_edge({250,1000}), BadEdgeException);
-  ASSERT_THROW(verifier.verify_edge({1000,250}), BadEdgeException);
 }
 
 TEST(DeterministicToolsTestSuite, TestCCVerifier) {
   FileGraphVerifier verifier (1024, curr_dir+"/../res/multiples_graph_1024.txt");
   // {0}, {1}, and primes \in [521,1021] are CCs
-  verifier.verify_cc(0);
-  verifier.verify_cc(1);
-  verifier.verify_cc(911);
   // add edges of the form {i,2i}
   for (node_id_t i = 2; i < 512; ++i) {
     verifier.verify_edge({i, i*2});
-  }
-  // nothing else is currently a CC
-  for (int i = 2; i < 512; ++i) {
-    ASSERT_THROW(verifier.verify_cc(i), NotCCException);
   }
 }

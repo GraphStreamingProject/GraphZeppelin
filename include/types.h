@@ -43,6 +43,3 @@ struct GraphUpdate {
   Edge edge;
   UpdateType type;
 };
-
-#define likely_if(x) if(__builtin_expect((bool)(x), true))
-#define unlikely_if(x) if (__builtin_expect((bool)(x), false))
