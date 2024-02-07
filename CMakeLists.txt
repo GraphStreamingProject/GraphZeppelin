@@ -108,15 +108,16 @@ set(BUILD_SHARED_LIBS "${SAVED_BUILD_SHARED_LIBS}" CACHE BOOL "" FORCE)
 # cmake -DCMAKE_CXX_FLAGS="-DL0_SAMPLING" ..
 
 add_library(CUDALibrary
-  src/cuda_library.cu)
+  src/cuda_library.cu
+  src/cuda_kernel.cu
+  src/cc_gpu_sketch_alg.cpp)
 add_dependencies(CUDALibrary GutterTree)
 target_link_libraries(CUDALibrary PUBLIC xxhash GutterTree)
-target_include_directories(CUDALibrary PUBLIC include/ include/l0_sampling/)
-target_compile_options(CUDALibrary PUBLIC -lineinfo)
-
+target_include_directories(CUDALibrary PUBLIC include/)
+target_compile_options(CUDALibrary PUBLIC -lineinfo) # -lineinfo: For profiling
+#target_compile_options(CUDALibrary PUBLIC -expt-relaxed-constexpr)
 
 add_library(GraphZeppelin
-  src/cuda_kernel.cu
   src/cc_sketch_alg.cpp
   src/return_types.cpp
   src/driver_configuration.cpp
@@ -124,46 +125,28 @@ add_library(GraphZeppelin
   src/sketch.cpp
   src/util.cpp)
 add_dependencies(GraphZeppelin GutterTree)
-target_link_libraries(GraphZeppelin PUBLIC xxhash GutterTree CUDALibrary)
+target_link_libraries(GraphZeppelin PUBLIC xxhash GutterTree)
 target_include_directories(GraphZeppelin PUBLIC include/)
 target_compile_options(GraphZeppelin PUBLIC -fopenmp)
 target_link_options(GraphZeppelin PUBLIC -fopenmp)
 target_compile_definitions(GraphZeppelin PUBLIC XXH_INLINE_ALL)
 
-add_library(GraphZeppelinKConnect
-  src/cuda_kernel.cu
-  src/k_connected_graph.cpp
-  src/graph.cpp
-  src/graph_configuration.cpp
-  src/supernode.cpp
-  src/graph_worker.cpp
-  src/l0_sampling/sketch.cpp
-  src/util.cpp)
-add_dependencies(GraphZeppelinKConnect GutterTree)
-target_link_libraries(GraphZeppelinKConnect PUBLIC xxhash GutterTree CUDALibrary)
-target_include_directories(GraphZeppelinKConnect PUBLIC include/ include/l0_sampling/)
-target_compile_options(GraphZeppelinKConnect PUBLIC -fopenmp)
-target_link_options(GraphZeppelinKConnect PUBLIC -fopenmp)
-target_compile_definitions(GraphZeppelinKConnect PUBLIC XXH_INLINE_ALL USE_EAGER_DSU)
-
 add_library(GraphZeppelinMinCut
   src/cuda_kernel.cu
-  src/mincut_graph.cpp
-  src/graph.cpp
-  src/graph_configuration.cpp
-  src/supernode.cpp
-  src/graph_worker.cpp
-  src/l0_sampling/sketch.cpp
+  src/cc_sketch_alg.cpp
+  src/return_types.cpp
+  src/driver_configuration.cpp
+  src/cc_alg_configuration.cpp
+  src/sketch.cpp
   src/util.cpp)
 add_dependencies(GraphZeppelinMinCut GutterTree)
-target_link_libraries(GraphZeppelinMinCut PUBLIC xxhash GutterTree CUDALibrary)
-target_include_directories(GraphZeppelinMinCut PUBLIC include/ include/l0_sampling/)
+target_link_libraries(GraphZeppelinMinCut PUBLIC xxhash GutterTree)
+target_include_directories(GraphZeppelinMinCut PUBLIC include/)
 target_compile_options(GraphZeppelinMinCut PUBLIC -fopenmp)
 target_link_options(GraphZeppelinMinCut PUBLIC -fopenmp)
-target_compile_definitions(GraphZeppelinMinCut PUBLIC XXH_INLINE_ALL USE_EAGER_DSU)
+target_compile_definitions(GraphZeppelinMinCut PUBLIC XXH_INLINE_ALL)
 
 add_library(GraphZeppelinVerifyCC
-  src/cuda_kernel.cu
   src/cc_sketch_alg.cpp
   src/return_types.cpp
   src/driver_configuration.cpp
@@ -173,7 +156,7 @@ add_library(GraphZeppelinVerifyCC
   test/util/file_graph_verifier.cpp
   test/util/mat_graph_verifier.cpp)
 add_dependencies(GraphZeppelinVerifyCC GutterTree)
-target_link_libraries(GraphZeppelinVerifyCC PUBLIC xxhash GutterTree CUDALibrary)
+target_link_libraries(GraphZeppelinVerifyCC PUBLIC xxhash GutterTree)
 target_include_directories(GraphZeppelinVerifyCC PUBLIC include/ include/test/)
 target_compile_options(GraphZeppelinVerifyCC PUBLIC -fopenmp)
 target_link_options(GraphZeppelinVerifyCC PUBLIC -fopenmp)
@@ -231,24 +214,12 @@ if (BUILD_EXE)
   # executable for processing a binary graph stream for CUDA
   add_executable(cuda_process_stream
     tools/cuda_process_stream.cu)
-  target_link_libraries(cuda_process_stream PRIVATE GraphZeppelin)
+  target_link_libraries(cuda_process_stream PRIVATE GraphZeppelin CUDALibrary)
 
-  add_executable(k_connectivity
-    tools/k_connectivity.cu)
-  target_link_libraries(k_connectivity PRIVATE GraphZeppelinKConnect)
-
-  add_executable(min_cut
-    tools/min_cut.cu)
-  target_link_libraries(min_cut PRIVATE GraphZeppelinMinCut)
-
-  add_executable(xxhash_test
-    test/xxhash_test.cu)
-  target_link_libraries(xxhash_test PRIVATE GraphZeppelin)
-
-  #add_executable(cuda_sketch_test
-  #  test/cuda_sketch_test.cu)
-  #add_dependencies(cuda_sketch_test GraphZeppelinVerifyCUDA)
-  #target_link_libraries(cuda_sketch_test PRIVATE GraphZeppelinVerifyCUDA)
+  # Note: Focus on CC, comment out executable for min_cut
+  #add_executable(min_cut
+  #  tools/min_cut.cu)
+  #target_link_libraries(min_cut PRIVATE GraphZeppelinMinCut)
 
   add_executable(generate_stream
     tools/stream_generators/non_trivial_stream_generator.cpp

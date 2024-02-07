@@ -175,7 +175,8 @@ class Sketch {
   static constexpr double num_samples_div = log2(3) - 1;
 #else
   static constexpr size_t default_cols_per_sample = 1;
-  static constexpr double num_samples_div = 1 - log2(2 - 0.8);
+  //static constexpr double num_samples_div = 1 - log2(2 - 0.8); // Manually define log2() to avoid compiler issue
+  static constexpr double num_samples_div = 1 - 0.263034406;
 #endif
 };
 

@@ -138,7 +138,6 @@ class GraphSketchDriver {
       flush_start = flush_end = std::chrono::steady_clock::now();
       return;
     }
-
     flush_start = std::chrono::steady_clock::now();
     gts->force_flush();
     worker_threads->flush_workers();
@@ -156,4 +155,8 @@ class GraphSketchDriver {
   // time hooks for experiments
   std::chrono::steady_clock::time_point flush_start;
   std::chrono::steady_clock::time_point flush_end;
+
+  // getters
+  inline GutteringSystem * get_gts() { return gts; } 
+  inline WorkerThreadGroup<Alg> * get_worker_threads() { return worker_threads; }
 };
