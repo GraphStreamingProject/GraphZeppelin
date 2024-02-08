@@ -43,19 +43,19 @@ else()
   message (STATUS "GraphZeppelin building executables")
 endif()
 
-# Get xxHash
-FetchContent_Declare(
-  xxhash
-
-  GIT_REPOSITORY https://github.com/Cyan4973/xxHash.git
-  GIT_TAG        v0.8.0
-)
-
 # Get GutterTree Project
 FetchContent_Declare(
   GutterTree
 
   GIT_REPOSITORY  https://github.com/GraphStreamingProject/GutterTree.git
+  GIT_TAG         main
+)
+
+# Get StreamingUtilities
+FetchContent_Declare(
+  StreamingUtilities
+
+  GIT_REPOSITORY  https://github.com/GraphStreamingProject/StreamingUtilities.git
   GIT_TAG         main
 )
 
@@ -72,21 +72,7 @@ if (BUILD_BENCH)
   FetchContent_MakeAvailable(benchmark)
 endif()
 
-FetchContent_MakeAvailable(xxHash GutterTree)
-#####
-# Some additional steps for xxHash as it is unofficial
-#####
-#xxHash messes with BUILD_SHARED_LIBS if it is empty
-set(SAVED_BUILD_SHARED_LIBS "${BUILD_SHARED_LIBS}")
-
-add_subdirectory(
-  "${xxhash_SOURCE_DIR}/cmake_unofficial"
-  "${xxhash_BINARY_DIR}"
-  EXCLUDE_FROM_ALL
-)
-#Restore BUILD_SHARED_LIBS
-set(BUILD_SHARED_LIBS "${SAVED_BUILD_SHARED_LIBS}" CACHE BOOL "" FORCE)
-
+FetchContent_MakeAvailable(GutterTree StreamingUtilities)
 
 # AVAILABLE COMPILATION DEFINITIONS:
 # VERIFY_SAMPLES_F   Use a deterministic connected-components
@@ -107,8 +93,8 @@ add_library(GraphZeppelin
   src/cc_alg_configuration.cpp
   src/sketch.cpp
   src/util.cpp)
-add_dependencies(GraphZeppelin GutterTree)
-target_link_libraries(GraphZeppelin PUBLIC xxhash GutterTree)
+add_dependencies(GraphZeppelin GutterTree StreamingUtilities)
+target_link_libraries(GraphZeppelin PUBLIC xxhash GutterTree StreamingUtilities)
 target_include_directories(GraphZeppelin PUBLIC include/)
 target_compile_options(GraphZeppelin PUBLIC -fopenmp)
 target_link_options(GraphZeppelin PUBLIC -fopenmp)
@@ -123,8 +109,8 @@ add_library(GraphZeppelinVerifyCC
   src/util.cpp
   test/util/file_graph_verifier.cpp
   test/util/mat_graph_verifier.cpp)
-add_dependencies(GraphZeppelinVerifyCC GutterTree)
-target_link_libraries(GraphZeppelinVerifyCC PUBLIC xxhash GutterTree)
+add_dependencies(GraphZeppelinVerifyCC GutterTree StreamingUtilities)
+target_link_libraries(GraphZeppelinVerifyCC PUBLIC xxhash GutterTree StreamingUtilities)
 target_include_directories(GraphZeppelinVerifyCC PUBLIC include/ include/test/)
 target_compile_options(GraphZeppelinVerifyCC PUBLIC -fopenmp)
 target_link_options(GraphZeppelinVerifyCC PUBLIC -fopenmp)
@@ -156,7 +142,7 @@ if (BUILD_EXE)
     src/util.cpp
     test/util/efficient_gen/edge_gen.cpp
     test/util/efficient_gen/efficient_gen.cpp)
-  target_link_libraries(efficient_gen PRIVATE xxhash GraphZeppelinCommon)
+  target_link_libraries(efficient_gen PRIVATE xxhash GraphZeppelinCommon StreamingUtilities)
 
   # executable for converting to stream format
   add_executable(to_binary_format
