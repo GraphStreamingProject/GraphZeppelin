@@ -144,7 +144,7 @@ int main(int argc, char **argv) {
 
   // Start timer for kernel
   auto ins_start = std::chrono::steady_clock::now();
-  std::thread querier(track_insertions, num_updates, &driver, ins_start);
+  //std::thread querier(track_insertions, num_updates, &driver, ins_start);
 
   // Call kernel code
   std::cout << "Update Kernel Starting...\n";
@@ -168,18 +168,6 @@ int main(int argc, char **argv) {
 
   auto flush_end = std::chrono::steady_clock::now();
 
-  /*for (int i = 0; i < num_nodes; i++){
-    //std::cout << cudaUpdateParams[0].h_bucket_a[i] << " ";
-    int count = 0;
-    for (int j = 0; j < num_buckets; j++) {
-      if (sketches[i]->get_readonly_bucket_ptr()[j].alpha != 0) {
-        count++;
-      } 
-    }
-    std::cout << "Node " << i << ": " << count << "\n";
-    
-  }*/
-
   std::cout << "  Flushed Ended.\n";
 
   auto CC_num = cc_gpu_alg.connected_components().size();
@@ -190,7 +178,7 @@ int main(int argc, char **argv) {
   std::chrono::duration<double> cc_alg_time = cc_gpu_alg.cc_alg_end - cc_gpu_alg.cc_alg_start;
 
   shutdown = true;
-  querier.join();
+  //querier.join();
 
   double num_seconds = insert_time.count();
   std::cout << "Total insertion time(sec):    " << num_seconds << std::endl;

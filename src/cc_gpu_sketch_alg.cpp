@@ -17,12 +17,6 @@ void CCGPUSketchAlg::configure(CudaUpdateParams** _cudaUpdateParams, long* _sket
   batch_size = cudaUpdateParams[0]->batch_size;
   stream_multiplier = cudaUpdateParams[0]->stream_multiplier;
 
-  // num_host_threads must be even number
-  if (num_host_threads % 2 != 0) {
-    std::cout << "num_host_threads must be even number!\n";
-    exit(EXIT_FAILURE);
-  }
-
   // Initialize CUDA Streams
   for (int i = 0; i < num_host_threads * stream_multiplier; i++) {
     cudaStream_t stream;
@@ -45,15 +39,6 @@ void CCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
   if (!isConfigured) {
     std::cout << "CCGPUSketchAlg has not been configured!\n";
   }
-  /*Sketch &delta_sketch = *delta_sketches[thr_id];
-  delta_sketch.zero_contents();
-
-  for (const auto &dst : dst_vertices) {
-    delta_sketch.update(static_cast<vec_t>(concat_pairing_fn(src_vertex, dst)));
-  }
-
-  std::unique_lock<std::mutex>(sketches[src_vertex]->mutex);
-  sketches[src_vertex]->merge(delta_sketch);*/
 
   int stream_id = thr_id * stream_multiplier;
   int stream_offset = 0;
@@ -78,16 +63,14 @@ void CCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
           delta_buckets[i].gamma = cudaUpdateParams[0]->h_bucket_c[(stream_id * num_buckets) + i];
         }
 
-        node_id_t prev_src = streams_src[stream_id];
+        int prev_src = streams_src[stream_id];
         
         if(prev_src == -1) {
           std::cout << "Stream #" << stream_id << ": Shouldn't be here!\n";
         }
 
         // Apply the delta sketch
-        std::unique_lock<std::mutex> lk(sketches[prev_src]->mutex);
-        sketches[prev_src]->merge_raw_bucket_buffer(delta_buckets);
-        lk.unlock();
+        apply_raw_buckets_update(prev_src, delta_buckets);
         streams_src[stream_id] = -1;
       }
       else {
@@ -113,7 +96,7 @@ void CCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
   streams_src[stream_id] = src_vertex;
   streams_deltaApplied[stream_id] = 0;
   cudaMemcpyAsync(&cudaUpdateParams[0]->d_edgeUpdates[start_index], &cudaUpdateParams[0]->h_edgeUpdates[start_index], dst_vertices.size() * sizeof(vec_t), cudaMemcpyHostToDevice, streams[stream_id]);
-  cudaKernel.gtsStreamUpdate(num_device_threads, num_device_blocks, src_vertex, streams[stream_id], start_index, dst_vertices.size(), stream_id * num_buckets, cudaUpdateParams[0], sketchSeeds[src_vertex]);
+  cudaKernel.sketchUpdate(num_device_threads, num_device_blocks, src_vertex, streams[stream_id], start_index, dst_vertices.size(), stream_id * num_buckets, cudaUpdateParams[0], sketchSeeds[src_vertex]);
 };
 
 void CCGPUSketchAlg::apply_flush_updates() {
@@ -121,26 +104,24 @@ void CCGPUSketchAlg::apply_flush_updates() {
     if(streams_deltaApplied[stream_id] == 0) {
       streams_deltaApplied[stream_id] = 1;
         
-        cudaMemcpy(&cudaUpdateParams[0]->h_bucket_a[stream_id * num_buckets], &cudaUpdateParams[0]->d_bucket_a[stream_id * num_buckets], num_buckets * sizeof(vec_t), cudaMemcpyDeviceToHost);
-        cudaMemcpy(&cudaUpdateParams[0]->h_bucket_c[stream_id * num_buckets], &cudaUpdateParams[0]->d_bucket_c[stream_id * num_buckets], num_buckets * sizeof(vec_hash_t), cudaMemcpyDeviceToHost);
+      cudaMemcpy(&cudaUpdateParams[0]->h_bucket_a[stream_id * num_buckets], &cudaUpdateParams[0]->d_bucket_a[stream_id * num_buckets], num_buckets * sizeof(vec_t), cudaMemcpyDeviceToHost);
+      cudaMemcpy(&cudaUpdateParams[0]->h_bucket_c[stream_id * num_buckets], &cudaUpdateParams[0]->d_bucket_c[stream_id * num_buckets], num_buckets * sizeof(vec_hash_t), cudaMemcpyDeviceToHost);
 
-        Bucket* delta_buckets = new Bucket[cudaUpdateParams[0]->num_buckets];
-        for (size_t i = 0; i < num_buckets; i++) {
-          delta_buckets[i].alpha = cudaUpdateParams[0]->h_bucket_a[(stream_id * num_buckets) + i];
-          delta_buckets[i].gamma = cudaUpdateParams[0]->h_bucket_c[(stream_id * num_buckets) + i];
-        }
+      Bucket* delta_buckets = new Bucket[cudaUpdateParams[0]->num_buckets];
+      for (size_t i = 0; i < num_buckets; i++) {
+        delta_buckets[i].alpha = cudaUpdateParams[0]->h_bucket_a[(stream_id * num_buckets) + i];
+        delta_buckets[i].gamma = cudaUpdateParams[0]->h_bucket_c[(stream_id * num_buckets) + i];
+      }
 
-        node_id_t prev_src = streams_src[stream_id];
-        
-        if(prev_src == -1) {
-          std::cout << "Stream #" << stream_id << ": Shouldn't be here!\n";
-        }
+      int prev_src = streams_src[stream_id];
+      
+      if(prev_src == -1) {
+        std::cout << "Stream #" << stream_id << ": Shouldn't be here!\n";
+      }
 
-        // Apply the delta sketch
-        std::unique_lock<std::mutex> lk(sketches[prev_src]->mutex);
-        sketches[prev_src]->merge_raw_bucket_buffer(delta_buckets);
-        lk.unlock();
-        streams_src[stream_id] = -1;
+      // Apply the delta sketch
+      apply_raw_buckets_update(prev_src, delta_buckets);
+      streams_src[stream_id] = -1;
     }
   }
 }

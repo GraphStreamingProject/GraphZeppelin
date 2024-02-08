@@ -97,7 +97,7 @@ class CudaKernel {
     *   Sketch's Update Functions
     *
     */
-    void gtsStreamUpdate(int num_threads, int num_blocks, node_id_t src, cudaStream_t stream, vec_t update_start_id, size_t update_size, vec_t d_bucket_id, CudaUpdateParams* cudaUpdateParams, long sketchSeed);
+    void sketchUpdate(int num_threads, int num_blocks, node_id_t src, cudaStream_t stream, vec_t update_start_id, size_t update_size, vec_t d_bucket_id, CudaUpdateParams* cudaUpdateParams, long sketchSeed);
     //void k_gtsStreamUpdate(int num_threads, int num_blocks, int graph_id, int k, vec_t bucket_id, node_id_t src, cudaStream_t stream, vec_t prev_offset, size_t update_size, CudaUpdateParams* cudaUpdateParams, long* sketchSeeds);
  
     void updateSharedMemory(size_t maxBytes);

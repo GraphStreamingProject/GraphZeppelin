@@ -55,7 +55,7 @@ __device__ void bucket_update(vec_t_cu& a, vec_hash_t& c, const vec_t_cu& update
 *
 */
 
-__global__ void gtsStream_kernel(node_id_t src, node_id_t num_nodes, vec_t* edgeUpdates, vec_t update_start_id, size_t update_size,
+__global__ void sketchUpdate_kernel(node_id_t src, node_id_t num_nodes, vec_t* edgeUpdates, vec_t update_start_id, size_t update_size,
     size_t num_buckets, size_t d_bucket_id, vec_t* d_bucket_a, vec_hash_t* d_bucket_c, size_t num_samples, size_t num_columns, size_t bkt_per_col, long sketchSeed) {
 
   extern __shared__ vec_t_cu sketches[];
@@ -71,14 +71,32 @@ __global__ void gtsStream_kernel(node_id_t src, node_id_t num_nodes, vec_t* edge
   __syncthreads();
 
   // Update sketch
-  for (int id = threadIdx.x; id < update_size + num_samples; id += blockDim.x) {
-    
-    int sample_offset = id % num_samples;
-    int update_offset = ((id / num_samples) * num_samples);
-    
-    for (int i = 0; i < num_samples; i++) {
+  // Each thread works on 1 update on every column
+  for (int id = threadIdx.x; id < update_size; id += blockDim.x) {
 
-      if ((update_start_id + update_offset + i) >= update_start_id + update_size) {
+    vec_hash_t checksum = bucket_get_index_hash(edgeUpdates[update_start_id + id], sketchSeed);
+
+    // Update depth 0 bucket
+    bucket_update(bucket_a[num_buckets - 1], bucket_c[num_buckets - 1], edgeUpdates[update_start_id + id], checksum);
+
+    // Update higher depth buckets
+    for (unsigned j = 0; j < num_columns; ++j) {
+      col_hash_t depth = bucket_get_index_depth(edgeUpdates[update_start_id + id], sketchSeed + (j * 5), bkt_per_col);
+      size_t bucket_id = j * bkt_per_col + depth;
+      if(depth < bkt_per_col)
+        bucket_update(bucket_a[bucket_id], bucket_c[bucket_id], edgeUpdates[update_start_id + id], checksum);
+    }
+  }
+
+  // Each thread works on num_columns updates on every column (SLOW)
+  /*for (int id = threadIdx.x; id < update_size + num_columns; id += blockDim.x) {
+
+    //int update_offset = ((id / num_columns) * num_columns);
+    int update_offset = id * num_columns;
+
+    for (int i = 0; i < num_columns; i++) {
+
+      if ((update_offset + i) >= update_size) {
         break;
       }
 
@@ -88,14 +106,14 @@ __global__ void gtsStream_kernel(node_id_t src, node_id_t num_nodes, vec_t* edge
       bucket_update(bucket_a[num_buckets - 1], bucket_c[num_buckets - 1], edgeUpdates[update_start_id + update_offset + i], checksum);
 
       // Update higher depth buckets
-      for (unsigned j = 0; j < (num_columns / num_samples); ++j) {
+      for (unsigned j = 0; j < num_columns; ++j) {
         col_hash_t depth = bucket_get_index_depth(edgeUpdates[update_start_id + update_offset + i], sketchSeed + (j * 5), bkt_per_col);
         size_t bucket_id = j * bkt_per_col + depth;
         if(depth < bkt_per_col)
-          bucket_update(bucket_a[(sample_offset * (num_buckets / num_samples)) + bucket_id], bucket_c[(sample_offset * (num_buckets / num_samples)) + bucket_id], edgeUpdates[update_start_id + update_offset + i], checksum);
+          bucket_update(bucket_a[bucket_id], bucket_c[bucket_id], edgeUpdates[update_start_id + update_offset + i], checksum);
       }
     }
-  }
+  }*/
 
   __syncthreads();
 
@@ -165,7 +183,7 @@ __global__ void gtsStream_kernel(node_id_t src, node_id_t num_nodes, vec_t* edge
 }*/
 
 // Function that calls sketch update kernel code.
-void CudaKernel::gtsStreamUpdate(int num_threads, int num_blocks, node_id_t src, cudaStream_t stream, vec_t update_start_id, size_t update_size, vec_t d_bucket_id, CudaUpdateParams* cudaUpdateParams, long sketchSeed) {
+void CudaKernel::sketchUpdate(int num_threads, int num_blocks, node_id_t src, cudaStream_t stream, vec_t update_start_id, size_t update_size, vec_t d_bucket_id, CudaUpdateParams* cudaUpdateParams, long sketchSeed) {
   // Unwarp variables from cudaUpdateParams
   vec_t *edgeUpdates = cudaUpdateParams[0].d_edgeUpdates;
 
@@ -179,7 +197,7 @@ void CudaKernel::gtsStreamUpdate(int num_threads, int num_blocks, node_id_t src,
 
   int maxbytes = num_buckets * sizeof(vec_t_cu) + num_buckets * sizeof(vec_hash_t);
   
-  gtsStream_kernel<<<num_blocks, num_threads, maxbytes, stream>>>(src, num_nodes, edgeUpdates, update_start_id, update_size, num_buckets, d_bucket_id, cudaUpdateParams[0].d_bucket_a, cudaUpdateParams[0].d_bucket_c, num_samples, num_columns, bkt_per_col, sketchSeed);
+  sketchUpdate_kernel<<<num_blocks, num_threads, maxbytes, stream>>>(src, num_nodes, edgeUpdates, update_start_id, update_size, num_buckets, d_bucket_id, cudaUpdateParams[0].d_bucket_a, cudaUpdateParams[0].d_bucket_c, num_samples, num_columns, bkt_per_col, sketchSeed);
 }
 
 // Function that calls sketch update kernel code. (K-Connectivity Version)
@@ -210,6 +228,6 @@ void CudaKernel::gtsStreamUpdate(int num_threads, int num_blocks, node_id_t src,
 }*/
 
 void CudaKernel::updateSharedMemory(size_t maxBytes) {
-  cudaFuncSetAttribute(gtsStream_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, maxBytes);
+  cudaFuncSetAttribute(sketchUpdate_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, maxBytes);
   //cudaFuncSetAttribute(k_gtsStream_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, maxBytes);
 }
