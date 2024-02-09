@@ -6,7 +6,7 @@
 class CCGPUSketchAlg : public CCSketchAlg{
 private:
   CudaUpdateParams** cudaUpdateParams;
-  long* sketchSeeds;
+  size_t sketchSeed;
 
   CudaKernel cudaKernel;
 
@@ -44,6 +44,7 @@ public:
     auto init_start = std::chrono::steady_clock::now();
 
     int num_host_threads = num_threads;
+    sketchSeed = seed;
 
     // Get variables from sketch
     num_samples = Sketch::calc_cc_samples(num_vertices);
@@ -64,20 +65,11 @@ public:
       cudaUpdateParams[i] = new CudaUpdateParams(num_vertices, num_updates, num_samples, num_buckets, num_columns, bkt_per_col, num_threads, batch_size, stream_multiplier);
     }
 
-    // Create sketchSeeds
-    gpuErrchk(cudaMallocManaged(&sketchSeeds, num_vertices * sizeof(long)));
-    for (node_id_t i = 0; i < num_vertices; i++) {
-      sketchSeeds[i] = seed;
-    }
-
     int device_id = cudaGetDevice(&device_id);
     int device_count = 0;
     cudaGetDeviceCount(&device_count);
     std::cout << "CUDA Device Count: " << device_count << "\n";
     std::cout << "CUDA Device ID: " << device_id << "\n";
-
-    // Prefetch sketchSeeds to device 
-    gpuErrchk(cudaMemPrefetchAsync(sketchSeeds, num_vertices * sizeof(long), device_id));
 
     // Set maxBytes for GPU kernel's shared memory
     size_t maxBytes = num_buckets * sizeof(vec_t_cu) + num_buckets * sizeof(vec_hash_t);
@@ -101,8 +93,6 @@ public:
     std::cout << "CCGPUSketchAlg's Initialization Duration: " << init_time.count() << std::endl;
   };
   //~CCGPUSketchAlg() : ~CCSketchAlg(){};
-  
-  void configure(CudaUpdateParams** cudaUpdateParams, long* sketchSeeds, int num_host_threads);
   
   /**
    * Update all the sketches for a node, given a batch of updates.

@@ -63,7 +63,7 @@ void CCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
   streams_src[stream_id] = src_vertex;
   streams_deltaApplied[stream_id] = 0;
   cudaMemcpyAsync(&cudaUpdateParams[0]->d_edgeUpdates[start_index], &cudaUpdateParams[0]->h_edgeUpdates[start_index], dst_vertices.size() * sizeof(vec_t), cudaMemcpyHostToDevice, streams[stream_id]);
-  cudaKernel.sketchUpdate(num_device_threads, num_device_blocks, src_vertex, streams[stream_id], start_index, dst_vertices.size(), stream_id * num_buckets, cudaUpdateParams[0], sketchSeeds[src_vertex]);
+  cudaKernel.sketchUpdate(num_device_threads, num_device_blocks, src_vertex, streams[stream_id], start_index, dst_vertices.size(), stream_id * num_buckets, cudaUpdateParams[0], sketchSeed);
 };
 
 void CCGPUSketchAlg::apply_flush_updates() {
