@@ -88,97 +88,30 @@ int main(int argc, char **argv) {
 
   auto driver_config = DriverConfiguration().gutter_sys(CACHETREE).worker_threads(num_threads);
   auto cc_config = CCAlgConfiguration().batch_factor(1);
-  CCGPUSketchAlg cc_gpu_alg{num_nodes, get_seed(), cc_config};
+  CCGPUSketchAlg cc_gpu_alg{num_nodes, num_updates, num_threads, get_seed(), cc_config};
   GraphSketchDriver<CCGPUSketchAlg> driver{&cc_gpu_alg, &stream, driver_config, reader_threads};
   
-  Sketch** sketches = cc_gpu_alg.get_sketches();
-  
-  // Get variables from sketch
-  size_t num_samples = sketches[0]->get_num_samples();
-  size_t num_buckets = sketches[0]->get_buckets();
-  size_t num_columns = sketches[0]->get_columns();
-  size_t bkt_per_col = Sketch::calc_bkt_per_col(Sketch::calc_vector_length(num_nodes));
-
-  std::cout << "num_samples: " << num_samples << "\n"; // num_sketches = num_samples
-  std::cout << "num_buckets: " << num_buckets << "\n"; // num_elems = num_buckets
-  std::cout << "num_columns: " << num_columns << "\n";
-  std::cout << "bkt_per_col: " << bkt_per_col << "\n"; // num_guesses = bkt_per_col
-
-  // Start timer for initializing
-  auto init_start = std::chrono::steady_clock::now();
-
-  GutteringSystem *gts = driver.get_gts();
-  int batch_size = gts->gutter_size() / sizeof(node_id_t);
-  int stream_multiplier = 4;
-
-  std::cout << "Batch_size: " << batch_size << "\n";
-  
-  CudaUpdateParams* cudaUpdateParams;
-  gpuErrchk(cudaMallocManaged(&cudaUpdateParams, sizeof(CudaUpdateParams)));
-  cudaUpdateParams = new CudaUpdateParams(num_nodes, num_updates, num_samples, num_buckets, num_columns, bkt_per_col, num_threads, batch_size, stream_multiplier);
-
-  long* sketchSeeds;
-  gpuErrchk(cudaMallocManaged(&sketchSeeds, num_nodes * sizeof(long)));
-
-  for (node_id_t i = 0; i < num_nodes; i++) {
-    sketchSeeds[i] = sketches[i]->get_seed();
-  }
-
-  int device_id = cudaGetDevice(&device_id);
-  int device_count = 0;
-  cudaGetDeviceCount(&device_count);
-  std::cout << "CUDA Device Count: " << device_count << "\n";
-  std::cout << "CUDA Device ID: " << device_id << "\n";
-
-  size_t maxBytes = num_buckets * sizeof(vec_t_cu) + num_buckets * sizeof(vec_hash_t);
-  cc_gpu_alg.updateKernelSharedMemory(maxBytes);
-  std::cout << "Allocated Shared Memory of: " << maxBytes << "\n";
-
-  // Prefetch memory to device 
-  gpuErrchk(cudaMemPrefetchAsync(sketchSeeds, num_nodes * sizeof(long), device_id));
-  cc_gpu_alg.configure(&cudaUpdateParams, sketchSeeds, num_threads);
-  
-  std::cout << "Finished initializing CUDA parameters\n";
-  std::chrono::duration<double> init_time = std::chrono::steady_clock::now() - init_start;
-  std::cout << "CUDA parameters init duration: " << init_time.count() << std::endl;
-
-  // Start timer for kernel
   auto ins_start = std::chrono::steady_clock::now();
-  //std::thread querier(track_insertions, num_updates, &driver, ins_start);
+  std::thread querier(track_insertions, num_updates, &driver, ins_start);
 
-  // Call kernel code
-  std::cout << "Update Kernel Starting...\n";
-
-  // Perform edge updates
   driver.process_stream_until(END_OF_STREAM);
 
-  std::cout << "Update Kernel finished.\n";
-
-  // Start timer for cc
   auto cc_start = std::chrono::steady_clock::now();
-  
-  std::cout << "  Flush Starting...\n";
-
-  auto flush_start = std::chrono::steady_clock::now();
-
-  gts->force_flush();
-  driver.get_worker_threads()->flush_workers();
+  driver.prep_query();
   cudaDeviceSynchronize();
   cc_gpu_alg.apply_flush_updates();
-
+  // Re-measure flush_end to include time taken for applying delta sketches from flushing
   auto flush_end = std::chrono::steady_clock::now();
-
-  std::cout << "  Flushed Ended.\n";
 
   auto CC_num = cc_gpu_alg.connected_components().size();
 
   std::chrono::duration<double> insert_time = flush_end - ins_start;
   std::chrono::duration<double> cc_time = std::chrono::steady_clock::now() - cc_start;
-  std::chrono::duration<double> flush_time = flush_end - flush_start;
+  std::chrono::duration<double> flush_time = flush_end - driver.flush_start;
   std::chrono::duration<double> cc_alg_time = cc_gpu_alg.cc_alg_end - cc_gpu_alg.cc_alg_start;
 
   shutdown = true;
-  //querier.join();
+  querier.join();
 
   double num_seconds = insert_time.count();
   std::cout << "Total insertion time(sec):    " << num_seconds << std::endl;

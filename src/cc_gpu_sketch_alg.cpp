@@ -3,42 +3,9 @@
 #include <iostream>
 #include <vector>
 
-// Configure CCGPUSketchAlg
-void CCGPUSketchAlg::configure(CudaUpdateParams** _cudaUpdateParams, long* _sketchSeeds, int _num_host_threads) {
-  cudaUpdateParams = _cudaUpdateParams;
-  //sketches = _sketches;
-  sketchSeeds = _sketchSeeds;
-
-  num_buckets = cudaUpdateParams[0]->num_buckets;
-
-  num_device_threads = 1024;
-  num_device_blocks = 1;
-  num_host_threads = _num_host_threads;
-  batch_size = cudaUpdateParams[0]->batch_size;
-  stream_multiplier = cudaUpdateParams[0]->stream_multiplier;
-
-  // Initialize CUDA Streams
-  for (int i = 0; i < num_host_threads * stream_multiplier; i++) {
-    cudaStream_t stream;
-
-    cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
-
-    streams.push_back(stream);
-    streams_deltaApplied.push_back(1);
-    streams_src.push_back(-1);
-    streams_num_graphs.push_back(-1);
-  }
-  
-  // Finished configuration, turn on the flag
-  isConfigured = true;
-}
-
 void CCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
                                      const std::vector<node_id_t> &dst_vertices) {
-  if (update_locked) throw UpdateLockedException();
-  if (!isConfigured) {
-    std::cout << "CCGPUSketchAlg has not been configured!\n";
-  }
+  if (CCSketchAlg::get_update_locked()) throw UpdateLockedException();
 
   int stream_id = thr_id * stream_multiplier;
   int stream_offset = 0;

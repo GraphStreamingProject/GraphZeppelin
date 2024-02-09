@@ -33,7 +33,8 @@ __device__ col_hash_t bucket_get_index_depth(const vec_t_cu update_idx, const lo
   col_hash_t depth_hash = CUDA_XXH64(&update_idx, sizeof(vec_t), seed_and_col);
   depth_hash |= (1ull << max_depth); // assert not > max_depth by ORing
 
-  return ctzll(depth_hash);
+  //return ctzll(depth_hash);
+  return __ffsll(depth_hash);
 }
 
 __device__ vec_hash_t bucket_get_index_hash(const vec_t update_idx, const long sketch_seed) {

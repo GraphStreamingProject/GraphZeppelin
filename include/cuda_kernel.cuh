@@ -2,6 +2,7 @@
 #include <atomic>
 #include <iostream>
 #include "types.h"
+#include "bucket.h"
 #include "../src/cuda_library.cu"
 
 typedef unsigned long long int uint64_cu;
@@ -24,17 +25,6 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 *   Helper Classes for sketches
 *
 */
-
-class CudaSketch {
-  public:
-    vec_t* bucket_a;
-    vec_hash_t* bucket_c;
-
-    // Default Constructor of CudaSketch
-    CudaSketch():bucket_a(nullptr), bucket_c(nullptr) {};
-
-    CudaSketch(vec_t* bucket_a, vec_hash_t* bucket_c): bucket_a(bucket_a), bucket_c(bucket_c) {};
-};
 
 class CudaUpdateParams {
   public:
