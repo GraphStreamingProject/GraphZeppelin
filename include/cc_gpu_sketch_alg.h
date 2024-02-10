@@ -3,15 +3,19 @@
 #include "cc_sketch_alg.h"
 #include "cuda_kernel.cuh"
 
+struct CudaStream {
+  cudaStream_t stream;
+  int delta_applied;
+  int src_vertex;
+};
+
 class CCGPUSketchAlg : public CCSketchAlg{
 private:
-  CudaUpdateParams** cudaUpdateParams;
+  CudaUpdateParams* cudaUpdateParams;
   size_t sketchSeed;
 
   CudaKernel cudaKernel;
 
-  int num_graphs = 1; // Note: multiple graphs will be used for min-cut
-  
   // Variables from sketch
   size_t num_samples;
   size_t num_buckets;
@@ -31,11 +35,8 @@ private:
   // Number of CUDA Streams per graph worker
   int stream_multiplier = 4;
 
-  // Vectors for storing information for each CUDA Stream
-  std::vector<cudaStream_t> streams;
-  std::vector<int> streams_deltaApplied;
-  std::vector<int> streams_src;
-  std::vector<int> streams_num_graphs;
+  // Vector for storing information for each CUDA Stream
+  std::vector<CudaStream> streams;
 
 public:
   CCGPUSketchAlg(node_id_t num_vertices, size_t num_updates, int num_threads, size_t seed, CCAlgConfiguration config = CCAlgConfiguration()) : CCSketchAlg(num_vertices, seed, config){ 
@@ -43,7 +44,7 @@ public:
     // Start timer for initializing
     auto init_start = std::chrono::steady_clock::now();
 
-    int num_host_threads = num_threads;
+    num_host_threads = num_threads;
     sketchSeed = seed;
 
     // Get variables from sketch
@@ -60,10 +61,8 @@ public:
     batch_size = get_desired_updates_per_batch();
 
     // Create cudaUpdateParams
-    gpuErrchk(cudaMallocManaged(&cudaUpdateParams, sizeof(CudaUpdateParams*) * num_graphs));
-    for (int i = 0; i < num_graphs; i++) {
-      cudaUpdateParams[i] = new CudaUpdateParams(num_vertices, num_updates, num_samples, num_buckets, num_columns, bkt_per_col, num_threads, batch_size, stream_multiplier);
-    }
+    gpuErrchk(cudaMallocManaged(&cudaUpdateParams, sizeof(CudaUpdateParams)));
+    cudaUpdateParams = new CudaUpdateParams(num_vertices, num_updates, num_samples, num_buckets, num_columns, bkt_per_col, num_threads, batch_size, stream_multiplier);
 
     int device_id = cudaGetDevice(&device_id);
     int device_count = 0;
@@ -81,11 +80,7 @@ public:
       cudaStream_t stream;
 
       cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
-
-      streams.push_back(stream);
-      streams_deltaApplied.push_back(1);
-      streams_src.push_back(-1);
-      streams_num_graphs.push_back(-1);
+      streams.push_back({stream, 1, -1});
     }
 
     std::cout << "Finished CCGPUSketchAlg's Initialization\n";
