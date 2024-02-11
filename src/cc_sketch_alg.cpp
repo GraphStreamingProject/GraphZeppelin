@@ -109,12 +109,12 @@ void CCSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
     delta_sketch.update(static_cast<vec_t>(concat_pairing_fn(src_vertex, dst)));
   }
 
-  std::unique_lock<std::mutex>(sketches[src_vertex]->mutex);
+  std::unique_lock<std::mutex> lk(sketches[src_vertex]->mutex);
   sketches[src_vertex]->merge(delta_sketch);
 }
 
 void CCSketchAlg::apply_raw_buckets_update(node_id_t src_vertex, Bucket *raw_buckets) {
-  std::unique_lock<std::mutex>(sketches[src_vertex]->mutex);
+  std::unique_lock<std::mutex> lk(sketches[src_vertex]->mutex);
   sketches[src_vertex]->merge_raw_bucket_buffer(raw_buckets);
 }
 

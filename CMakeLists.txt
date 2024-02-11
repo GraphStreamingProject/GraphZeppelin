@@ -124,30 +124,9 @@ if (BUILD_EXE)
     test/dsu_test.cpp
     test/util_test.cpp
     test/util/file_graph_verifier.cpp
-    test/util/graph_gen.cpp
-    test/util/graph_gen_test.cpp
     test/util/graph_verifier_test.cpp)
   add_dependencies(tests GraphZeppelinVerifyCC)
   target_link_libraries(tests PRIVATE GraphZeppelinVerifyCC)
-
-  add_executable(statistical_test
-    tools/statistical_testing/graph_testing.cpp
-    test/util/file_graph_verifier.cpp
-    test/util/graph_gen.cpp)
-  add_dependencies(statistical_test GraphZeppelinVerifyCC)
-  target_link_libraries(statistical_test PRIVATE GraphZeppelinVerifyCC)
-
-  # executables for experiment/benchmarking
-  add_executable(efficient_gen
-    src/util.cpp
-    test/util/efficient_gen/edge_gen.cpp
-    test/util/efficient_gen/efficient_gen.cpp)
-  target_link_libraries(efficient_gen PRIVATE xxhash GraphZeppelinCommon StreamingUtilities)
-
-  # executable for converting to stream format
-  add_executable(to_binary_format
-    tools/to_binary_format.cpp)
-  target_link_libraries(to_binary_format PRIVATE GraphZeppelinCommon)
 
   # executable for processing a binary graph stream
   add_executable(process_stream
@@ -158,12 +137,6 @@ if (BUILD_EXE)
   add_executable(test_correctness
     tools/test_correctness.cpp)
   target_link_libraries(test_correctness PRIVATE GraphZeppelinVerifyCC)
-
-  # tool for validating that a binary stream appears correct  
-  add_executable(validate_binary_stream
-    tools/validate_binary_stream.cpp
-  )
-  target_link_libraries(validate_binary_stream PRIVATE GraphZeppelin)
 endif()
 
 if (BUILD_BENCH)
