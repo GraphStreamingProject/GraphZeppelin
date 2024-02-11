@@ -91,6 +91,33 @@ __global__ void sketchUpdate_kernel(node_id_t src, node_id_t num_nodes, vec_t* e
       bucket_update(bucket_a[bucket_id], bucket_c[bucket_id], edgeUpdates[update_start_id + update_id], checksum);
   }
 
+  // Each thread works on num_column updates for 1 column (Similar performance)
+  /*for (int id = threadIdx.x; id < update_size * num_columns; id += blockDim.x) {
+
+    int column_id = id % num_columns;
+    int update_offset = (id / num_columns) * num_columns;
+
+    for (int i = 0; i < num_columns; i++) {
+
+      if ((update_offset) + i >= update_size) {
+        break;
+      }
+
+      vec_hash_t checksum = bucket_get_index_hash(edgeUpdates[update_start_id + update_offset + i], sketchSeed);
+    
+      if (column_id == 0) {
+        // Update depth 0 bucket
+        bucket_update(bucket_a[num_buckets - 1], bucket_c[num_buckets - 1], edgeUpdates[update_start_id + update_offset + i], checksum);
+      }
+
+      // Update higher depth buckets
+      col_hash_t depth = bucket_get_index_depth(edgeUpdates[update_start_id + update_offset + i], sketchSeed + (column_id * 5), bkt_per_col);
+      size_t bucket_id = column_id * bkt_per_col + depth;
+      if(depth < bkt_per_col)
+        bucket_update(bucket_a[bucket_id], bucket_c[bucket_id], edgeUpdates[update_start_id + update_offset + i], checksum);
+    }
+  }*/
+
   __syncthreads();
 
   if (threadIdx.x == 0) {

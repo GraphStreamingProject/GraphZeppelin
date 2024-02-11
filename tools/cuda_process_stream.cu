@@ -87,7 +87,7 @@ int main(int argc, char **argv) {
   std::cout << std::endl;
 
   auto driver_config = DriverConfiguration().gutter_sys(CACHETREE).worker_threads(num_threads);
-  auto cc_config = CCAlgConfiguration().batch_factor(1);
+  auto cc_config = CCAlgConfiguration().batch_factor(3);
   CCGPUSketchAlg cc_gpu_alg{num_nodes, num_updates, num_threads, get_seed(), cc_config};
   GraphSketchDriver<CCGPUSketchAlg> driver{&cc_gpu_alg, &stream, driver_config, reader_threads};
   
@@ -116,7 +116,7 @@ int main(int argc, char **argv) {
   double num_seconds = insert_time.count();
   std::cout << "Total insertion time(sec):    " << num_seconds << std::endl;
   std::cout << "Updates per second:           " << stream.edges() / num_seconds << std::endl;
-  std::cout << "Total CC query latency:       " << cc_time.count() + flush_time.count() << std::endl;
+  std::cout << "Total CC query latency:       " << cc_time.count() << std::endl;
   std::cout << "  Flush Gutters(sec):           " << flush_time.count() << std::endl;
   std::cout << "  Boruvka's Algorithm(sec):     " << cc_alg_time.count() << std::endl;
   std::cout << "Connected Components:         " << CC_num << std::endl;

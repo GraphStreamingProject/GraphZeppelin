@@ -2,7 +2,6 @@
 #include <atomic>
 #include <iostream>
 #include "types.h"
-#include "bucket.h"
 #include "../src/cuda_library.cu"
 
 typedef unsigned long long int uint64_cu;
@@ -28,11 +27,6 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 
 class CudaUpdateParams {
   public:
-    // Value of k
-    int k;
-
-    size_t num_inserted_updates = 0;
-
     // List of edge ids that thread will be responsble for updating
     vec_t *h_edgeUpdates, *d_edgeUpdates;
 
@@ -52,6 +46,8 @@ class CudaUpdateParams {
     int num_host_threads;
     int batch_size;
     int stream_multiplier; 
+
+    int k;
 
     // Default Constructor of CudaUpdateParams
     CudaUpdateParams():h_edgeUpdates(nullptr), d_edgeUpdates(nullptr) {};
