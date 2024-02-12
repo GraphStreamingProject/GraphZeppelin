@@ -27,6 +27,7 @@ def above(stats, target, sigmas):
       above += 1
     else:
       below += 1
+      print("BELOW")
 
   print (above / (above + below))
   
@@ -42,9 +43,11 @@ def mean(stats, sigmas):
   
 stats = parse(sys.argv[1])
 
-above(stats, 0.71, 0)
+above(stats, 0.76, 0)
+#above(stats, 0.78, 1)
+#above(stats, 0.78, 2)
 
-mean(stats, 0)
+#mean(stats, 3)
 
 
 
