@@ -164,16 +164,18 @@ class Sketch {
   inline size_t checksum_seed() const { return seed; }
   inline size_t get_columns() const { return num_columns; }
   inline size_t get_buckets() const { return num_buckets; }
+  inline size_t get_num_samples() const { return num_samples; }
 
   static size_t calc_bkt_per_col(size_t n) { return ceil(log2(n)) + 1; }
   static size_t calc_cc_samples(size_t n) { return ceil(log2(n) / num_samples_div); }
 
 #ifdef L0_SAMPLING
   static constexpr size_t default_cols_per_sample = 7;
+  // NOTE: can improve this but leaving for comparison purposes
   static constexpr double num_samples_div = log2(3) - 1;
 #else
   static constexpr size_t default_cols_per_sample = 1;
-  static constexpr double num_samples_div = log2(3) - 1;
+  static constexpr double num_samples_div = 1 - log2(2 - 0.8);
 #endif
 };
 

@@ -6,11 +6,15 @@
 #include "file_graph_verifier.h"
 
 static DriverConfiguration driver_config;
+static size_t get_seed() {
+  auto now = std::chrono::high_resolution_clock::now();
+  return std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
+}
 
 static inline int do_run() {
     AsciiFileStream stream{"./sample.txt"};
     node_id_t n = stream.vertices();
-    CCSketchAlg cc_alg{n};
+    CCSketchAlg cc_alg{n, get_seed()};
     cc_alg.set_verifier(std::make_unique<FileGraphVerifier>(n, "./cumul_sample.txt"));
     GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, driver_config);
     driver.process_stream_until(END_OF_STREAM);
