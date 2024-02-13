@@ -88,7 +88,7 @@ class WorkerThread {
       }
     }
   }
-  int id;
+  const int id;
   GraphSketchDriver<Alg> *driver;
   GutteringSystem *gts;
   std::condition_variable &flush_condition;

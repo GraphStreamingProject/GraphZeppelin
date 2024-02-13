@@ -1,5 +1,6 @@
 #include <ascii_file_stream.h>
 #include <binary_file_stream.h>
+#include <dynamic_erdos_generator.h>
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -7,13 +8,27 @@
 
 #include "cc_sketch_alg.h"
 #include "file_graph_verifier.h"
-#include "graph_gen.h"
 #include "graph_sketch_driver.h"
 #include "mat_graph_verifier.h"
 
 static size_t get_seed() {
   auto now = std::chrono::high_resolution_clock::now();
   return std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
+}
+
+// helper function to generate a dynamic binary stream and its cumulative insert only stream
+void generate_stream(size_t seed, node_id_t num_vertices, double density, double delete_portion,
+                     double adtl_portion, size_t rounds, std::string stream_name,
+                     std::string cumul_name) {
+  // remove old versions of the stream files
+  std::remove(stream_name.c_str());
+  std::remove(cumul_name.c_str());
+
+  // generate new stream files
+  DynamicErdosGenerator dy_stream(seed, num_vertices, density, delete_portion, adtl_portion,
+                                  rounds);
+  dy_stream.to_ascii_file(stream_name);
+  dy_stream.write_cumulative_file(cumul_name);
 }
 
 /**
@@ -54,7 +69,7 @@ TEST_P(CCAlgTest, TestCorrectnessOnSmallRandomGraphs) {
   auto driver_config = DriverConfiguration().gutter_sys(GetParam());
   int num_trials = 5;
   while (num_trials--) {
-    generate_stream();
+    generate_stream(get_seed(), 1024, 0.03, 0.5, 0.005, 3, "sample.txt", "cumul_sample.txt");
     AsciiFileStream stream{"./sample.txt"};
     node_id_t num_nodes = stream.vertices();
 
@@ -73,7 +88,7 @@ TEST_P(CCAlgTest, TestCorrectnessOnSmallSparseGraphs) {
   auto driver_config = DriverConfiguration().gutter_sys(GetParam());
   int num_trials = 5;
   while (num_trials--) {
-    generate_stream({1024, 0.002, 0.5, 0, "./sample.txt", "./cumul_sample.txt"});
+    generate_stream(get_seed(), 1024, 0.002, 0.5, 0.005, 3, "sample.txt", "cumul_sample.txt");
     AsciiFileStream stream{"./sample.txt"};
     node_id_t num_nodes = stream.vertices();
 
@@ -92,7 +107,7 @@ TEST_P(CCAlgTest, TestCorrectnessOfReheating) {
   auto driver_config = DriverConfiguration().gutter_sys(GetParam());
   int num_trials = 5;
   while (num_trials--) {
-    generate_stream({1024, 0.002, 0.5, 0, "./sample.txt", "./cumul_sample.txt"});
+    generate_stream(get_seed(), 1024, 0.002, 0.5, 0.005, 3, "sample.txt", "cumul_sample.txt");
 
     AsciiFileStream stream{"./sample.txt"};
     node_id_t num_nodes = stream.vertices();
@@ -123,11 +138,13 @@ TEST_P(CCAlgTest, MultipleWorkers) {
   auto driver_config = DriverConfiguration().gutter_sys(GetParam()).worker_threads(8);
   int num_trials = 5;
   while (num_trials--) {
-    generate_stream({1024, 0.002, 0.5, 0, "./sample.txt", "./cumul_sample.txt"});
+    size_t seed = get_seed();
+    generate_stream(seed, 1024, 0.002, 0.5, 0.5, 3, "sample.txt", "cumul_sample.txt");
     AsciiFileStream stream{"./sample.txt"};
     node_id_t num_nodes = stream.vertices();
 
-    CCSketchAlg cc_alg{num_nodes, get_seed()};
+    seed = get_seed();
+    CCSketchAlg cc_alg{num_nodes, seed};
     cc_alg.set_verifier(std::make_unique<FileGraphVerifier>(1024, "./cumul_sample.txt"));
 
     GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, driver_config);
@@ -172,17 +189,16 @@ TEST_P(CCAlgTest, TestPointQuery) {
 TEST(CCAlgTest, TestQueryDuringStream) {
   auto driver_config = DriverConfiguration().gutter_sys(STANDALONE);
   auto cc_config = CCAlgConfiguration();
-  generate_stream({1024, 0.002, 0.5, 0, "./sample.txt", "./cumul_sample.txt"});
+  generate_stream(get_seed(), 1024, 0.03, 0.5, 0.05, 3, "sample.txt", "cumul_sample.txt");
   std::ifstream in{"./sample.txt"};
   AsciiFileStream stream{"./sample.txt"};
   node_id_t num_nodes = stream.vertices();
   edge_id_t num_edges = stream.edges();
-  edge_id_t tenth     = num_edges / 10;
+  edge_id_t tenth = num_edges / 10;
 
   CCSketchAlg cc_alg{num_nodes, get_seed(), cc_config};
   GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, driver_config);
   MatGraphVerifier verify(num_nodes);
-
 
   int type;
   node_id_t a, b;
@@ -197,7 +213,7 @@ TEST(CCAlgTest, TestQueryDuringStream) {
     }
     verify.reset_cc_state();
 
-    driver.process_stream_until(tenth * (j+1));
+    driver.process_stream_until(tenth * (j + 1));
     driver.prep_query();
     cc_alg.set_verifier(std::make_unique<MatGraphVerifier>(verify));
     cc_alg.connected_components();
@@ -284,7 +300,7 @@ TEST(CCAlgTest, MTStreamWithMultipleQueries) {
 
     size_t num_queries = 10;
     size_t upd_per_query = num_edges / num_queries;
-    for (size_t i = 0; i < num_queries-1; i++) {
+    for (size_t i = 0; i < num_queries - 1; i++) {
       for (size_t j = 0; j < upd_per_query; j++) {
         GraphStreamUpdate upd;
         verify_stream.get_update_buffer(&upd, 1);
@@ -294,7 +310,7 @@ TEST(CCAlgTest, MTStreamWithMultipleQueries) {
       verify.reset_cc_state();
       cc_alg.set_verifier(std::make_unique<MatGraphVerifier>(verify));
 
-      driver.process_stream_until(upd_per_query * (i+1));
+      driver.process_stream_until(upd_per_query * (i + 1));
       driver.prep_query();
       cc_alg.connected_components();
     }

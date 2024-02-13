@@ -1,5 +1,0 @@
-build_path=./build
-stat_path=./test/statistical_testing
-confidence=0.95
-usr=
-pwd=
