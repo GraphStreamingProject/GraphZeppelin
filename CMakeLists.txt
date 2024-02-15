@@ -152,7 +152,7 @@ if (BUILD_EXE)
   target_link_libraries(statistical_test PRIVATE GraphZeppelinVerifyCC)
   
   add_executable(statistical_sketch_test
-    tools/statistical_testing/sketch_testing.cpp)
+    tools/sketch_testing.cpp)
   add_dependencies(statistical_sketch_test GraphZeppelinVerifyCC)
   target_link_libraries(statistical_sketch_test PRIVATE GraphZeppelinVerifyCC)
 
