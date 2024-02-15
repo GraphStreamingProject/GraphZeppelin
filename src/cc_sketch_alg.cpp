@@ -109,12 +109,12 @@ void CCSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
     delta_sketch.update(static_cast<vec_t>(concat_pairing_fn(src_vertex, dst)));
   }
 
-  std::unique_lock<std::mutex>(sketches[src_vertex]->mutex);
+  std::lock_guard<std::mutex> lk(sketches[src_vertex]->mutex);
   sketches[src_vertex]->merge(delta_sketch);
 }
 
 void CCSketchAlg::apply_raw_buckets_update(node_id_t src_vertex, Bucket *raw_buckets) {
-  std::unique_lock<std::mutex>(sketches[src_vertex]->mutex);
+  std::lock_guard<std::mutex> lk(sketches[src_vertex]->mutex);
   sketches[src_vertex]->merge_raw_bucket_buffer(raw_buckets);
 }
 
@@ -152,7 +152,7 @@ inline bool CCSketchAlg::sample_supernode(Sketch &skt) {
       auto src = std::min(e.src, e.dst);
       auto dst = std::max(e.src, e.dst);
       {
-        std::unique_lock<std::mutex> lk(spanning_forest_mtx[src]);
+        std::lock_guard<std::mutex> lk(spanning_forest_mtx[src]);
         spanning_forest[src].insert(dst);
       }
     }
@@ -207,7 +207,7 @@ inline node_id_t find_last_partition_of_root(const std::vector<MergeInstr> &merg
 // merge the global and return if it is safe to query now
 inline bool merge_global(const size_t cur_round, const Sketch &local_sketch,
                          GlobalMergeData &global) {
-  std::unique_lock<std::mutex> lk(global.mtx);
+  std::lock_guard<std::mutex> lk(global.mtx);
   global.sketch.range_merge(local_sketch, cur_round, 1);
   ++global.num_merge_done;
   assert(global.num_merge_done <= global.num_merge_needed);
@@ -333,7 +333,7 @@ bool CCSketchAlg::perform_boruvka_round(const size_t cur_round,
       if (!root_from_left) {
         // Resolved root_from_left, so we are the first thread to encounter this root
         // set the number of threads that will merge into this component
-        std::unique_lock<std::mutex> lk(global_merges[global_id].mtx);
+        std::lock_guard<std::mutex> lk(global_merges[global_id].mtx);
         global_merges[global_id].num_merge_needed = global_id - thr_id + 1;
       }
       bool query_ready = merge_global(cur_round, local_sketch, global_merges[global_id]);
