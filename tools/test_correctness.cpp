@@ -8,6 +8,11 @@
 #include <cc_sketch_alg.h>
 #include <mat_graph_verifier.h>
 
+static size_t get_seed() {
+  auto now = std::chrono::high_resolution_clock::now();
+  return std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
+}
+
 struct CorrectnessResults {
   size_t num_failures = 0;
   std::vector<size_t> num_round_hist;
@@ -43,7 +48,7 @@ CorrectnessResults test_path_correctness(size_t num_vertices, size_t num_graphs,
     verifier.reset_cc_state();
 
     for (size_t s = 0; s < samples_per_graph; s++) {
-      CCSketchAlg cc_alg(num_vertices);
+      CCSketchAlg cc_alg(num_vertices, get_seed());
       
       node_id_t cur_node = copy_vertices[0];
       for (size_t i = 1; i < num_vertices; i++) {

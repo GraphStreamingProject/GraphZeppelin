@@ -12,6 +12,11 @@ static double get_max_mem_used() {
   return (double) data.ru_maxrss / 1024.0;
 }
 
+static size_t get_seed() {
+  auto now = std::chrono::high_resolution_clock::now();
+  return std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
+}
+
 /*
  * Function which is run in a seperate thread and will query
  * the graph for the number of updates it has processed
@@ -81,7 +86,7 @@ int main(int argc, char **argv) {
 
   auto driver_config = DriverConfiguration().gutter_sys(CACHETREE).worker_threads(num_threads);
   auto cc_config = CCAlgConfiguration().batch_factor(1);
-  CCSketchAlg cc_alg{num_nodes, cc_config};
+  CCSketchAlg cc_alg{num_nodes, get_seed(), cc_config};
   GraphSketchDriver<CCSketchAlg> driver{&cc_alg, &stream, driver_config, reader_threads};
 
   auto ins_start = std::chrono::steady_clock::now();
@@ -92,8 +97,8 @@ int main(int argc, char **argv) {
   auto cc_start = std::chrono::steady_clock::now();
   driver.prep_query();
   auto CC_num = cc_alg.connected_components().size();
-  std::chrono::duration<double> insert_time = driver.flush_end - ins_start;
   std::chrono::duration<double> cc_time = std::chrono::steady_clock::now() - cc_start;
+  std::chrono::duration<double> insert_time = driver.flush_end - ins_start;
   std::chrono::duration<double> flush_time = driver.flush_end - driver.flush_start;
   std::chrono::duration<double> cc_alg_time = cc_alg.cc_alg_end - cc_alg.cc_alg_start;
 
@@ -108,4 +113,21 @@ int main(int argc, char **argv) {
   std::cout << "  Boruvka's Algorithm(sec):     " << cc_alg_time.count() << std::endl;
   std::cout << "Connected Components:         " << CC_num << std::endl;
   std::cout << "Maximum Memory Usage(MiB):    " << get_max_mem_used() << std::endl;
+
+
+  cc_start = std::chrono::steady_clock::now();
+  driver.prep_query();
+  CC_num = cc_alg.connected_components().size();
+  cc_time = std::chrono::steady_clock::now() - cc_start;
+  insert_time = driver.flush_end - ins_start;
+  flush_time = driver.flush_end - driver.flush_start;
+  cc_alg_time = cc_alg.cc_alg_end - cc_alg.cc_alg_start;
+
+  std::cout << "SECOND QUERY" << std::endl;
+  std::cout << "Total CC query latency:       " << cc_time.count() << std::endl;
+  std::cout << "  Flush Gutters(sec):           " << flush_time.count() << std::endl;
+  std::cout << "  Boruvka's Algorithm(sec):     " << cc_alg_time.count() << std::endl;
+  std::cout << "Connected Components:         " << CC_num << std::endl;
+  std::cout << "Maximum Memory Usage(MiB):    " << get_max_mem_used() << std::endl;
+
 }

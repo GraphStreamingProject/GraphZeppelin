@@ -40,14 +40,5 @@ edge_id_t concat_pairing_fn(node_id_t i, node_id_t j);
  */
 Edge inv_concat_pairing_fn(edge_id_t idx);
 
-/**
- * Configures the system using the configuration file streaming.conf
- * Gets the path prefix where the buffer tree data will be stored and sets
- * with the number of threads used for a variety of tasks.
- * Should be called before creating the buffer tree or starting graph workers.
- * @return a tuple with the following elements
- *   - use_guttertree
- *   - in_memory_backups
- *   - disk_dir
- */
-std::tuple<bool, bool, std::string> configure_system();
+#define likely_if(x) if(__builtin_expect((bool)(x), true))
+#define unlikely_if(x) if (__builtin_expect((bool)(x), false))

@@ -31,9 +31,6 @@ public:
 
   friend std::ostream& operator<< (std::ostream &out, const CCAlgConfiguration &conf);
 
-  // no use of equal operator
-  CCAlgConfiguration& operator=(const CCAlgConfiguration &) = delete;
-
   // moving and copying allowed
   CCAlgConfiguration(const CCAlgConfiguration &oth) = default;
   CCAlgConfiguration (CCAlgConfiguration &&) = default;
