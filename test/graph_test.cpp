@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <fstream>
 
+#include <KEdgeConnect.h>
 #include "cc_sketch_alg.h"
 #include "file_graph_verifier.h"
 #include "graph_gen.h"
@@ -26,6 +27,27 @@
 class GraphTest : public testing::TestWithParam<GutterSystem> {};
 INSTANTIATE_TEST_SUITE_P(GraphTestSuite, GraphTest,
                          testing::Values(GUTTERTREE, STANDALONE, CACHETREE));
+
+/*************************************
+ * TODO: These are not finished -- come back to fix this later
+TEST_P(GraphTest, SmallGraphForestDeletion) {
+    auto driver_config = DriverConfiguration().gutter_sys(GetParam());
+    const std::string fname = __FILE__;
+    size_t pos = fname.find_last_of("\\/");
+    const std::string curr_dir = (std::string::npos == pos) ? "" : fname.substr(0, pos);
+    AsciiFileStream stream{curr_dir + "/res/multiples_graph_1024.txt", false};
+    node_id_t num_nodes = stream.vertices();
+
+    CCSketchAlg cc_alg{num_nodes};
+    cc_alg.set_verifier(
+            std::make_unique<FileGraphVerifier>(1024, curr_dir + "/res/multiples_graph_1024.txt"));
+
+    GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, driver_config);
+    driver.process_stream_until(END_OF_STREAM);
+    driver.prep_query();
+    ASSERT_EQ(78, cc_alg.connected_components().size());
+}
+***********************************************/
 
 TEST_P(GraphTest, SmallGraphConnectivity) {
   auto driver_config = DriverConfiguration().gutter_sys(GetParam());

@@ -60,10 +60,8 @@ bool KEdgeConnect::has_cached_query() {
 void KEdgeConnect::print_configuration() { cc_alg[0]->print_configuration(); }
 
 void KEdgeConnect::query() {
-    std::vector<std::vector<std::pair<node_id_t, std::vector<node_id_t>>>> forests_collection;
     GraphUpdate temp_edge;
     temp_edge.type = DELETE;
-
 
     std::vector<std::pair<node_id_t, std::vector<node_id_t>>> temp_forest;
     for(unsigned int i=0;i<num_forest-1;i++) {

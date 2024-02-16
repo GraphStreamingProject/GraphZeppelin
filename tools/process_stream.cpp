@@ -3,6 +3,7 @@
 #include <KEdgeConnect.h>
 #include <graph_sketch_driver.h>
 #include <sys/resource.h>  // for rusage
+#include <test/mat_graph_verifier.h>
 
 #include <thread>
 
@@ -159,7 +160,7 @@ int main(int argc, char **argv) {
   unsigned int num_edge_connect = 5;
 
   BinaryFileStream stream(stream_file);
-  BinaryFileStream stream2(stream_file);
+  BinaryFileStream stream_ref(stream_file);
   node_id_t num_nodes = stream.vertices();
   size_t num_updates = stream.edges();
   std::cout << "Processing stream: " << stream_file << std::endl;
@@ -176,7 +177,6 @@ int main(int argc, char **argv) {
 
   KEdgeConnect k_edge_alg{num_nodes, num_edge_connect, config_vec};
 
-  // The plan is to use the constructor as follows.
   GraphSketchDriver<KEdgeConnect> driver{&k_edge_alg, &stream, driver_config, reader_threads};
 
   auto ins_start = std::chrono::steady_clock::now();
@@ -187,6 +187,52 @@ int main(int argc, char **argv) {
   auto cc_start = std::chrono::steady_clock::now();
   driver.prep_query();
   k_edge_alg.query();
+
+
+  size_t m = stream_ref.edges();
+  // test the edges in the spanning forest are in the original graph
+  std::vector<std::vector<bool>> adj_mat(num_nodes);
+  for (node_id_t i = 0; i < num_nodes; i++) adj_mat[i] = std::vector<bool>(num_nodes - i);
+  while (m--) {
+    GraphStreamUpdate upd;
+    stream_ref.get_update_buffer(&upd, 1);
+    node_id_t src = upd.edge.src;
+    node_id_t dst = upd.edge.dst;
+    if (src > dst) std::swap(src, dst);
+    dst = dst - src;
+    adj_mat[src][dst] = !adj_mat[src][dst];
+  }
+
+  MatGraphVerifier kEdgeVerifier(num_nodes, adj_mat);
+
+  std::vector<std::vector<bool>> test_adj_mat(num_nodes);
+  test_adj_mat =  kEdgeVerifier.extract_adj_matrix();
+
+  std::cout << "The adjacency list of the vertex 0 in the beginning: " << std::endl;
+  for(unsigned int i=0;i<num_nodes; i++){
+      std::cout << test_adj_mat[0][i] << "  ";
+  }
+  std::cout << std::endl;
+
+  Edge temp_edge;
+  std::vector<std::pair<node_id_t, std::vector<node_id_t>>> temp_forest;
+  for(unsigned int i=0;i<num_edge_connect;i++) {
+      temp_forest = k_edge_alg.forests_collection[i];
+      for (unsigned int j = 0; j < temp_forest.size(); j++) {
+            for (auto dst: temp_forest[j].second) {
+                temp_edge.src = temp_forest[j].first;
+                temp_edge.dst = dst;
+                kEdgeVerifier.verify_edge(temp_edge);
+                kEdgeVerifier.edge_update(temp_edge.src, temp_edge.dst);
+            }
+      }
+      test_adj_mat =  kEdgeVerifier.extract_adj_matrix();
+      std::cout << "The adjacency list of the vertex 0 after " << (i+1) << "spanning forests: " << std::endl;
+      for(unsigned int l=0; l<num_nodes; l++) {
+          std::cout << test_adj_mat[0][l] << "  ";
+      }
+      std::cout << std::endl;
+  }
 
   unsigned long CC_nums[num_edge_connect];
   for(unsigned int i=0;i<num_edge_connect;i++){

@@ -26,6 +26,7 @@ public:
     const node_id_t num_nodes;
     const unsigned int num_forest;
     std::vector<std::unique_ptr<CCSketchAlg>> cc_alg;
+    std::vector<std::vector<std::pair<node_id_t, std::vector<node_id_t>>>> forests_collection;
 
     explicit KEdgeConnect(node_id_t num_nodes, unsigned int num_forest, const std::vector<CCAlgConfiguration> &config_vec);
     ~KEdgeConnect();

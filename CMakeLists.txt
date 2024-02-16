@@ -107,7 +107,12 @@ add_library(GraphZeppelin
   src/sketch.cpp
   src/util.cpp
         src/KEdgeConnect.cpp
-        include/KEdgeConnect.h)
+        include/KEdgeConnect.h
+        include/test/graph_verifier.h
+        include/test/mat_graph_verifier.h
+        test/util/graph_verifier_test.cpp
+        test/util/mat_graph_verifier.cpp
+)
 add_dependencies(GraphZeppelin GutterTree)
 target_link_libraries(GraphZeppelin PUBLIC xxhash GutterTree)
 target_include_directories(GraphZeppelin PUBLIC include/)
