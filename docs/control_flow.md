@@ -9,7 +9,9 @@ The driver pulls information from the graph sketch algorithm and tells the algor
 flowchart TD
     A[User] -->|2. Construct| B[GraphSketchDriver]
     A -->|1. Construct| C
-    B -->|3. get_num_vertices\n4. get_desired_update_batch\n5. allocate_worker_memory\n6. print_configuration| C[Sketch Algorithm]
+    B -->|3. get_num_vertices\n4. get_desired_update_batch\n5. allocate_worker_memory\n8. print_configuration| C[Sketch Algorithm]
+    B -->|6. Construct| D[GutteringSystem]
+    B -->|7. Construct| E[WorkerThreadGroup]
 ```
 
 ### Stream Processing
