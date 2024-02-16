@@ -73,7 +73,7 @@ See our [StreamingUtilities](https://github.com/GraphStreamingProject/StreamingU
 
 
 ## GraphSketchDriver
-The `GraphSketchDriver` is responsible for managing the flow of data through the various components of our system. It is templatized by the specific sketch algorithm one is running. If using GraphZeppelin on a single machine, we recommend using the `GraphSketchDriver` for any vertex-based sketch algorithm. When implementing a new algorithm, the class must provide an interface to the driver. This interface is described at the top of `include/graph_sketch_driver.h` and is depicted in the Data Flow Documentation.
+The `GraphSketchDriver` is responsible for managing the flow of data through the various components of our system. It is templatized by the specific sketch algorithm one is running. If using GraphZeppelin on a single machine, we recommend using the `GraphSketchDriver` for any vertex-based sketch algorithm. When implementing a new algorithm, the class must provide an interface to the driver. This interface is described at the top of `include/graph_sketch_driver.h` and is visualized in our [Control Flow Documentation](/docs/control_flow.md).
 
 ## GutteringSystems
 To achieve high update throughput, GraphZeppelin buffers updates in what we call a GutteringSystem. Choosing the correct GutteringSystem is important for performance. If you expect storage to include on disk data-structures, choose the `GutterTree`. Otherwise, choose the `CacheTree`.
