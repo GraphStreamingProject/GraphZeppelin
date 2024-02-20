@@ -110,7 +110,8 @@ set(BUILD_SHARED_LIBS "${SAVED_BUILD_SHARED_LIBS}" CACHE BOOL "" FORCE)
 add_library(CUDALibrary
   src/cuda_library.cu
   src/cuda_kernel.cu
-  src/cc_gpu_sketch_alg.cpp)
+  src/cc_gpu_sketch_alg.cpp
+  src/mc_gpu_sketch_alg.cpp)
 add_dependencies(CUDALibrary GutterTree)
 target_link_libraries(CUDALibrary PUBLIC xxhash GutterTree)
 target_include_directories(CUDALibrary PUBLIC include/)
@@ -119,9 +120,11 @@ target_compile_options(CUDALibrary PUBLIC -lineinfo) # -lineinfo: For profiling
 
 add_library(GraphZeppelin
   src/cc_sketch_alg.cpp
+  src/mc_sketch_alg.cpp
   src/return_types.cpp
   src/driver_configuration.cpp
   src/cc_alg_configuration.cpp
+  src/mc_alg_configuration.cpp
   src/sketch.cpp
   src/util.cpp)
 add_dependencies(GraphZeppelin GutterTree)
@@ -130,21 +133,6 @@ target_include_directories(GraphZeppelin PUBLIC include/)
 target_compile_options(GraphZeppelin PUBLIC -fopenmp)
 target_link_options(GraphZeppelin PUBLIC -fopenmp)
 target_compile_definitions(GraphZeppelin PUBLIC XXH_INLINE_ALL)
-
-add_library(GraphZeppelinMinCut
-  src/cuda_kernel.cu
-  src/cc_sketch_alg.cpp
-  src/return_types.cpp
-  src/driver_configuration.cpp
-  src/cc_alg_configuration.cpp
-  src/sketch.cpp
-  src/util.cpp)
-add_dependencies(GraphZeppelinMinCut GutterTree)
-target_link_libraries(GraphZeppelinMinCut PUBLIC xxhash GutterTree)
-target_include_directories(GraphZeppelinMinCut PUBLIC include/)
-target_compile_options(GraphZeppelinMinCut PUBLIC -fopenmp)
-target_link_options(GraphZeppelinMinCut PUBLIC -fopenmp)
-target_compile_definitions(GraphZeppelinMinCut PUBLIC XXH_INLINE_ALL)
 
 add_library(GraphZeppelinVerifyCC
   src/cc_sketch_alg.cpp
@@ -216,10 +204,9 @@ if (BUILD_EXE)
     tools/cuda_process_stream.cu)
   target_link_libraries(cuda_process_stream PRIVATE GraphZeppelin CUDALibrary)
 
-  # Note: Focus on CC, comment out executable for min_cut
-  #add_executable(min_cut
-  #  tools/min_cut.cu)
-  #target_link_libraries(min_cut PRIVATE GraphZeppelinMinCut)
+  add_executable(min_cut
+    tools/min_cut.cu)
+  target_link_libraries(min_cut PRIVATE GraphZeppelin CUDALibrary)
 
   add_executable(generate_stream
     tools/stream_generators/non_trivial_stream_generator.cpp
