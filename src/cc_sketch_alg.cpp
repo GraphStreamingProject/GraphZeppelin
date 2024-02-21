@@ -14,10 +14,7 @@ CCSketchAlg::CCSketchAlg(node_id_t num_vertices, size_t seed, CCAlgConfiguration
   sketches = new Sketch *[num_vertices];
 
   vec_t sketch_vec_len = Sketch::calc_vector_length(num_vertices);
-  size_t sketch_num_samples = Sketch::calc_cc_samples(num_vertices) * config.get_sketch_factor();
-
-  std::cout << "sketch vector length = " << sketch_vec_len << std::endl;
-  std::cout << "sketch samples = " << sketch_num_samples << std::endl;
+  size_t sketch_num_samples = Sketch::calc_cc_samples(num_vertices, config.get_sketches_factor());
 
   for (node_id_t i = 0; i < num_vertices; ++i) {
     representatives->insert(i);
@@ -52,7 +49,8 @@ CCSketchAlg::CCSketchAlg(node_id_t num_vertices, size_t seed, std::ifstream &bin
   sketches = new Sketch *[num_vertices];
 
   vec_t sketch_vec_len = Sketch::calc_vector_length(num_vertices);
-  size_t sketch_num_samples = Sketch::calc_cc_samples(num_vertices) * config.get_sketch_factor();
+  size_t sketch_num_samples = Sketch::calc_cc_samples(num_vertices, config.get_sketches_factor());
+
   for (node_id_t i = 0; i < num_vertices; ++i) {
     representatives->insert(i);
     sketches[i] = new Sketch(sketch_vec_len, seed, binary_stream, sketch_num_samples);
@@ -263,7 +261,7 @@ bool CCSketchAlg::perform_boruvka_round(const size_t cur_round,
   {
     // some thread local variables
     Sketch local_sketch(Sketch::calc_vector_length(num_vertices), seed,
-                        Sketch::calc_cc_samples(num_vertices));
+                        Sketch::calc_cc_samples(num_vertices, config.get_sketches_factor()));
 
     size_t thr_id = omp_get_thread_num();
     size_t num_threads = omp_get_num_threads();
@@ -475,7 +473,7 @@ void CCSketchAlg::boruvka_emulation() {
   std::vector<GlobalMergeData> global_merges;
   global_merges.reserve(num_threads);
   for (size_t i = 0; i < num_threads; i++) {
-    global_merges.emplace_back(num_vertices, seed);
+    global_merges.emplace_back(num_vertices, seed, config.get_sketches_factor());
   }
 
   dsu.reset();
