@@ -4,6 +4,7 @@
 #include <graph_sketch_driver.h>
 #include <sys/resource.h>  // for rusage
 #include <test/mat_graph_verifier.h>
+#include <map>
 
 #include <thread>
 
@@ -218,6 +219,27 @@ int main(int argc, char **argv) {
   std::vector<std::pair<node_id_t, std::vector<node_id_t>>> temp_forest;
   for(unsigned int i=0;i<num_edge_connect;i++) {
       temp_forest = k_edge_alg.forests_collection[i];
+      // Test the maximality of the connected components
+      DisjointSetUnion<node_id_t> kruskal_dsu(num_nodes);
+      std::vector<std::set<node_id_t>> temp_retval;
+      for (unsigned int l = 0; l < temp_forest.size(); l++) {
+          for (unsigned int j = 0; j < temp_forest[l].second.size(); j++) {
+              kruskal_dsu.merge(temp_forest[l].first, temp_forest[l].second[j]);
+          }
+      }
+      std::map<node_id_t, std::set<node_id_t>> temp_map;
+      for (unsigned l = 0; l < num_nodes; ++l) {
+          temp_map[kruskal_dsu.find_root(l)].insert(l);
+      }
+      temp_retval.reserve(temp_map.size());
+      for (const auto& entry : temp_map) {
+          temp_retval.push_back(entry.second);
+      }
+      std::cout<< std::endl;
+      kEdgeVerifier.reset_cc_state();
+      kEdgeVerifier.verify_soln(temp_retval);
+      // End of the test of CC maximality
+      // start of the test of CC edge existence
       for (unsigned int j = 0; j < temp_forest.size(); j++) {
             for (auto dst: temp_forest[j].second) {
                 temp_edge.src = temp_forest[j].first;
