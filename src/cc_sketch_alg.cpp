@@ -14,7 +14,11 @@ CCSketchAlg::CCSketchAlg(node_id_t num_vertices, size_t seed, CCAlgConfiguration
   sketches = new Sketch *[num_vertices];
 
   vec_t sketch_vec_len = Sketch::calc_vector_length(num_vertices);
-  size_t sketch_num_samples = Sketch::calc_cc_samples(num_vertices);
+  size_t sketch_num_samples = Sketch::calc_cc_samples(num_vertices) * config.get_sketch_factor();
+
+  std::cout << "sketch vector length = " << sketch_vec_len << std::endl;
+  std::cout << "sketch samples = " << sketch_num_samples << std::endl;
+
   for (node_id_t i = 0; i < num_vertices; ++i) {
     representatives->insert(i);
     sketches[i] = new Sketch(sketch_vec_len, seed, sketch_num_samples);
@@ -48,7 +52,7 @@ CCSketchAlg::CCSketchAlg(node_id_t num_vertices, size_t seed, std::ifstream &bin
   sketches = new Sketch *[num_vertices];
 
   vec_t sketch_vec_len = Sketch::calc_vector_length(num_vertices);
-  size_t sketch_num_samples = Sketch::calc_cc_samples(num_vertices);
+  size_t sketch_num_samples = Sketch::calc_cc_samples(num_vertices) * config.get_sketch_factor();
   for (node_id_t i = 0; i < num_vertices; ++i) {
     representatives->insert(i);
     sketches[i] = new Sketch(sketch_vec_len, seed, binary_stream, sketch_num_samples);
@@ -227,6 +231,7 @@ inline bool CCSketchAlg::run_round_zero() {
       if (sample_supernode(*sketches[i]) && !modified) modified = true;
     } catch (...) {
       except = true;
+#pragma omp critical
       err = std::current_exception();
     }
   }
@@ -266,6 +271,8 @@ bool CCSketchAlg::perform_boruvka_round(const size_t cur_round,
     node_id_t start = partition.first;
     node_id_t end = partition.second;
     assert(start <= end);
+    bool local_except = false;
+    std::exception_ptr local_err;
 
     // node_id_t left_root = merge_instr[start].root;
     // node_id_t right_root = merge_instr[end - 1].root;
@@ -298,8 +305,8 @@ bool CCSketchAlg::perform_boruvka_round(const size_t cur_round,
               // num_query += 1;
               if (sample_supernode(global_merges[thr_id].sketch) && !modified) modified = true;
             } catch (...) {
-              except = true;
-              err = std::current_exception();
+              local_except = true;
+              local_err = std::current_exception();
             }
           }
 
@@ -312,8 +319,8 @@ bool CCSketchAlg::perform_boruvka_round(const size_t cur_round,
             // num_query += 1;
             if (sample_supernode(local_sketch) && !modified) modified = true;
           } catch (...) {
-            except = true;
-            err = std::current_exception();
+            local_except = true;
+            local_err = std::current_exception();
           }
         }
 
@@ -343,8 +350,8 @@ bool CCSketchAlg::perform_boruvka_round(const size_t cur_round,
           // num_query += 1;
           if (sample_supernode(global_merges[global_id].sketch) && !modified) modified = true;
         } catch (...) {
-          except = true;
-          err = std::current_exception();
+          local_except = true;
+          local_err = std::current_exception();
         }
       }
     } else {
@@ -354,9 +361,14 @@ bool CCSketchAlg::perform_boruvka_round(const size_t cur_round,
         // num_query += 1;
         if (sample_supernode(local_sketch) && !modified) modified = true;
       } catch (...) {
-        except = true;
-        err = std::current_exception();
+        local_except = true;
+        local_err = std::current_exception();
       }
+    }
+    if (local_except) {
+#pragma omp critical
+      err = local_err;
+      except = true;
     }
   }
 
