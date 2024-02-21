@@ -144,6 +144,22 @@ class GraphSketchDriver {
     flush_end = std::chrono::steady_clock::now();
   }
 
+  void force_flush() {
+    gts->force_flush();
+    worker_threads->flush_workers();  
+  }
+
+  void trim_spanning_forest(std::vector<Edge> edges) {
+    worker_threads->resume_workers();
+
+    // Note: For now, have one thread inserts to gts
+    // If this becomes bottleneck, implement parallel version
+    for (auto edge : edges) {
+      gts->insert({edge.src, edge.dst}, 0);
+      gts->insert({edge.dst, edge.src}, 0);
+    }
+  }
+
   inline void batch_callback(int thr_id, node_id_t src_vertex,
                              const std::vector<node_id_t> &dst_vertices) {
     total_updates += dst_vertices.size();

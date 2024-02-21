@@ -124,7 +124,6 @@ add_library(GraphZeppelin
   src/return_types.cpp
   src/driver_configuration.cpp
   src/cc_alg_configuration.cpp
-  src/mc_alg_configuration.cpp
   src/sketch.cpp
   src/util.cpp)
 add_dependencies(GraphZeppelin GutterTree)

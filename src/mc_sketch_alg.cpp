@@ -8,7 +8,7 @@
 #include <omp.h>
 #include <unordered_map>
 
-MCSketchAlg::MCSketchAlg(node_id_t num_vertices, size_t seed, MCAlgConfiguration config)
+MCSketchAlg::MCSketchAlg(node_id_t num_vertices, size_t seed, CCAlgConfiguration config)
     : num_vertices(num_vertices), seed(seed), dsu(num_vertices), config(config) {
   representatives = new std::set<node_id_t>();
   size_t total_num_sketches = num_vertices * config.get_sketch_factor();
@@ -31,7 +31,7 @@ MCSketchAlg::MCSketchAlg(node_id_t num_vertices, size_t seed, MCAlgConfiguration
 
 // Note: Not being used currently
 MCSketchAlg *MCSketchAlg::construct_from_serialized_data(const std::string &input_file,
-                                                        MCAlgConfiguration config) {
+                                                        CCAlgConfiguration config) {
   double sketches_factor;
   auto binary_in = std::ifstream(input_file, std::ios::binary);
   size_t seed;
@@ -47,7 +47,7 @@ MCSketchAlg *MCSketchAlg::construct_from_serialized_data(const std::string &inpu
 
 // Note: Not being used currently
 MCSketchAlg::MCSketchAlg(node_id_t num_vertices, size_t seed, std::ifstream &binary_stream,
-                         MCAlgConfiguration config)
+                         CCAlgConfiguration config)
     : num_vertices(num_vertices), seed(seed), dsu(num_vertices), config(config) {
   representatives = new std::set<node_id_t>();
   sketches = new Sketch *[num_vertices];
@@ -67,7 +67,7 @@ MCSketchAlg::MCSketchAlg(node_id_t num_vertices, size_t seed, std::ifstream &bin
 }
 
 MCSketchAlg::~MCSketchAlg() {
-  for (size_t i = 0; i < num_vertices; ++i) delete sketches[i];
+  for (size_t i = 0; i < num_vertices * config.get_sketch_factor(); ++i) delete sketches[i];
   delete[] sketches;
   if (delta_sketches != nullptr) {
     for (size_t i = 0; i < num_delta_sketches; i++) delete delta_sketches[i];
@@ -243,6 +243,28 @@ inline bool MCSketchAlg::run_round_zero() {
   return modified;
 }
 
+inline bool MCSketchAlg::run_k_round_zero(int graph_id, int k_id, int k) {
+  bool modified = false;
+  bool except = false;
+  std::exception_ptr err;
+#pragma omp parallel for
+  for (node_id_t i = 0; i < num_vertices; i++) {
+    try {
+      // num_query += 1;
+      if (sample_supernode(*sketches[(graph_id * num_vertices * k) + (i * k) + k_id]) && !modified) modified = true;
+    } catch (...) {
+      except = true;
+      err = std::current_exception();
+    }
+  }
+  if (except) {
+    // if one of our threads produced an exception throw it here
+    std::rethrow_exception(err);
+  }
+
+  return modified;
+}
+
 bool MCSketchAlg::perform_boruvka_round(const size_t cur_round,
                                         const std::vector<MergeInstr> &merge_instr,
                                         std::vector<GlobalMergeData> &global_merges) {
@@ -366,6 +388,122 @@ bool MCSketchAlg::perform_boruvka_round(const size_t cur_round,
   }
 
   // std::cout << "Number of roots queried = " << num_query << std::endl;
+
+  if (except) {
+    // if one of our threads produced an exception throw it here
+    std::rethrow_exception(err);
+  }
+
+  return modified;
+}
+
+bool MCSketchAlg::perform_k_boruvka_round(const size_t cur_round,
+                                        const std::vector<MergeInstr> &merge_instr,
+                                        std::vector<GlobalMergeData> &global_merges,
+                                        int graph_id,
+                                        int k_id,
+                                        int k) {
+  if (cur_round == 0) {
+    return run_k_round_zero(graph_id, k_id, k);
+  }
+
+  bool modified = false;
+  bool except = false;
+  std::exception_ptr err;
+  for (size_t i = 0; i < global_merges.size(); i++) {
+    global_merges[i].sketch.zero_contents();
+    global_merges[i].num_merge_needed = -1;
+    global_merges[i].num_merge_done = 0;
+  }
+
+#pragma omp parallel default(shared)
+  {
+    // some thread local variables
+    Sketch local_sketch(Sketch::calc_vector_length(num_vertices), seed,
+                        Sketch::calc_cc_samples(num_vertices));
+
+    size_t thr_id = omp_get_thread_num();
+    size_t num_threads = omp_get_num_threads();
+    std::pair<node_id_t, node_id_t> partition = get_ith_partition(num_vertices, thr_id, num_threads);
+    node_id_t start = partition.first;
+    node_id_t end = partition.second;
+    assert(start <= end);
+
+    bool root_from_left = false;
+    if (start > 0) {
+      root_from_left = merge_instr[start - 1].root == merge_instr[start].root;
+    }
+    bool root_exits_right = false;
+    if (end < num_vertices) {
+      root_exits_right = merge_instr[end - 1].root == merge_instr[end].root;
+    }
+
+    node_id_t cur_root = merge_instr[start].root;
+
+    for (node_id_t i = start; i < end; i++) {
+      node_id_t root = merge_instr[i].root;
+      node_id_t child = merge_instr[i].child;
+
+      if (root != cur_root) {
+        if (root_from_left) {
+          // we hold the global for this merge
+          bool query_ready = merge_global(cur_round, local_sketch, global_merges[thr_id]);
+          if (query_ready) {
+            try {
+              if (sample_supernode(global_merges[thr_id].sketch) && !modified) modified = true;
+            } catch (...) {
+              except = true;
+              err = std::current_exception();
+            }
+          }
+
+          // set root_from_left to false
+          root_from_left = false;
+        } else {
+          // This is an entirely local computation
+          try {
+            if (sample_supernode(local_sketch) && !modified) modified = true;
+          } catch (...) {
+            except = true;
+            err = std::current_exception();
+          }
+        }
+
+        cur_root = root;
+        local_sketch.zero_contents();
+      }
+
+      local_sketch.range_merge(*sketches[(graph_id * num_vertices * k) + (child * k) + k_id], cur_round, 1);
+    }
+
+    if (root_exits_right || root_from_left) {
+      // global merge where we may or may not own it
+      size_t global_id = find_last_partition_of_root(merge_instr, cur_root, start, num_threads);
+      if (!root_from_left) {
+        // Resolved root_from_left, so we are the first thread to encounter this root
+        // set the number of threads that will merge into this component
+        std::unique_lock<std::mutex> lk(global_merges[global_id].mtx);
+        global_merges[global_id].num_merge_needed = global_id - thr_id + 1;
+      }
+      bool query_ready = merge_global(cur_round, local_sketch, global_merges[global_id]);
+      if (query_ready) {
+        try {
+          if (sample_supernode(global_merges[global_id].sketch) && !modified) modified = true;
+        } catch (...) {
+          except = true;
+          err = std::current_exception();
+        }
+      }
+    } else {
+      // This is an entirely local computation
+      try {
+        if (sample_supernode(local_sketch) && !modified) modified = true;
+      } catch (...) {
+        except = true;
+        err = std::current_exception();
+      }
+    }
+  }
 
   if (except) {
     // if one of our threads produced an exception throw it here
@@ -508,6 +646,41 @@ void MCSketchAlg::boruvka_emulation() {
   update_locked = false;
 }
 
+void MCSketchAlg::k_boruvka_emulation(int graph_id, int k_id, int k) {
+  update_locked = true;
+
+  std::vector<MergeInstr> merge_instr(num_vertices);
+
+  size_t num_threads = omp_get_max_threads();
+  std::vector<GlobalMergeData> global_merges;
+  global_merges.reserve(num_threads);
+  for (size_t i = 0; i < num_threads; i++) {
+    global_merges.emplace_back(num_vertices, seed);
+  }
+
+  dsu.reset();
+  for (node_id_t i = 0; i < num_vertices; ++i) {
+    merge_instr[i] = {i, i};
+    spanning_forest[i].clear();
+  }
+  size_t round_num = 0;
+  bool modified = true;
+
+  while (true) {
+    modified = perform_k_boruvka_round(round_num, merge_instr, global_merges, graph_id, k_id, k);
+
+    if (!modified) break;
+
+    create_merge_instructions(merge_instr);
+    ++round_num;
+  }
+  last_query_rounds = round_num;
+
+  dsu_valid = true;
+  shared_dsu_valid = true;
+  update_locked = false;
+}
+
 ConnectedComponents MCSketchAlg::connected_components() {
   cc_alg_start = std::chrono::steady_clock::now();
 
@@ -556,6 +729,31 @@ ConnectedComponents MCSketchAlg::connected_components() {
 SpanningForest MCSketchAlg::calc_spanning_forest() {
   // TODO: Could probably optimize this a bit by writing new code
   connected_components();
+
+  return SpanningForest(num_vertices, spanning_forest);
+}
+
+SpanningForest MCSketchAlg::get_k_spanning_forest(int graph_id, int k_id, int k) {
+  bool except = false;
+  std::exception_ptr err;
+  try {
+    k_boruvka_emulation(graph_id, k_id, k);
+  } catch (...) {
+    except = true;
+    err = std::current_exception();
+  }
+
+  ConnectedComponents cc(num_vertices, dsu);
+
+  // Note: Get num_cc for spanning forest
+  std::cout << "    round = " << last_query_rounds << " cc size = " << cc.size() << "\n";
+
+  // get ready for ingesting more from the stream by resetting the sketches sample state
+  for (node_id_t i = 0; i < num_vertices * config.get_sketch_factor(); i++) {
+    sketches[i]->reset_sample_state();
+  }
+
+  if (except) std::rethrow_exception(err);
 
   return SpanningForest(num_vertices, spanning_forest);
 }

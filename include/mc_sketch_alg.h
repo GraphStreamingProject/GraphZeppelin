@@ -12,7 +12,7 @@
 #include <memory>
 #include <cassert>
 
-#include "mc_alg_configuration.h"
+#include "cc_alg_configuration.h"
 #include "return_types.h"
 #include "sketch.h"
 #include "dsu.h"
@@ -91,6 +91,9 @@ class MCSketchAlg {
    */
   bool run_round_zero();
 
+  // run_round_zero for k connectivitiy
+  bool run_k_round_zero(int graph_id, int k_id, int k);
+
   /**
    * Update the query array with new samples
    * @param query  an array of sketch sample results
@@ -111,27 +114,34 @@ class MCSketchAlg {
   bool perform_boruvka_round(const size_t cur_round, const std::vector<MergeInstr> &merge_instr,
                              std::vector<GlobalMergeData> &global_merges);
 
+  // Boruvka round for k connectivitiy
+  bool perform_k_boruvka_round(const size_t cur_round, const std::vector<MergeInstr> &merge_instr,
+                             std::vector<GlobalMergeData> &global_merges, int graph_id, int k_id, int k);
+
   /**
    * Main parallel algorithm utilizing Boruvka and L_0 sampling.
    * Ensures that the DSU represents the Connected Components of the stream when called
    */
   void boruvka_emulation();
 
+  // Boruvka algorithm for k connectivitiy
+  void k_boruvka_emulation(int graph_id, int k_id, int k);
+
   FRIEND_TEST(GraphTestSuite, TestCorrectnessOfReheating);
 
-  MCAlgConfiguration config;
+  CCAlgConfiguration config;
 
   // constructor for use when reading from a serialized file
   MCSketchAlg(node_id_t num_vertices, size_t seed, std::ifstream &binary_stream,
-              MCAlgConfiguration config);
+              CCAlgConfiguration config);
 
  public:
-  MCSketchAlg(node_id_t num_vertices, size_t seed, MCAlgConfiguration config = MCAlgConfiguration());
+  MCSketchAlg(node_id_t num_vertices, size_t seed, CCAlgConfiguration config = CCAlgConfiguration());
   ~MCSketchAlg();
 
   // construct a MC algorithm from a serialized file
   static MCSketchAlg * construct_from_serialized_data(
-      const std::string &input_file, MCAlgConfiguration config = MCAlgConfiguration());
+      const std::string &input_file, CCAlgConfiguration config = CCAlgConfiguration());
 
   /**
    * Returns the number of buffered updates we would like to have in the update batches
@@ -219,6 +229,8 @@ class MCSketchAlg {
    * @return an adjacency list representation of the spanning forest of the graph
    */
   SpanningForest calc_spanning_forest();
+
+  SpanningForest get_k_spanning_forest(int graph_id, int k_id, int k);
 
 #ifdef VERIFY_SAMPLES_F
   std::unique_ptr<GraphVerifier> verifier;

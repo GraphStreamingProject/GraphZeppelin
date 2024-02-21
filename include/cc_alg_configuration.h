@@ -15,6 +15,7 @@ private:
   double _batch_factor = 1;
 
   friend class CCSketchAlg;
+  friend class MCSketchAlg;
 
 public:
   CCAlgConfiguration() {};

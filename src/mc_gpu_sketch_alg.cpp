@@ -70,17 +70,19 @@ void MCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
   for (vec_t i = 0; i < dst_vertices.size(); i++) {
     // Determine the depth of current edge
     vec_t edge_id = static_cast<vec_t>(concat_pairing_fn(src_vertex, dst_vertices[i]));
-    //int depth = Bucket_Boruvka::get_index_depth(edge_id, 0, num_graphs);
-    int depth = 1;
+    int depth = Bucket_Boruvka::get_index_depth(edge_id, 0, num_graphs-1);
     max_depth = std::max(depth, max_depth);
 
-    for (int graph_id = 0; graph_id < depth; graph_id++) {
+    for (int graph_id = 0; graph_id <= depth; graph_id++) {
       if (graph_id >= num_sketch_graphs) { // Add to adj list graphs
-        std::unique_lock<std::mutex> adjlist_lk(adjlists_mutexes[graph_id]);
-        if (adjlists[graph_id].list.find(src_vertex) == adjlists[graph_id].list.end()) {
-          adjlists[graph_id].list[src_vertex] = std::vector<node_id_t>();
+        int adjlist_id = graph_id - num_sketch_graphs;
+
+        std::unique_lock<std::mutex> adjlist_lk(adjlists_mutexes[adjlist_id]);
+        if (adjlists[adjlist_id].list.find(src_vertex) == adjlists[adjlist_id].list.end()) {
+          adjlists[adjlist_id].list[src_vertex] = std::vector<node_id_t>();
         }
-        adjlists[graph_id].list[src_vertex].push_back(dst_vertices[i]);
+        adjlists[adjlist_id].list[src_vertex].push_back(dst_vertices[i]);
+        adjlists[adjlist_id].num_updates++;
         adjlist_lk.unlock();
       }
       else {
@@ -91,10 +93,7 @@ void MCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
     } 
   }   
 
-  // max_depth cannot exceed num_sketch_graphs
-  max_depth = std::min(num_sketch_graphs, max_depth); 
-
-  streams[stream_id].num_graphs = max_depth;
+  streams[stream_id].num_graphs = std::min(num_sketch_graphs, (max_depth + 1));
   streams[stream_id].src_vertex = src_vertex;
   streams[stream_id].delta_applied = 0;
 
@@ -149,4 +148,22 @@ void MCGPUSketchAlg::apply_flush_updates() {
       streams[stream_id].num_graphs = -1;
     }
   }
+}
+
+std::vector<Edge> MCGPUSketchAlg::get_adjlist_spanning_forests(int graph_id) {
+  AdjList adjlist = adjlists[graph_id];
+  std::vector<Edge> forests;
+  for (int k_id = 0; k_id < k; k_id++) {
+    for (node_id_t node_id = 0; node_id < num_nodes; node_id++) {
+      if (adjlist.list.find(node_id) == adjlist.list.end()) { // Doesn't exist, skip
+        continue;
+      }
+
+      if (adjlist.list[node_id].size() != 0) {
+        forests.push_back({node_id, adjlist.list[node_id].back()});
+        adjlist.list[node_id].pop_back();
+      }
+    }
+  }
+  return forests;
 }

@@ -22,6 +22,7 @@ struct AdjList {
   // Id: source vertex
   // Content: vector of dst vertices
   std::map<node_id_t, std::vector<node_id_t>> list;
+  size_t num_updates;
 };
 
 class MCGPUSketchAlg : public MCSketchAlg{
@@ -72,7 +73,7 @@ private:
   std::vector<CudaStream> streams;
 
 public:
-  MCGPUSketchAlg(node_id_t num_vertices, size_t num_updates, int num_threads, size_t seed, SketchParams sketchParams, int _num_graphs, int _num_sketch_graphs, int _k, MCAlgConfiguration config = MCAlgConfiguration()) : MCSketchAlg(num_vertices, seed, config){ 
+  MCGPUSketchAlg(node_id_t num_vertices, size_t num_updates, int num_threads, size_t seed, SketchParams sketchParams, int _num_graphs, int _num_sketch_graphs, int _k, CCAlgConfiguration config = CCAlgConfiguration()) : MCSketchAlg(num_vertices, seed, config){ 
 
     // Start timer for initializing
     auto init_start = std::chrono::steady_clock::now();
@@ -100,6 +101,7 @@ public:
     // Initialize adj. list subgraphs 
     for (int i = 0; i < num_graphs - num_sketch_graphs; i++) {
       AdjList adjlist;
+      adjlist.num_updates = 0;
       adjlists.push_back(adjlist);   
     }
 
@@ -155,4 +157,18 @@ public:
 
   // Update with the delta sketches that haven't been applied yet.
   void apply_flush_updates();
+
+  void print_subgraph_edges() {
+    std::cout << "Number of inserted updates for each subgraph:\n";
+    std::cout << "  Sketch Graphs:\n";
+    for (int graph_id = 0; graph_id < num_sketch_graphs; graph_id++) {
+      std::cout << "  S" << graph_id << ": " << sketch_num_edges[graph_id] << "\n";
+    }
+    std::cout << "  Adj. list Graphs:\n";
+    for (int graph_id = 0; graph_id < num_graphs - num_sketch_graphs; graph_id++) {
+      std::cout << "  S" << graph_id << ": " << adjlists[graph_id].num_updates << "\n";
+    }
+  }
+
+  std::vector<Edge> get_adjlist_spanning_forests(int graph_id);
 };
