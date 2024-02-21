@@ -172,10 +172,10 @@ class Sketch {
 #ifdef L0_SAMPLING
   static constexpr size_t default_cols_per_sample = 7;
   // NOTE: can improve this but leaving for comparison purposes
-  static constexpr double num_samples_div = log2(3) - 1;
+  static constexpr double num_samples_div = 0.5849625007211561; // log2(3) - 1
 #else
   static constexpr size_t default_cols_per_sample = 1;
-  static constexpr double num_samples_div = 1 - log2(2 - 0.8);
+  static constexpr double num_samples_div = 0.7369655941662062; // 1 - log2(2 - 0.8)
 #endif
 };
 
