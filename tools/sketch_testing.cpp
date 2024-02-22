@@ -6,7 +6,31 @@
 #include "sketch.h"
 #include "cc_alg_configuration.h"
 
+/*
+
+  The purpose of this file is to test the probability that a sketch column returns a nonzero
+  That is, for a number of nonzeroes z, how what's the probability of success?  
+
+  We model this as a binomial process for the sake of confidence intervals / stddev.
+  
+  Originally, this code inserted z random elements into a sketch then queried it.
+
+  As a first speed optimization (that didn't appear to change outcome) (xxHash works well) 
+  We replaced random insertion with sequential inserted.
+
+  As a second speed optimization, we queried the sketch after every update. 
+  That is, instead of O(z^2) insertions per z data points, we perform O(z) insertions per z data points.
+  This sacrifices independence. Whether or not the z-1th sketch is good is a fantastic predictor for the zth sketch being good.
+  But, for a given z, the results are still independent.
+
+  For parity with the main code, column seeds are sequential.
+
+  The output of this is intended to be parsed into summary stats by sum_sketch_testing.py
+*/
+
+
 std::random_device dev;
+
 std::mt19937_64 rng(dev());
 using rand_type = std::mt19937_64::result_type;
 

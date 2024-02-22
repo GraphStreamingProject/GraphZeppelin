@@ -1,6 +1,12 @@
 import sys
 import re
 
+"""
+The purpose of this file is to parse the output of sketch_testing.cpp into summary statistics
+That is, we can answer questions like "how many data points are 2 stddev above .8"
+or "What is the mean of the data"
+"""
+
 prob = r"([0-9]*[.])?[0-9]+"
 which = r"[0-9]+"
 
