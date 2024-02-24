@@ -90,12 +90,14 @@ void CCSketchAlg::pre_insert(GraphUpdate upd, int /* thr_id */) {
     auto src = std::min(edge.src, edge.dst);
     auto dst = std::max(edge.src, edge.dst);
     std::lock_guard<std::mutex> sflock(spanning_forest_mtx[src]);
-    if (spanning_forest[src].find(dst) != spanning_forest[src].end()) {
+    if (dsu.merge(src, dst).merged) {
+      // this edge adds new connectivity information so add to spanning forest
+      spanning_forest[src].insert(dst);
+    }
+    else if (spanning_forest[src].find(dst) != spanning_forest[src].end()) {
+      // this update deletes one of our spanning forest edges so mark dsu invalid
       dsu_valid = false;
       shared_dsu_valid = false;
-    } else {
-      spanning_forest[src].insert(dst);
-      dsu.merge(src, dst);
     }
   }
 #endif  // NO_EAGER_DSU

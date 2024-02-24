@@ -70,11 +70,11 @@ class DisjointSetUnion {
 
   inline T find_root(T u) {
     assert(0 <= u && u < n);
-    while (parent[parent[u]] != u) {
+    while (parent[parent[u]] != parent[u]) {
       parent[u] = parent[parent[u]];
       u = parent[u];
     }
-    return u;
+    return parent[u];
   }
 
   inline DSUMergeRet<T> merge(T u, T v) {
@@ -144,11 +144,11 @@ class DisjointSetUnion_MT {
 
   inline T find_root(T u) {
     assert(0 <= u && u < n);
-    while (parent[parent[u]] != u) {
+    while (parent[parent[u]] != parent[u]) {
       parent[u] = parent[parent[u]].load();
       u = parent[u];
     }
-    return u;
+    return parent[u];
   }
 
   // use CAS in this function to allow for simultaneous merge calls
