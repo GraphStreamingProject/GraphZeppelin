@@ -23,6 +23,10 @@ void MCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
 
         for (int graph_id = 0; graph_id < streams[stream_id].num_graphs; graph_id++) {
 
+          if(trim_enabled) {
+            graph_id = trim_graph_id;
+          }
+          
           cudaMemcpyAsync(&cudaUpdateParams[graph_id]->h_bucket_a[k * stream_id * num_buckets], &cudaUpdateParams[graph_id]->d_bucket_a[k * stream_id * num_buckets], k * num_buckets * sizeof(vec_t), cudaMemcpyDeviceToHost, streams[stream_id].stream);
           cudaMemcpyAsync(&cudaUpdateParams[graph_id]->h_bucket_c[k * stream_id * num_buckets], &cudaUpdateParams[graph_id]->d_bucket_c[k * stream_id * num_buckets], k * num_buckets * sizeof(vec_hash_t), cudaMemcpyDeviceToHost, streams[stream_id].stream);
 
@@ -67,50 +71,69 @@ void MCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
   subgraph_update_size.assign(num_sketch_graphs, 0);
   int max_depth = 0;
 
-  for (vec_t i = 0; i < dst_vertices.size(); i++) {
-    // Determine the depth of current edge
-    vec_t edge_id = static_cast<vec_t>(concat_pairing_fn(src_vertex, dst_vertices[i]));
-    int depth = Bucket_Boruvka::get_index_depth(edge_id, 0, num_graphs-1);
-    max_depth = std::max(depth, max_depth);
+  if(trim_enabled) {
+    if (trim_graph_id < 0 || trim_graph_id > num_sketch_graphs) {
+      std::cout << "INVALID trim_graph_id: " << trim_graph_id << "\n";
+    }
 
-    for (int graph_id = 0; graph_id <= depth; graph_id++) {
-      if (graph_id >= num_sketch_graphs) { // Add to adj list graphs
-        int adjlist_id = graph_id - num_sketch_graphs;
-
-        std::unique_lock<std::mutex> adjlist_lk(adjlists_mutexes[adjlist_id]);
-        if (adjlists[adjlist_id].list.find(src_vertex) == adjlists[adjlist_id].list.end()) {
-          adjlists[adjlist_id].list[src_vertex] = std::vector<node_id_t>();
-        }
-        adjlists[adjlist_id].list[src_vertex].push_back(dst_vertices[i]);
-        adjlists[adjlist_id].num_updates++;
-        adjlist_lk.unlock();
-      }
-      else {
-        cudaUpdateParams[graph_id]->h_edgeUpdates[start_index + subgraph_update_size[graph_id]] = edge_id;
-        subgraph_update_size[graph_id]++;
-      }
-
+    int count = 0;
+    for (vec_t i = start_index; i < start_index + dst_vertices.size(); i++) {
+        cudaUpdateParams[trim_graph_id]->h_edgeUpdates[i] = static_cast<vec_t>(concat_pairing_fn(src_vertex, dst_vertices[count]));
+        count++;
     } 
-  }   
 
-  streams[stream_id].num_graphs = std::min(num_sketch_graphs, (max_depth + 1));
-  streams[stream_id].src_vertex = src_vertex;
-  streams[stream_id].delta_applied = 0;
+    streams[stream_id].num_graphs = 1; 
+    streams[stream_id].src_vertex = src_vertex;
+    streams[stream_id].delta_applied = 0;
 
-  // Keep tracking how many updates for each sketch subgraph
-  for (int graph_id = 0; graph_id < streams[stream_id].num_graphs; graph_id++) {
-    std::unique_lock<std::mutex> sketch_lk(sketch_mutexes[graph_id]);
-    sketch_num_edges[graph_id] += subgraph_update_size[graph_id];
-    sketch_lk.unlock();      
+    cudaMemcpyAsync(&cudaUpdateParams[trim_graph_id]->d_edgeUpdates[start_index], &cudaUpdateParams[trim_graph_id]->h_edgeUpdates[start_index], dst_vertices.size() * sizeof(vec_t), cudaMemcpyHostToDevice, streams[stream_id].stream);
+    cudaKernel.k_sketchUpdate(num_device_threads, num_device_blocks, src_vertex, streams[stream_id].stream, start_index, dst_vertices.size(), k * stream_id * num_buckets, cudaUpdateParams[trim_graph_id], sketchSeed);
+  }
+  else {
+    std::cout << src_vertex << "\n";
+    for (vec_t i = 0; i < dst_vertices.size(); i++) {
+      // Determine the depth of current edge
+      vec_t edge_id = static_cast<vec_t>(concat_pairing_fn(src_vertex, dst_vertices[i]));
+      int depth = Bucket_Boruvka::get_index_depth(edge_id, 0, num_graphs-1);
+      max_depth = std::max(depth, max_depth);
+
+      for (int graph_id = 0; graph_id <= depth; graph_id++) {
+        if (graph_id >= num_sketch_graphs) { // Add to adj list graphs
+          int adjlist_id = graph_id - num_sketch_graphs;
+
+          std::unique_lock<std::mutex> adjlist_lk(adjlists_mutexes[adjlist_id]);
+          if (adjlists[adjlist_id].list.find(src_vertex) == adjlists[adjlist_id].list.end()) {
+            adjlists[adjlist_id].list[src_vertex] = std::vector<node_id_t>();
+          }
+          adjlists[adjlist_id].list[src_vertex].push_back(dst_vertices[i]);
+          adjlists[adjlist_id].num_updates++;
+          adjlist_lk.unlock();
+        }
+        else {
+          cudaUpdateParams[graph_id]->h_edgeUpdates[start_index + subgraph_update_size[graph_id]] = edge_id;
+          subgraph_update_size[graph_id]++;
+        }
+
+      } 
+    }
+    streams[stream_id].num_graphs = std::min(num_sketch_graphs, (max_depth + 1)); 
+    streams[stream_id].src_vertex = src_vertex;
+    streams[stream_id].delta_applied = 0;
+
+    // Keep tracking how many updates for each sketch subgraph
+    for (int graph_id = 0; graph_id < streams[stream_id].num_graphs; graph_id++) {
+      std::unique_lock<std::mutex> sketch_lk(sketch_mutexes[graph_id]);
+      sketch_num_edges[graph_id] += subgraph_update_size[graph_id];
+      sketch_lk.unlock();      
+    }
+
+    // Go through every sketch subgraphs and apply updates
+    for (int graph_id = 0; graph_id < streams[stream_id].num_graphs; graph_id++) {
+      cudaMemcpyAsync(&cudaUpdateParams[graph_id]->d_edgeUpdates[start_index], &cudaUpdateParams[graph_id]->h_edgeUpdates[start_index], subgraph_update_size[graph_id] * sizeof(vec_t), cudaMemcpyHostToDevice, streams[stream_id].stream);
+      cudaKernel.k_sketchUpdate(num_device_threads, num_device_blocks, src_vertex, streams[stream_id].stream, start_index, subgraph_update_size[graph_id], k * stream_id * num_buckets, cudaUpdateParams[graph_id], sketchSeed);
+    }
   }
 
-  // Go through every sketch subgraphs and apply updates
-  for (int graph_id = 0; graph_id < streams[stream_id].num_graphs; graph_id++) {
-    cudaMemcpyAsync(&cudaUpdateParams[graph_id]->d_edgeUpdates[start_index], &cudaUpdateParams[graph_id]->h_edgeUpdates[start_index], subgraph_update_size[graph_id] * sizeof(vec_t), cudaMemcpyHostToDevice, streams[stream_id].stream);
-    cudaKernel.k_sketchUpdate(num_device_threads, num_device_blocks, src_vertex, streams[stream_id].stream, start_index, subgraph_update_size[graph_id], k * stream_id * num_buckets, cudaUpdateParams[graph_id], sketchSeed);
-  }
-
-  
 };
 
 void MCGPUSketchAlg::apply_flush_updates() {
@@ -122,6 +145,10 @@ void MCGPUSketchAlg::apply_flush_updates() {
       }
 
       for (int graph_id = 0; graph_id < streams[stream_id].num_graphs; graph_id++) {
+
+        if(trim_enabled) {
+          graph_id = trim_graph_id;
+        }
 
         cudaMemcpy(&cudaUpdateParams[graph_id]->h_bucket_a[k * stream_id * num_buckets], &cudaUpdateParams[graph_id]->d_bucket_a[k * stream_id * num_buckets], k * num_buckets * sizeof(vec_t), cudaMemcpyDeviceToHost);
         cudaMemcpy(&cudaUpdateParams[graph_id]->h_bucket_c[k * stream_id * num_buckets], &cudaUpdateParams[graph_id]->d_bucket_c[k * stream_id * num_buckets], k * num_buckets * sizeof(vec_hash_t), cudaMemcpyDeviceToHost);

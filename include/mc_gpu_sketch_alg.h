@@ -72,6 +72,10 @@ private:
   // Vector for storing information for each CUDA Stream
   std::vector<CudaStream> streams;
 
+  // Indicate if trimming spanning forest, only apply sketch updates to one sketch subgraph
+  bool trim_enabled;
+  int trim_graph_id;
+
 public:
   MCGPUSketchAlg(node_id_t num_vertices, size_t num_updates, int num_threads, size_t seed, SketchParams sketchParams, int _num_graphs, int _num_sketch_graphs, int _k, CCAlgConfiguration config = CCAlgConfiguration()) : MCSketchAlg(num_vertices, seed, config){ 
 
@@ -141,6 +145,9 @@ public:
       streams.push_back({stream, 1, -1, -1});
     }
 
+    trim_enabled = false;
+    trim_graph_id = -1;
+
     std::cout << "Finished MCGPUSketchAlg's Initialization\n";
     std::chrono::duration<double> init_time = std::chrono::steady_clock::now() - init_start;
     std::cout << "MCGPUSketchAlg's Initialization Duration: " << init_time.count() << std::endl;
@@ -171,4 +178,13 @@ public:
   }
 
   std::vector<Edge> get_adjlist_spanning_forests(int graph_id);
+
+  void set_trim_enbled(bool enabled, int graph_id) {
+    trim_enabled = enabled;
+    trim_graph_id = graph_id;
+
+    if (trim_graph_id < 0 || trim_graph_id > num_sketch_graphs) {
+      std::cout << "INVALID trim_graph_id: " << trim_graph_id << "\n";
+    }
+  }
 };

@@ -7,6 +7,7 @@
 #include <sys/resource.h> // for rusage
 #include <cuda_kernel.cuh>
 
+static bool cert_clean_up = false;
 static bool shutdown = false;
 constexpr double epsilon = 1;
 
@@ -115,7 +116,7 @@ int main(int argc, char **argv) {
   // Calculate number of sketch graphs;
   int num_sketch_graphs = 0;
 
-  for (int i = 0; i < num_graphs; i++) {
+  /*for (int i = 0; i < num_graphs; i++) {
     // Calculate estimated memory for current subgraph
     size_t num_est_edges = num_updates / (1 << i);
     double adjlist_bytes = sizeof(std::vector<node_id_t>) + num_est_edges * sizeof(node_id_t);
@@ -123,12 +124,12 @@ int main(int argc, char **argv) {
     if (adjlist_bytes > total_bytes) {
       num_sketch_graphs++;
     }
-  }
+  }*/
 
   // Note: In current design, it's always more memory efficient to have all subgraphs in adjacancey list.
   // Major reason is due to k, having a sketch data structure with k copies cost a lot of memory where adj. list does not get affected by k
-  // Since we still need to test for subgraphs with sketch, forcibly have num_sketch_graphs as 2.
-  num_sketch_graphs = 2;
+  // Since we still need to test for subgraphs with sketch, intentionally set num_sketch_graphs > 0
+  num_sketch_graphs = 4;
 
   std::cout << "Number of sketch graphs: " << num_sketch_graphs << "\n";
   std::cout << "  REMINDER: Currently set num_sketch_graphs = " << num_sketch_graphs << " for testing.\n";
@@ -176,6 +177,7 @@ int main(int argc, char **argv) {
     } 
     else { // Get Spanning forests from sketch subgraph
       std::cout << "Sketch Graph #" << graph_id << ":\n";
+      mc_gpu_alg.set_trim_enbled(true, graph_id); // When trimming, only apply sketch updates to current subgraph
       for (int k_id = 0; k_id < k; k_id++) {
         std::cout << "  Getting spanning forest " << k_id << "\n";
 
@@ -345,5 +347,13 @@ int main(int argc, char **argv) {
   std::cout << "Certificate Writing Time(sec): " << cert_write_time.count() << std::endl;
   std::cout << "VieCut Program Time(sec): " << viecut_time.count() << std::endl;
   std::cout << "Maximum Memory Usage(MiB): " << get_max_mem_used() << std::endl;
+
+  // If enabled, remove all certificate and VieCut output files
+  if(cert_clean_up) {
+    for (int graph_id = 0; graph_id < num_graphs - num_sampled_zero_graphs; graph_id++) {
+      std::remove(("certificates" + std::to_string(graph_id) + ".metis").c_str());
+      std::remove(("mincut" + std::to_string(graph_id) + ".txt").c_str());
+    }
+  }
 
 }
