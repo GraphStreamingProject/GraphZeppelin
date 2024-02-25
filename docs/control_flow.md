@@ -1,5 +1,5 @@
 # GraphZeppelin Control Flow
-These charts describe how our basic operations are performed in GraphZeppelin.
+In this file we document how the GraphZeppelin control works using flowcharts and step by step descriptions. In our flow chart we connect objects `A` and `B` with a directed edge `A --> B` that indicates object `A` calling a method of object `B`.
 
 ## Driver Level Flow
 The driver is responsible for managing and coordinating the CPU `WorkerThreadGroup`, the `GutteringSystem`, and the `SketchAlgorithm`. The driver can do this for any vertex based sketch algorithm (which the driver is templatized upon) so long as the algorithm implements the required functions.
