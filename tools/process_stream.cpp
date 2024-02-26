@@ -9,10 +9,7 @@
 #include <thread>
 
 // TODO: make num_edge_connect an input argument;
-// TODO: add verifier to see whether the output spanning forest is a valid forest
-//        and whether the graph is indeed disconnected after removing k spanning forests
-// TODO: idea to fix the verifier problem: make the KEdgeConnect a separate file for the class
-//        then, write unit tests based on the tests in the file graph_test.cpp. 
+// TODO: Daniel's concern: right now, the deletion of the edge to the stream makes the query only possible to be supported once -- fix this later
 
 
 static bool shutdown = false;
