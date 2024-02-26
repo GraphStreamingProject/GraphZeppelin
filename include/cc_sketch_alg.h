@@ -45,9 +45,9 @@ struct alignas(64) GlobalMergeData {
   size_t num_merge_needed = -1;
   size_t num_merge_done = 0;
 
-  GlobalMergeData(node_id_t num_vertices, size_t seed)
+  GlobalMergeData(node_id_t num_vertices, size_t seed, double sketches_factor)
       : sketch(Sketch::calc_vector_length(num_vertices), seed,
-               Sketch::calc_cc_samples(num_vertices)) {}
+               Sketch::calc_cc_samples(num_vertices, sketches_factor)) {}
 
   GlobalMergeData(const GlobalMergeData&& other)
   : sketch(other.sketch) {
@@ -155,8 +155,9 @@ class CCSketchAlg {
     num_delta_sketches = num_workers;
     delta_sketches = new Sketch *[num_delta_sketches];
     for (size_t i = 0; i < num_delta_sketches; i++) {
-      delta_sketches[i] = new Sketch(Sketch::calc_vector_length(num_vertices), seed,
-                                     Sketch::calc_cc_samples(num_vertices));
+      delta_sketches[i] =
+          new Sketch(Sketch::calc_vector_length(num_vertices), seed,
+                     Sketch::calc_cc_samples(num_vertices, config.get_sketches_factor()));
     }
   }
 

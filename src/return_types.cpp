@@ -32,6 +32,7 @@ std::vector<std::set<node_id_t>> ConnectedComponents::get_component_sets() {
 SpanningForest::SpanningForest(node_id_t num_vertices,
                                const std::unordered_set<node_id_t> *spanning_forest)
     : num_vertices(num_vertices) {
+  edges.reserve(num_vertices);
   for (node_id_t src = 0; src < num_vertices; src++) {
     for (node_id_t dst : spanning_forest[src]) {
       edges.push_back({src, dst});

@@ -299,6 +299,77 @@ BENCHMARK(BM_Sketch_Serialize)->RangeMultiplier(10)->Range(1e3, 1e6);
 // }
 // BENCHMARK(BM_Sketch_Sparse_Serialize)->RangeMultiplier(10)->Range(1e3, 1e6);
 
+// Benchmark DSU Find Root
+static void BM_DSU_Find(benchmark::State& state) {
+  constexpr size_t size_of_dsu = 16 * MB;
+  DisjointSetUnion<node_id_t> dsu(size_of_dsu);
+
+  // perform find test
+  for (auto _ : state) {
+    for (size_t i = 0; i < size_of_dsu; i++)
+      dsu.find_root(i);
+  }
+  state.counters["Find_Latency"] =
+      benchmark::Counter(state.iterations() * size_of_dsu,
+                         benchmark::Counter::kIsRate | benchmark::Counter::kInvert);
+}
+BENCHMARK(BM_DSU_Find)->Iterations(1);
+
+static void BM_DSU_Find_After_Combine(benchmark::State& state) {
+  constexpr size_t size_of_dsu = 16 * MB;
+  DisjointSetUnion<node_id_t> dsu(size_of_dsu);
+  // merge everything into same root
+  for (size_t i = 0; i < size_of_dsu - 1; i++) {
+    dsu.merge(i, i+1);
+  }
+
+  // perform find test
+  for (auto _ : state) {
+    for (size_t i = 0; i < size_of_dsu; i++)
+      dsu.find_root(i);
+  }
+  state.counters["Find_Latency"] =
+      benchmark::Counter(state.iterations() * size_of_dsu,
+                         benchmark::Counter::kIsRate | benchmark::Counter::kInvert);
+}
+BENCHMARK(BM_DSU_Find_After_Combine)->Iterations(1);
+
+// MT DSU Find Root
+static void BM_Parallel_DSU_Find(benchmark::State& state) {
+  constexpr size_t size_of_dsu = 16 * MB;
+  DisjointSetUnion_MT<node_id_t> dsu(size_of_dsu);
+
+  // perform find test
+  for (auto _ : state) {
+    for (size_t i = 0; i < size_of_dsu; i++)
+      dsu.find_root(i);
+  }
+  state.counters["Find_Latency"] =
+      benchmark::Counter(state.iterations() * size_of_dsu,
+                         benchmark::Counter::kIsRate | benchmark::Counter::kInvert);
+}
+BENCHMARK(BM_Parallel_DSU_Find)->Iterations(1);
+
+// MT DSU Find Root
+static void BM_Parallel_DSU_Find_After_Combine(benchmark::State& state) {
+  constexpr size_t size_of_dsu = 16 * MB;
+  DisjointSetUnion_MT<node_id_t> dsu(size_of_dsu);
+  // merge everything into same root
+  for (size_t i = 0; i < size_of_dsu - 1; i++) {
+    dsu.merge(i, i+1);
+  }
+
+  // perform find test
+  for (auto _ : state) {
+    for (size_t i = 0; i < size_of_dsu; i++)
+      dsu.find_root(i);
+  }
+  state.counters["Find_Latency"] =
+      benchmark::Counter(state.iterations() * size_of_dsu,
+                         benchmark::Counter::kIsRate | benchmark::Counter::kInvert);
+}
+BENCHMARK(BM_Parallel_DSU_Find_After_Combine)->Iterations(1);
+
 // Benchmark speed of DSU merges when the sequence of merges is adversarial
 // This means we avoid joining roots wherever possible
 static void BM_DSU_Adversarial(benchmark::State& state) {
@@ -434,5 +505,77 @@ static void BM_Parallel_DSU_Root(benchmark::State& state) {
                          benchmark::Counter::kIsRate | benchmark::Counter::kInvert);
 }
 BENCHMARK(BM_Parallel_DSU_Root)->RangeMultiplier(2)->Range(1, 8)->UseRealTime();
+
+// Test the speed of preforming redundant merge operations
+
+static void BM_DSU_Redundant_Merge(benchmark::State& state) {
+  constexpr size_t size_of_dsu = 16 * MB;
+
+  auto rng = std::default_random_engine{};
+
+  // generate updates
+  std::vector<std::pair<node_id_t, node_id_t>> updates;
+  // generate updates
+  for (size_t iter = 0; ((size_t)2 << iter) <= size_of_dsu; iter++) {
+    size_t jump = 2 << iter;
+    std::vector<std::pair<node_id_t, node_id_t>> new_updates;
+    for (size_t i = 0; i < size_of_dsu; i += jump) {
+      new_updates.push_back({i, i + jump / 2});
+    }
+    std::shuffle(new_updates.begin(), new_updates.end(), rng);
+    updates.insert(updates.end(), new_updates.begin(), new_updates.end());
+  }
+  DisjointSetUnion<node_id_t> dsu(size_of_dsu);
+  for (auto upd : updates) {
+    dsu.merge(upd.first, upd.second);
+  }
+
+  // Perform merge test
+  for (auto _ : state) {
+    for (auto upd : updates) {
+      dsu.merge(upd.first, upd.second);
+    }
+  }
+  state.counters["Merge_Latency"] =
+      benchmark::Counter(state.iterations() * updates.size(),
+                         benchmark::Counter::kIsRate | benchmark::Counter::kInvert);
+}
+BENCHMARK(BM_DSU_Redundant_Merge);
+
+static void BM_Parallel_DSU_Redundant_Merge(benchmark::State& state) {
+  constexpr size_t size_of_dsu = 16 * MB;
+
+  auto rng = std::default_random_engine{};
+
+  // generate updates
+  std::vector<std::pair<node_id_t, node_id_t>> updates;
+  // generate updates
+  for (size_t iter = 0; ((size_t)2 << iter) <= size_of_dsu; iter++) {
+    size_t jump = 2 << iter;
+    std::vector<std::pair<node_id_t, node_id_t>> new_updates;
+    for (size_t i = 0; i < size_of_dsu; i += jump) {
+      new_updates.push_back({i, i + jump / 2});
+    }
+    std::shuffle(new_updates.begin(), new_updates.end(), rng);
+    updates.insert(updates.end(), new_updates.begin(), new_updates.end());
+  }
+
+  DisjointSetUnion_MT<node_id_t> dsu(size_of_dsu);
+  for (auto upd : updates) {
+    dsu.merge(upd.first, upd.second);
+  }
+
+  // Perform merge test
+  for (auto _ : state) {
+#pragma omp parallel for num_threads(state.range(0))
+    for (auto upd : updates) {
+      dsu.merge(upd.first, upd.second);
+    }
+  }
+  state.counters["Merge_Latency"] =
+      benchmark::Counter(state.iterations() * updates.size(),
+                         benchmark::Counter::kIsRate | benchmark::Counter::kInvert);
+}
+BENCHMARK(BM_Parallel_DSU_Redundant_Merge)->RangeMultiplier(2)->Range(1, 8)->UseRealTime();
 
 BENCHMARK_MAIN();
