@@ -90,7 +90,6 @@ void MCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
     cudaKernel.k_sketchUpdate(num_device_threads, num_device_blocks, src_vertex, streams[stream_id].stream, start_index, dst_vertices.size(), k * stream_id * num_buckets, cudaUpdateParams[trim_graph_id], sketchSeed);
   }
   else {
-    std::cout << src_vertex << "\n";
     for (vec_t i = 0; i < dst_vertices.size(); i++) {
       // Determine the depth of current edge
       vec_t edge_id = static_cast<vec_t>(concat_pairing_fn(src_vertex, dst_vertices[i]));

@@ -42,6 +42,10 @@ private:
   std::vector<size_t> sketch_num_edges;
   std::vector<std::mutex> sketch_mutexes;
 
+  // Number of adj. list subgraphs
+  int num_adj_graphs;
+  int num_fixed_adj_graphs; // Number of subgraphs that will always be in adj. list
+
   // Threshold for switching a subgraph into sketch representation
   int num_req_edges;
 
@@ -77,7 +81,7 @@ private:
   int trim_graph_id;
 
 public:
-  MCGPUSketchAlg(node_id_t num_vertices, size_t num_updates, int num_threads, size_t seed, SketchParams sketchParams, int _num_graphs, int _num_sketch_graphs, int _k, CCAlgConfiguration config = CCAlgConfiguration()) : MCSketchAlg(num_vertices, seed, config){ 
+  MCGPUSketchAlg(node_id_t num_vertices, size_t num_updates, int num_threads, size_t seed, SketchParams sketchParams, int _num_graphs, int _num_sketch_graphs, int _num_adj_graphs, int _num_fixed_adj_graphs, int _k, CCAlgConfiguration config = CCAlgConfiguration()) : MCSketchAlg(num_vertices, seed, config){ 
 
     // Start timer for initializing
     auto init_start = std::chrono::steady_clock::now();
@@ -90,6 +94,8 @@ public:
 
     num_graphs = _num_graphs;
     num_sketch_graphs = _num_sketch_graphs;
+    num_adj_graphs = _num_adj_graphs;
+    num_fixed_adj_graphs = _num_fixed_adj_graphs;
 
     // Extract sketchParams variables
     num_samples = sketchParams.num_samples;
@@ -103,7 +109,7 @@ public:
     std::cout << "bkt_per_col: " << bkt_per_col << "\n";
 
     // Initialize adj. list subgraphs 
-    for (int i = 0; i < num_graphs - num_sketch_graphs; i++) {
+    for (int i = 0; i < num_adj_graphs; i++) {
       AdjList adjlist;
       adjlist.num_updates = 0;
       adjlists.push_back(adjlist);   
@@ -115,7 +121,7 @@ public:
     sketch_mutexes = std::vector<std::mutex>(num_sketch_graphs);
 
     // Initialize mutexes for adj. list subgraphs
-    adjlists_mutexes = std::vector<std::mutex>(num_graphs - num_sketch_graphs);
+    adjlists_mutexes = std::vector<std::mutex>(num_adj_graphs);
 
     // Create a bigger batch size to apply edge updates when subgraph is turning into sketch representation
     batch_size = get_desired_updates_per_batch();
@@ -172,7 +178,7 @@ public:
       std::cout << "  S" << graph_id << ": " << sketch_num_edges[graph_id] << "\n";
     }
     std::cout << "  Adj. list Graphs:\n";
-    for (int graph_id = 0; graph_id < num_graphs - num_sketch_graphs; graph_id++) {
+    for (int graph_id = 0; graph_id < num_adj_graphs; graph_id++) {
       std::cout << "  S" << graph_id << ": " << adjlists[graph_id].num_updates << "\n";
     }
   }

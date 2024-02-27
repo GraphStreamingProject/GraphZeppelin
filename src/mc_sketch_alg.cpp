@@ -25,8 +25,10 @@ MCSketchAlg::MCSketchAlg(node_id_t num_vertices, size_t seed, CCAlgConfiguration
 
   spanning_forest = new std::unordered_set<node_id_t>[num_vertices];
   spanning_forest_mtx = new std::mutex[num_vertices];
-  dsu_valid = true;
-  shared_dsu_valid = true;
+
+  // Note: Turn these off for k tree graphs
+  dsu_valid = false;
+  shared_dsu_valid = false;
 }
 
 // Note: Not being used currently

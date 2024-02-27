@@ -9,7 +9,7 @@
 
 static bool cert_clean_up = false;
 static bool shutdown = false;
-constexpr double epsilon = 1;
+constexpr double epsilon = 0.5;
 
 static double get_max_mem_used() {
   struct rusage data;
@@ -109,9 +109,25 @@ int main(int argc, char **argv) {
   sketchParams.num_buckets = sketchParams.num_columns * sketchParams.bkt_per_col + 1;
 
   // Total bytes of sketching datastructure of one subgraph
+  // Note: Remeasure this after multiple samples from sketches
   double total_bytes = num_nodes * k * sizeof(Sketch) * sketchParams.num_buckets * sizeof(Bucket);
   std::cout << "Total bytes of sketching data structure of one subgraph: " << total_bytes / 1000000000 << "GB\n";
   std::cout << "Byte of one edge: " << sizeof(Edge) << "\n";
+
+  // Calculate number of minimum adj. list subgraph
+  int num_edges_complete = (num_nodes * (num_nodes - 1)) / 2;
+  int num_adj_graphs = 0;
+  int num_fixed_adj_graphs = 0;
+
+  /*for (int i = 0; i < num_graphs; i++) {
+    // Calculate estimated memory for current subgraph
+    size_t num_est_edges = num_edges_complete / (1 << i);
+    double adjlist_bytes = sizeof(std::vector<node_id_t>) + num_est_edges * sizeof(node_id_t);
+
+    if (adjlist_bytes < total_bytes) {
+      num_fixed_adj_graphs++;
+    }
+  }*/
 
   // Calculate number of sketch graphs;
   int num_sketch_graphs = 0;
@@ -124,20 +140,37 @@ int main(int argc, char **argv) {
     if (adjlist_bytes > total_bytes) {
       num_sketch_graphs++;
     }
+    else {
+      num_adj_graphs++;
+    }
+  }*/
+
+  // Check if numbers of different types of subgraphs are valid
+  /*if (num_adj_graphs + num_sketch_graphs != num_graphs) {
+    std::cout << "ERROR: Invalid number of num_adj_graphs and num_sketch_graphs! " << num_adj_graphs << " + " << num_sketch_graphs << " != " << num_graphs << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  if (num_fixed_adj_graphs > num_adj_graphs) {
+    std::cout << "ERROR: Invalid number of num_fixed_adj_graphs! " << num_fixed_adj_graphs << " > " << num_adj_graphs << std::endl;
+    exit(EXIT_FAILURE);
   }*/
 
   // Note: In current design, it's always more memory efficient to have all subgraphs in adjacancey list.
   // Major reason is due to k, having a sketch data structure with k copies cost a lot of memory where adj. list does not get affected by k
   // Since we still need to test for subgraphs with sketch, intentionally set num_sketch_graphs > 0
   num_sketch_graphs = 4;
+  num_adj_graphs = num_graphs - num_sketch_graphs;
+  num_fixed_adj_graphs = num_adj_graphs;
 
+  std::cout << "Number of adj. list graphs: " << num_adj_graphs << "\n";
+  std::cout << "  Number of minimum adj. list graphs: " << num_fixed_adj_graphs << "\n";
   std::cout << "Number of sketch graphs: " << num_sketch_graphs << "\n";
   std::cout << "  REMINDER: Currently set num_sketch_graphs = " << num_sketch_graphs << " for testing.\n";
 
   // Reconfigure sketches_factor based on num_sketch_graphs
   mc_config.sketches_factor(k * num_sketch_graphs);
 
-  MCGPUSketchAlg mc_gpu_alg{num_nodes, num_updates, num_threads, get_seed(), sketchParams, num_graphs, num_sketch_graphs, k, mc_config};
+  MCGPUSketchAlg mc_gpu_alg{num_nodes, num_updates, num_threads, get_seed(), sketchParams, num_graphs, num_sketch_graphs, num_adj_graphs, num_fixed_adj_graphs, k, mc_config};
   GraphSketchDriver<MCGPUSketchAlg> driver{&mc_gpu_alg, &stream, driver_config, reader_threads};
 
   auto ins_start = std::chrono::steady_clock::now();
@@ -159,7 +192,8 @@ int main(int argc, char **argv) {
   mc_gpu_alg.print_subgraph_edges();
 
   std::chrono::duration<double> sampling_forests_time = std::chrono::nanoseconds::zero();
-  std::chrono::duration<double> trimming_forests_time = std::chrono::nanoseconds::zero();
+  std::chrono::duration<double> trim_reading_time = std::chrono::nanoseconds::zero();
+  std::chrono::duration<double> trim_flushing_time = std::chrono::nanoseconds::zero();
   std::chrono::duration<double> cert_write_time = std::chrono::nanoseconds::zero();
   std::chrono::duration<double> viecut_time = std::chrono::nanoseconds::zero();
 
@@ -192,14 +226,16 @@ int main(int argc, char **argv) {
         }
 
         // Trim spanning forest
-        auto trimming_forest_start = std::chrono::steady_clock::now();
+        auto trim_reading_start = std::chrono::steady_clock::now();
         driver.trim_spanning_forest(spanningForest.get_edges());
-        trimming_forests_time += std::chrono::steady_clock::now() - trimming_forest_start;
+        trim_reading_time += std::chrono::steady_clock::now() - trim_reading_start;
 
         // Flush sketch updates
+        auto trim_flushing_start = std::chrono::steady_clock::now();
         driver.force_flush();
         cudaDeviceSynchronize();
         mc_gpu_alg.apply_flush_updates();
+        trim_flushing_time += std::chrono::steady_clock::now() - trim_flushing_start;
       }
 
       // Verify spanning forests
@@ -339,11 +375,13 @@ int main(int argc, char **argv) {
   std::chrono::duration<double> flush_time = flush_end - flush_start;
 
   double num_seconds = insert_time.count();
-  std::cout << "Total insertion time(sec): " << num_seconds << std::endl;
-  std::cout << "Updates per second: " << stream.edges() / num_seconds << std::endl;
-  std::cout << "Flush Gutters(sec): " << flush_time.count() << std::endl;
-  std::cout << "Total Sampling Forests Time(sec): " << sampling_forests_time.count() << std::endl;
-  std::cout << "Total Trimming Forests Time(sec): " << trimming_forests_time.count() << std::endl;
+  std::cout << "Regular Sketch insertion time(sec): " << num_seconds << std::endl;
+  std::cout << "  Updates per second: " << stream.edges() / num_seconds << std::endl;
+  std::cout << "  Flush Gutters(sec): " << flush_time.count() << std::endl;
+  std::cout << "K-Connectivity: (Sketch Subgraphs)" << std::endl;
+  std::cout << "  Sampling Forests Time(sec): " << sampling_forests_time.count() << std::endl;
+  std::cout << "  Trimming Forests Reading Time(sec): " << trim_reading_time.count() << std::endl;
+  std::cout << "  Trimming Forests Flushing Time(sec): " << trim_flushing_time.count() << std::endl;
   std::cout << "Certificate Writing Time(sec): " << cert_write_time.count() << std::endl;
   std::cout << "VieCut Program Time(sec): " << viecut_time.count() << std::endl;
   std::cout << "Maximum Memory Usage(MiB): " << get_max_mem_used() << std::endl;
