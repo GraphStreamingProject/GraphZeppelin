@@ -22,7 +22,7 @@ CorrectnessResults test_path_correctness(size_t num_vertices, size_t num_graphs,
                                          size_t samples_per_graph) {
   CorrectnessResults results;
 
-  size_t num_rounds = Sketch::calc_cc_samples(num_vertices);
+  size_t num_rounds = Sketch::calc_cc_samples(num_vertices, 1);
   for (size_t r = 0; r < num_rounds; r++)
     results.num_round_hist.push_back(0);
 
