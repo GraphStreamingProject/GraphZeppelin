@@ -14,6 +14,101 @@
 
 static bool shutdown = false;
 
+class MinCutSimple {
+public:
+    const node_id_t num_nodes;
+    unsigned int num_forest;  // this value is k in the k-edge connectivity
+    unsigned int num_subgraphs;
+    const int my_prime = 100003; // Prime number for polynomial hashing
+    std::vector<std::vector<int>> hash_coefficients;
+    std::vector<std::unique_ptr<KEdgeConnect>> k_edge_algs;
+
+    explicit MinCutSimple(node_id_t num_nodes, const std::vector<std::vector<CCAlgConfiguration>> &config_vec):
+            num_nodes(num_nodes) {
+        num_subgraphs = (unsigned int)(2*std::ceil(std::log2(num_nodes)));
+        // TODO: make the approximation factor tunable later
+        num_forest = 10*num_subgraphs;
+        for(unsigned int i=0;i<num_subgraphs;i++){
+            k_edge_algs.push_back(std::make_unique<KEdgeConnect>(num_nodes, num_forest, config_vec[i]));
+        }
+        // Initialize coefficients randomly
+        std::random_device rd_ind;
+        std::mt19937 gen_ind(rd_ind());
+        std::uniform_int_distribution<int> dist_coeff(1, my_prime - 1); // random numbers between 1 and p-1
+        for (int i =0; i<num_subgraphs; i++) {
+            std::vector<int> this_subgraph_coeff;
+            for (int j = 0; j < num_subgraphs; j++) {
+                this_subgraph_coeff.push_back(dist_coeff(gen_ind));
+            }
+            hash_coefficients.push_back(this_subgraph_coeff);
+        }
+    }
+
+    ~MinCutSimple();
+
+    void allocate_worker_memory(size_t num_workers){
+        for(unsigned int i=0;i<num_subgraphs;i++){
+            k_edge_algs[i]->allocate_worker_memory(num_workers);
+        }
+    }
+
+    size_t get_desired_updates_per_batch(){
+        return k_edge_algs[0]->get_desired_updates_per_batch();
+    }
+
+    node_id_t get_num_vertices() { return num_nodes; }
+
+    // Function to calculate power modulo prime
+    int power(int x, int y, int p) {
+        int res = 1; // Initialize result
+        x = x % p; // Update x if it is more than or equal to p
+        while (y > 0) {
+            // If y is odd, multiply x with result
+            if (y & 1)
+                res = (res * x) % p;
+            // y must be even now
+            y = y >> 1; // y = y/2
+            x = (x * x) % p;
+        }
+        return res;
+    }
+
+    // Function to generate k-wise independent hash
+    int k_wise_hash(const std::vector<int>& coefficients, int x, int k, int p) {
+        int hash_val = 0;
+        for (size_t i = 0; i < coefficients.size(); ++i) {
+            hash_val = (hash_val + coefficients[i] * power(x, i, p)) % p;
+        }
+        return hash_val;
+    }
+
+    // TODO: the first barrier here is to update edges to the next sketch without using the query() function
+    void pre_insert(GraphUpdate upd, node_id_t thr_id) {
+        for(unsigned int i=0;i<num_subgraphs;i++) {
+            k_edge_algs[i]->pre_insert(upd, thr_id);
+        }
+    }
+
+    void apply_update_batch(size_t thr_id, node_id_t src_vertex, const std::vector<node_id_t> &dst_vertices) {
+        for(unsigned int i=0;i<num_subgraphs;i++) {
+            k_edge_algs[i]->apply_update_batch(thr_id, src_vertex, dst_vertices);
+        }
+    }
+
+    bool has_cached_query(){
+        bool cached_query_flag = true;
+        for (unsigned int i=0;i<num_subgraphs;i++) {
+            cached_query_flag = cached_query_flag && k_edge_algs[i]->has_cached_query();
+        }
+    }
+
+    void print_configuration(){k_edge_algs[0]->print_configuration(); }
+
+    void query(){
+
+    }
+};
+
 class TwoEdgeConnect {
  public:
   const node_id_t num_nodes;
