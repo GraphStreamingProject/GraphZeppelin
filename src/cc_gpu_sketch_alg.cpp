@@ -16,13 +16,6 @@ void CCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
 
       // CUDA Stream is available, check if it has any delta sketch
       if(streams[stream_id].delta_applied == 0) {
-
-        // Transfer delta sketch from GPU to CPU
-        cudaMemcpyAsync(&cudaUpdateParams[0].h_bucket_a[stream_id * num_buckets], &cudaUpdateParams[0].d_bucket_a[stream_id * num_buckets], num_buckets * sizeof(vec_t), cudaMemcpyDeviceToHost, streams[stream_id].stream);
-        cudaMemcpyAsync(&cudaUpdateParams[0].h_bucket_c[stream_id * num_buckets], &cudaUpdateParams[0].d_bucket_c[stream_id * num_buckets], num_buckets * sizeof(vec_hash_t), cudaMemcpyDeviceToHost, streams[stream_id].stream);
-
-        cudaStreamSynchronize(streams[stream_id].stream);
-
         Bucket* delta_buckets = new Bucket[num_buckets];
         for (size_t i = 0; i < num_buckets; i++) {
           delta_buckets[i].alpha = cudaUpdateParams[0].h_bucket_a[(stream_id * num_buckets) + i];
@@ -64,15 +57,14 @@ void CCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
   streams[stream_id].src_vertex = src_vertex;
   cudaMemcpyAsync(&cudaUpdateParams[0].d_edgeUpdates[start_index], &cudaUpdateParams[0].h_edgeUpdates[start_index], dst_vertices.size() * sizeof(vec_t), cudaMemcpyHostToDevice, streams[stream_id].stream);
   cudaKernel.sketchUpdate(num_device_threads, num_device_blocks, src_vertex, streams[stream_id].stream, start_index, dst_vertices.size(), stream_id * num_buckets, cudaUpdateParams, sketchSeed);
+
+  cudaMemcpyAsync(&cudaUpdateParams[0].h_bucket_a[stream_id * num_buckets], &cudaUpdateParams[0].d_bucket_a[stream_id * num_buckets], num_buckets * sizeof(vec_t), cudaMemcpyDeviceToHost, streams[stream_id].stream);
+  cudaMemcpyAsync(&cudaUpdateParams[0].h_bucket_c[stream_id * num_buckets], &cudaUpdateParams[0].d_bucket_c[stream_id * num_buckets], num_buckets * sizeof(vec_hash_t), cudaMemcpyDeviceToHost, streams[stream_id].stream);
 };
 
 void CCGPUSketchAlg::apply_flush_updates() {
   for (int stream_id = 0; stream_id < num_host_threads * stream_multiplier; stream_id++) {
     if(streams[stream_id].delta_applied == 0) {
-        
-      cudaMemcpy(&cudaUpdateParams[0].h_bucket_a[stream_id * num_buckets], &cudaUpdateParams[0].d_bucket_a[stream_id * num_buckets], num_buckets * sizeof(vec_t), cudaMemcpyDeviceToHost);
-      cudaMemcpy(&cudaUpdateParams[0].h_bucket_c[stream_id * num_buckets], &cudaUpdateParams[0].d_bucket_c[stream_id * num_buckets], num_buckets * sizeof(vec_hash_t), cudaMemcpyDeviceToHost);
-
       Bucket* delta_buckets = new Bucket[num_buckets];
       for (size_t i = 0; i < num_buckets; i++) {
         delta_buckets[i].alpha = cudaUpdateParams[0].h_bucket_a[(stream_id * num_buckets) + i];

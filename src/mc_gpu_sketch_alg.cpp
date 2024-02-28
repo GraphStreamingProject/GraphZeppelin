@@ -27,11 +27,6 @@ void MCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
             graph_id = trim_graph_id;
           }
           
-          cudaMemcpyAsync(&cudaUpdateParams[graph_id]->h_bucket_a[k * stream_id * num_buckets], &cudaUpdateParams[graph_id]->d_bucket_a[k * stream_id * num_buckets], k * num_buckets * sizeof(vec_t), cudaMemcpyDeviceToHost, streams[stream_id].stream);
-          cudaMemcpyAsync(&cudaUpdateParams[graph_id]->h_bucket_c[k * stream_id * num_buckets], &cudaUpdateParams[graph_id]->d_bucket_c[k * stream_id * num_buckets], k * num_buckets * sizeof(vec_hash_t), cudaMemcpyDeviceToHost, streams[stream_id].stream);
-
-          cudaStreamSynchronize(streams[stream_id].stream);          
-          
           for (int k_id = 0; k_id < k; k_id++) {
             Bucket* delta_buckets = new Bucket[num_buckets];
             for (size_t i = 0; i < num_buckets; i++) {
@@ -88,6 +83,9 @@ void MCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
 
     cudaMemcpyAsync(&cudaUpdateParams[trim_graph_id]->d_edgeUpdates[start_index], &cudaUpdateParams[trim_graph_id]->h_edgeUpdates[start_index], dst_vertices.size() * sizeof(vec_t), cudaMemcpyHostToDevice, streams[stream_id].stream);
     cudaKernel.k_sketchUpdate(num_device_threads, num_device_blocks, src_vertex, streams[stream_id].stream, start_index, dst_vertices.size(), k * stream_id * num_buckets, cudaUpdateParams[trim_graph_id], sketchSeed);
+    cudaMemcpyAsync(&cudaUpdateParams[trim_graph_id]->h_bucket_a[k * stream_id * num_buckets], &cudaUpdateParams[trim_graph_id]->d_bucket_a[k * stream_id * num_buckets], k * num_buckets * sizeof(vec_t), cudaMemcpyDeviceToHost, streams[stream_id].stream);
+    cudaMemcpyAsync(&cudaUpdateParams[trim_graph_id]->h_bucket_c[k * stream_id * num_buckets], &cudaUpdateParams[trim_graph_id]->d_bucket_c[k * stream_id * num_buckets], k * num_buckets * sizeof(vec_hash_t), cudaMemcpyDeviceToHost, streams[stream_id].stream);
+
   }
   else {
     for (vec_t i = 0; i < dst_vertices.size(); i++) {
@@ -130,6 +128,8 @@ void MCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
     for (int graph_id = 0; graph_id < streams[stream_id].num_graphs; graph_id++) {
       cudaMemcpyAsync(&cudaUpdateParams[graph_id]->d_edgeUpdates[start_index], &cudaUpdateParams[graph_id]->h_edgeUpdates[start_index], subgraph_update_size[graph_id] * sizeof(vec_t), cudaMemcpyHostToDevice, streams[stream_id].stream);
       cudaKernel.k_sketchUpdate(num_device_threads, num_device_blocks, src_vertex, streams[stream_id].stream, start_index, subgraph_update_size[graph_id], k * stream_id * num_buckets, cudaUpdateParams[graph_id], sketchSeed);
+      cudaMemcpyAsync(&cudaUpdateParams[graph_id]->h_bucket_a[k * stream_id * num_buckets], &cudaUpdateParams[graph_id]->d_bucket_a[k * stream_id * num_buckets], k * num_buckets * sizeof(vec_t), cudaMemcpyDeviceToHost, streams[stream_id].stream);
+      cudaMemcpyAsync(&cudaUpdateParams[graph_id]->h_bucket_c[k * stream_id * num_buckets], &cudaUpdateParams[graph_id]->d_bucket_c[k * stream_id * num_buckets], k * num_buckets * sizeof(vec_hash_t), cudaMemcpyDeviceToHost, streams[stream_id].stream);
     }
   }
 
@@ -148,9 +148,6 @@ void MCGPUSketchAlg::apply_flush_updates() {
         if(trim_enabled) {
           graph_id = trim_graph_id;
         }
-
-        cudaMemcpy(&cudaUpdateParams[graph_id]->h_bucket_a[k * stream_id * num_buckets], &cudaUpdateParams[graph_id]->d_bucket_a[k * stream_id * num_buckets], k * num_buckets * sizeof(vec_t), cudaMemcpyDeviceToHost);
-        cudaMemcpy(&cudaUpdateParams[graph_id]->h_bucket_c[k * stream_id * num_buckets], &cudaUpdateParams[graph_id]->d_bucket_c[k * stream_id * num_buckets], k * num_buckets * sizeof(vec_hash_t), cudaMemcpyDeviceToHost);
 
         for (int k_id = 0; k_id < k; k_id++) {
           Bucket* delta_buckets = new Bucket[num_buckets];
