@@ -189,19 +189,16 @@ int main(int argc, char **argv) {
 
   size_t m = stream_ref.edges();
   // test the edges in the spanning forest are in the original graph
-  std::vector<std::vector<bool>> adj_mat(num_nodes);
-  for (node_id_t i = 0; i < num_nodes; i++) adj_mat[i] = std::vector<bool>(num_nodes - i);
-  while (m--) {
-    GraphStreamUpdate upd;
-    stream_ref.get_update_buffer(&upd, 1);
-    node_id_t src = upd.edge.src;
-    node_id_t dst = upd.edge.dst;
-    if (src > dst) std::swap(src, dst);
-    dst = dst - src;
-    adj_mat[src][dst] = !adj_mat[src][dst];
-  }
+  // std::vector<std::vector<bool>> adj_mat(num_nodes);
+  // for (node_id_t i = 0; i < num_nodes; i++) adj_mat[i] = std::vector<bool>(num_nodes - i);
 
-  MatGraphVerifier kEdgeVerifier(num_nodes, adj_mat);
+  MatGraphVerifier kEdgeVerifier(num_nodes);
+
+  while (m--) {
+     GraphStreamUpdate upd;
+     stream_ref.get_update_buffer(&upd, 1);
+     kEdgeVerifier.edge_update(upd.edge.src, upd.edge.dst);
+   }
 
   std::vector<std::vector<bool>> test_adj_mat(num_nodes);
   test_adj_mat =  kEdgeVerifier.extract_adj_matrix();
