@@ -90,9 +90,11 @@ int main(int argc, char **argv) {
   std::cout << std::endl;
 
   int k = log2(num_nodes) / (epsilon * epsilon);
+  int reduced_k = (k / log2(num_nodes)); 
 
   std::cout << "epsilon: " << epsilon << std::endl;
   std::cout << "k: " << k << std::endl;
+  std::cout << "reduced_k: " << reduced_k << std::endl;
 
   int num_graphs = 1 + (int)(2 * log2(num_nodes));
   std::cout << "Total num_graphs: " << num_graphs << "\n";
@@ -109,68 +111,58 @@ int main(int argc, char **argv) {
   sketchParams.num_buckets = sketchParams.num_columns * sketchParams.bkt_per_col + 1;
 
   // Total bytes of sketching datastructure of one subgraph
-  // Note: Remeasure this after multiple samples from sketches
-  double total_bytes = num_nodes * k * sizeof(Sketch) * sketchParams.num_buckets * sizeof(Bucket);
-  std::cout << "Total bytes of sketching data structure of one subgraph: " << total_bytes / 1000000000 << "GB\n";
-  std::cout << "Byte of one edge: " << sizeof(Edge) << "\n";
+  double sketch_bytes = reduced_k * num_nodes * sketchParams.num_buckets * sizeof(Bucket);
+  std::cout << "Total bytes of sketching data structure of one subgraph: " << sketch_bytes / 1000000000 << "GB\n";
 
   // Calculate number of minimum adj. list subgraph
-  int num_edges_complete = (num_nodes * (num_nodes - 1)) / 2;
+  size_t num_edges_complete = (size_t(num_nodes) * (size_t(num_nodes) - 1)) / 2;
   int num_adj_graphs = 0;
   int num_fixed_adj_graphs = 0;
 
-  /*for (int i = 0; i < num_graphs; i++) {
+  for (int i = 0; i < num_graphs; i++) {
     // Calculate estimated memory for current subgraph
     size_t num_est_edges = num_edges_complete / (1 << i);
-    double adjlist_bytes = sizeof(std::vector<node_id_t>) + num_est_edges * sizeof(node_id_t);
+    double adjlist_bytes = ((sizeof(node_id_t) + sizeof(std::vector<node_id_t>)) * num_nodes) + (sizeof(node_id_t) * num_est_edges);
 
-    if (adjlist_bytes < total_bytes) {
+    if (adjlist_bytes < sketch_bytes) {
       num_fixed_adj_graphs++;
     }
-  }*/
+  }
 
   // Calculate number of sketch graphs;
   int num_sketch_graphs = 0;
 
-  /*for (int i = 0; i < num_graphs; i++) {
+  for (int i = 0; i < num_graphs; i++) {
     // Calculate estimated memory for current subgraph
     size_t num_est_edges = num_updates / (1 << i);
-    double adjlist_bytes = sizeof(std::vector<node_id_t>) + num_est_edges * sizeof(node_id_t);
-
-    if (adjlist_bytes > total_bytes) {
+    double adjlist_bytes = ((sizeof(node_id_t) + sizeof(std::vector<node_id_t>)) * num_nodes) + (sizeof(node_id_t) * num_est_edges);
+  
+    if (adjlist_bytes > sketch_bytes) {
       num_sketch_graphs++;
     }
     else {
       num_adj_graphs++;
     }
-  }*/
+  }
 
   // Check if numbers of different types of subgraphs are valid
-  /*if (num_adj_graphs + num_sketch_graphs != num_graphs) {
+  if (num_adj_graphs + num_sketch_graphs != num_graphs) {
     std::cout << "ERROR: Invalid number of num_adj_graphs and num_sketch_graphs! " << num_adj_graphs << " + " << num_sketch_graphs << " != " << num_graphs << std::endl;
     exit(EXIT_FAILURE);
   }
   if (num_fixed_adj_graphs > num_adj_graphs) {
     std::cout << "ERROR: Invalid number of num_fixed_adj_graphs! " << num_fixed_adj_graphs << " > " << num_adj_graphs << std::endl;
     exit(EXIT_FAILURE);
-  }*/
-
-  // Note: In current design, it's always more memory efficient to have all subgraphs in adjacancey list.
-  // Major reason is due to k, having a sketch data structure with k copies cost a lot of memory where adj. list does not get affected by k
-  // Since we still need to test for subgraphs with sketch, intentionally set num_sketch_graphs > 0
-  num_sketch_graphs = 4;
-  num_adj_graphs = num_graphs - num_sketch_graphs;
-  num_fixed_adj_graphs = num_adj_graphs;
+  }
 
   std::cout << "Number of adj. list graphs: " << num_adj_graphs << "\n";
   std::cout << "  Number of minimum adj. list graphs: " << num_fixed_adj_graphs << "\n";
   std::cout << "Number of sketch graphs: " << num_sketch_graphs << "\n";
-  std::cout << "  REMINDER: Currently set num_sketch_graphs = " << num_sketch_graphs << " for testing.\n";
 
   // Reconfigure sketches_factor based on num_sketch_graphs
-  mc_config.sketches_factor(k * num_sketch_graphs);
+  mc_config.sketches_factor(reduced_k * num_sketch_graphs);
 
-  MCGPUSketchAlg mc_gpu_alg{num_nodes, num_updates, num_threads, get_seed(), sketchParams, num_graphs, num_sketch_graphs, num_adj_graphs, num_fixed_adj_graphs, k, mc_config};
+  MCGPUSketchAlg mc_gpu_alg{num_nodes, num_updates, num_threads, get_seed(), sketchParams, num_graphs, num_sketch_graphs, num_adj_graphs, num_fixed_adj_graphs, reduced_k, mc_config};
   GraphSketchDriver<MCGPUSketchAlg> driver{&mc_gpu_alg, &stream, driver_config, reader_threads};
 
   auto ins_start = std::chrono::steady_clock::now();
@@ -213,11 +205,13 @@ int main(int argc, char **argv) {
       std::cout << "Sketch Graph #" << graph_id << ":\n";
       mc_gpu_alg.set_trim_enbled(true, graph_id); // When trimming, only apply sketch updates to current subgraph
       for (int k_id = 0; k_id < k; k_id++) {
-        std::cout << "  Getting spanning forest " << k_id << "\n";
+        int sketch_k_id = k_id / (k / (reduced_k));
+        
+        std::cout << "  Getting spanning forest " << k_id << ", Sketch_id: " << sketch_k_id << "\n";
 
         // Get spanning forest k_id
         auto sampling_forest_start = std::chrono::steady_clock::now();
-        SpanningForest spanningForest = mc_gpu_alg.get_k_spanning_forest(graph_id, k_id, k);
+        SpanningForest spanningForest = mc_gpu_alg.get_k_spanning_forest(graph_id, sketch_k_id, reduced_k);
         sampling_forests_time += std::chrono::steady_clock::now() - sampling_forest_start;
 
         // Insert sampled edges from spanningForest to spanningForests
