@@ -61,21 +61,6 @@ void MatGraphVerifier::verify_soln(std::vector<std::set<node_id_t>> &retval) {
   std::sort(temp.begin(),temp.end());
   std::sort(kruskal_ref.begin(),kruskal_ref.end());
   if (kruskal_ref != temp){
-      std::cout << std::endl;
-      std::cout << "The size of temp is "<< temp.size() << std::endl;
-      std::cout << "The size of kruskal_ref is "<< kruskal_ref.size() << std::endl;
-      for (int i=0; i<kruskal_ref.size();i++) {
-          std::cout << "The nodes in the "<< (i+1) << "-th temp" << std::endl;
-          for (auto temp_node: temp[i]) {
-              std::cout << temp_node << " ";
-          }
-          std::cout << std::endl;
-          std::cout << "The nodes in the "<< (i+1) << "-th first kruskal" << std::endl;
-          for (auto krus_node: kruskal_ref[i]) {
-              std::cout << krus_node << " ";
-          }
-          std::cout << std::endl;
-      }
     throw IncorrectCCException();
   }
 

@@ -189,9 +189,6 @@ int main(int argc, char **argv) {
 
   size_t m = stream_ref.edges();
   // test the edges in the spanning forest are in the original graph
-  // std::vector<std::vector<bool>> adj_mat(num_nodes);
-  // for (node_id_t i = 0; i < num_nodes; i++) adj_mat[i] = std::vector<bool>(num_nodes - i);
-
   MatGraphVerifier kEdgeVerifier(num_nodes);
 
   while (m--) {
@@ -202,12 +199,6 @@ int main(int argc, char **argv) {
 
   std::vector<std::vector<bool>> test_adj_mat(num_nodes);
   test_adj_mat =  kEdgeVerifier.extract_adj_matrix();
-
-  std::cout << "The adjacency list of the vertex 0 in the beginning: " << std::endl;
-  for(unsigned int i=0;i<num_nodes; i++){
-      std::cout << test_adj_mat[0][i] << "  ";
-  }
-  std::cout << std::endl;
 
   Edge temp_edge;
   std::vector<std::pair<node_id_t, std::vector<node_id_t>>> temp_forest;
@@ -243,11 +234,6 @@ int main(int argc, char **argv) {
             }
       }
       test_adj_mat =  kEdgeVerifier.extract_adj_matrix();
-      std::cout << "The adjacency list of the vertex 0 after " << (i+1) << "spanning forests: " << std::endl;
-      for(unsigned int l=0; l<num_nodes; l++) {
-          std::cout << test_adj_mat[0][l] << "  ";
-      }
-      std::cout << std::endl;
   }
 
   unsigned long CC_nums[num_edge_connect];
