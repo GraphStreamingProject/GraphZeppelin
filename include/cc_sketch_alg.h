@@ -56,6 +56,12 @@ struct alignas(64) GlobalMergeData {
   }
 };
 
+// What type of query is the user going to perform. Used for has_cached_query()
+enum QueryCode {
+  CONNECTIVITY,     // connected components and spanning forest of graph
+  KSPANNINGFORESTS, // k disjoint spanning forests
+};
+
 /**
  * Algorithm for computing connected components on undirected graph streams
  * (no self-edges or multi-edges)
@@ -175,7 +181,13 @@ class CCSketchAlg {
    * Return if we have cached an answer to query.
    * This allows the driver to avoid flushing the gutters before calling query functions.
    */
-  bool has_cached_query() { return shared_dsu_valid; }
+  bool has_cached_query(int query_code) {
+    QueryCode code = (QueryCode) query_code;
+    if (code == CONNECTIVITY)
+      return shared_dsu_valid;
+    else
+      return false;
+  }
 
   /**
    * Print the configuration of the connected components graph sketching.

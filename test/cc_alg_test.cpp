@@ -47,12 +47,12 @@ TEST_P(CCAlgTest, SmallGraphConnectivity) {
   node_id_t num_nodes = stream.vertices();
 
   CCSketchAlg cc_alg{num_nodes, get_seed()};
-  cc_alg.set_verifier(
-      std::make_unique<GraphVerifier>(1024, curr_dir + "/res/multiples_graph_1024.txt"));
 
   GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, driver_config);
   driver.process_stream_until(END_OF_STREAM);
-  driver.prep_query();
+  driver.prep_query(CONNECTIVITY);
+  driver.check_verifier(GraphVerifier(1024, curr_dir + "/res/multiples_graph_1024.txt"));
+
   ASSERT_EQ(78, cc_alg.connected_components().size());
 }
 
@@ -65,11 +65,11 @@ TEST_P(CCAlgTest, TestCorrectnessOnSmallRandomGraphs) {
     node_id_t num_nodes = stream.vertices();
 
     CCSketchAlg cc_alg{num_nodes, get_seed()};
-    cc_alg.set_verifier(std::make_unique<GraphVerifier>(1024, "./cumul_sample.txt"));
 
     GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, driver_config);
     driver.process_stream_until(END_OF_STREAM);
-    driver.prep_query();
+    driver.prep_query(CONNECTIVITY);
+    driver.check_verifier(GraphVerifier(1024, "./cumul_sample.txt"));
 
     cc_alg.connected_components();
   }
@@ -84,11 +84,11 @@ TEST_P(CCAlgTest, TestCorrectnessOnSmallSparseGraphs) {
     node_id_t num_nodes = stream.vertices();
 
     CCSketchAlg cc_alg{num_nodes, get_seed()};
-    cc_alg.set_verifier(std::make_unique<GraphVerifier>(1024, "./cumul_sample.txt"));
 
     GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, driver_config);
     driver.process_stream_until(END_OF_STREAM);
-    driver.prep_query();
+    driver.prep_query(CONNECTIVITY);
+    driver.check_verifier(GraphVerifier(1024, "./cumul_sample.txt"));
 
     cc_alg.connected_components();
   }
@@ -104,11 +104,11 @@ TEST_P(CCAlgTest, TestCorrectnessOfReheating) {
     node_id_t num_nodes = stream.vertices();
 
     CCSketchAlg cc_alg{num_nodes, get_seed()};
-    cc_alg.set_verifier(std::make_unique<GraphVerifier>(1024, "./cumul_sample.txt"));
 
     GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, driver_config);
     driver.process_stream_until(END_OF_STREAM);
-    driver.prep_query();
+    driver.prep_query(CONNECTIVITY);
+    driver.check_verifier(GraphVerifier(1024, "./cumul_sample.txt"));
 
     cc_alg.write_binary("./out_temp.txt");
     std::vector<std::set<node_id_t>> orig_cc;
@@ -136,11 +136,12 @@ TEST_P(CCAlgTest, MultipleWorkers) {
 
     seed = get_seed();
     CCSketchAlg cc_alg{num_nodes, seed};
-    cc_alg.set_verifier(std::make_unique<GraphVerifier>(1024, "./cumul_sample.txt"));
 
     GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, driver_config);
     driver.process_stream_until(END_OF_STREAM);
-    driver.prep_query();
+    driver.prep_query(CONNECTIVITY);
+    driver.check_verifier(GraphVerifier(1024, "./cumul_sample.txt"));
+
     cc_alg.connected_components();
   }
 }
@@ -154,12 +155,11 @@ TEST_P(CCAlgTest, TestPointQuery) {
   node_id_t num_nodes = stream.vertices();
 
   CCSketchAlg cc_alg{num_nodes, get_seed()};
-  cc_alg.set_verifier(
-      std::make_unique<GraphVerifier>(1024, curr_dir + "/res/multiples_graph_1024.txt"));
 
   GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, driver_config);
   driver.process_stream_until(END_OF_STREAM);
-  driver.prep_query();
+  driver.prep_query(CONNECTIVITY);
+  driver.check_verifier(GraphVerifier(1024, curr_dir + "/res/multiples_graph_1024.txt"));
 
   std::vector<std::set<node_id_t>> ret = cc_alg.connected_components().get_component_sets();
   std::vector<node_id_t> ccid(num_nodes);
@@ -170,8 +170,6 @@ TEST_P(CCAlgTest, TestPointQuery) {
   }
   for (node_id_t i = 0; i < std::min(10u, num_nodes); ++i) {
     for (node_id_t j = 0; j < std::min(10u, num_nodes); ++j) {
-      cc_alg.set_verifier(
-          std::make_unique<GraphVerifier>(1024, curr_dir + "/res/multiples_graph_1024.txt"));
       ASSERT_EQ(cc_alg.point_query(i, j), ccid[i] == ccid[j]);
     }
   }
@@ -204,8 +202,9 @@ TEST(CCAlgTest, TestQueryDuringStream) {
     }
 
     driver.process_stream_until(tenth * (j + 1));
-    driver.prep_query();
-    cc_alg.set_verifier(std::make_unique<GraphVerifier>(verify));
+    driver.prep_query(CONNECTIVITY);
+    driver.check_verifier(verify);
+
     cc_alg.connected_components();
   }
   num_edges -= 9 * tenth;
@@ -215,8 +214,9 @@ TEST(CCAlgTest, TestQueryDuringStream) {
   }
 
   driver.process_stream_until(END_OF_STREAM);
-  driver.prep_query();
-  cc_alg.set_verifier(std::make_unique<GraphVerifier>(verify));
+  driver.prep_query(CONNECTIVITY);
+  driver.check_verifier(verify);
+
   cc_alg.connected_components();
 }
 
@@ -273,7 +273,8 @@ TEST(CCAlgTest, SpanningForestExtraction) {
   GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, driver_config);
 
   driver.process_stream_until(END_OF_STREAM);
-  driver.prep_query();
+  driver.prep_query(CONNECTIVITY);
+  driver.check_verifier(GraphVerifier(1024, "./cumul_sample.txt"));
   
   cc_alg.calc_spanning_forest();
 }
@@ -289,7 +290,8 @@ TEST(CCAlgTest, InsertOnlyStream) {
   GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, driver_config);
 
   driver.process_stream_until(END_OF_STREAM);
-  driver.prep_query();
+  driver.prep_query(CONNECTIVITY);
+  driver.check_verifier(GraphVerifier(1024, "./cumul_sample.txt"));
   
   cc_alg.connected_components();
   cc_alg.calc_spanning_forest();
@@ -323,10 +325,11 @@ TEST(CCAlgTest, MTStreamWithMultipleQueries) {
         verify.edge_update(upd.edge);
         ASSERT_NE(upd.type, BREAKPOINT);
       }
-      cc_alg.set_verifier(std::make_unique<GraphVerifier>(verify));
 
       driver.process_stream_until(upd_per_query * (i + 1));
-      driver.prep_query();
+      driver.prep_query(CONNECTIVITY);
+      driver.check_verifier(verify);
+
       cc_alg.connected_components();
     }
 
@@ -337,10 +340,11 @@ TEST(CCAlgTest, MTStreamWithMultipleQueries) {
       verify.edge_update(upd.edge);
       ASSERT_NE(upd.type, BREAKPOINT);
     }
-    cc_alg.set_verifier(std::make_unique<GraphVerifier>(verify));
 
     driver.process_stream_until(END_OF_STREAM);
-    driver.prep_query();
+    driver.prep_query(CONNECTIVITY);
+    driver.check_verifier(verify);
+
     cc_alg.connected_components();
   }
 }

@@ -1,4 +1,4 @@
-
+#pragma once
 #include <cache_guttering.h>
 #include <gutter_tree.h>
 #include <standalone_gutters.h>
@@ -9,6 +9,16 @@
 #ifdef VERIFY_SAMPLES_F
 #include "graph_verifier.h"
 #endif
+
+class DriverException : public std::exception {
+ private:
+  std::string err_msg;
+ public:
+  DriverException(std::string msg) : err_msg(msg) {}
+  virtual const char* what() const throw() {
+    return err_msg.c_str();
+  }
+};
 
 /**
  * GraphSketchDriver class:
@@ -41,9 +51,11 @@
  *          Called by worker threads to apply a batch of updates destined for a single vertex. This
  *          function must be thread-safe.
  *
- *    6) bool has_cached_query()
- *          Check if the algorithm already has a cached answer for its query type. If so, the driver
- *          can skip flushing the updates and applying them in prep_query().
+ *    6) bool has_cached_query(int query_type)
+ *          Check if the algorithm already has a cached answer for a given query type. If so, the
+ *          driver can skip flushing the updates and applying them in prep_query(). The query_type
+ *          should be defined by the algorithm as an enum (see cc_sketch_alg.h) but is typed in this
+ *          code as an integer to ensure compatability across algorithms.
  *
  *    7) void print_configuration()
  *          Print the configuration of the algorithm. The algorithm may choose to print the
@@ -120,9 +132,15 @@ class GraphSketchDriver {
 #endif
   }
 
+  /**
+   * Processes the stream until a given edge index, at which point the function returns
+   * @param break_edge_idx  the breakpoint edge index. All updates up to but not including this
+   *                        index are processed by this call.
+   * @throws DriverException if we cannot set the requested breakpoint.
+   */
   void process_stream_until(edge_id_t break_edge_idx) {
     if (!stream->set_break_point(break_edge_idx)) {
-      std::cerr << "ERROR: COULD NOT CORRECTLY SET BREAKPOINT!" << std::endl;
+      DriverException("Could not correctly set breakpoint: " + std::to_string(break_edge_idx));
       exit(EXIT_FAILURE);
     }
     worker_threads->resume_workers();
@@ -172,8 +190,8 @@ class GraphSketchDriver {
 #endif
   }
 
-  void prep_query() {
-    if (sketching_alg->has_cached_query()) {
+  void prep_query(int query_code) {
+    if (sketching_alg->has_cached_query(query_code)) {
       flush_start = flush_end = std::chrono::steady_clock::now();
       return;
     }
@@ -189,6 +207,19 @@ class GraphSketchDriver {
     total_updates += dst_vertices.size();
     sketching_alg->apply_update_batch(thr_id, src_vertex, dst_vertices);
   }
+
+#ifdef VERIFY_SAMPLES_F
+  /**
+   * checks that the verifier we constructed in process_stream_until matches another verifier
+   * @param expected  the ground truth verifier
+   * @throws DriverException if the verifiers do not match
+   */
+  void check_verifier(const GraphVerifier &expected) {
+    if (*verifier != expected) {
+      throw DriverException("Mismatch between driver verifier and expected verifier");
+    }
+  }
+#endif
 
   size_t get_total_updates() { return total_updates.load(); }
 

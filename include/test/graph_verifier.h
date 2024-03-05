@@ -80,6 +80,7 @@ public:
   node_id_t get_num_kruskal_ccs() { return kruskal_ccs; }
 
   bool operator==(const GraphVerifier &oth) { return adj_matrix == oth.adj_matrix; }
+  bool operator!=(const GraphVerifier &oth) { return !(*this == oth); }
 };
 
 class BadEdgeException : public std::exception {
