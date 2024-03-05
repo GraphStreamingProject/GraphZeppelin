@@ -85,6 +85,11 @@ class CCSketchAlg {
   Sketch **delta_sketches = nullptr;
   size_t num_delta_sketches;
 
+  CCAlgConfiguration config;
+#ifdef VERIFY_SAMPLES_F
+  std::unique_ptr<GraphVerifier> verifier;
+#endif
+
   /**
    * Run the first round of Boruvka. We can do things faster here because we know there will
    * be no merging we have to do.
@@ -92,12 +97,12 @@ class CCSketchAlg {
   bool run_round_zero();
 
   /**
-   * Update the query array with new samples
-   * @param query  an array of sketch sample results
-   * @param reps   an array containing node indices for the representative of each supernode
+   * Sample a single supernode represented by a single sketch containing one or more vertices.
+   * Updates the dsu and spanning forest with query results if edge contains new connectivity info.
+   * @param skt   sketch to sample
+   * @return      [bool] true if the query result indicates we should run an additional round.
    */
   bool sample_supernode(Sketch &skt);
-
 
   /**
    * Calculate the instructions for what vertices to merge to form each component
@@ -116,10 +121,6 @@ class CCSketchAlg {
    * Ensures that the DSU represents the Connected Components of the stream when called
    */
   void boruvka_emulation();
-
-  FRIEND_TEST(GraphTestSuite, TestCorrectnessOfReheating);
-
-  CCAlgConfiguration config;
 
   // constructor for use when reading from a serialized file
   CCSketchAlg(node_id_t num_vertices, size_t seed, std::ifstream &binary_stream,
@@ -201,7 +202,7 @@ class CCSketchAlg {
 
   /**
    * Main parallel query algorithm utilizing Boruvka and L_0 sampling.
-   * @return a vector of the connected components in the graph.
+   * @return  the connected components in the graph.
    */
   ConnectedComponents connected_components();
 
@@ -217,12 +218,11 @@ class CCSketchAlg {
    * Return a spanning forest of the graph utilizing Boruvka and L_0 sampling
    * IMPORTANT: The updates to this algorithm MUST NOT be a function of the output of this query
    * that is, unless you really know what you're doing.
-   * @return an adjacency list representation of the spanning forest of the graph
+   * @return  the spanning forest of the graph
    */
   SpanningForest calc_spanning_forest();
 
 #ifdef VERIFY_SAMPLES_F
-  std::unique_ptr<GraphVerifier> verifier;
   void set_verifier(std::unique_ptr<GraphVerifier> verifier) {
     this->verifier = std::move(verifier);
   }

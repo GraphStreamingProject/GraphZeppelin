@@ -6,33 +6,40 @@
 #include "driver_configuration.h"
 #include "graph_stream.h"
 #include "worker_thread_group.h"
+#ifdef VERIFY_SAMPLES_F
+#include "graph_verifier.h"
+#endif
 
 /**
  * GraphSketchDriver class:
  * Driver for sketching algorithms on a single machine.
  * Templatized by the "top level" sketching algorithm to manage.
  *
- * Algorithms need to implement the following functions to be managed by the driver
+ * Algorithms need to implement the following functions to be managed by the driver:
  *
  *    1) void allocate_worker_memory(size_t num_workers)
  *          For performance reasons it is often helpful for the algorithm to allocate some scratch
- *          space to be used by an individual worker threads. For example, in the connected
- *          components algorithm, we allocate a delta sketch for each worker.
+ *          space to be used by individual worker threads. This scratch memory is managed by the
+ *          algorithm. For example, in the connected components algorithm, we allocate a delta
+ *          sketch for each worker.
  *
  *    2) size_t get_desired_updates_per_batch()
  *          Return the number of updates the algorithm would like us to batch. This serves as the
- *          maximum number of updates in a batch. We only provide smaller batches if force_flush'd
+ *          maximum number of updates in a batch. We only provide smaller batches during
+ *          prep_query()
  *
  *    3) node_id_t get_num_vertices()
  *          Returns the number of vertices in the Graph or an appropriate upper bound.
  *
  *    4) void pre_insert(GraphUpdate upd, node_id_t thr_id)
  *          Called before each update is added to the guttering system for the purpose of eager
- *          query heuristics. This function must be fast executing.
+ *          query heuristics. This function must be thread-safe and fast executing. The algorithm
+ *          may choose to make this function a no-op.
  *
  *    5) void apply_update_batch(size_t thr_id, node_id_t src_vertex, const std::vector<node_id_t>
  *                               &dst_vertices)
- *          Called by worker threads to apply a batch of updates destined for a single vertex.
+ *          Called by worker threads to apply a batch of updates destined for a single vertex. This
+ *          function must be thread-safe.
  *
  *    6) bool has_cached_query()
  *          Check if the algorithm already has a cached answer for its query type. If so, the driver
@@ -41,6 +48,12 @@
  *    7) void print_configuration()
  *          Print the configuration of the algorithm. The algorithm may choose to print the
  *          configurations of subalgorithms as well.
+ *
+ *    8) void set_verifier(std::unique_ptr<GraphVerifier> verifier);
+ *          If VERIFIER_SAMPLES_F is defined, then the driver provides the algorithm with a
+ *          verifier. The verifier encodes the graph state at the time of a query losslessly
+ *          and should be used by the algorithm to check its query answer. This is only used for
+ *          correctness testing, not for production code.
  */
 template <class Alg>
 class GraphSketchDriver {
@@ -48,6 +61,10 @@ class GraphSketchDriver {
   GutteringSystem *gts;
   Alg *sketching_alg;
   GraphStream *stream;
+#ifdef VERIFY_SAMPLES_F
+  GraphVerifier *verifier;
+  std::mutex verifier_mtx;
+#endif
 
   WorkerThreadGroup<Alg> *worker_threads;
 
@@ -55,7 +72,6 @@ class GraphSketchDriver {
   static constexpr size_t update_array_size = 4000;
 
   std::atomic<size_t> total_updates;
-  FRIEND_TEST(GraphTest, TestSupernodeRestoreAfterCCFailure);
  public:
   GraphSketchDriver(Alg *sketching_alg, GraphStream *stream, DriverConfiguration config,
                     size_t num_stream_threads = 1)
@@ -83,10 +99,14 @@ class GraphSketchDriver {
     sketching_alg->print_configuration();
 
     if (num_stream_threads > 1 && !stream->get_update_is_thread_safe()) {
-      std::cerr << "WARNING: stream get_update is not thread safe. Setting num inserters to 1"
-                << std::endl;
+      std::cerr
+          << "WARNING: stream get_update is not thread safe. Setting number of stream threads to 1"
+          << std::endl;
       num_stream_threads = 1;
     }
+#ifdef VERIFY_SAMPLES_F
+    verifier = new GraphVerifier(sketching_alg->get_num_vertices());
+#endif
 
     total_updates = 0;
     std::cout << std::endl;
@@ -95,6 +115,9 @@ class GraphSketchDriver {
   ~GraphSketchDriver() {
     delete worker_threads;
     delete gts;
+#ifdef VERIFY_SAMPLES_F
+    delete verifier;
+#endif
   }
 
   void process_stream_until(edge_id_t break_edge_idx) {
@@ -106,6 +129,9 @@ class GraphSketchDriver {
 
     auto task = [&](int thr_id) {
       GraphStreamUpdate update_array[update_array_size];
+#ifdef VERIFY_SAMPLES_F
+      GraphVerifier local_verifier(sketching_alg->get_num_vertices());
+#endif
 
       while (true) {
         size_t updates = stream->get_update_buffer(update_array, update_array_size);
@@ -114,6 +140,11 @@ class GraphSketchDriver {
           upd.edge = update_array[i].edge;
           upd.type = static_cast<UpdateType>(update_array[i].type);
           if (upd.type == BREAKPOINT) {
+            // reached the breakpoint. Update verifier if applicable and return
+#ifdef VERIFY_SAMPLES_F
+            std::lock_guard<std::mutex> lk(verifier_mtx);
+            verifier->combine(local_verifier);
+#endif
             return;
           }
           else {
@@ -121,6 +152,9 @@ class GraphSketchDriver {
             Edge edge = upd.edge;
             gts->insert({edge.src, edge.dst}, thr_id);
             gts->insert({edge.dst, edge.src}, thr_id);
+#ifdef VERIFY_SAMPLES_F
+            local_verifier.edge_update(edge);
+#endif
           }
         }
       }
@@ -131,6 +165,11 @@ class GraphSketchDriver {
 
     // wait for threads to finish
     for (size_t i = 0; i < num_stream_threads; i++) threads[i].join();
+
+    // pass the verifier to the algorithm
+#ifdef VERIFY_SAMPLES_F
+    sketching_alg->set_verifier(std::make_unique<GraphVerifier>(*verifier));
+#endif
   }
 
   void prep_query() {
