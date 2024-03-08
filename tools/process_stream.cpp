@@ -82,12 +82,10 @@ public:
         return hash_val;
     }
 
-    // TODO: the first barrier here is to update edges to the next sketch without using the query() function
-    void pre_insert(GraphUpdate upd, node_id_t thr_id) {
-        for(unsigned int i=0;i<num_subgraphs;i++) {
-            k_edge_algs[i]->pre_insert(upd, thr_id);
-        }
-    }
+    
+    void pre_insert(GraphUpdate upd, node_id_t thr_id) { }
+
+    // TODO: Change the appl update batch function as opposed to change pre_insert
 
     void apply_update_batch(size_t thr_id, node_id_t src_vertex, const std::vector<node_id_t> &dst_vertices) {
         for(unsigned int i=0;i<num_subgraphs;i++) {
