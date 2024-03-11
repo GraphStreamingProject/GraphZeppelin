@@ -59,7 +59,7 @@ inline col_hash_t Bucket_Boruvka::get_index_depth(const vec_t update_idx, const 
                                                   const vec_hash_t max_depth) {
   col_hash_t depth_hash = col_hash(&update_idx, sizeof(vec_t), seed_and_col);
   depth_hash |= (1ull << max_depth); // assert not > max_depth by ORing
-  return __builtin_ctzll(depth_hash) >> 1;
+  return __builtin_ctzll(depth_hash);
 }
 
 inline vec_hash_t Bucket_Boruvka::get_index_hash(const vec_t update_idx, const long sketch_seed) {

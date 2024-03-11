@@ -111,20 +111,19 @@ SketchSample Sketch::fast_sample() {
 
     Bucket* current_column = buckets + ((idx * cols_per_sample + col)  * bkt_per_col);
 
-    // TODO - currently this is only set up for a single column. Should be pretty minimal changes
-    for (size_t idx=0; idx < 5; idx++) {
+    for (size_t idx=0; idx < 3; idx++) {
       if (Bucket_Boruvka::is_good(current_column[idx], checksum_seed()))
         return {current_column[idx].alpha, GOOD};
     }    
     size_t lo=1, hi=bkt_per_col;
 
-    while (lo + window_size < bkt_per_col && !(
-      !Bucket_Boruvka::is_zero(current_column[lo]) && Bucket_Boruvka::is_zero(current_column[lo+window_size])
-      )) {
-        lo *= 2;
-    }
-    hi = std::min(lo+2*window_size, hi);
-    lo /= 2;
+    // while (lo + window_size < bkt_per_col && !(
+    //   !Bucket_Boruvka::is_zero(current_column[lo]) && Bucket_Boruvka::is_zero(current_column[lo+window_size])
+    //   )) {
+    //     lo *= 2;
+    // }
+    // hi = std::min(lo+2*window_size, hi);
+    // lo /= 2;
     size_t midpt = (lo+hi)/2;
     do {
       if (!Bucket_Boruvka::is_zero(current_column[midpt]) && Bucket_Boruvka::is_zero(current_column[midpt+window_size])) {
@@ -144,10 +143,11 @@ SketchSample Sketch::fast_sample() {
         lo = midpt;
       }
       midpt = (lo+hi)/2;
-    } while (hi-lo >= 3*window_size);
+    } while (hi-lo >= 2*window_size);
     lo = std::max((size_t) 0, lo);
     hi = std::min(hi, bkt_per_col);
-    for (size_t i=lo; i < hi; i++) {
+    // for (size_t i=lo; i < hi; i++) {
+    for (size_t i=hi-1; i <= lo; i--) {
       if (Bucket_Boruvka::is_good(current_column[i], checksum_seed()))
         return {current_column[i].alpha, GOOD};
     }

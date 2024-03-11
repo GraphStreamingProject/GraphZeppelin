@@ -220,7 +220,7 @@ BENCHMARK(BM_Sketch_Update)->RangeMultiplier(4)->Ranges({{KB << 4, MB << 4}});
 
 // Benchmark the speed of querying sketches
 static void BM_Sketch_Query(benchmark::State& state) {
-  constexpr size_t vec_size = KB << 5;
+  constexpr size_t vec_size = KB << 22;
   constexpr size_t num_sketches = 100;
   double density = ((double)state.range(0)) / 100;
 
