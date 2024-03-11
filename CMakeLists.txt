@@ -3,7 +3,7 @@ project(GraphZeppelin)
 
 include (FetchContent)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
@@ -32,6 +32,10 @@ endif()
 #add_link_options(-fsanitize=address)
 #add_compile_options(-fsanitize=undefined)
 #add_link_options(-fsanitize=undefined)
+add_compile_options(-save-temps)
+# add_compile_options(-ftree-vectorize)
+add_compile_options(-fno-tree-vectorize)
+# add_compile_options(o3)
 
 # Check if this project is the top directory or build type is Debug
 # If so, build executables, otherwise, only build libraries

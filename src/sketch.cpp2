@@ -11,12 +11,17 @@ Sketch::Sketch(vec_t vector_len, uint64_t seed, size_t _samples, size_t _cols) :
   num_columns = num_samples * cols_per_sample;
   bkt_per_col = calc_bkt_per_col(vector_len);
   num_buckets = num_columns * bkt_per_col + 1; // plus 1 for deterministic bucket
-  buckets = new Bucket[num_buckets];
+  // buckets = new Bucket[num_buckets];
+  alpha = new vec_t[num_buckets];
+  gamma = new vec_hash_t[num_buckets];
+
 
   // initialize bucket values
   for (size_t i = 0; i < num_buckets; ++i) {
-    buckets[i].alpha = 0;
-    buckets[i].gamma = 0;
+    alpha[i] = 0;
+    gamma[i] = 0;
+    // buckets[i].alpha = 0;
+    // buckets[i].gamma = 0;
   }
 }
 
@@ -28,10 +33,12 @@ Sketch::Sketch(vec_t vector_len, uint64_t seed, std::istream &binary_in, size_t 
   num_columns = num_samples * cols_per_sample;
   bkt_per_col = calc_bkt_per_col(vector_len);
   num_buckets = num_columns * bkt_per_col + 1; // plus 1 for deterministic bucket
-  buckets = new Bucket[num_buckets];
+  // buckets = new Bucket[num_buckets];
+  alpha = new vec_t[num_buckets];
+  gamma = new vec_hash_t[num_buckets];
 
   // Read the serialized Sketch contents
-  binary_in.read((char *)buckets, bucket_array_bytes());
+  //binary_in.read((char *)buckets, bucket_array_bytes());
 }
 
 Sketch::Sketch(const Sketch &s) : seed(s.seed) {
@@ -40,19 +47,27 @@ Sketch::Sketch(const Sketch &s) : seed(s.seed) {
   num_columns = s.num_columns;
   bkt_per_col = s.bkt_per_col;
   num_buckets = s.num_buckets;
-  buckets = new Bucket[num_buckets];
+  // buckets = new Bucket[num_buckets];
+  alpha = new vec_t[num_buckets];
+  gamma = new vec_hash_t[num_buckets];
 
-  std::memcpy(buckets, s.buckets, bucket_array_bytes());
+  // std::memcpy(buckets, s.buckets, bucket_array_bytes());
+  std::memcpy(alpha, s.alpha, num_buckets * sizeof(vec_t));
+  std::memcpy(gamma, s.gamma, num_buckets * sizeof(vec_hash_t));
+  // std::memcpy(buckets, s.buckets, bucket_array_bytes());
 }
 
-Sketch::~Sketch() { delete[] buckets; }
+// Sketch::~Sketch() { delete[] buckets; }
+Sketch::~Sketch() { delete[] alpha; delete[] gamma; }
 
 #ifdef L0_SAMPLING
 void Sketch::update(const vec_t update_idx) {
   vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update_idx, checksum_seed());
 
   // Update depth 0 bucket
-  Bucket_Boruvka::update(buckets[num_buckets - 1], update_idx, checksum);
+  // Bucket_Boruvka::update(buckets[num_buckets - 1], update_idx, checksum);
+  alpha[num_buckets - 1] ^= update_idx;
+  gamma[num_buckets - 1] ^= checksum;
 
   // Update higher depth buckets
   for (unsigned i = 0; i < num_columns; ++i) {
@@ -60,7 +75,9 @@ void Sketch::update(const vec_t update_idx) {
     likely_if(depth < bkt_per_col) {
       for (col_hash_t j = 0; j <= depth; ++j) {
         size_t bucket_id = i * bkt_per_col + j;
-        Bucket_Boruvka::update(buckets[bucket_id], update_idx, checksum);
+        // Bucket_Boruvka::update(buckets[bucket_id], update_idx, checksum);
+        alpha[bucket_id] ^= update_idx;
+        gamma[bucket_id] ^= checksum;
       }
     }
   }
@@ -70,14 +87,18 @@ void Sketch::update(const vec_t update_idx) {
   vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update_idx, checksum_seed());
 
   // Update depth 0 bucket
-  Bucket_Boruvka::update(buckets[num_buckets - 1], update_idx, checksum);
+  //Bucket_Boruvka::update(buckets[num_buckets - 1], update_idx, checksum);
+  alpha[num_buckets - 1] ^= update_idx;
+  gamma[num_buckets - 1] ^= checksum;
 
   // Update higher depth buckets
   for (unsigned i = 0; i < num_columns; ++i) {
     col_hash_t depth = Bucket_Boruvka::get_index_depth(update_idx, column_seed(i), bkt_per_col);
     size_t bucket_id = i * bkt_per_col + depth;
     likely_if(depth < bkt_per_col) {
-      Bucket_Boruvka::update(buckets[bucket_id], update_idx, checksum);
+      // Bucket_Boruvka::update(buckets[bucket_id], update_idx, checksum);
+        alpha[bucket_id] ^= update_idx;
+        gamma[bucket_id] ^= checksum;
     }
   }
 }
@@ -85,78 +106,15 @@ void Sketch::update(const vec_t update_idx) {
 
 void Sketch::zero_contents() {
   for (size_t i = 0; i < num_buckets; i++) {
-    buckets[i].alpha = 0;
-    buckets[i].gamma = 0;
+    // buckets[i].alpha = 0;
+    // buckets[i].gamma = 0;
+    alpha[i] = 0;
+    gamma[i] = 0;
   }
   reset_sample_state();
 }
 
-SketchSample Sketch::fast_sample() {
-  if (sample_idx >= num_samples) {
-    throw OutOfSamplesException();
-  }
-
-  size_t idx = sample_idx++;
-
-  if (Bucket_Boruvka::is_zero(buckets[num_buckets-1]))
-    return {0, ZERO};  // the "first" bucket is deterministic so if all zero then no edges to return
-  if (Bucket_Boruvka::is_good(buckets[num_buckets - 1], checksum_seed()))
-    return {buckets[num_buckets - 1].alpha, GOOD};
-
-
-  size_t window_size = 1*(sizeof(unsigned long long)*8 - __builtin_clzll(bkt_per_col)) + 5;
-
-
-  for (size_t col=0; col< num_columns; col++) {
-
-    Bucket* current_column = buckets + ((idx * cols_per_sample + col)  * bkt_per_col);
-
-    // TODO - currently this is only set up for a single column. Should be pretty minimal changes
-    for (size_t idx=0; idx < 5; idx++) {
-      if (Bucket_Boruvka::is_good(current_column[idx], checksum_seed()))
-        return {current_column[idx].alpha, GOOD};
-    }    
-    size_t lo=1, hi=bkt_per_col;
-
-    while (lo + window_size < bkt_per_col && !(
-      !Bucket_Boruvka::is_zero(current_column[lo]) && Bucket_Boruvka::is_zero(current_column[lo+window_size])
-      )) {
-        lo *= 2;
-    }
-    hi = std::min(lo+2*window_size, hi);
-    lo /= 2;
-    size_t midpt = (lo+hi)/2;
-    do {
-      if (!Bucket_Boruvka::is_zero(current_column[midpt]) && Bucket_Boruvka::is_zero(current_column[midpt+window_size])) {
-        lo = midpt-window_size;
-        hi = midpt+ (2*window_size);
-        break;
-      }
-      else if (Bucket_Boruvka::is_zero(current_column[midpt]) && !Bucket_Boruvka::is_zero(current_column[midpt-window_size]) ) {
-        lo = midpt - 2*window_size + 1;
-        hi = midpt + window_size;
-        break;
-      }
-      else if (Bucket_Boruvka::is_zero(current_column[midpt])){
-        hi = midpt;
-      }
-      else {
-        lo = midpt;
-      }
-      midpt = (lo+hi)/2;
-    } while (hi-lo >= 3*window_size);
-    lo = std::max((size_t) 0, lo);
-    hi = std::min(hi, bkt_per_col);
-    for (size_t i=lo; i < hi; i++) {
-      if (Bucket_Boruvka::is_good(current_column[i], checksum_seed()))
-        return {current_column[i].alpha, GOOD};
-    }
-  }
-  return {0, FAIL};
-}
-
 SketchSample Sketch::sample() {
-  return fast_sample();
   if (sample_idx >= num_samples) {
     throw OutOfSamplesException();
   }
@@ -164,17 +122,21 @@ SketchSample Sketch::sample() {
   size_t idx = sample_idx++;
   size_t first_column = idx * cols_per_sample;
 
-  if (buckets[num_buckets - 1].alpha == 0 && buckets[num_buckets - 1].gamma == 0)
+  // if (buckets[num_buckets - 1].alpha == 0 && buckets[num_buckets - 1].gamma == 0)
+  if (alpha[num_buckets - 1] == 0 && gamma[num_buckets - 1] == 0)
     return {0, ZERO};  // the "first" bucket is deterministic so if all zero then no edges to return
 
-  if (Bucket_Boruvka::is_good(buckets[num_buckets - 1], checksum_seed()))
-    return {buckets[num_buckets - 1].alpha, GOOD};
+  // if (Bucket_Boruvka::is_good(buckets[num_buckets - 1], checksum_seed()))
+  if (gamma[num_buckets -1] == Bucket_Boruvka::get_index_hash(alpha[num_buckets-1], checksum_seed()))
+    return {alpha[num_buckets - 1], GOOD};
 
   for (size_t i = 0; i < cols_per_sample; ++i) {
     for (size_t j = 0; j < bkt_per_col; ++j) {
       size_t bucket_id = (i + first_column) * bkt_per_col + j;
-      if (Bucket_Boruvka::is_good(buckets[bucket_id], checksum_seed()))
-        return {buckets[bucket_id].alpha, GOOD};
+      // if (Bucket_Boruvka::is_good(buckets[bucket_id], checksum_seed()))
+      if (gamma[bucket_id] == Bucket_Boruvka::get_index_hash(alpha[bucket_id], checksum_seed()))
+        // return {buckets[bucket_id].alpha, GOOD};
+        return {alpha[bucket_id], GOOD};
     }
   }
   return {0, FAIL};
@@ -189,19 +151,22 @@ ExhaustiveSketchSample Sketch::exhaustive_sample() {
   size_t idx = sample_idx++;
   size_t first_column = idx * cols_per_sample;
 
-  unlikely_if (buckets[num_buckets - 1].alpha == 0 && buckets[num_buckets - 1].gamma == 0)
+  unlikely_if (alpha[num_buckets - 1] == 0 && gamma[num_buckets - 1] == 0)
     return {ret, ZERO}; // the "first" bucket is deterministic so if zero then no edges to return
 
-  unlikely_if (Bucket_Boruvka::is_good(buckets[num_buckets - 1], checksum_seed())) {
-    ret.insert(buckets[num_buckets - 1].alpha);
+  unlikely_if (gamma[num_buckets -1] == Bucket_Boruvka::get_index_hash(alpha[num_buckets-1], checksum_seed())) {
+    // ret.insert(buckets[num_buckets - 1].alpha);
+    ret.insert(alpha[num_buckets - 1]);
     return {ret, GOOD};
   }
 
   for (size_t i = 0; i < cols_per_sample; ++i) {
     for (size_t j = 0; j < bkt_per_col; ++j) {
       size_t bucket_id = (i + first_column) * bkt_per_col + j;
-      unlikely_if (Bucket_Boruvka::is_good(buckets[bucket_id], checksum_seed())) {
-        ret.insert(buckets[bucket_id].alpha);
+      // unlikely_if (Bucket_Boruvka::is_good(buckets[bucket_id], checksum_seed())) {
+      unlikely_if (gamma[bucket_id] == Bucket_Boruvka::get_index_hash(alpha[bucket_id], checksum_seed())) {
+        // ret.insert(buckets[bucket_id].alpha);
+        ret.insert(alpha[bucket_id]);
       }
     }
   }
@@ -212,10 +177,13 @@ ExhaustiveSketchSample Sketch::exhaustive_sample() {
 }
 
 void Sketch::merge(const Sketch &other) {
-  #pragma omp simd 
+  // #pragma omp loop vectorize(enable) interleave(enable)
+  #pragma omp simd
   for (size_t i = 0; i < num_buckets; ++i) {
-    buckets[i].alpha ^= other.buckets[i].alpha;
-    buckets[i].gamma ^= other.buckets[i].gamma;
+    alpha[i] ^= other.alpha[i];
+    gamma[i] ^= other.gamma[i];
+    // buckets[i].alpha ^= other.buckets[i].alpha;
+    // buckets[i].gamma ^= other.buckets[i].gamma;
   }
 }
 
@@ -230,25 +198,30 @@ void Sketch::range_merge(const Sketch &other, size_t start_sample, size_t n_samp
   sample_idx = std::max(sample_idx, start_sample);
 
   // merge deterministic buffer
-  buckets[num_buckets - 1].alpha ^= other.buckets[num_buckets - 1].alpha;
-  buckets[num_buckets - 1].gamma ^= other.buckets[num_buckets - 1].gamma;
+  // buckets[num_buckets - 1].alpha ^= other.buckets[num_buckets - 1].alpha;
+  // buckets[num_buckets - 1].gamma ^= other.buckets[num_buckets - 1].gamma;
+  alpha[num_buckets - 1] ^= other.alpha[num_buckets - 1];
+  gamma[num_buckets - 1] ^= other.gamma[num_buckets - 1];
 
   // merge other buckets
   size_t start_bucket_id = start_sample * cols_per_sample * bkt_per_col;
   size_t n_buckets = n_samples * cols_per_sample * bkt_per_col;
 
-  #pragma omp simd
   for (size_t i = 0; i < n_buckets; i++) {
     size_t bucket_id = start_bucket_id + i;
-    buckets[bucket_id].alpha ^= other.buckets[bucket_id].alpha;
-    buckets[bucket_id].gamma ^= other.buckets[bucket_id].gamma;
+    // buckets[bucket_id].alpha ^= other.buckets[bucket_id].alpha;
+    // buckets[bucket_id].gamma ^= other.buckets[bucket_id].gamma;
+    alpha[bucket_id] ^= other.alpha[bucket_id];
+    gamma[bucket_id] ^= other.gamma[bucket_id];
   }
 }
 
 void Sketch::merge_raw_bucket_buffer(const Bucket *raw_buckets) {
   for (size_t i = 0; i < num_buckets; i++) {
-    buckets[i].alpha ^= raw_buckets[i].alpha;
-    buckets[i].gamma ^= raw_buckets[i].gamma;
+    // buckets[i].alpha ^= raw_buckets[i].alpha;
+    // buckets[i].gamma ^= raw_buckets[i].gamma;
+    alpha[i] ^= raw_buckets[i].alpha;
+    gamma[i] ^= raw_buckets[i].gamma;
   }
 }
 
@@ -261,10 +234,14 @@ bool operator==(const Sketch &sketch1, const Sketch &sketch2) {
     return false;
 
   for (size_t i = 0; i < sketch1.num_buckets; ++i) {
-    if (sketch1.buckets[i].alpha != sketch2.buckets[i].alpha ||
-        sketch1.buckets[i].gamma != sketch2.buckets[i].gamma) {
+    if (sketch1.alpha[i] != sketch2.alpha[i] ||
+        sketch1.gamma[i] != sketch2.gamma[i]) {
       return false;
     }
+    // if (sketch1.buckets[i].alpha != sketch2.buckets[i].alpha ||
+    //     sketch1.buckets[i].gamma != sketch2.buckets[i].gamma) {
+    //   return false;
+    // }
   }
 
   return true;
@@ -281,7 +258,7 @@ std::ostream &operator<<(std::ostream &os, const Sketch &sketch) {
   for (unsigned i = 0; i < sketch.num_columns; ++i) {
     for (unsigned j = 0; j < sketch.bkt_per_col; ++j) {
       unsigned bucket_id = i * sketch.bkt_per_col + j;
-      Bucket bkt = sketch.buckets[bucket_id];
+      Bucket bkt = {sketch.alpha[bucket_id], sketch.gamma[bucket_id]} ;
       vec_t a = bkt.alpha;
       vec_hash_t c = bkt.gamma;
       bool good = Bucket_Boruvka::is_good(bkt, sketch.checksum_seed());

@@ -33,6 +33,10 @@ namespace Bucket_Boruvka {
    */
   inline static vec_hash_t get_index_hash(const vec_t index, const long sketch_seed);
 
+  inline static bool is_zero(const Bucket &bucket) {
+    return bucket.alpha == 0 && bucket.gamma == 0;
+  }
+
   /**
    * Checks whether a Bucket is good, assuming the Bucket contains all elements.
    * @param bucket       The bucket to check
@@ -55,7 +59,7 @@ inline col_hash_t Bucket_Boruvka::get_index_depth(const vec_t update_idx, const 
                                                   const vec_hash_t max_depth) {
   col_hash_t depth_hash = col_hash(&update_idx, sizeof(vec_t), seed_and_col);
   depth_hash |= (1ull << max_depth); // assert not > max_depth by ORing
-  return __builtin_ctzll(depth_hash);
+  return __builtin_ctzll(depth_hash) >> 1;
 }
 
 inline vec_hash_t Bucket_Boruvka::get_index_hash(const vec_t update_idx, const long sketch_seed) {

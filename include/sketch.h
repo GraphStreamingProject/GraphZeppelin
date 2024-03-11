@@ -50,6 +50,9 @@ class Sketch {
 
   // bucket data
   Bucket* buckets;
+  // vec_t* alpha;
+  // vec_hash_t* gamma;
+
 
  public:
   /**
@@ -118,6 +121,13 @@ class Sketch {
   SketchSample sample();
 
   /**
+   * Function to quickly sample from the sketch.
+   * cols_per_sample determines the number of columns we allocate to this query
+   * @return   A pair with the result index and a code indicating the type of result.
+   */
+  SketchSample fast_sample();
+
+  /**
    * Function to sample from the appropriate columns to return 1 or more non-zero indices
    * @return   A pair with the result indices and a code indicating the type of result.
    */
@@ -178,7 +188,7 @@ class Sketch {
   inline size_t get_buckets() const { return num_buckets; }
   inline size_t get_num_samples() const { return num_samples; }
 
-  static size_t calc_bkt_per_col(size_t n) { return ceil(log2(n)) + 1; }
+  static size_t calc_bkt_per_col(size_t n) { return ceil(log2(n)/2) + 8; }
 
 #ifdef L0_SAMPLING
   static constexpr size_t default_cols_per_sample = 7;

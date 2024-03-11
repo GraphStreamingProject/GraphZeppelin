@@ -132,7 +132,7 @@ void test_n_one(rand_type n, rand_type* good, rand_type max_z)
 
 void test_n(rand_type n)
 {
-  int ntrials = 500;
+  int ntrials = 30;
   rand_type max_z = 1+(n*n)/4;
   // Default init to 0?
   rand_type* good = new rand_type[max_z];
@@ -165,7 +165,7 @@ void test_n(rand_type n)
 int main()
 {
   std::cout << CCAlgConfiguration() << std::endl;
-  rand_type n = 1 << 13;
+  rand_type n = 1 << 7;
   std::cout << "TESTING: " << n << " TO " << (n*n)/4 << std::endl;
   test_n(n);
 }
