@@ -98,56 +98,66 @@ SketchSample Sketch::fast_sample() {
 
   size_t idx = sample_idx++;
 
-  if (Bucket_Boruvka::is_zero(buckets[num_buckets-1]))
+  if (Bucket_Boruvka::is_empty(buckets[num_buckets-1]))
     return {0, ZERO};  // the "first" bucket is deterministic so if all zero then no edges to return
   if (Bucket_Boruvka::is_good(buckets[num_buckets - 1], checksum_seed()))
     return {buckets[num_buckets - 1].alpha, GOOD};
 
 
-  size_t window_size = 1*(sizeof(unsigned long long)*8 - __builtin_clzll(bkt_per_col)) + 5;
+  size_t window_size = 3+(sizeof(unsigned long long)*8 - __builtin_clzll(bkt_per_col))/2;
 
 
   for (size_t col=0; col< num_columns; col++) {
 
     Bucket* current_column = buckets + ((idx * cols_per_sample + col)  * bkt_per_col);
 
-    for (size_t idx=0; idx < 3; idx++) {
+    for (size_t idx=0; idx < 4; idx++) {
       if (Bucket_Boruvka::is_good(current_column[idx], checksum_seed()))
         return {current_column[idx].alpha, GOOD};
-    }    
-    size_t lo=1, hi=bkt_per_col;
+    }
+    // NOTE - we want to take advantage of signed types here
+    int lo=1, hi=bkt_per_col;
 
     // while (lo + window_size < bkt_per_col && !(
-    //   !Bucket_Boruvka::is_zero(current_column[lo]) && Bucket_Boruvka::is_zero(current_column[lo+window_size])
+    //   !Bucket_Boruvka::is_empty(current_column[lo]) && Bucket_Boruvka::is_empty(current_column[lo+window_size])
     //   )) {
     //     lo *= 2;
     // }
     // hi = std::min(lo+2*window_size, hi);
     // lo /= 2;
-    size_t midpt = (lo+hi)/2;
-    do {
-      if (!Bucket_Boruvka::is_zero(current_column[midpt]) && Bucket_Boruvka::is_zero(current_column[midpt+window_size])) {
-        lo = midpt-window_size;
-        hi = midpt+ (2*window_size);
-        break;
-      }
-      else if (Bucket_Boruvka::is_zero(current_column[midpt]) && !Bucket_Boruvka::is_zero(current_column[midpt-window_size]) ) {
-        lo = midpt - 2*window_size + 1;
+    int midpt = (lo+hi)/2;
+    while (hi - lo >= window_size && midpt + window_size <= bkt_per_col && midpt - window_size >= 0) {
+      if (!Bucket_Boruvka::is_empty(current_column[midpt]) && Bucket_Boruvka::is_empty(current_column[midpt+window_size])) {
+        // lo = midpt-window_size;
+        // hi = midpt+ (2*window_size);
+        lo = midpt;
         hi = midpt + window_size;
         break;
       }
-      else if (Bucket_Boruvka::is_zero(current_column[midpt])){
+      else if (Bucket_Boruvka::is_empty(current_column[midpt]) && !Bucket_Boruvka::is_empty(current_column[midpt-window_size]) ) {
+        // lo = midpt - 2*window_size + 1;
+        // hi = midpt + window_size;
+        hi = midpt;
+        lo = midpt - window_size;
+        break;
+      }
+      else if (Bucket_Boruvka::is_empty(current_column[midpt])){
         hi = midpt;
       }
       else {
         lo = midpt;
       }
       midpt = (lo+hi)/2;
-    } while (hi-lo >= 2*window_size);
-    lo = std::max((size_t) 0, lo);
-    hi = std::min(hi, bkt_per_col);
+    };
+    lo = lo - window_size;
+    hi = hi + window_size;
+    lo = std::max(0, lo);
+    hi = std::min(hi, (int) bkt_per_col);
+    // std::cout << "lo: " << lo << " hi: " << hi << " max: " << bkt_per_col << " window size: " << window_size << std::endl;
     // for (size_t i=lo; i < hi; i++) {
-    for (size_t i=hi-1; i <= lo; i--) {
+    // NEEDS TO BE SIGNED FOR THIS TO WORK. TODO - fix
+    for (int i=hi-1; i >= lo; --i) {
+      // std::cout << i << " \n";
       if (Bucket_Boruvka::is_good(current_column[i], checksum_seed()))
         return {current_column[i].alpha, GOOD};
     }
@@ -163,6 +173,8 @@ SketchSample Sketch::sample() {
 
   size_t idx = sample_idx++;
   size_t first_column = idx * cols_per_sample;
+  // size_t window_size = (sizeof(unsigned long long)*8 - __builtin_clzll(bkt_per_col));
+  // std::cout << "Window Size: " << window_size << std::endl;
 
   if (buckets[num_buckets - 1].alpha == 0 && buckets[num_buckets - 1].gamma == 0)
     return {0, ZERO};  // the "first" bucket is deterministic so if all zero then no edges to return
@@ -171,8 +183,14 @@ SketchSample Sketch::sample() {
     return {buckets[num_buckets - 1].alpha, GOOD};
 
   for (size_t i = 0; i < cols_per_sample; ++i) {
+    // size_t window_ctr= 0;
     for (size_t j = 0; j < bkt_per_col; ++j) {
+    // for (int j = bkt_per_col-1; j >= 0; --j) {
       size_t bucket_id = (i + first_column) * bkt_per_col + j;
+      // if (!Bucket_Boruvka::is_empty(buckets[bucket_id]))
+      //   window_ctr=0;
+      // else 
+      //   window_ctr++;
       if (Bucket_Boruvka::is_good(buckets[bucket_id], checksum_seed()))
         return {buckets[bucket_id].alpha, GOOD};
     }
@@ -199,6 +217,7 @@ ExhaustiveSketchSample Sketch::exhaustive_sample() {
 
   for (size_t i = 0; i < cols_per_sample; ++i) {
     for (size_t j = 0; j < bkt_per_col; ++j) {
+    // for (size_t j = bkt_per_col-1; j >= 0; --j) {
       size_t bucket_id = (i + first_column) * bkt_per_col + j;
       unlikely_if (Bucket_Boruvka::is_good(buckets[bucket_id], checksum_seed())) {
         ret.insert(buckets[bucket_id].alpha);

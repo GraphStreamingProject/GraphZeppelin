@@ -33,7 +33,7 @@ namespace Bucket_Boruvka {
    */
   inline static vec_hash_t get_index_hash(const vec_t index, const long sketch_seed);
 
-  inline static bool is_zero(const Bucket &bucket) {
+  inline static bool is_empty(const Bucket &bucket) {
     return bucket.alpha == 0 && bucket.gamma == 0;
   }
 
@@ -67,7 +67,8 @@ inline vec_hash_t Bucket_Boruvka::get_index_hash(const vec_t update_idx, const l
 }
 
 inline bool Bucket_Boruvka::is_good(const Bucket &bucket, const long sketch_seed) {
-  return bucket.gamma == get_index_hash(bucket.alpha, sketch_seed);
+  // return bucket.gamma == get_index_hash(bucket.alpha, sketch_seed);
+  return !Bucket_Boruvka::is_empty(bucket) && bucket.gamma == get_index_hash(bucket.alpha, sketch_seed);
 }
 
 inline void Bucket_Boruvka::update(Bucket& bucket, const vec_t update_idx,

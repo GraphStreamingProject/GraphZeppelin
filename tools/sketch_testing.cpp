@@ -165,7 +165,7 @@ void test_n(rand_type n)
 int main()
 {
   std::cout << CCAlgConfiguration() << std::endl;
-  rand_type n = 1 << 7;
+  rand_type n = 1 << 17;
   std::cout << "TESTING: " << n << " TO " << (n*n)/4 << std::endl;
   test_n(n);
 }
