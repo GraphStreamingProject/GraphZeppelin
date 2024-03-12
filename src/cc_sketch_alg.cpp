@@ -274,9 +274,6 @@ bool CCSketchAlg::perform_boruvka_round(const size_t cur_round,
     bool local_except = false;
     std::exception_ptr local_err;
 
-    // node_id_t left_root = merge_instr[start].root;
-    // node_id_t right_root = merge_instr[end - 1].root;
-
     bool root_from_left = false;
     if (start > 0) {
       root_from_left = merge_instr[start - 1].root == merge_instr[start].root;
@@ -553,8 +550,7 @@ ConnectedComponents CCSketchAlg::connected_components() {
 
   ConnectedComponents cc(num_vertices, dsu);
 #ifdef VERIFY_SAMPLES_F
-  auto cc_sets = cc.get_component_sets();
-  verifier->verify_soln(cc_sets);
+  verifier->verify_connected_components(cc);
 #endif
   cc_alg_end = std::chrono::steady_clock::now();
   return cc;
@@ -564,7 +560,11 @@ SpanningForest CCSketchAlg::calc_spanning_forest() {
   // TODO: Could probably optimize this a bit by writing new code
   connected_components();
 
-  return SpanningForest(num_vertices, spanning_forest);
+  SpanningForest ret(num_vertices, spanning_forest);
+#ifdef VERIFY_SAMPLES_F
+  verifier->verify_spanning_forests(std::vector<SpanningForest>{ret});
+#endif
+  return ret;
 }
 
 bool CCSketchAlg::point_query(node_id_t a, node_id_t b) {
@@ -584,7 +584,6 @@ bool CCSketchAlg::point_query(node_id_t a, node_id_t b) {
   else {
     bool except = false;
     std::exception_ptr err;
-    bool ret;
     try {
       boruvka_emulation();
     } catch (...) {
@@ -604,8 +603,7 @@ bool CCSketchAlg::point_query(node_id_t a, node_id_t b) {
 
 #ifdef VERIFY_SAMPLES_F
   ConnectedComponents cc(num_vertices, dsu);
-  auto cc_sets = cc.get_component_sets();
-  verifier->verify_soln(cc_sets);
+  verifier->verify_connected_components(cc);
 #endif
 
   bool retval = (dsu.find_root(a) == dsu.find_root(b));

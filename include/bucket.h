@@ -53,6 +53,14 @@ namespace Bucket_Boruvka {
    */
   inline static void update(Bucket& bucket, const vec_t update_idx,
                             const vec_hash_t update_hash);
+
+  /**
+   * Checks if a given bucket is empty.
+   * If this function returns false the bucket is non-empty.
+   * If the function returns true, then with high probability the bucket is empty.
+   * @return   is the bucket empty
+   */
+  inline static bool is_empty(const Bucket& bucket);
 } // namespace Bucket_Boruvka
 
 inline col_hash_t Bucket_Boruvka::get_index_depth(const vec_t update_idx, const long seed_and_col,
@@ -76,3 +84,4 @@ inline void Bucket_Boruvka::update(Bucket& bucket, const vec_t update_idx,
   bucket.alpha ^= update_idx;
   bucket.gamma ^= update_hash;
 }
+

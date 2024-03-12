@@ -17,7 +17,11 @@
 
 constexpr uint64_t KB = 1024;
 constexpr uint64_t MB = KB * KB;
-constexpr uint64_t seed = 374639;
+
+static size_t get_seed() {
+  auto now = std::chrono::high_resolution_clock::now();
+  return std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
+}
 
 // If this flag is uncommented then run the FileIngestion benchmarks
 // #define FILE_INGEST_F
@@ -113,76 +117,102 @@ static void BM_MTFileIngest(benchmark::State& state) {
 BENCHMARK(BM_MTFileIngest)->RangeMultiplier(4)->Range(1, 20)->UseRealTime();
 #endif  // FILE_INGEST_F
 
-static void BM_builtin_ffsll(benchmark::State& state) {
-  size_t i = 0;
-  size_t j = -1;
+static void BM_Multiply(benchmark::State& state) {
+  size_t x = 5;
+  size_t y = 9;
   for (auto _ : state) {
-    benchmark::DoNotOptimize(__builtin_ffsll(i++));
-    benchmark::DoNotOptimize(__builtin_ffsll(j--));
+    benchmark::DoNotOptimize(x = x * y);
+    y += 1;
   }
 }
-BENCHMARK(BM_builtin_ffsll);
+BENCHMARK(BM_Multiply);
+
+static void BM_builtin_ffsll(benchmark::State& state) {
+  size_t i = 0;
+  size_t diff = 1;
+  if (state.range(0) == 1) {
+    i = size_t(-1);
+    diff = -1;
+  }
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(__builtin_ffsll(i));
+    i += diff;
+  }
+}
+BENCHMARK(BM_builtin_ffsll)->DenseRange(0, 1);
 
 static void BM_builtin_ctzll(benchmark::State& state) {
   size_t i = 0;
-  size_t j = -1;
+  size_t diff = 1;
+  if (state.range(0) == 1) {
+    i = size_t(-1);
+    diff = -1;
+  }
   for (auto _ : state) {
-    benchmark::DoNotOptimize(__builtin_ctzll(i++));
-    benchmark::DoNotOptimize(__builtin_ctzll(j--));
+    benchmark::DoNotOptimize(__builtin_ctzll(i));
+    i += diff;
   }
 }
-BENCHMARK(BM_builtin_ctzll);
+BENCHMARK(BM_builtin_ctzll)->DenseRange(0, 1);
 
 static void BM_builtin_clzll(benchmark::State& state) {
   size_t i = 0;
-  size_t j = -1;
+  size_t diff = 1;
+  if (state.range(0) == 1) {
+    i = size_t(-1);
+    diff = -1;
+  }
   for (auto _ : state) {
-    benchmark::DoNotOptimize(__builtin_clzll(i++));
-    benchmark::DoNotOptimize(__builtin_clzll(j--));
+    benchmark::DoNotOptimize(__builtin_clzll(i));
+    i += diff;
   }
 }
-BENCHMARK(BM_builtin_clzll);
+BENCHMARK(BM_builtin_clzll)->DenseRange(0, 1);
 
 // Test the speed of hashing using a method that loops over seeds and a method that
 // batches by seed
 // The argument to this benchmark is the number of hashes to batch
 static void BM_Hash_XXH64(benchmark::State& state) {
   uint64_t input = 100'000;
+  size_t seed = get_seed();
   for (auto _ : state) {
     ++input;
     benchmark::DoNotOptimize(XXH64(&input, sizeof(uint64_t), seed));
   }
-  state.counters["Hash Rate"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
+  state.counters["Hashes"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
 }
 BENCHMARK(BM_Hash_XXH64);
 
 static void BM_Hash_XXH3_64(benchmark::State& state) {
   uint64_t input = 100'000;
+  size_t seed = get_seed();
   for (auto _ : state) {
     ++input;
     benchmark::DoNotOptimize(XXH3_64bits_withSeed(&input, sizeof(uint64_t), seed));
   }
-  state.counters["Hash Rate"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
+  state.counters["Hashes"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
 }
 BENCHMARK(BM_Hash_XXH3_64);
 
 static void BM_index_depth_hash(benchmark::State& state) {
   uint64_t input = 100'000;
+  size_t seed = get_seed();
   for (auto _ : state) {
     ++input;
     benchmark::DoNotOptimize(Bucket_Boruvka::get_index_depth(input, seed, 20));
   }
-  state.counters["Hash Rate"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
+  state.counters["Hashes"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
 }
 BENCHMARK(BM_index_depth_hash);
 
 static void BM_index_hash(benchmark::State& state) {
   uint64_t input = 100'000;
+  size_t seed = get_seed();
   for (auto _ : state) {
     ++input;
     benchmark::DoNotOptimize(Bucket_Boruvka::get_index_hash(input, seed));
   }
-  state.counters["Hash Rate"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
+  state.counters["Hashes"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
 }
 BENCHMARK(BM_index_hash);
 
@@ -204,8 +234,9 @@ BENCHMARK(BM_update_bucket);
 static void BM_Sketch_Update(benchmark::State& state) {
   size_t vec_size = state.range(0);
   vec_t input = vec_size / 3;
+  size_t seed = get_seed();
   // initialize sketches
-  Sketch skt(vec_size, seed, 1, Sketch::default_cols_per_sample);
+  Sketch skt(vec_size, seed);
 
   // Test the speed of updating the sketches
   for (auto _ : state) {
@@ -219,40 +250,43 @@ static void BM_Sketch_Update(benchmark::State& state) {
 BENCHMARK(BM_Sketch_Update)->RangeMultiplier(4)->Ranges({{KB << 4, MB << 4}});
 
 // Benchmark the speed of querying sketches
-static void BM_Sketch_Query(benchmark::State& state) {
-  constexpr size_t vec_size = KB << 35;
-  constexpr size_t num_sketches = 100;
-  double density = ((double)state.range(0)) / 100;
+static constexpr size_t sample_vec_size = MB;
+static void BM_Sketch_Sample(benchmark::State& state) {
+  constexpr size_t num_sketches = 400;
 
-  // initialize sketches
+  // initialize sketches with different seeds
   Sketch* sketches[num_sketches];
   for (size_t i = 0; i < num_sketches; i++) {
-    sketches[i] = new Sketch(vec_size, seed, 1, Sketch::default_cols_per_sample);
+    sketches[i] = new Sketch(sample_vec_size, get_seed() * 7);
   }
 
-  // perform updates (do at least 1)
+  // perform updates to the sketches (do at least 1)
   for (size_t i = 0; i < num_sketches; i++) {
-    for (size_t j = 0; j < vec_size * density + 1; j++) {
+    for (size_t j = 0; j < size_t(state.range(0)); j++) {
       sketches[i]->update(j + 1);
     }
   }
   SketchSample sample_ret;
+  size_t successes = 0;
 
   for (auto _ : state) {
     // perform queries
     for (size_t j = 0; j < num_sketches; j++) {
-      benchmark::DoNotOptimize(sample_ret = sketches[j]->sample());
+      sample_ret = sketches[j]->sample();
+      successes += sample_ret.result == GOOD;
       sketches[j]->reset_sample_state();
     }
   }
-  state.counters["Query Rate"] =
+  state.counters["Samples"] =
       benchmark::Counter(state.iterations() * num_sketches, benchmark::Counter::kIsRate);
+  state.counters["Successes"] = double(successes) / (state.iterations() * num_sketches);
 }
-BENCHMARK(BM_Sketch_Query)->DenseRange(0, 90, 10);
+BENCHMARK(BM_Sketch_Sample)->RangeMultiplier(4)->Range(1, sample_vec_size / 2);
 
 static void BM_Sketch_Merge(benchmark::State& state) {
   size_t n = state.range(0);
   size_t upds = n / 100;
+  size_t seed = get_seed();
   Sketch s1(n, seed);
   Sketch s2(n, seed);
 
@@ -270,6 +304,7 @@ BENCHMARK(BM_Sketch_Merge)->RangeMultiplier(10)->Range(1e3, 1e6);
 static void BM_Sketch_Serialize(benchmark::State& state) {
   size_t n = state.range(0);
   size_t upds = n / 100;
+  size_t seed = get_seed();
   Sketch s1(n, seed);
 
   for (size_t i = 0; i < upds; i++) {
@@ -533,5 +568,216 @@ static void BM_Parallel_DSU_Root(benchmark::State& state) {
                          benchmark::Counter::kIsRate | benchmark::Counter::kInvert);
 }
 BENCHMARK(BM_Parallel_DSU_Root)->RangeMultiplier(2)->Range(1, 8)->UseRealTime();
+
+#include <cmath>
+#include <iterator>
+#include <cstddef>
+
+// Fixed-size Hash Set: That is we are given a reasonable upper bound on the size of the set
+// so we just allocate the memory we need once and don't worry about resizing.
+class FixedSizeHashSet {
+ private:
+  struct FindResult {
+    bool match;
+    size_t position;
+  };
+  size_t max_size;
+  size_t cur_size = 0;
+  size_t data_slots;
+  size_t mask;
+  size_t seed;
+  bool zero_in_set = false;
+
+  size_t *table; // hash table data, for fast duplicate checking
+  size_t *data; // for fast iteration we keep actual data contiguous
+
+  FindResult find_value(size_t value) {
+    size_t hash_slot = XXH3_64bits_withSeed(&value, sizeof(value), seed) & mask;
+
+    while (table[hash_slot] != 0 && table[hash_slot] != value) {
+      hash_slot = (hash_slot + 1) & mask;
+    }
+
+    // is slot empty or does it match value?
+    return {table[hash_slot] == value, hash_slot};
+  }
+ public:
+  // Iterator for accessing the contents of the set
+  struct Iterator {
+   private:
+    const size_t *ptr;
+
+   public:
+    // iterator tags
+    using iterator_category = std::input_iterator_tag;
+    using difference_type = std::ptrdiff_t;
+    using value_type = const size_t;
+    using pointer = const size_t *;
+    using reference = const size_t &;
+
+    Iterator(size_t *ptr) : ptr(ptr) {}
+
+    // access contents
+    reference operator*() const { return *ptr; }
+    pointer operator->() { return ptr; }
+
+    // Increment the iterator
+    Iterator& operator++() { 
+      ptr++;
+      return *this;
+    }
+    Iterator operator++(int) {
+      Iterator tmp = *this;
+      ++(*this);
+      return tmp;
+    }
+
+    // comparison operators
+    friend bool operator== (const Iterator& a, const Iterator& b) { return a.ptr == b.ptr; };
+    friend bool operator!= (const Iterator& a, const Iterator& b) { return a.ptr != b.ptr; };
+  };
+
+  // Iterator begin and end
+  Iterator begin() {
+    return Iterator(&data[0]);
+  }
+  Iterator end() {
+    return Iterator(&data[cur_size]);
+  }
+
+  FixedSizeHashSet(size_t max_set_size, size_t seed)
+      : max_size(max_set_size),
+        data_slots(size_t(1) << size_t(ceil(log2(max_size)))), // TODO: augment size
+        mask(data_slots - 1),
+        seed(seed),
+        table(new size_t[data_slots]),
+        data(new size_t[max_size]) {
+    for (size_t i = 0; i < data_slots; i++) {
+      table[i] = 0;
+    }
+    for (size_t i = 0; i < max_size; i++) {
+      data[i] = 0;
+    }
+  }
+  ~FixedSizeHashSet() {
+    delete[] table;
+    delete[] data;
+  }
+
+  // add an element x to the set
+  // returns true if successful
+  // returns false if x is already a member of the set
+  bool insert(size_t x) {
+    unlikely_if (x == 0) {
+      if (zero_in_set) return false;
+      zero_in_set = true;
+      data[cur_size++] = 0;
+      return true;
+    }
+
+    FindResult m = find_value(x);
+    if (m.match) return false;
+    
+    // add new element to set
+    table[m.position] = x;
+    data[cur_size++] = x;
+    return true;
+  }
+  
+  // check if a given element is in the set
+  // returns true if x is member of set, false otherwise
+  bool check(size_t x) {
+    unlikely_if (x == 0) return zero_in_set;
+
+    return find_value(x).match;
+  }
+
+  // clear all entries from the hash set
+  void clear() {
+    for (size_t i = 0; i < data_slots; i++) {
+      table[i] = 0;
+    }
+    for (size_t i = 0; i < max_size; i++) {
+      data[i] = 0;
+    }
+    zero_in_set = false;
+  }
+};
+
+static void BM_Fixed_Size_Hash_Insert(benchmark::State& state) {
+  constexpr size_t size = 1e6;
+  size_t seed = get_seed();
+  FixedSizeHashSet set(size, seed);
+
+  size_t x = 0;
+  size_t range = size / state.range(0);
+  for (auto _ : state) {
+    set.insert(x);
+    x = ((x + 1) % range);
+  }
+
+  state.counters["Insert_Latency"] = benchmark::Counter(
+      state.iterations(), benchmark::Counter::kIsRate | benchmark::Counter::kInvert);
+}
+BENCHMARK(BM_Fixed_Size_Hash_Insert)->RangeMultiplier(2)->Range(1, 1 << 14);
+
+static void BM_Std_Set_Hash_Insert(benchmark::State& state) {
+  constexpr size_t size = 1e6;
+  std::unordered_set<size_t> set;
+
+  size_t x = 0;
+  size_t range = size / state.range(0);
+  for (auto _ : state) {
+    set.insert(x);
+    x = ((x + 1) % range);
+  }
+
+  state.counters["Insert_Latency"] = benchmark::Counter(
+      state.iterations(), benchmark::Counter::kIsRate | benchmark::Counter::kInvert);
+}
+BENCHMARK(BM_Std_Set_Hash_Insert)->RangeMultiplier(2)->Range(1, 1 << 14);
+
+static void BM_Fixed_Size_Hash_Iterator(benchmark::State& state) {
+  constexpr size_t size = 1e6;
+  size_t seed = get_seed();
+  FixedSizeHashSet set(size, seed);
+
+  size_t range = size / state.range(0);
+  for (size_t i = 0; i < range; i++) {
+    set.insert(i);
+  }
+
+  for (auto _ : state) {
+    // iterate over the set
+    for (auto &elm : set) {
+      benchmark::DoNotOptimize(elm);
+    }
+  }
+
+  state.counters["Scan_Latency"] = benchmark::Counter(
+      state.iterations(), benchmark::Counter::kIsRate | benchmark::Counter::kInvert);
+}
+BENCHMARK(BM_Fixed_Size_Hash_Iterator)->RangeMultiplier(2)->Range(1, 1 << 14);
+
+static void BM_Std_Set_Hash_Iterator(benchmark::State& state) {
+  constexpr size_t size = 1e6;
+  std::unordered_set<size_t> set;
+
+  size_t range = size / state.range(0);
+  for (size_t i = 0; i < range; i++) {
+    set.insert(i);
+  }
+
+  for (auto _ : state) {
+    // iterate over the set
+    for (auto &elm : set) {
+      benchmark::DoNotOptimize(elm);
+    }
+  }
+
+  state.counters["Scan_Latency"] = benchmark::Counter(
+      state.iterations(), benchmark::Counter::kIsRate | benchmark::Counter::kInvert);
+}
+BENCHMARK(BM_Std_Set_Hash_Iterator)->RangeMultiplier(2)->Range(1, 1 << 14);
 
 BENCHMARK_MAIN();

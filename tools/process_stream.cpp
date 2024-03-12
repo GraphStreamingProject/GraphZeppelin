@@ -95,7 +95,7 @@ int main(int argc, char **argv) {
   driver.process_stream_until(END_OF_STREAM);
 
   auto cc_start = std::chrono::steady_clock::now();
-  driver.prep_query();
+  driver.prep_query(CONNECTIVITY);
   auto CC_num = cc_alg.connected_components().size();
   std::chrono::duration<double> cc_time = std::chrono::steady_clock::now() - cc_start;
   std::chrono::duration<double> insert_time = driver.flush_end - ins_start;
@@ -116,7 +116,7 @@ int main(int argc, char **argv) {
 
 
   cc_start = std::chrono::steady_clock::now();
-  driver.prep_query();
+  driver.prep_query(CONNECTIVITY);
   CC_num = cc_alg.connected_components().size();
   cc_time = std::chrono::steady_clock::now() - cc_start;
   insert_time = driver.flush_end - ins_start;

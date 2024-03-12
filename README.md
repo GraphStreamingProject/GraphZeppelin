@@ -41,7 +41,7 @@ int main() {
     DriverConfiguration()                          // configuration
   };
   driver.process_stream_until(END_OF_STREAM);   // Tell the driver to process the entire graph stream
-  driver.prep_query();                          // Ensure that all updates have been processed
+  driver.prep_query(CONNECTIVITY);              // Ensure algorithm is ready for a connectivity query
   auto CC = cc_alg.connected_components();      // Extract the connected components
 }
 ```
