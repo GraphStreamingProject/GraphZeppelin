@@ -250,20 +250,19 @@ static void BM_Sketch_Update(benchmark::State& state) {
 BENCHMARK(BM_Sketch_Update)->RangeMultiplier(4)->Ranges({{KB << 4, MB << 4}});
 
 // Benchmark the speed of querying sketches
+static constexpr size_t sample_vec_size = MB;
 static void BM_Sketch_Sample(benchmark::State& state) {
-  constexpr size_t vec_size = MB;
   constexpr size_t num_sketches = 400;
-  double density = ((double)state.range(0)) / 100;
 
   // initialize sketches with different seeds
   Sketch* sketches[num_sketches];
   for (size_t i = 0; i < num_sketches; i++) {
-    sketches[i] = new Sketch(vec_size, get_seed() * 7);
+    sketches[i] = new Sketch(sample_vec_size, get_seed() * 7);
   }
 
   // perform updates to the sketches (do at least 1)
   for (size_t i = 0; i < num_sketches; i++) {
-    for (size_t j = 0; j < vec_size * density + 1; j++) {
+    for (size_t j = 0; j < size_t(state.range(0)); j++) {
       sketches[i]->update(j + 1);
     }
   }
@@ -282,7 +281,7 @@ static void BM_Sketch_Sample(benchmark::State& state) {
       benchmark::Counter(state.iterations() * num_sketches, benchmark::Counter::kIsRate);
   state.counters["Successes"] = double(successes) / (state.iterations() * num_sketches);
 }
-BENCHMARK(BM_Sketch_Sample)->DenseRange(0, 90, 10);
+BENCHMARK(BM_Sketch_Sample)->RangeMultiplier(4)->Range(1, sample_vec_size / 2);
 
 static void BM_Sketch_Merge(benchmark::State& state) {
   size_t n = state.range(0);

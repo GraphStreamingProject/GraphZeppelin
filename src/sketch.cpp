@@ -99,17 +99,24 @@ SketchSample Sketch::sample() {
   size_t idx = sample_idx++;
   size_t first_column = idx * cols_per_sample;
 
-  if (buckets[num_buckets - 1].alpha == 0 && buckets[num_buckets - 1].gamma == 0)
+  if (Bucket_Boruvka::is_empty(buckets[num_buckets - 1]))
     return {0, ZERO};  // the "first" bucket is deterministic so if all zero then no edges to return
 
   if (Bucket_Boruvka::is_good(buckets[num_buckets - 1], checksum_seed()))
     return {buckets[num_buckets - 1].alpha, GOOD};
 
-  for (size_t i = 0; i < cols_per_sample; ++i) {
-    for (size_t j = 0; j < bkt_per_col; ++j) {
-      size_t bucket_id = (i + first_column) * bkt_per_col + j;
-      if (Bucket_Boruvka::is_good(buckets[bucket_id], checksum_seed()))
-        return {buckets[bucket_id].alpha, GOOD};
+  for (size_t col = first_column; col < first_column + cols_per_sample; ++col) {
+    // start from the bottom of the column and iterate up until non-empty found
+    int row = bkt_per_col - 1;
+    while (Bucket_Boruvka::is_empty(buckets[col * bkt_per_col + row]) && row > 0) {
+      --row;
+    }
+
+    // now that we've found a non-zero bucket check next if next 4 buckets good
+    int stop = std::max(row - 4, 0);
+    for (; row >= stop; row--) {
+      if (Bucket_Boruvka::is_good(buckets[col * bkt_per_col + row], checksum_seed()))
+        return {buckets[col * bkt_per_col + row].alpha, GOOD};
     }
   }
   return {0, FAIL};
