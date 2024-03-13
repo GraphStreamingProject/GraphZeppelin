@@ -282,12 +282,6 @@ SketchSample Sketch::sample() {
   size_t idx = sample_idx++;
   size_t first_column = idx * cols_per_sample;
 
-  if (Bucket_Boruvka::is_empty(buckets[num_buckets - 1]))
-    return {0, ZERO};  // the "first" bucket is deterministic so if all zero then no edges to return
-
-  if (Bucket_Boruvka::is_good(buckets[num_buckets - 1], checksum_seed()))
-    return {buckets[num_buckets - 1].alpha, GOOD};
-
   #ifdef EAGER_BUCKET_CHECK
     for (size_t col = first_column; col < first_column + cols_per_sample; ++col) {
       vec_t col_good_buckets = good_buckets[col];
@@ -305,6 +299,13 @@ SketchSample Sketch::sample() {
     }
     return {0, FAIL};
   #endif
+
+  if (Bucket_Boruvka::is_empty(buckets[num_buckets - 1]))
+    return {0, ZERO};  // the "first" bucket is deterministic so if all zero then no edges to return
+
+  if (Bucket_Boruvka::is_good(buckets[num_buckets - 1], checksum_seed()))
+    return {buckets[num_buckets - 1].alpha, GOOD};
+
 
   for (size_t col = first_column; col < first_column + cols_per_sample; ++col) {
     int row = bkt_per_col - 1;
