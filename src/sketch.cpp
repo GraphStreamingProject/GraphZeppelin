@@ -91,6 +91,45 @@ void Sketch::zero_contents() {
   reset_sample_state();
 }
 
+#if 1
+SketchSample Sketch::sample() {
+  if (sample_idx >= num_samples) {
+    throw OutOfSamplesException(seed, num_samples, sample_idx);
+  }
+
+  size_t idx = sample_idx++;
+  size_t first_column = idx * cols_per_sample;
+
+  if (Bucket_Boruvka::is_empty(buckets[num_buckets - 1]))
+    return {0, ZERO};  // the "first" bucket is deterministic so if all zero then no edges to return
+
+  if (Bucket_Boruvka::is_good(buckets[num_buckets - 1], checksum_seed()))
+    return {buckets[num_buckets - 1].alpha, GOOD};
+
+  for (size_t col = first_column; col < first_column + cols_per_sample; ++col) {
+    // start from the bottom of the column and iterate up until non-empty found
+    int prev = bkt_per_col - 1;
+    int row = prev - 4;
+    while (Bucket_Boruvka::is_empty(buckets[col * bkt_per_col + row]) && row > 0) {
+      prev = row;
+      row -= 4;
+    }
+    row = prev;
+    while (Bucket_Boruvka::is_empty(buckets[col * bkt_per_col + row]) && row > 0) {
+      --row;
+    }
+
+    // now that we've found a non-zero bucket check next if next 4 buckets good
+    int stop = std::max(row - 5, 0);
+    for (; row >= stop; row--) {
+      if (Bucket_Boruvka::is_good(buckets[col * bkt_per_col + row], checksum_seed()))
+        return {buckets[col * bkt_per_col + row].alpha, GOOD};
+    }
+  }
+  return {0, FAIL};
+}
+#else
+#if 1
 SketchSample Sketch::sample() {
   if (sample_idx >= num_samples) {
     throw OutOfSamplesException(seed, num_samples, sample_idx);
@@ -113,7 +152,7 @@ SketchSample Sketch::sample() {
     }
 
     // now that we've found a non-zero bucket check next if next 4 buckets good
-    int stop = std::max(row - 4, 0);
+    int stop = std::max(row - 5, 0);
     for (; row >= stop; row--) {
       if (Bucket_Boruvka::is_good(buckets[col * bkt_per_col + row], checksum_seed()))
         return {buckets[col * bkt_per_col + row].alpha, GOOD};
@@ -121,6 +160,31 @@ SketchSample Sketch::sample() {
   }
   return {0, FAIL};
 }
+#else
+SketchSample Sketch::sample() {
+  if (sample_idx >= num_samples) {
+    throw OutOfSamplesException(seed, num_samples, sample_idx);
+  }
+
+  size_t idx = sample_idx++;
+  size_t first_column = idx * cols_per_sample;
+
+  if (Bucket_Boruvka::is_empty(buckets[num_buckets - 1]))
+    return {0, ZERO};  // the "first" bucket is deterministic so if all zero then no edges to return
+
+  if (Bucket_Boruvka::is_good(buckets[num_buckets - 1], checksum_seed()))
+    return {buckets[num_buckets - 1].alpha, GOOD};
+
+  for (size_t col = first_column; col < first_column + cols_per_sample; ++col) {
+    for (size_t row = 0; row < bkt_per_col; row++) {
+      if (Bucket_Boruvka::is_good(buckets[col * bkt_per_col + row], checksum_seed()))
+        return {buckets[col * bkt_per_col + row].alpha, GOOD};
+    }
+  }
+  return {0, FAIL};
+}
+#endif
+#endif
 
 ExhaustiveSketchSample Sketch::exhaustive_sample() {
   if (sample_idx >= num_samples) {

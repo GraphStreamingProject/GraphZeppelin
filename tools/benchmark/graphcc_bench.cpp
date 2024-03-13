@@ -250,7 +250,7 @@ static void BM_Sketch_Update(benchmark::State& state) {
 BENCHMARK(BM_Sketch_Update)->RangeMultiplier(4)->Ranges({{KB << 4, MB << 4}});
 
 // Benchmark the speed of querying sketches
-static constexpr size_t sample_vec_size = MB;
+static constexpr size_t sample_vec_size = size_t(1) << 40;
 static void BM_Sketch_Sample(benchmark::State& state) {
   constexpr size_t num_sketches = 400;
 
@@ -281,14 +281,14 @@ static void BM_Sketch_Sample(benchmark::State& state) {
       benchmark::Counter(state.iterations() * num_sketches, benchmark::Counter::kIsRate);
   state.counters["Successes"] = double(successes) / (state.iterations() * num_sketches);
 }
-BENCHMARK(BM_Sketch_Sample)->RangeMultiplier(4)->Range(1, sample_vec_size / 2);
+BENCHMARK(BM_Sketch_Sample)->RangeMultiplier(4)->Range(1, sample_vec_size / (1 << 18));
 
 static void BM_Sketch_Merge(benchmark::State& state) {
   size_t n = state.range(0);
-  size_t upds = n / 100;
+  size_t upds = n / (1 << 14);
   size_t seed = get_seed();
-  Sketch s1(n, seed);
-  Sketch s2(n, seed);
+  Sketch s1(n, seed, 5);
+  Sketch s2(n, seed, 5);
 
   for (size_t i = 0; i < upds; i++) {
     s1.update(static_cast<vec_t>(concat_pairing_fn(rand() % n, rand() % n)));
@@ -299,7 +299,25 @@ static void BM_Sketch_Merge(benchmark::State& state) {
     s1.merge(s2);
   }
 }
-BENCHMARK(BM_Sketch_Merge)->RangeMultiplier(10)->Range(1e3, 1e6);
+BENCHMARK(BM_Sketch_Merge)->RangeMultiplier(8)->Range(1 << 18, 1 << 30);
+
+static void BM_Sketch_RangeMerge(benchmark::State& state) {
+  size_t n = state.range(0);
+  size_t upds = n / (1 << 14);
+  size_t seed = get_seed();
+  Sketch s1(n, seed, 5);
+  Sketch s2(n, seed, 5);
+
+  for (size_t i = 0; i < upds; i++) {
+    s1.update(static_cast<vec_t>(concat_pairing_fn(rand() % n, rand() % n)));
+    s2.update(static_cast<vec_t>(concat_pairing_fn(rand() % n, rand() % n)));
+  }
+
+  for (auto _ : state) {
+    s1.range_merge(s2, 3, 1);
+  }
+}
+BENCHMARK(BM_Sketch_RangeMerge)->RangeMultiplier(8)->Range(1 << 18, 1 << 30);
 
 static void BM_Sketch_Serialize(benchmark::State& state) {
   size_t n = state.range(0);
