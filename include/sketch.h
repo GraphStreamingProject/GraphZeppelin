@@ -53,6 +53,10 @@ class Sketch {
   // vec_t* alpha;
   // vec_hash_t* gamma;
 
+  #ifdef EAGER_BUCKET_CHECK
+  vec_t *good_buckets;
+  #endif
+
 
  public:
   /**
@@ -119,6 +123,14 @@ class Sketch {
    * @return   A pair with the result index and a code indicating the type of result.
    */
   SketchSample sample();
+
+
+  /**
+   * Function to sample from the sketch.
+   * cols_per_sample determines the number of columns we allocate to this query
+   * @return   A pair with the result index and a code indicating the type of result.
+   */
+  SketchSample doubling_sample();
 
   /**
    * Function to quickly sample from the sketch.
@@ -188,7 +200,7 @@ class Sketch {
   inline size_t get_buckets() const { return num_buckets; }
   inline size_t get_num_samples() const { return num_samples; }
 
-  static size_t calc_bkt_per_col(size_t n) { return ceil(log2(n)/2) + 8; }
+  static size_t calc_bkt_per_col(size_t n) { return ceil(log2(n)) + 3; }
 
 #ifdef L0_SAMPLING
   static constexpr size_t default_cols_per_sample = 7;

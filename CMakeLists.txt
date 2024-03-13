@@ -87,7 +87,7 @@ FetchContent_MakeAvailable(GutterTree StreamingUtilities)
 # L0_SAMPLING        Run the CubeSketch l0 sampling algorithm
 #                    to ensure that we sample uniformly.
 #                    Otherwise, run a support finding algorithm.
-#
+# EAGER_BUCKET_CHECK Eagerly compute whether a bucket is valid or noti
 # Example:
 # cmake -DCMAKE_CXX_FLAGS="-DL0_SAMPLING" ..
 

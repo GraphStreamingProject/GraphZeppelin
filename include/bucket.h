@@ -34,7 +34,8 @@ namespace Bucket_Boruvka {
   inline static vec_hash_t get_index_hash(const vec_t index, const long sketch_seed);
 
   inline static bool is_empty(const Bucket &bucket) {
-    return bucket.alpha == 0 && bucket.gamma == 0;
+    // return bucket.alpha == 0 && bucket.gamma == 0;
+    return (bucket.alpha | bucket.gamma) == 0;
   }
 
   /**
