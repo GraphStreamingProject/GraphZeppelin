@@ -33,9 +33,9 @@ endif()
 #add_link_options(-fsanitize=address)
 #add_compile_options(-fsanitize=undefined)
 #add_link_options(-fsanitize=undefined)
-add_compile_options(-save-temps)
+# add_compile_options(-save-temps)
 # add_compile_options(-ftree-vectorize)
-add_compile_options(-fno-tree-vectorize)
+# add_compile_options(-fno-tree-vectorize)
 # add_compile_options(o3)
 
 # Check if this project is the top directory or build type is Debug

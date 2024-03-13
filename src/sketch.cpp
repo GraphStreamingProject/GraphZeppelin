@@ -98,7 +98,10 @@ void Sketch::update(const vec_t update_idx) {
       Bucket_Boruvka::update(buckets[bucket_id], update_idx, checksum);
       #ifdef EAGER_BUCKET_CHECK
       unlikely_if(Bucket_Boruvka::is_good(buckets[bucket_id], checksum_seed())) {
-        good_buckets[i] &= 1 << depth;
+        good_buckets[i] = (1 << depth) ^ ( good_buckets[i]  & ~(1 << depth) );
+      }
+      else {
+        good_buckets[i] &= ~(1 << depth);
       }
       #endif
     }
@@ -285,6 +288,24 @@ SketchSample Sketch::sample() {
   if (Bucket_Boruvka::is_good(buckets[num_buckets - 1], checksum_seed()))
     return {buckets[num_buckets - 1].alpha, GOOD};
 
+  #ifdef EAGER_BUCKET_CHECK
+    for (size_t col = first_column; col < first_column + cols_per_sample; ++col) {
+      vec_t col_good_buckets = good_buckets[col];
+      if (col_good_buckets == 0)
+        return {0, FAIL};
+      // int idx = (int) ((sizeof(unsigned long long) * 8) - __builtin_clzll(col_good_buckets)) - 1;
+      int idx = __builtin_ctzll(col_good_buckets);
+      // std::cout << "idx: " << idx << "flag array: " << col_good_buckets << std::endl;
+      likely_if (idx >= 0 && idx < bkt_per_col ) {
+        // TODO - replace with just returning once we're sure it works
+        // if (Bucket_Boruvka::is_good(buckets[col * num_columns + idx], checksum_seed())) {
+          return {buckets[col * num_columns + idx].alpha, GOOD};
+        // }
+      }
+    }
+    return {0, FAIL};
+  #endif
+
   for (size_t col = first_column; col < first_column + cols_per_sample; ++col) {
     int row = bkt_per_col - 1;
     while (Bucket_Boruvka::is_empty(buckets[col * bkt_per_col + row]) && row > 0) {
@@ -359,32 +380,31 @@ ExhaustiveSketchSample Sketch::exhaustive_sample() {
 
 void Sketch::merge(const Sketch &other) {
   // #pragma omp simd 
-  for (size_t i = 0; i < num_buckets; ++i) {
-    buckets[i].alpha ^= other.buckets[i].alpha;
-    buckets[i].gamma ^= other.buckets[i].gamma;
-  }
-  // for (size_t i=0; i < num_columns; ++i) {
-  //   Bucket *current_col = buckets + (i* bkt_per_col);
-  //   Bucket *other_col = other.buckets + (i * bkt_per_col);
-
-  //   #ifdef EAGER_BUCKET_CHECK
-  //   vec_t good_buck_status = 0;    
-  //   #endif 
-  //   #pragma omp simd
-  //   for (size_t bucket_id=0; bucket_id < bkt_per_col; bucket_id++) {
-  //     current_col[bucket_id].alpha ^= other_col[bucket_id].alpha;
-  //     current_col[bucket_id].gamma ^= other_col[bucket_id].gamma;
-
-  //     #ifdef EAGER_BUCKET_CHECK
-  //     good_buck_status &= (!!Bucket_Boruvka::is_good(current_col[bucket_id], checksum_seed())) << bucket_id;
-  //     std::cout << "AYO";
-  //     // good_buck_status &= (!!Bucket_Boruvka::is_empty(current_col[bucket_id])) << bucket_id;
-  //     #endif 
-  //   }
-  //   #ifdef EAGER_BUCKET_CHECK
-  //   good_buckets[i] = good_buck_status;
-  //   #endif
+  // for (size_t i = 0; i < num_buckets; ++i) {
+  //   buckets[i].alpha ^= other.buckets[i].alpha;
+  //   buckets[i].gamma ^= other.buckets[i].gamma;
   // }
+  for (size_t i=0; i < num_columns; ++i) {
+    Bucket *current_col = buckets + (i* bkt_per_col);
+    Bucket *other_col = other.buckets + (i * bkt_per_col);
+
+    #ifdef EAGER_BUCKET_CHECK
+    vec_t good_buck_status = 0;    
+    #endif 
+    #pragma omp simd
+    for (size_t bucket_id=0; bucket_id < bkt_per_col; bucket_id++) {
+      current_col[bucket_id].alpha ^= other_col[bucket_id].alpha;
+      current_col[bucket_id].gamma ^= other_col[bucket_id].gamma;
+
+      #ifdef EAGER_BUCKET_CHECK
+      good_buck_status |= (!!Bucket_Boruvka::is_good(current_col[bucket_id], checksum_seed())) << bucket_id;
+      // good_buck_status &= (!!Bucket_Boruvka::is_empty(current_col[bucket_id])) << bucket_id;
+      #endif 
+    }
+    #ifdef EAGER_BUCKET_CHECK
+    good_buckets[i] = good_buck_status;
+    #endif
+  }
 }
 
 void Sketch::range_merge(const Sketch &other, size_t start_sample, size_t n_samples) {
