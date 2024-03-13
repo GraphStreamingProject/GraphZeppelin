@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <chrono>
 
 #include "binary_file_stream.h"
 
@@ -33,8 +34,12 @@ int main(int argc, char** argv) {
 
 	fout.write_header(num_nodes, num_edges);
 
-	GraphStreamUpdate update;
-	update.type = INSERT;
+	size_t num_write_updates = 4000;
+	GraphStreamUpdate updates[num_write_updates];
+
+	for (size_t i = 0; i < num_write_updates; i++) {
+		updates[i].type = INSERT;
+	}
 
 	std::cout << "Writing Binary Stream File...\n";
 	
@@ -43,6 +48,9 @@ int main(int argc, char** argv) {
 		size_t num_read_edges = 0;
 
 		std::map<node_id_t, node_id_t> node_ids;
+
+		auto progress_start = std::chrono::steady_clock::now();
+		int num_sampled_update = 0;
 		
 		while(std::getline(graph_file, line)) {
 			std::istringstream iss(line);
@@ -56,8 +64,13 @@ int main(int argc, char** argv) {
 			std::getline(iss, token, ' ');
 			node2 = std::stoi(token);
 
-			update.edge = {node1, node2};
-      		fout.write_updates(&update, 1);
+			updates[num_sampled_update].edge = {node1, node2};
+			num_sampled_update++;
+
+			if (num_sampled_update == num_write_updates) {
+				fout.write_updates(updates, num_write_updates);
+				num_sampled_update = 0;
+			}
 
 			num_read_edges++;
 
@@ -73,7 +86,15 @@ int main(int argc, char** argv) {
 
 			if(num_read_edges % 100000 == 0) {
 				std::cout << "  Progress - Edges Read: " << num_read_edges << "\n";
+				std::chrono::duration<double> progress_time = std::chrono::steady_clock::now() - progress_start;
+				std::cout << "    Elapsed Time: " << progress_time.count() << "\n";
+				progress_start = std::chrono::steady_clock::now();
 			}
+		}
+
+		// Write updates for remaining
+		if (num_sampled_update > 0) {
+			fout.write_updates(updates, num_sampled_update);
 		}
 
 		std::cout << "  Num Read Nodes: " << num_read_nodes << "\n";

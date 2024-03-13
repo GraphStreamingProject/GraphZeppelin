@@ -136,6 +136,11 @@ int main(int argc, char **argv) {
     // Calculate estimated memory for current subgraph
     size_t num_est_edges = num_updates / (1 << i);
     double adjlist_bytes = ((sizeof(node_id_t) + sizeof(std::vector<node_id_t>)) * num_nodes) + (sizeof(node_id_t) * num_est_edges);
+
+    if (i == 0) {
+      std::cout << "Total bytes of adj data structure of the biggest subgraph: " << adjlist_bytes / 1000000000 << "GB\n";
+    }
+    
   
     if (adjlist_bytes > sketch_bytes) {
       num_sketch_graphs++;
