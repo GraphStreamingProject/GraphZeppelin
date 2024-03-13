@@ -95,14 +95,24 @@ void Sketch::update(const vec_t update_idx) {
     col_hash_t depth = Bucket_Boruvka::get_index_depth(update_idx, column_seed(i), bkt_per_col);
     size_t bucket_id = i * bkt_per_col + depth;
     likely_if(depth < bkt_per_col) {
+      #if defined EAGER_BUCKET_CHECK
+      // bool bucket_was_empty = Bucket_Boruvka::is_empty(buckets[bucket_id], checksum_seed());
+      // bool bucket_contained_entry = buckets[bucket_id].alpha == update_idx && buckets[bucket_id].gamma == checksum;
       Bucket_Boruvka::update(buckets[bucket_id], update_idx, checksum);
-      #ifdef EAGER_BUCKET_CHECK
+      // unlikely_if(bucket_was_empty && ) {
+      #if EAGER_BUCKET_CHECK == EmptyOnly
+      likely_if(!Bucket_Boruvka::is_empty(buckets[bucket_id])) {
+      #else 
       unlikely_if(Bucket_Boruvka::is_good(buckets[bucket_id], checksum_seed())) {
+      #endif
+        // set the bit to 1
         good_buckets[i] = (1 << depth) ^ ( good_buckets[i]  & ~(1 << depth) );
       }
       else {
         good_buckets[i] &= ~(1 << depth);
       }
+      #else
+      Bucket_Boruvka::update(buckets[bucket_id], update_idx, checksum);
       #endif
     }
   }
@@ -282,7 +292,7 @@ SketchSample Sketch::sample() {
   size_t idx = sample_idx++;
   size_t first_column = idx * cols_per_sample;
 
-  #ifdef EAGER_BUCKET_CHECK
+  #if defined EAGER_BUCKET_CHECK && EAGER_BUCKET_CHECK != EmptyOnly
     for (size_t col = first_column; col < first_column + cols_per_sample; ++col) {
       vec_t col_good_buckets = good_buckets[col];
       if (col_good_buckets == 0)
@@ -309,12 +319,23 @@ SketchSample Sketch::sample() {
 
   for (size_t col = first_column; col < first_column + cols_per_sample; ++col) {
     int row = bkt_per_col - 1;
+    int window_size = 6;
+    #if defined EAGER_BUCKET_CHECK && EAGER_BUCKET_CHECK == EmptyOnly
+    // std::cout << "AYO";
+    if (good_buckets[col] == 0) {
+      continue;
+    }
+    // this is the deepest non-empty:
+    row = ((int) ((sizeof(unsigned long long) * 8) - __builtin_clzll(good_buckets[col]))) - 1;
+    row = std::min(row, (int) bkt_per_col-1);
+    # else
     while (Bucket_Boruvka::is_empty(buckets[col * bkt_per_col + row]) && row > 0) {
       --row;
     }
+    #endif
 
     // now that we've found a non-zero bucket check next if next 4 buckets good
-    int stop = std::max(row - 4, 0);
+    int stop = std::max(row - window_size, 0);
     for (; row >= stop; row--) {
       if (Bucket_Boruvka::is_good(buckets[col * bkt_per_col + row], checksum_seed()))
         return {buckets[col * bkt_per_col + row].alpha, GOOD};
@@ -392,14 +413,28 @@ void Sketch::merge(const Sketch &other) {
     #ifdef EAGER_BUCKET_CHECK
     vec_t good_buck_status = 0;    
     #endif 
-    #pragma omp simd
+    // #pragma omp simd
     for (size_t bucket_id=0; bucket_id < bkt_per_col; bucket_id++) {
+
+      #if defined EAGER_BUCKET_CHECK && !EAGER_BUCKET_CHECK == EmptyOnly
+      // bool this_good = (good_buckets[i] >> bucket_id) & 1;
+      // bool other_good = (other.good_buckets[i] >> bucket_id) & 1;
+      // bool this_empty = Bucket_Boruvka::is_empty(current_col[bucket_id]);
+      // bool other_empty = Bucket_Boruvka::is_empty(other_col[bucket_id]);
+      // bool same_item_if_good = (current_col[bucket_id].alpha == other_col[bucket_id].alpha);
+      // bool updated_known_good = ((this_good && other_empty) ^ (other_good && this_empty));
+      // bool updated_known_bad = (this_good && other_good); //if both are good, then it either becomes empty or 2 elements
+      // current_col[bucket_id].alpha ^= other_col[bucket_id].alpha;
+      // current_col[bucket_id].gamma ^= other_col[bucket_id].gamma;
+      // unlikely_if (updated_known_good || !updated_known_bad && Bucket_Boruvka::is_good(current_col[bucket_id], checksum_seed()) ) {
+      //   good_buck_status |= 1 << bucket_id;
+      // }
+      good_buck_status &= (!!Bucket_Boruvka::is_good(current_col[bucket_id], checksum_seed())) << bucket_id;
+      #elif defined EAGER_BUCKET_CHECK && EAGER_BUCKET_CHECK == EmptyOnly
+      good_buck_status &= (!Bucket_Boruvka::is_empty(current_col[bucket_id])) << bucket_id;
+      #else 
       current_col[bucket_id].alpha ^= other_col[bucket_id].alpha;
       current_col[bucket_id].gamma ^= other_col[bucket_id].gamma;
-
-      #ifdef EAGER_BUCKET_CHECK
-      good_buck_status |= (!!Bucket_Boruvka::is_good(current_col[bucket_id], checksum_seed())) << bucket_id;
-      // good_buck_status &= (!!Bucket_Boruvka::is_empty(current_col[bucket_id])) << bucket_id;
       #endif 
     }
     #ifdef EAGER_BUCKET_CHECK
