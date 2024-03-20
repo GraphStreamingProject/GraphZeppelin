@@ -298,6 +298,7 @@ static void BM_Sketch_Merge(benchmark::State& state) {
   for (auto _ : state) {
     s1.merge(s2);
   }
+  s1.get_buckets();
 }
 BENCHMARK(BM_Sketch_Merge)->RangeMultiplier(10)->Range(1e3, 1e8);
 
