@@ -33,6 +33,11 @@ namespace Bucket_Boruvka {
    */
   inline static vec_hash_t get_index_hash(const vec_t index, const long sketch_seed);
 
+  inline static bool is_empty(const Bucket &bucket) {
+    // return bucket.alpha == 0 && bucket.gamma == 0;
+    return (bucket.alpha | bucket.gamma) == 0;
+  }
+
   /**
    * Checks whether a Bucket is good, assuming the Bucket contains all elements.
    * @param bucket       The bucket to check
@@ -49,6 +54,14 @@ namespace Bucket_Boruvka {
    */
   inline static void update(Bucket& bucket, const vec_t update_idx,
                             const vec_hash_t update_hash);
+
+  /**
+   * Checks if a given bucket is empty.
+   * If this function returns false the bucket is non-empty.
+   * If the function returns true, then with high probability the bucket is empty.
+   * @return   is the bucket empty
+   */
+  inline static bool is_empty(const Bucket& bucket);
 } // namespace Bucket_Boruvka
 
 inline col_hash_t Bucket_Boruvka::get_index_depth(const vec_t update_idx, const long seed_and_col,
@@ -63,7 +76,8 @@ inline vec_hash_t Bucket_Boruvka::get_index_hash(const vec_t update_idx, const l
 }
 
 inline bool Bucket_Boruvka::is_good(const Bucket &bucket, const long sketch_seed) {
-  return bucket.gamma == get_index_hash(bucket.alpha, sketch_seed);
+  // return bucket.gamma == get_index_hash(bucket.alpha, sketch_seed);
+  return !Bucket_Boruvka::is_empty(bucket) && bucket.gamma == get_index_hash(bucket.alpha, sketch_seed);
 }
 
 inline void Bucket_Boruvka::update(Bucket& bucket, const vec_t update_idx,
@@ -71,3 +85,4 @@ inline void Bucket_Boruvka::update(Bucket& bucket, const vec_t update_idx,
   bucket.alpha ^= update_idx;
   bucket.gamma ^= update_hash;
 }
+
