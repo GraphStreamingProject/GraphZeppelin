@@ -153,6 +153,10 @@ class Sketch {
   */
  uint8_t effective_size(size_t col_idx) const;
 
+ #ifdef EAGER_BUCKET_CHECK
+ void update_flags(size_t col_idx, size_t start_row, size_t end_row);
+ #endif
+
   /**
    * In-place merge function.
    * @param other  Sketch to merge into caller

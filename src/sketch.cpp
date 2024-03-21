@@ -437,27 +437,48 @@ void Sketch::merge(const Sketch &other) {
     Bucket *other_col = other.buckets + (i * bkt_per_col);
     size_t other_effective_size = other.effective_size(i);
 
-    #ifdef EAGER_BUCKET_CHECK
-    vec_t good_buck_status = 0;    
-    #endif 
-    // #pragma omp simd
-    // std::cout << "flags:" << good_buckets[i] << std::endl;
+    // #ifdef EAGER_BUCKET_CHECK
+    // vec_t good_buck_status = 0;    
+    // #endif 
+    #pragma omp simd
     for (size_t bucket_id=0; bucket_id < other_effective_size; bucket_id++) {
 
       current_col[bucket_id].alpha ^= other_col[bucket_id].alpha;
       current_col[bucket_id].gamma ^= other_col[bucket_id].gamma;
-      #if defined EAGER_BUCKET_CHECK && !EAGER_BUCKET_CHECK == EmptyOnly
-      good_buck_status |= (!!Bucket_Boruvka::is_good(current_col[bucket_id], checksum_seed())) << bucket_id;
-      #elif defined EAGER_BUCKET_CHECK && EAGER_BUCKET_CHECK == EmptyOnly
-      good_buck_status |= (!Bucket_Boruvka::is_empty(current_col[bucket_id])) << bucket_id;
-      #endif 
+      // #if defined EAGER_BUCKET_CHECK && !EAGER_BUCKET_CHECK == EmptyOnly
+      // good_buck_status |= (!!Bucket_Boruvka::is_good(current_col[bucket_id], checksum_seed())) << bucket_id;
+      // #elif defined EAGER_BUCKET_CHECK && EAGER_BUCKET_CHECK == EmptyOnly
+      // good_buck_status |= (!Bucket_Boruvka::is_empty(current_col[bucket_id])) << bucket_id;
+      // #endif 
     }
+    // #ifdef EAGER_BUCKET_CHECK
+    // good_buckets[i] = good_buck_status | (good_buckets[i] >> other_effective_size << other_effective_size);
     #ifdef EAGER_BUCKET_CHECK
-    good_buckets[i] = good_buck_status | (good_buckets[i] >> other_effective_size << other_effective_size);
+    update_flags(i, 0, other_effective_size);
     #endif
+    // #endif
     // std::cout << "flags new:" << good_buckets[i] << std::endl;
   }
 }
+
+#ifdef EAGER_BUCKET_CHECK
+void Sketch::update_flags(size_t col_idx, size_t start_idx, size_t end_idx) {
+  Bucket *current_col = buckets + (col_idx * bkt_per_col);
+  assert(end_idx >= start_idx);
+  vec_t clear_mask = (~0) >> (8*sizeof(vec_t) - (end_idx - start_idx));
+  clear_mask = ~(clear_mask << start_idx);
+  vec_t good_buck_status = 0;
+  #pragma omp simd
+  for (size_t bucket_id=start_idx; bucket_id < end_idx; bucket_id++) {
+    #if defined EAGER_BUCKET_CHECK && !EAGER_BUCKET_CHECK == EmptyOnly
+    good_buck_status |= (!!Bucket_Boruvka::is_good(current_col[bucket_id], checksum_seed())) << bucket_id;
+    #elif defined EAGER_BUCKET_CHECK && EAGER_BUCKET_CHECK == EmptyOnly
+    good_buck_status |= (!Bucket_Boruvka::is_empty(current_col[bucket_id])) << bucket_id;
+    #endif 
+  }
+  good_buckets[col_idx] = (good_buckets[col_idx] & clear_mask) | good_buck_status;
+}
+#endif
 
 void Sketch::range_merge(const Sketch &other, size_t start_sample, size_t n_samples) {
   if (start_sample + n_samples > num_samples) {
@@ -483,6 +504,14 @@ void Sketch::range_merge(const Sketch &other, size_t start_sample, size_t n_samp
     buckets[bucket_id].alpha ^= other.buckets[bucket_id].alpha;
     buckets[bucket_id].gamma ^= other.buckets[bucket_id].gamma;
   }
+  #ifdef EAGER_BUCKET_CHECK
+  for (size_t col_idx=start_sample/bkt_per_col;
+          col_idx < num_columns && col_idx < (start_sample+n_samples)/bkt_per_col;
+          col_idx++){
+            // TODO - you can avoid updating the entirity of the edge columns
+            update_flags(col_idx, 0, bkt_per_col);
+    }
+  #endif
 }
 
 void Sketch::merge_raw_bucket_buffer(const Bucket *raw_buckets) {
@@ -490,6 +519,11 @@ void Sketch::merge_raw_bucket_buffer(const Bucket *raw_buckets) {
     buckets[i].alpha ^= raw_buckets[i].alpha;
     buckets[i].gamma ^= raw_buckets[i].gamma;
   }
+  #ifdef EAGER_BUCKET_CHECK
+  for (size_t col_idx=0; col_idx < num_columns; col_idx++) {
+    update_flags(col_idx, 0, bkt_per_col);
+  }
+  #endif
 }
 
 void Sketch::serialize(std::ostream &binary_out) const {
