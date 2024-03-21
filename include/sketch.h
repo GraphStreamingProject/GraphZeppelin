@@ -72,7 +72,7 @@ class Sketch {
    * @return               The number of samples
    */
   static size_t calc_cc_samples(node_id_t num_vertices, double f) {
-    return ceil(f * log2(num_vertices) / num_samples_div);
+    return std::max(size_t(18), (size_t) ceil(f * log2(num_vertices) / num_samples_div));
   }
 
   /**
@@ -191,8 +191,14 @@ class Sketch {
 };
 
 class OutOfSamplesException : public std::exception {
+ private:
+  std::string err_msg;
  public:
+  OutOfSamplesException(size_t seed, size_t num_samples, size_t sample_idx)
+      : err_msg("This sketch (seed=" + std::to_string(seed) +
+                ", max samples=" + std::to_string(num_samples) +
+                ") cannot be sampled more times (cur idx=" + std::to_string(sample_idx) + ")!") {}
   virtual const char* what() const throw() {
-    return "This sketch cannot be sampled more times!";
+    return err_msg.c_str();
   }
 };

@@ -1,4 +1,5 @@
 // This file defines the query return types from the cc algorithm class
+#pragma once
 #include <cstddef>
 #include <iterator>
 #include <set>
@@ -20,8 +21,8 @@ class ConnectedComponents {
   ~ConnectedComponents();
 
   std::vector<std::set<node_id_t>> get_component_sets();
-  bool is_connected(node_id_t a, node_id_t b) { return parent_arr[a] == parent_arr[b]; }
-  node_id_t size() { return num_cc; }
+  bool is_connected(node_id_t a, node_id_t b) const { return parent_arr[a] == parent_arr[b]; }
+  node_id_t size() const { return num_cc; }
 };
 
 // This class defines a spanning forest of a graph
@@ -32,5 +33,5 @@ class SpanningForest {
  public:
   SpanningForest(node_id_t num_vertices, const std::unordered_set<node_id_t> *spanning_forest);
 
-  const std::vector<Edge>& get_edges() { return edges; }
+  const std::vector<Edge>& get_edges() const { return edges; }
 };

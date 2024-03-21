@@ -6,7 +6,7 @@
 #include <chrono>
 
 #include <cc_sketch_alg.h>
-#include <mat_graph_verifier.h>
+#include <graph_verifier.h>
 
 static size_t get_seed() {
   auto now = std::chrono::high_resolution_clock::now();
@@ -38,14 +38,13 @@ CorrectnessResults test_path_correctness(size_t num_vertices, size_t num_graphs,
     size_t edge_seed = gen();
     std::vector<node_id_t> copy_vertices(vertices);
     std::shuffle(copy_vertices.begin(), copy_vertices.end(), std::mt19937_64(edge_seed));
-    MatGraphVerifier verifier(num_vertices);
+    GraphVerifier verifier(num_vertices);
 
     node_id_t cur_node = copy_vertices[0];
     for (size_t i = 1; i < num_vertices; i++) {
-      verifier.edge_update(cur_node, copy_vertices[i]);
+      verifier.edge_update({cur_node, copy_vertices[i]});
       cur_node = copy_vertices[i];
     }
-    verifier.reset_cc_state();
 
     for (size_t s = 0; s < samples_per_graph; s++) {
       CCSketchAlg cc_alg(num_vertices, get_seed());
@@ -55,7 +54,7 @@ CorrectnessResults test_path_correctness(size_t num_vertices, size_t num_graphs,
         cc_alg.update({{cur_node, copy_vertices[i]}, INSERT});
         cur_node = copy_vertices[i];
       }
-      cc_alg.set_verifier(std::make_unique<MatGraphVerifier>(verifier));
+      cc_alg.set_verifier(std::make_unique<GraphVerifier>(verifier));
 
       std::cout << "graph: " << g << " sample: " << s << " ";
       try {
