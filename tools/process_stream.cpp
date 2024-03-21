@@ -5,6 +5,9 @@
 #include <sys/resource.h>  // for rusage
 #include <test/mat_graph_verifier.h>
 #include <map>
+#include <xxhash.h>
+#include <vector>
+#include <algorithm>
 
 #include <thread>
 
@@ -59,7 +62,7 @@ public:
     node_id_t get_num_vertices() { return num_nodes; }
 
     // Function to calculate power modulo prime
-    int power(int x, int y, int p) {
+    static int power(int x, int y, int p) {
         int res = 1; // Initialize result
         x = x % p; // Update x if it is more than or equal to p
         while (y > 0) {
@@ -74,22 +77,65 @@ public:
     }
 
     // Function to generate k-wise independent hash
-    int k_wise_hash(const std::vector<int>& coefficients, int x, int k, int p) {
+    int k_wise_hash(const std::vector<int>& coefficients, unsigned int src_vertex, unsigned int dst_vertex) {
         int hash_val = 0;
-        for (size_t i = 0; i < coefficients.size(); ++i) {
-            hash_val = (hash_val + coefficients[i] * power(x, i, p)) % p;
+        if (src_vertex>dst_vertex){
+            std::swap(src_vertex, dst_vertex);
         }
-        return hash_val;
+        unsigned int edge_id = src_vertex*num_nodes + dst_vertex;
+        for (int i = 0; i < coefficients.size(); ++i) {
+            hash_val = (hash_val + coefficients[i] * power(edge_id, i, my_prime)) % my_prime;
+        }
+        return (hash_val % 2);
     }
 
     
     void pre_insert(GraphUpdate upd, node_id_t thr_id) { }
 
-    // TODO: Change the appl update batch function as opposed to change pre_insert
+    // Custom comparator function to sort dst_vertices based on end_index in descending order
+    static bool compareEndIndexDescending(const unsigned int &a, const unsigned int &b, const std::vector<unsigned int> &end_index) {
+        return end_index[a] > end_index[b];
+    }
+
+    // TODO: Change the apply update batch function as opposed to change pre_insert
 
     void apply_update_batch(size_t thr_id, node_id_t src_vertex, const std::vector<node_id_t> &dst_vertices) {
+        std::vector<std::pair<unsigned int, unsigned int>> dst_end_index;
+        // Collect the end-index on which an edge is deleted, then sort the indices to achieve O(N) total update time
+        // for the vector.
+        std::pair<node_id_t, unsigned int> temp_pair;
+        for (auto dst_vertex: dst_vertices){
+            for (unsigned int i=1;i<num_subgraphs;i++) {
+                if(k_wise_hash(hash_coefficients[i], src_vertex, dst_vertex)==0) {
+                    temp_pair.first = dst_vertex;
+                    temp_pair.second = i;
+                    dst_end_index.push_back(temp_pair);
+                    break;
+                }
+            }
+        }
+        // Sort end_index vector by the end_index of dst_end_index
+        std::sort(dst_end_index.begin(), dst_end_index.end(), [](auto &left, auto &right) {
+            return left.second > right.second;
+        });
+
+        std::vector<node_id_t> input_dst_vertices;
+        for (auto & pair : dst_end_index){
+            input_dst_vertices.push_back(pair.first);
+        }
+
+        unsigned int position = input_dst_vertices.size()-1;
         for(unsigned int i=0;i<num_subgraphs;i++) {
-            k_edge_algs[i]->apply_update_batch(thr_id, src_vertex, dst_vertices);
+            k_edge_algs[i]->apply_update_batch(thr_id, src_vertex, input_dst_vertices);
+            // The following while loop: keep the position variable to be always aligned with the last vertex
+            // that has not been deleted yet
+            // If the vertex-corresponding end_index is at most the iteration number, it means it has already been
+            // accounted for in this iteration, and should not be accounted of at the next iteration; so we should
+            // remove
+            while (dst_end_index[position].second<=i){
+                input_dst_vertices.pop_back();
+                position--;
+            }
         }
     }
 
