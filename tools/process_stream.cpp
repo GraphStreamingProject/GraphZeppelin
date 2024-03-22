@@ -123,18 +123,25 @@ public:
         for (auto & pair : dst_end_index){
             input_dst_vertices.push_back(pair.first);
         }
-
-        unsigned int position = input_dst_vertices.size()-1;
+        int position;
+        if (!input_dst_vertices.empty()) {
+            position = input_dst_vertices.size() - 1;
+        }
+        else{
+            position = -1;
+        }
         for(unsigned int i=0;i<num_subgraphs;i++) {
-            k_edge_algs[i]->apply_update_batch(thr_id, src_vertex, input_dst_vertices);
-            // The following while loop: keep the position variable to be always aligned with the last vertex
-            // that has not been deleted yet
-            // If the vertex-corresponding end_index is at most the iteration number, it means it has already been
-            // accounted for in this iteration, and should not be accounted of at the next iteration; so we should
-            // remove
-            while (dst_end_index[position].second<=i){
-                input_dst_vertices.pop_back();
-                position--;
+            if (position>=0) {
+                k_edge_algs[i]->apply_update_batch(thr_id, src_vertex, input_dst_vertices);
+                // The following while loop: keep the position variable to be always aligned with the last vertex
+                // that has not been deleted yet
+                // If the vertex-corresponding end_index is at most the iteration number, it means it has already been
+                // accounted for in this iteration, and should not be accounted of at the next iteration; so we should
+                // remove
+                while (dst_end_index[position].second <= i && position>=0) {
+                    input_dst_vertices.pop_back();
+                    position--;
+                }
             }
         }
     }
@@ -149,7 +156,14 @@ public:
     void print_configuration(){k_edge_algs[0]->print_configuration(); }
 
     void query(){
-
+        std::vector<std::pair<node_id_t, std::vector<node_id_t>>> last_forest;
+        for(unsigned int i=0;i<num_subgraphs;i++) {
+            // easy version: check from the i=0 to i=log n without using an additional layer of binary search
+            k_edge_algs[i]->query();
+            // chech whether the spanning forests are connected
+            last_forest = k_edge_algs[i]->forests_collection[k_edge_algs[i]->forests_collection.size()-1];
+            // Vihan said he's going to finish the rest
+        }
     }
 };
 
