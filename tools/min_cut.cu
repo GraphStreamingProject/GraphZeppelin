@@ -111,21 +111,29 @@ int main(int argc, char **argv) {
   sketchParams.num_buckets = sketchParams.num_columns * sketchParams.bkt_per_col + 1;
 
   // Total bytes of sketching datastructure of one subgraph
-  double sketch_bytes = reduced_k * num_nodes * sketchParams.num_buckets * sizeof(Bucket);
+  int w = 4; // 4 bytes when num_nodes < 2^32
+  double cameo_sketch_bytes = 4 * w * num_nodes * ((2 * log2(num_nodes)) + 2) * ((log2(num_nodes))/(1 - log2(1.2)));
+  double sketch_bytes = reduced_k * cameo_sketch_bytes;
+  double adjlist_edge_bytes = 9;
+
   std::cout << "Total bytes of sketching data structure of one subgraph: " << sketch_bytes / 1000000000 << "GB\n";
 
   // Calculate number of minimum adj. list subgraph
   size_t num_edges_complete = (size_t(num_nodes) * (size_t(num_nodes) - 1)) / 2;
   int num_adj_graphs = 0;
   int num_fixed_adj_graphs = 0;
+  int num_fixed_sketch_graphs = 0;
 
   for (int i = 0; i < num_graphs; i++) {
     // Calculate estimated memory for current subgraph
     size_t num_est_edges = num_edges_complete / (1 << i);
-    double adjlist_bytes = ((sizeof(node_id_t) + sizeof(std::vector<node_id_t>)) * num_nodes) + (sizeof(node_id_t) * num_est_edges);
+    double adjlist_bytes = adjlist_edge_bytes * num_est_edges;
 
     if (adjlist_bytes < sketch_bytes) {
       num_fixed_adj_graphs++;
+    }
+    else {
+      num_fixed_sketch_graphs++;
     }
   }
 
@@ -135,7 +143,7 @@ int main(int argc, char **argv) {
   for (int i = 0; i < num_graphs; i++) {
     // Calculate estimated memory for current subgraph
     size_t num_est_edges = num_updates / (1 << i);
-    double adjlist_bytes = ((sizeof(node_id_t) + sizeof(std::vector<node_id_t>)) * num_nodes) + (sizeof(node_id_t) * num_est_edges);
+    double adjlist_bytes = adjlist_edge_bytes * num_est_edges;
 
     if (i == 0) {
       std::cout << "Total bytes of adj data structure of the biggest subgraph: " << adjlist_bytes / 1000000000 << "GB\n";
@@ -161,8 +169,11 @@ int main(int argc, char **argv) {
   }
 
   std::cout << "Number of adj. list graphs: " << num_adj_graphs << "\n";
-  std::cout << "  Number of minimum adj. list graphs: " << num_fixed_adj_graphs << "\n";
   std::cout << "Number of sketch graphs: " << num_sketch_graphs << "\n";
+  std::cout << "  If complete graph with current num_nodes..." << "\n";
+  std::cout << "    Number of adj. list graphs: " << num_fixed_adj_graphs << "\n";
+  std::cout << "    Number of sketch graphs: " << num_fixed_sketch_graphs << "\n";
+  return;
 
   // Reconfigure sketches_factor based on num_sketch_graphs
   mc_config.sketches_factor(reduced_k * num_sketch_graphs);
