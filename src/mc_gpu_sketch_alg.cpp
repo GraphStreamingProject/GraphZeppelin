@@ -17,7 +17,7 @@ void MCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
       // CUDA Stream is available, check if it has any delta sketch
       if(streams[stream_id].delta_applied == 0) {
 
-        if (streams[stream_id].num_graphs <= 0 || streams[stream_id].num_graphs > num_sketch_graphs ) {
+        if (streams[stream_id].num_graphs < 0 || streams[stream_id].num_graphs > num_sketch_graphs ) {
           std::cout << "Stream #" << stream_id << ": invalid num_graphs! " << streams[stream_id].num_graphs << "\n";
         }
 
@@ -139,7 +139,7 @@ void MCGPUSketchAlg::apply_flush_updates() {
   for (int stream_id = 0; stream_id < num_host_threads * stream_multiplier; stream_id++) {
     if(streams[stream_id].delta_applied == 0) {
 
-      if (streams[stream_id].num_graphs <= 0 || streams[stream_id].num_graphs > num_sketch_graphs ) {
+      if (streams[stream_id].num_graphs < 0 || streams[stream_id].num_graphs > num_sketch_graphs ) {
         std::cout << "Stream #" << stream_id << ": invalid num_graphs! " << streams[stream_id].num_graphs << "\n";
       }
 

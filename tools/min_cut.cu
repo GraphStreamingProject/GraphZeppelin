@@ -9,7 +9,7 @@
 
 static bool cert_clean_up = false;
 static bool shutdown = false;
-constexpr double epsilon = 0.5;
+constexpr double epsilon = 0.75;
 
 static double get_max_mem_used() {
   struct rusage data;
@@ -90,7 +90,7 @@ int main(int argc, char **argv) {
   std::cout << std::endl;
 
   int k = log2(num_nodes) / (epsilon * epsilon);
-  int reduced_k = (k / log2(num_nodes)); 
+  int reduced_k = (k / log2(num_nodes)) * 2; 
 
   std::cout << "epsilon: " << epsilon << std::endl;
   std::cout << "k: " << k << std::endl;
@@ -199,18 +199,22 @@ int main(int argc, char **argv) {
   int num_sampled_zero_graphs = 0;
   for (int graph_id = 0; graph_id < num_graphs; graph_id++) {
     std::vector<Edge> spanningForests;
+    std::set<Edge> edges;
     
     auto spanning_forests_start = std::chrono::steady_clock::now();
     if (graph_id >= num_sketch_graphs) { // Get Spanning forests from adj list
       int adjlist_id = graph_id - num_sketch_graphs;
       std::cout << "Adj.list Graph #" << adjlist_id << "\n";
+      auto sampling_forest_start = std::chrono::steady_clock::now();
       spanningForests = mc_gpu_alg.get_adjlist_spanning_forests(adjlist_id);
+      sampling_forests_time += std::chrono::steady_clock::now() - sampling_forest_start;
     } 
     else { // Get Spanning forests from sketch subgraph
       std::cout << "Sketch Graph #" << graph_id << ":\n";
       mc_gpu_alg.set_trim_enbled(true, graph_id); // When trimming, only apply sketch updates to current subgraph
       for (int k_id = 0; k_id < k; k_id++) {
-        int sketch_k_id = k_id / (k / (reduced_k));
+        int num_samples_per_sketch = (k / reduced_k) + 1;
+        int sketch_k_id = k_id / num_samples_per_sketch;
         
         std::cout << "  Getting spanning forest " << k_id << ", Sketch_id: " << sketch_k_id << "\n";
 
@@ -235,20 +239,19 @@ int main(int argc, char **argv) {
         cudaDeviceSynchronize();
         mc_gpu_alg.apply_flush_updates();
         trim_flushing_time += std::chrono::steady_clock::now() - trim_flushing_start;
+
+        // Verify sampled edges from spanning forest
+        for (auto& edge : spanningForest.get_edges()) {
+          if (edges.count(edge) == 0) {
+            edges.insert(edge);
+          }
+          else {
+            std::cerr << "ERROR: duplicate error in forests!" << "\n";
+            exit(EXIT_FAILURE);
+          }
+        }
       }
 
-      // Verify spanning forests
-      std::set<Edge> edges;
-      for (auto& edge : spanningForests) {
-        if (edges.count(edge) == 0) {
-          edges.insert(edge);
-        }
-        else {
-          std::cerr << "ERROR: duplicate error in forests!" << "\n";
-          exit(EXIT_FAILURE);
-        }
-      }
-      
     }
 
     std::cout << "  Number of edges in spanning forests: " << spanningForests.size() << "\n";

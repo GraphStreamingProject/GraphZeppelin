@@ -84,7 +84,7 @@ int main(int argc, char** argv) {
 				num_read_nodes++;
 			}
 
-			if(num_read_edges % 100000 == 0) {
+			if(num_read_edges % 10000000 == 0) {
 				std::cout << "  Progress - Edges Read: " << num_read_edges << "\n";
 				std::chrono::duration<double> progress_time = std::chrono::steady_clock::now() - progress_start;
 				std::cout << "    Elapsed Time: " << progress_time.count() << "\n";
