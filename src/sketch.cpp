@@ -93,7 +93,7 @@ void Sketch::zero_contents() {
 
 SketchSample Sketch::sample() {
   if (sample_idx >= num_samples) {
-    throw OutOfSamplesException();
+    throw OutOfSamplesException(seed, num_samples, sample_idx);
   }
 
   size_t idx = sample_idx++;
@@ -117,7 +117,7 @@ SketchSample Sketch::sample() {
 
 ExhaustiveSketchSample Sketch::exhaustive_sample() {
   if (sample_idx >= num_samples) {
-    throw OutOfSamplesException();
+    throw OutOfSamplesException(seed, num_samples, sample_idx);
   }
   std::unordered_set<vec_t> ret;
 

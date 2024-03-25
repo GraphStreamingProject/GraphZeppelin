@@ -363,7 +363,7 @@ TEST(SketchTestSuite, TestExhaustiveQuery) {
 
 TEST(SketchTestSuite, TestSampleInsertGrinder) {
   size_t nodes = 4096;
-  Sketch sketch(Sketch::calc_vector_length(nodes), get_seed(), Sketch::calc_cc_samples(nodes));
+  Sketch sketch(Sketch::calc_vector_length(nodes), get_seed(), Sketch::calc_cc_samples(nodes, 1));
 
   for (size_t src = 0; src < nodes - 1; src++) {
     for (size_t dst = src + 7; dst < nodes; dst += 7) {
@@ -372,7 +372,7 @@ TEST(SketchTestSuite, TestSampleInsertGrinder) {
   }
 
   size_t successes = 0;
-  for (size_t i = 0; i < Sketch::calc_cc_samples(nodes); i++) {
+  for (size_t i = 0; i < Sketch::calc_cc_samples(nodes, 1); i++) {
     SketchSample ret = sketch.sample();
     if (ret.result == FAIL) continue;
 
@@ -388,7 +388,7 @@ TEST(SketchTestSuite, TestSampleInsertGrinder) {
 
 TEST(SketchTestSuite, TestSampleDeleteGrinder) {
   size_t nodes = 4096;
-  Sketch sketch(Sketch::calc_vector_length(nodes), get_seed(), Sketch::calc_cc_samples(nodes));
+  Sketch sketch(Sketch::calc_vector_length(nodes), get_seed(), Sketch::calc_cc_samples(nodes, 1));
 
   // insert
   for (size_t src = 0; src < nodes - 1; src++) {
@@ -405,7 +405,7 @@ TEST(SketchTestSuite, TestSampleDeleteGrinder) {
   }
 
   size_t successes = 0;
-  for (size_t i = 0; i < Sketch::calc_cc_samples(nodes); i++) {
+  for (size_t i = 0; i < Sketch::calc_cc_samples(nodes, 1); i++) {
     SketchSample ret = sketch.sample();
     if (ret.result == FAIL) continue;
 

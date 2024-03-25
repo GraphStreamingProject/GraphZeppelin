@@ -299,6 +299,105 @@ BENCHMARK(BM_Sketch_Serialize)->RangeMultiplier(10)->Range(1e3, 1e6);
 // }
 // BENCHMARK(BM_Sketch_Sparse_Serialize)->RangeMultiplier(10)->Range(1e3, 1e6);
 
+// Benchmark DSU Find Root
+static void BM_DSU_Find(benchmark::State& state) {
+  constexpr size_t size_of_dsu = 16 * MB;
+  DisjointSetUnion<node_id_t> dsu(size_of_dsu);
+
+  auto rng = std::default_random_engine{};
+  std::vector<node_id_t> queries;
+  for (size_t i = 0; i < 4096; i++) {
+    queries.push_back((size_of_dsu / 4096) * i);
+  }
+  std::shuffle(queries.begin(), queries.end(), rng);
+
+  // perform find test
+  for (auto _ : state) {
+    for (auto q : queries)
+      dsu.find_root(q);
+  }
+  state.counters["Find_Latency"] =
+      benchmark::Counter(state.iterations() * queries.size(),
+                         benchmark::Counter::kIsRate | benchmark::Counter::kInvert);
+}
+BENCHMARK(BM_DSU_Find);
+
+static void BM_DSU_Find_After_Combine(benchmark::State& state) {
+  constexpr size_t size_of_dsu = 16 * MB;
+  DisjointSetUnion<node_id_t> dsu(size_of_dsu);
+  // merge everything into same root
+  for (size_t i = 0; i < size_of_dsu - 1; i++) {
+    dsu.merge(i, i+1);
+  }
+
+  auto rng = std::default_random_engine{};
+  std::vector<node_id_t> queries;
+  for (size_t i = 0; i < 4096; i++) {
+    queries.push_back((size_of_dsu / 4096) * i);
+  }
+  std::shuffle(queries.begin(), queries.end(), rng);
+
+  // perform find test
+  for (auto _ : state) {
+    for (auto q : queries)
+      dsu.find_root(q);
+  }
+  state.counters["Find_Latency"] =
+      benchmark::Counter(state.iterations() * queries.size(),
+                         benchmark::Counter::kIsRate | benchmark::Counter::kInvert);
+}
+BENCHMARK(BM_DSU_Find_After_Combine);
+
+// MT DSU Find Root
+static void BM_MT_DSU_Find(benchmark::State& state) {
+  constexpr size_t size_of_dsu = 16 * MB;
+  DisjointSetUnion_MT<node_id_t> dsu(size_of_dsu);
+
+  auto rng = std::default_random_engine{};
+  std::vector<node_id_t> queries;
+  for (size_t i = 0; i < 4096; i++) {
+    queries.push_back((size_of_dsu / 4096) * i);
+  }
+  std::shuffle(queries.begin(), queries.end(), rng);
+
+  // perform find test
+  for (auto _ : state) {
+    for (auto q : queries)
+      dsu.find_root(q);
+  }
+  state.counters["Find_Latency"] =
+      benchmark::Counter(state.iterations() * queries.size(),
+                         benchmark::Counter::kIsRate | benchmark::Counter::kInvert);
+}
+BENCHMARK(BM_MT_DSU_Find);
+
+// MT DSU Find Root
+static void BM_MT_DSU_Find_After_Combine(benchmark::State& state) {
+  constexpr size_t size_of_dsu = MB;
+  DisjointSetUnion_MT<node_id_t> dsu(size_of_dsu);
+  // merge everything into same root
+  for (size_t i = 0; i < size_of_dsu - 1; i++) {
+    dsu.merge(i, i+1);
+  }
+
+  auto rng = std::default_random_engine{};
+  std::vector<node_id_t> queries;
+  for (size_t i = 0; i < 512; i++) {
+    queries.push_back((size_of_dsu / 512) * i);
+  }
+  std::shuffle(queries.begin(), queries.end(), rng);
+
+  // perform find test
+  for (auto _ : state) {
+    for (auto q : queries)
+      dsu.find_root(q);
+  }
+  state.counters["Find_Latency"] =
+      benchmark::Counter(state.iterations() * queries.size(),
+                         benchmark::Counter::kIsRate | benchmark::Counter::kInvert);
+}
+BENCHMARK(BM_MT_DSU_Find_After_Combine);
+
 // Benchmark speed of DSU merges when the sequence of merges is adversarial
 // This means we avoid joining roots wherever possible
 static void BM_DSU_Adversarial(benchmark::State& state) {

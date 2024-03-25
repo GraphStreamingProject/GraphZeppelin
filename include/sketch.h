@@ -64,6 +64,18 @@ class Sketch {
   }
 
   /**
+   * This function computes the number of samples a Sketch should support in order to solve
+   * connected components. Optionally, can increase or decrease the number of samples by a
+   * multiplicative factor.
+   * @param num_vertices   Number of graph vertices
+   * @param f              Multiplicative sample factor
+   * @return               The number of samples
+   */
+  static size_t calc_cc_samples(node_id_t num_vertices, double f) {
+    return std::max(size_t(18), (size_t) ceil(f * log2(num_vertices) / num_samples_div));
+  }
+
+  /**
    * Construct a sketch object
    * @param vector_len       Length of the vector we are sketching
    * @param seed             Random seed of the sketch
@@ -167,7 +179,6 @@ class Sketch {
   inline size_t get_num_samples() const { return num_samples; }
 
   static size_t calc_bkt_per_col(size_t n) { return ceil(log2(n)) + 1; }
-  static size_t calc_cc_samples(size_t n) { return ceil(log2(n) / num_samples_div); }
 
 #ifdef L0_SAMPLING
   static constexpr size_t default_cols_per_sample = 7;
@@ -181,8 +192,14 @@ class Sketch {
 };
 
 class OutOfSamplesException : public std::exception {
+ private:
+  std::string err_msg;
  public:
+  OutOfSamplesException(size_t seed, size_t num_samples, size_t sample_idx)
+      : err_msg("This sketch (seed=" + std::to_string(seed) +
+                ", max samples=" + std::to_string(num_samples) +
+                ") cannot be sampled more times (cur idx=" + std::to_string(sample_idx) + ")!") {}
   virtual const char* what() const throw() {
-    return "This sketch cannot be sampled more times!";
+    return err_msg.c_str();
   }
 };
