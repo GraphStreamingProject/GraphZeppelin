@@ -8,21 +8,27 @@
 #include <omp.h>
 #include <unordered_map>
 
-MCSketchAlg::MCSketchAlg(node_id_t num_vertices, size_t seed, CCAlgConfiguration config)
+MCSketchAlg::MCSketchAlg(node_id_t num_vertices, size_t seed, int _num_sketch_graphs, CCAlgConfiguration config)
     : num_vertices(num_vertices), seed(seed), dsu(num_vertices), config(config) {
   representatives = new std::set<node_id_t>();
-  size_t total_num_sketches = num_vertices * config.get_sketch_factor();
-  sketches = new Sketch *[total_num_sketches];
-
+  num_sketch_graphs = _num_sketch_graphs;
   vec_t sketch_vec_len = Sketch::calc_vector_length(num_vertices);
-  size_t sketch_num_samples = Sketch::calc_cc_samples(num_vertices);
+  size_t sketch_num_samples = Sketch::calc_cc_samples(num_vertices, config.get_sketches_factor());
+  if (num_sketch_graphs == 0) { // If no sketch graph, make one sample sketch for the driver
+    sketches = new Sketch *[1];
+    sketches[0] = new Sketch(sketch_vec_len, seed, sketch_num_samples);
+  }
+  else {
+    sketches = new Sketch *[num_vertices * num_sketch_graphs];
+
+    for (node_id_t i = 0; i < num_vertices * num_sketch_graphs; ++i) {
+      sketches[i] = new Sketch(sketch_vec_len, seed, sketch_num_samples);
+    }    
+  }
+
   for (node_id_t i = 0; i < num_vertices; ++i) {
     representatives->insert(i);
   }
-  for (node_id_t i = 0; i < total_num_sketches; ++i) {
-    sketches[i] = new Sketch(sketch_vec_len, seed, sketch_num_samples);
-  }
-
   spanning_forest = new std::unordered_set<node_id_t>[num_vertices];
   spanning_forest_mtx = new std::mutex[num_vertices];
 
@@ -55,7 +61,8 @@ MCSketchAlg::MCSketchAlg(node_id_t num_vertices, size_t seed, std::ifstream &bin
   sketches = new Sketch *[num_vertices];
 
   vec_t sketch_vec_len = Sketch::calc_vector_length(num_vertices);
-  size_t sketch_num_samples = Sketch::calc_cc_samples(num_vertices);
+  size_t sketch_num_samples = Sketch::calc_cc_samples(num_vertices, config.get_sketches_factor());
+
   for (node_id_t i = 0; i < num_vertices; ++i) {
     representatives->insert(i);
     sketches[i] = new Sketch(sketch_vec_len, seed, binary_stream, sketch_num_samples);
@@ -69,7 +76,7 @@ MCSketchAlg::MCSketchAlg(node_id_t num_vertices, size_t seed, std::ifstream &bin
 }
 
 MCSketchAlg::~MCSketchAlg() {
-  for (size_t i = 0; i < num_vertices * config.get_sketch_factor(); ++i) delete sketches[i];
+  for (size_t i = 0; i < num_vertices * num_sketch_graphs; ++i) delete sketches[i];
   delete[] sketches;
   if (delta_sketches != nullptr) {
     for (size_t i = 0; i < num_delta_sketches; i++) delete delta_sketches[i];
@@ -95,12 +102,14 @@ void MCSketchAlg::pre_insert(GraphUpdate upd, int /* thr_id */) {
     auto src = std::min(edge.src, edge.dst);
     auto dst = std::max(edge.src, edge.dst);
     std::lock_guard<std::mutex> sflock(spanning_forest_mtx[src]);
-    if (spanning_forest[src].find(dst) != spanning_forest[src].end()) {
+    if (dsu.merge(src, dst).merged) {
+      // this edge adds new connectivity information so add to spanning forest
+      spanning_forest[src].insert(dst);
+    }
+    else if (spanning_forest[src].find(dst) != spanning_forest[src].end()) {
+      // this update deletes one of our spanning forest edges so mark dsu invalid
       dsu_valid = false;
       shared_dsu_valid = false;
-    } else {
-      spanning_forest[src].insert(dst);
-      dsu.merge(src, dst);
     }
   }
 #endif  // NO_EAGER_DSU
@@ -116,12 +125,12 @@ void MCSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
     delta_sketch.update(static_cast<vec_t>(concat_pairing_fn(src_vertex, dst)));
   }
 
-  std::unique_lock<std::mutex>(sketches[src_vertex]->mutex);
+  std::lock_guard<std::mutex> lk(sketches[src_vertex]->mutex);
   sketches[src_vertex]->merge(delta_sketch);
 }
 
 void MCSketchAlg::apply_raw_buckets_update(node_id_t src_vertex, Bucket *raw_buckets) {
-  std::unique_lock<std::mutex>(sketches[src_vertex]->mutex);
+  std::lock_guard<std::mutex> lk(sketches[src_vertex]->mutex);
   sketches[src_vertex]->merge_raw_bucket_buffer(raw_buckets);
 }
 
@@ -159,7 +168,7 @@ inline bool MCSketchAlg::sample_supernode(Sketch &skt) {
       auto src = std::min(e.src, e.dst);
       auto dst = std::max(e.src, e.dst);
       {
-        std::unique_lock<std::mutex> lk(spanning_forest_mtx[src]);
+        std::lock_guard<std::mutex> lk(spanning_forest_mtx[src]);
         spanning_forest[src].insert(dst);
       }
     }
@@ -214,7 +223,7 @@ inline node_id_t find_last_partition_of_root(const std::vector<MergeInstr> &merg
 // merge the global and return if it is safe to query now
 inline bool merge_global(const size_t cur_round, const Sketch &local_sketch,
                          GlobalMergeData &global) {
-  std::unique_lock<std::mutex> lk(global.mtx);
+  std::lock_guard<std::mutex> lk(global.mtx);
   global.sketch.range_merge(local_sketch, cur_round, 1);
   ++global.num_merge_done;
   assert(global.num_merge_done <= global.num_merge_needed);
@@ -234,6 +243,7 @@ inline bool MCSketchAlg::run_round_zero() {
       if (sample_supernode(*sketches[i]) && !modified) modified = true;
     } catch (...) {
       except = true;
+#pragma omp critical
       err = std::current_exception();
     }
   }
@@ -245,7 +255,7 @@ inline bool MCSketchAlg::run_round_zero() {
   return modified;
 }
 
-inline bool MCSketchAlg::run_k_round_zero(int graph_id, int k_id, int k) {
+inline bool MCSketchAlg::run_k_round_zero(int graph_id) {
   bool modified = false;
   bool except = false;
   std::exception_ptr err;
@@ -253,9 +263,10 @@ inline bool MCSketchAlg::run_k_round_zero(int graph_id, int k_id, int k) {
   for (node_id_t i = 0; i < num_vertices; i++) {
     try {
       // num_query += 1;
-      if (sample_supernode(*sketches[(graph_id * num_vertices * k) + (i * k) + k_id]) && !modified) modified = true;
+      if (sample_supernode(*sketches[(graph_id * num_vertices) + i]) && !modified) modified = true;
     } catch (...) {
       except = true;
+#pragma omp critical
       err = std::current_exception();
     }
   }
@@ -287,7 +298,7 @@ bool MCSketchAlg::perform_boruvka_round(const size_t cur_round,
   {
     // some thread local variables
     Sketch local_sketch(Sketch::calc_vector_length(num_vertices), seed,
-                        Sketch::calc_cc_samples(num_vertices));
+                        Sketch::calc_cc_samples(num_vertices, config.get_sketches_factor()));
 
     size_t thr_id = omp_get_thread_num();
     size_t num_threads = omp_get_num_threads();
@@ -295,9 +306,8 @@ bool MCSketchAlg::perform_boruvka_round(const size_t cur_round,
     node_id_t start = partition.first;
     node_id_t end = partition.second;
     assert(start <= end);
-
-    // node_id_t left_root = merge_instr[start].root;
-    // node_id_t right_root = merge_instr[end - 1].root;
+    bool local_except = false;
+    std::exception_ptr local_err;
 
     bool root_from_left = false;
     if (start > 0) {
@@ -327,8 +337,8 @@ bool MCSketchAlg::perform_boruvka_round(const size_t cur_round,
               // num_query += 1;
               if (sample_supernode(global_merges[thr_id].sketch) && !modified) modified = true;
             } catch (...) {
-              except = true;
-              err = std::current_exception();
+              local_except = true;
+              local_err = std::current_exception();
             }
           }
 
@@ -341,8 +351,8 @@ bool MCSketchAlg::perform_boruvka_round(const size_t cur_round,
             // num_query += 1;
             if (sample_supernode(local_sketch) && !modified) modified = true;
           } catch (...) {
-            except = true;
-            err = std::current_exception();
+            local_except = true;
+            local_err = std::current_exception();
           }
         }
 
@@ -362,7 +372,7 @@ bool MCSketchAlg::perform_boruvka_round(const size_t cur_round,
       if (!root_from_left) {
         // Resolved root_from_left, so we are the first thread to encounter this root
         // set the number of threads that will merge into this component
-        std::unique_lock<std::mutex> lk(global_merges[global_id].mtx);
+        std::lock_guard<std::mutex> lk(global_merges[global_id].mtx);
         global_merges[global_id].num_merge_needed = global_id - thr_id + 1;
       }
       bool query_ready = merge_global(cur_round, local_sketch, global_merges[global_id]);
@@ -372,8 +382,8 @@ bool MCSketchAlg::perform_boruvka_round(const size_t cur_round,
           // num_query += 1;
           if (sample_supernode(global_merges[global_id].sketch) && !modified) modified = true;
         } catch (...) {
-          except = true;
-          err = std::current_exception();
+          local_except = true;
+          local_err = std::current_exception();
         }
       }
     } else {
@@ -383,9 +393,14 @@ bool MCSketchAlg::perform_boruvka_round(const size_t cur_round,
         // num_query += 1;
         if (sample_supernode(local_sketch) && !modified) modified = true;
       } catch (...) {
-        except = true;
-        err = std::current_exception();
+        local_except = true;
+        local_err = std::current_exception();
       }
+    }
+    if (local_except) {
+#pragma omp critical
+      err = local_err;
+      except = true;
     }
   }
 
@@ -402,11 +417,9 @@ bool MCSketchAlg::perform_boruvka_round(const size_t cur_round,
 bool MCSketchAlg::perform_k_boruvka_round(const size_t cur_round,
                                         const std::vector<MergeInstr> &merge_instr,
                                         std::vector<GlobalMergeData> &global_merges,
-                                        int graph_id,
-                                        int k_id,
-                                        int k) {
+                                        int graph_id) {
   if (cur_round == 0) {
-    return run_k_round_zero(graph_id, k_id, k);
+    return run_k_round_zero(graph_id);
   }
 
   bool modified = false;
@@ -422,7 +435,7 @@ bool MCSketchAlg::perform_k_boruvka_round(const size_t cur_round,
   {
     // some thread local variables
     Sketch local_sketch(Sketch::calc_vector_length(num_vertices), seed,
-                        Sketch::calc_cc_samples(num_vertices));
+                        Sketch::calc_cc_samples(num_vertices, config.get_sketches_factor()));
 
     size_t thr_id = omp_get_thread_num();
     size_t num_threads = omp_get_num_threads();
@@ -430,6 +443,8 @@ bool MCSketchAlg::perform_k_boruvka_round(const size_t cur_round,
     node_id_t start = partition.first;
     node_id_t end = partition.second;
     assert(start <= end);
+    bool local_except = false;
+    std::exception_ptr local_err;
 
     bool root_from_left = false;
     if (start > 0) {
@@ -442,6 +457,8 @@ bool MCSketchAlg::perform_k_boruvka_round(const size_t cur_round,
 
     node_id_t cur_root = merge_instr[start].root;
 
+    // std::cout << thr_id << std::endl;
+    // std::cout << "  Component " << cur_root << ":";
     for (node_id_t i = start; i < end; i++) {
       node_id_t root = merge_instr[i].root;
       node_id_t child = merge_instr[i].child;
@@ -449,13 +466,16 @@ bool MCSketchAlg::perform_k_boruvka_round(const size_t cur_round,
       if (root != cur_root) {
         if (root_from_left) {
           // we hold the global for this merge
+          // std::cout << " merge global (we own)" << std::endl;
           bool query_ready = merge_global(cur_round, local_sketch, global_merges[thr_id]);
           if (query_ready) {
+            // std::cout << "Performing query!";
             try {
+              // num_query += 1;
               if (sample_supernode(global_merges[thr_id].sketch) && !modified) modified = true;
             } catch (...) {
-              except = true;
-              err = std::current_exception();
+              local_except = true;
+              local_err = std::current_exception();
             }
           }
 
@@ -463,49 +483,65 @@ bool MCSketchAlg::perform_k_boruvka_round(const size_t cur_round,
           root_from_left = false;
         } else {
           // This is an entirely local computation
+          // std::cout << " query local";
           try {
+            // num_query += 1;
             if (sample_supernode(local_sketch) && !modified) modified = true;
           } catch (...) {
-            except = true;
-            err = std::current_exception();
+            local_except = true;
+            local_err = std::current_exception();
           }
         }
 
         cur_root = root;
+        // std::cout << "  Component " << cur_root << ":";
         local_sketch.zero_contents();
       }
 
-      local_sketch.range_merge(*sketches[(graph_id * num_vertices * k) + (child * k) + k_id], cur_round, 1);
+      // std::cout << " " << child;
+      local_sketch.range_merge(*sketches[(graph_id * num_vertices) + child], cur_round, 1);
     }
 
     if (root_exits_right || root_from_left) {
       // global merge where we may or may not own it
       size_t global_id = find_last_partition_of_root(merge_instr, cur_root, start, num_threads);
+      // std::cout << " merge global (" << global_id << ")" << std::endl;
       if (!root_from_left) {
         // Resolved root_from_left, so we are the first thread to encounter this root
         // set the number of threads that will merge into this component
-        std::unique_lock<std::mutex> lk(global_merges[global_id].mtx);
+        std::lock_guard<std::mutex> lk(global_merges[global_id].mtx);
         global_merges[global_id].num_merge_needed = global_id - thr_id + 1;
       }
       bool query_ready = merge_global(cur_round, local_sketch, global_merges[global_id]);
       if (query_ready) {
+        // std::cout << "Performing query!";
         try {
+          // num_query += 1;
           if (sample_supernode(global_merges[global_id].sketch) && !modified) modified = true;
         } catch (...) {
-          except = true;
-          err = std::current_exception();
+          local_except = true;
+          local_err = std::current_exception();
         }
       }
     } else {
       // This is an entirely local computation
+      // std::cout << " query local";
       try {
+        // num_query += 1;
         if (sample_supernode(local_sketch) && !modified) modified = true;
       } catch (...) {
-        except = true;
-        err = std::current_exception();
+        local_except = true;
+        local_err = std::current_exception();
       }
     }
+    if (local_except) {
+#pragma omp critical
+      err = local_err;
+      except = true;
+    }
   }
+
+  // std::cout << "Number of roots queried = " << num_query << std::endl;
 
   if (except) {
     // if one of our threads produced an exception throw it here
@@ -608,7 +644,7 @@ void MCSketchAlg::boruvka_emulation() {
   std::vector<GlobalMergeData> global_merges;
   global_merges.reserve(num_threads);
   for (size_t i = 0; i < num_threads; i++) {
-    global_merges.emplace_back(num_vertices, seed);
+    global_merges.emplace_back(num_vertices, seed, config.get_sketches_factor());
   }
 
   dsu.reset();
@@ -648,16 +684,18 @@ void MCSketchAlg::boruvka_emulation() {
   update_locked = false;
 }
 
-void MCSketchAlg::k_boruvka_emulation(int graph_id, int k_id, int k) {
+void MCSketchAlg::k_boruvka_emulation(int graph_id) {
+  // auto start = std::chrono::steady_clock::now();
   update_locked = true;
 
+  cc_alg_start = std::chrono::steady_clock::now();
   std::vector<MergeInstr> merge_instr(num_vertices);
 
   size_t num_threads = omp_get_max_threads();
   std::vector<GlobalMergeData> global_merges;
   global_merges.reserve(num_threads);
   for (size_t i = 0; i < num_threads; i++) {
-    global_merges.emplace_back(num_vertices, seed);
+    global_merges.emplace_back(num_vertices, seed, config.get_sketches_factor());
   }
 
   dsu.reset();
@@ -669,10 +707,9 @@ void MCSketchAlg::k_boruvka_emulation(int graph_id, int k_id, int k) {
   bool modified = true;
 
   while (true) {
-    modified = perform_k_boruvka_round(round_num, merge_instr, global_merges, graph_id, k_id, k);
+    modified = perform_k_boruvka_round(round_num, merge_instr, global_merges, graph_id);
 
     if (!modified) break;
-
     create_merge_instructions(merge_instr);
     ++round_num;
   }
@@ -721,8 +758,7 @@ ConnectedComponents MCSketchAlg::connected_components() {
 
   ConnectedComponents cc(num_vertices, dsu);
 #ifdef VERIFY_SAMPLES_F
-  auto cc_sets = cc.get_component_sets();
-  verifier->verify_soln(cc_sets);
+  verifier->verify_connected_components(cc);
 #endif
   cc_alg_end = std::chrono::steady_clock::now();
   return cc;
@@ -732,14 +768,18 @@ SpanningForest MCSketchAlg::calc_spanning_forest() {
   // TODO: Could probably optimize this a bit by writing new code
   connected_components();
 
-  return SpanningForest(num_vertices, spanning_forest);
+  SpanningForest ret(num_vertices, spanning_forest);
+#ifdef VERIFY_SAMPLES_F
+  verifier->verify_spanning_forests(std::vector<SpanningForest>{ret});
+#endif
+  return ret;
 }
 
-SpanningForest MCSketchAlg::get_k_spanning_forest(int graph_id, int k_id, int k) {
+SpanningForest MCSketchAlg::get_k_spanning_forest(int graph_id) {
   bool except = false;
   std::exception_ptr err;
   try {
-    k_boruvka_emulation(graph_id, k_id, k);
+    k_boruvka_emulation(graph_id);
   } catch (...) {
     except = true;
     err = std::current_exception();
@@ -751,7 +791,7 @@ SpanningForest MCSketchAlg::get_k_spanning_forest(int graph_id, int k_id, int k)
   std::cout << "    round = " << last_query_rounds << " cc size = " << cc.size() << "\n";
 
   // get ready for ingesting more from the stream by resetting the sketches sample state
-  for (node_id_t i = 0; i < num_vertices * config.get_sketch_factor(); i++) {
+  for (node_id_t i = 0; i < num_vertices; i++) {
     sketches[i]->reset_sample_state();
   }
 
@@ -777,7 +817,6 @@ bool MCSketchAlg::point_query(node_id_t a, node_id_t b) {
   else {
     bool except = false;
     std::exception_ptr err;
-    bool ret;
     try {
       boruvka_emulation();
     } catch (...) {
@@ -797,8 +836,7 @@ bool MCSketchAlg::point_query(node_id_t a, node_id_t b) {
 
 #ifdef VERIFY_SAMPLES_F
   ConnectedComponents cc(num_vertices, dsu);
-  auto cc_sets = cc.get_component_sets();
-  verifier->verify_soln(cc_sets);
+  verifier->verify_connected_components(cc);
 #endif
 
   bool retval = (dsu.find_root(a) == dsu.find_root(b));

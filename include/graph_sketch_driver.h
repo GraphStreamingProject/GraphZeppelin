@@ -200,12 +200,7 @@ class GraphSketchDriver {
     worker_threads->flush_workers();
     flush_end = std::chrono::steady_clock::now();
   }
-
-  void force_flush() {
-    gts->force_flush();
-    worker_threads->flush_workers();  
-  }
-
+  
   void trim_spanning_forest(std::vector<Edge> edges) {
     worker_threads->resume_workers();
 

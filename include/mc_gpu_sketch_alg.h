@@ -81,7 +81,7 @@ private:
   int trim_graph_id;
 
 public:
-  MCGPUSketchAlg(node_id_t num_vertices, size_t num_updates, int num_threads, size_t seed, SketchParams sketchParams, int _num_graphs, int _num_sketch_graphs, int _num_adj_graphs, int _num_fixed_adj_graphs, int _k, CCAlgConfiguration config = CCAlgConfiguration()) : MCSketchAlg(num_vertices, seed, config){ 
+  MCGPUSketchAlg(node_id_t num_vertices, size_t num_updates, int num_threads, size_t seed, SketchParams sketchParams, int _num_graphs, int _num_sketch_graphs, int _num_adj_graphs, int _num_fixed_adj_graphs, int _k, CCAlgConfiguration config = CCAlgConfiguration()) : MCSketchAlg(num_vertices, seed, _num_sketch_graphs, config){ 
 
     // Start timer for initializing
     auto init_start = std::chrono::steady_clock::now();
@@ -89,7 +89,7 @@ public:
     sketchSeed = seed;
     num_nodes = num_vertices;
     k = _k;
-    sketches_factor = config.get_sketch_factor();
+    sketches_factor = config.get_sketches_factor();
     num_host_threads = num_threads;
 
     num_graphs = _num_graphs;
@@ -125,11 +125,11 @@ public:
 
     // Create a bigger batch size to apply edge updates when subgraph is turning into sketch representation
     batch_size = get_desired_updates_per_batch();
-
+    
     // Create cudaUpdateParams
     gpuErrchk(cudaMallocManaged(&cudaUpdateParams, num_sketch_graphs * sizeof(CudaUpdateParams)));
     for (int i = 0; i < num_sketch_graphs; i++) {
-      cudaUpdateParams[i] = new CudaUpdateParams(num_vertices, num_updates, num_samples, num_buckets, num_columns, bkt_per_col, num_threads, batch_size, stream_multiplier, k);
+      cudaUpdateParams[i] = new CudaUpdateParams(num_vertices, num_updates, num_samples, num_buckets, num_columns, bkt_per_col, num_threads, batch_size, stream_multiplier);
     }
     
     int device_id = cudaGetDevice(&device_id);
@@ -183,7 +183,7 @@ public:
     }
   }
 
-  std::vector<Edge> get_adjlist_spanning_forests(int graph_id);
+  std::vector<Edge> get_adjlist_spanning_forests(int graph_id, int k);
 
   void set_trim_enbled(bool enabled, int graph_id) {
     trim_enabled = enabled;
