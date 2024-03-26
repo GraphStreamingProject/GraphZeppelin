@@ -97,17 +97,17 @@ FetchContent_MakeAvailable(GutterTree StreamingUtilities)
 add_library(CUDALibrary
   src/cuda_library.cu
   src/cuda_kernel.cu
-  src/cc_gpu_sketch_alg.cpp
-  src/mc_gpu_sketch_alg.cpp)
+  src/cc_gpu_sketch_alg.cpp)
+  #src/mc_gpu_sketch_alg.cpp)
 add_dependencies(CUDALibrary GutterTree)
-target_link_libraries(CUDALibrary PUBLIC xxhash GutterTree)
+target_link_libraries(CUDALibrary PUBLIC xxhash GutterTree StreamingUtilities)
 target_include_directories(CUDALibrary PUBLIC include/)
 target_compile_options(CUDALibrary PUBLIC -lineinfo) # -lineinfo: For profiling
 #target_compile_options(CUDALibrary PUBLIC -expt-relaxed-constexpr)
 
 add_library(GraphZeppelin
   src/cc_sketch_alg.cpp
-  src/mc_sketch_alg.cpp
+  #src/mc_sketch_alg.cpp
   src/return_types.cpp
   src/driver_configuration.cpp
   src/cc_alg_configuration.cpp
@@ -167,9 +167,10 @@ if (BUILD_EXE)
     tools/cuda_process_stream.cu)
   target_link_libraries(cuda_process_stream PRIVATE GraphZeppelin CUDALibrary)
 
-  add_executable(min_cut
-    tools/min_cut.cu)
-  target_link_libraries(min_cut PRIVATE GraphZeppelin CUDALibrary)
+  # Note: Turn off min_cut for now
+  #add_executable(min_cut
+  #  tools/min_cut.cu)
+  #target_link_libraries(min_cut PRIVATE GraphZeppelin CUDALibrary)
 
   add_executable(generate_stream
     tools/stream_generators/non_trivial_stream_generator.cpp
@@ -185,12 +186,6 @@ if (BUILD_EXE)
     tools/converter/stream_converter.cpp
   )
   target_link_libraries(stream_converter PRIVATE GraphZeppelin)
-
-  # tool for validating that a binary stream appears correct  
-  add_executable(validate_binary_stream
-    tools/validate_binary_stream.cpp
-  )
-  target_link_libraries(validate_binary_stream PRIVATE GraphZeppelin)
 endif()
 
 if (BUILD_BENCH)

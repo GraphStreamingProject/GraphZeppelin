@@ -48,7 +48,7 @@ public:
     sketchSeed = seed;
 
     // Get variables from sketch
-    num_samples = Sketch::calc_cc_samples(num_vertices);
+    num_samples = Sketch::calc_cc_samples(num_vertices, 1);
     num_columns = num_samples * Sketch::default_cols_per_sample;
     bkt_per_col = Sketch::calc_bkt_per_col(Sketch::calc_vector_length(num_vertices));
     num_buckets = num_columns * bkt_per_col + 1;
