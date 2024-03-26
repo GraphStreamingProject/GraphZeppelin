@@ -45,9 +45,9 @@ struct alignas(64) GlobalMergeData {
   size_t num_merge_needed = -1;
   size_t num_merge_done = 0;
 
-  GlobalMergeData(node_id_t num_vertices, size_t seed)
+  GlobalMergeData(node_id_t num_vertices, size_t seed, double sketches_factor)
       : sketch(Sketch::calc_vector_length(num_vertices), seed,
-               Sketch::calc_cc_samples(num_vertices)) {}
+               Sketch::calc_cc_samples(num_vertices, sketches_factor)) {}
 
   GlobalMergeData(const GlobalMergeData&& other)
   : sketch(other.sketch) {
@@ -56,12 +56,19 @@ struct alignas(64) GlobalMergeData {
   }
 };
 
+// What type of query is the user going to perform. Used for has_cached_query()
+enum QueryCode {
+  CONNECTIVITY,     // connected components and spanning forest of graph
+  KSPANNINGFORESTS, // k disjoint spanning forests
+};
+
 /**
  * Algorithm for computing minimum cut on undirected graph streams
  * (no self-edges or multi-edges)
  */
 class MCSketchAlg {
  private:
+  int num_sketch_graphs;
   node_id_t num_vertices;
   size_t seed;
   bool update_locked = false;
@@ -85,6 +92,11 @@ class MCSketchAlg {
   Sketch **delta_sketches = nullptr;
   size_t num_delta_sketches;
 
+  CCAlgConfiguration config;
+#ifdef VERIFY_SAMPLES_F
+  std::unique_ptr<GraphVerifier> verifier;
+#endif
+
   /**
    * Run the first round of Boruvka. We can do things faster here because we know there will
    * be no merging we have to do.
@@ -92,12 +104,13 @@ class MCSketchAlg {
   bool run_round_zero();
 
   // run_round_zero for k connectivitiy
-  bool run_k_round_zero(int graph_id, int k_id, int k);
+  bool run_k_round_zero(int graph_id);
 
   /**
-   * Update the query array with new samples
-   * @param query  an array of sketch sample results
-   * @param reps   an array containing node indices for the representative of each supernode
+   * Sample a single supernode represented by a single sketch containing one or more vertices.
+   * Updates the dsu and spanning forest with query results if edge contains new connectivity info.
+   * @param skt   sketch to sample
+   * @return      [bool] true if the query result indicates we should run an additional round.
    */
   bool sample_supernode(Sketch &skt);
 
@@ -116,7 +129,7 @@ class MCSketchAlg {
 
   // Boruvka round for k connectivitiy
   bool perform_k_boruvka_round(const size_t cur_round, const std::vector<MergeInstr> &merge_instr,
-                             std::vector<GlobalMergeData> &global_merges, int graph_id, int k_id, int k);
+                             std::vector<GlobalMergeData> &global_merges, int graph_id);
 
   /**
    * Main parallel algorithm utilizing Boruvka and L_0 sampling.
@@ -125,18 +138,14 @@ class MCSketchAlg {
   void boruvka_emulation();
 
   // Boruvka algorithm for k connectivitiy
-  void k_boruvka_emulation(int graph_id, int k_id, int k);
-
-  FRIEND_TEST(GraphTestSuite, TestCorrectnessOfReheating);
-
-  CCAlgConfiguration config;
+  void k_boruvka_emulation(int graph_id);
 
   // constructor for use when reading from a serialized file
   MCSketchAlg(node_id_t num_vertices, size_t seed, std::ifstream &binary_stream,
               CCAlgConfiguration config);
 
  public:
-  MCSketchAlg(node_id_t num_vertices, size_t seed, CCAlgConfiguration config = CCAlgConfiguration());
+  MCSketchAlg(node_id_t num_vertices, size_t seed, int _num_sketch_graphs, CCAlgConfiguration config = CCAlgConfiguration());
   ~MCSketchAlg();
 
   // construct a MC algorithm from a serialized file
@@ -165,8 +174,9 @@ class MCSketchAlg {
     num_delta_sketches = num_workers;
     delta_sketches = new Sketch *[num_delta_sketches];
     for (size_t i = 0; i < num_delta_sketches; i++) {
-      delta_sketches[i] = new Sketch(Sketch::calc_vector_length(num_vertices), seed,
-                                     Sketch::calc_cc_samples(num_vertices));
+      delta_sketches[i] =
+          new Sketch(Sketch::calc_vector_length(num_vertices), seed,
+                     Sketch::calc_cc_samples(num_vertices, config.get_sketches_factor()));
     }
   }
 
@@ -183,7 +193,13 @@ class MCSketchAlg {
    * Return if we have cached an answer to query.
    * This allows the driver to avoid flushing the gutters before calling query functions.
    */
-  bool has_cached_query() { return shared_dsu_valid; }
+  bool has_cached_query(int query_code) {
+    QueryCode code = (QueryCode) query_code;
+    if (code == CONNECTIVITY)
+      return shared_dsu_valid;
+    else
+      return false;
+  }
 
   /**
    * Print the configuration of the connected components graph sketching.
@@ -210,7 +226,7 @@ class MCSketchAlg {
 
   /**
    * Main parallel query algorithm utilizing Boruvka and L_0 sampling.
-   * @return a vector of the connected components in the graph.
+   * @return  the connected components in the graph.
    */
   ConnectedComponents connected_components();
 
@@ -226,14 +242,13 @@ class MCSketchAlg {
    * Return a spanning forest of the graph utilizing Boruvka and L_0 sampling
    * IMPORTANT: The updates to this algorithm MUST NOT be a function of the output of this query
    * that is, unless you really know what you're doing.
-   * @return an adjacency list representation of the spanning forest of the graph
+   * @return  the spanning forest of the graph
    */
   SpanningForest calc_spanning_forest();
 
-  SpanningForest get_k_spanning_forest(int graph_id, int k_id, int k);
+  SpanningForest get_k_spanning_forest(int graph_id);
 
 #ifdef VERIFY_SAMPLES_F
-  std::unique_ptr<GraphVerifier> verifier;
   void set_verifier(std::unique_ptr<GraphVerifier> verifier) {
     this->verifier = std::move(verifier);
   }

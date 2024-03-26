@@ -105,7 +105,7 @@ int main(int argc, char **argv) {
   // Get variables from sketch
   // (1) num_samples (2) num_columns (3) bkt_per_col (4) num_buckets
   SketchParams sketchParams;
-  sketchParams.num_samples = Sketch::calc_cc_samples(num_nodes);
+  sketchParams.num_samples = Sketch::calc_cc_samples(num_nodes, reduced_k);
   sketchParams.num_columns = sketchParams.num_samples * Sketch::default_cols_per_sample;
   sketchParams.bkt_per_col = Sketch::calc_bkt_per_col(Sketch::calc_vector_length(num_nodes));
   sketchParams.num_buckets = sketchParams.num_columns * sketchParams.bkt_per_col + 1;
@@ -173,10 +173,9 @@ int main(int argc, char **argv) {
   std::cout << "  If complete graph with current num_nodes..." << "\n";
   std::cout << "    Number of adj. list graphs: " << num_fixed_adj_graphs << "\n";
   std::cout << "    Number of sketch graphs: " << num_fixed_sketch_graphs << "\n";
-  return;
 
   // Reconfigure sketches_factor based on num_sketch_graphs
-  mc_config.sketches_factor(reduced_k * num_sketch_graphs);
+  mc_config.sketches_factor(reduced_k);
 
   MCGPUSketchAlg mc_gpu_alg{num_nodes, num_updates, num_threads, get_seed(), sketchParams, num_graphs, num_sketch_graphs, num_adj_graphs, num_fixed_adj_graphs, reduced_k, mc_config};
   GraphSketchDriver<MCGPUSketchAlg> driver{&mc_gpu_alg, &stream, driver_config, reader_threads};
@@ -187,7 +186,7 @@ int main(int argc, char **argv) {
   driver.process_stream_until(END_OF_STREAM);
 
   auto flush_start = std::chrono::steady_clock::now();
-  driver.prep_query();
+  driver.prep_query(KSPANNINGFORESTS);
   cudaDeviceSynchronize();
   mc_gpu_alg.apply_flush_updates();
   // Re-measure flush_end to include time taken for applying delta sketches from flushing
@@ -217,21 +216,21 @@ int main(int argc, char **argv) {
       int adjlist_id = graph_id - num_sketch_graphs;
       std::cout << "Adj.list Graph #" << adjlist_id << "\n";
       auto sampling_forest_start = std::chrono::steady_clock::now();
-      spanningForests = mc_gpu_alg.get_adjlist_spanning_forests(adjlist_id);
+      spanningForests = mc_gpu_alg.get_adjlist_spanning_forests(adjlist_id, k);
       sampling_forests_time += std::chrono::steady_clock::now() - sampling_forest_start;
     } 
     else { // Get Spanning forests from sketch subgraph
       std::cout << "Sketch Graph #" << graph_id << ":\n";
       mc_gpu_alg.set_trim_enbled(true, graph_id); // When trimming, only apply sketch updates to current subgraph
       for (int k_id = 0; k_id < k; k_id++) {
-        int num_samples_per_sketch = (k / reduced_k) + 1;
-        int sketch_k_id = k_id / num_samples_per_sketch;
+        //int num_samples_per_sketch = (k / reduced_k) + 1;
+        //int sketch_k_id = k_id / num_samples_per_sketch;
         
-        std::cout << "  Getting spanning forest " << k_id << ", Sketch_id: " << sketch_k_id << "\n";
+        std::cout << "  Getting spanning forest " << k_id << "\n";
 
         // Get spanning forest k_id
         auto sampling_forest_start = std::chrono::steady_clock::now();
-        SpanningForest spanningForest = mc_gpu_alg.get_k_spanning_forest(graph_id, sketch_k_id, reduced_k);
+        SpanningForest spanningForest = mc_gpu_alg.get_k_spanning_forest(graph_id);
         sampling_forests_time += std::chrono::steady_clock::now() - sampling_forest_start;
 
         // Insert sampled edges from spanningForest to spanningForests
@@ -246,7 +245,7 @@ int main(int argc, char **argv) {
 
         // Flush sketch updates
         auto trim_flushing_start = std::chrono::steady_clock::now();
-        driver.force_flush();
+        driver.prep_query(KSPANNINGFORESTS);
         cudaDeviceSynchronize();
         mc_gpu_alg.apply_flush_updates();
         trim_flushing_time += std::chrono::steady_clock::now() - trim_flushing_start;
@@ -388,7 +387,7 @@ int main(int argc, char **argv) {
   std::chrono::duration<double> flush_time = flush_end - flush_start;
 
   double num_seconds = insert_time.count();
-  std::cout << "Regular Sketch insertion time(sec): " << num_seconds << std::endl;
+  std::cout << "Insertion time(sec): " << num_seconds << std::endl;
   std::cout << "  Updates per second: " << stream.edges() / num_seconds << std::endl;
   std::cout << "  Flush Gutters(sec): " << flush_time.count() << std::endl;
   std::cout << "K-Connectivity: (Sketch Subgraphs)" << std::endl;

@@ -47,28 +47,26 @@ class CudaUpdateParams {
     int batch_size;
     int stream_multiplier; 
 
-    int k;
-
     // Default Constructor of CudaUpdateParams
     CudaUpdateParams():h_edgeUpdates(nullptr), d_edgeUpdates(nullptr) {};
     
-    CudaUpdateParams(node_id_t num_nodes, size_t num_updates, int num_samples, size_t num_buckets, size_t num_columns, size_t bkt_per_col, int num_host_threads, int batch_size, int stream_multiplier, int k = 1):
-      num_nodes(num_nodes), num_updates(num_updates), num_samples(num_samples), num_buckets(num_buckets), num_columns(num_columns), bkt_per_col(bkt_per_col), num_host_threads(num_host_threads), batch_size(batch_size), stream_multiplier(stream_multiplier), k(k) {
+    CudaUpdateParams(node_id_t num_nodes, size_t num_updates, int num_samples, size_t num_buckets, size_t num_columns, size_t bkt_per_col, int num_host_threads, int batch_size, int stream_multiplier):
+      num_nodes(num_nodes), num_updates(num_updates), num_samples(num_samples), num_buckets(num_buckets), num_columns(num_columns), bkt_per_col(bkt_per_col), num_host_threads(num_host_threads), batch_size(batch_size), stream_multiplier(stream_multiplier) {
       
       // Allocate memory for buffer that stores edge updates
       gpuErrchk(cudaMallocHost(&h_edgeUpdates, stream_multiplier * num_host_threads * batch_size * sizeof(vec_t)));
       gpuErrchk(cudaMalloc(&d_edgeUpdates, stream_multiplier * num_host_threads * batch_size * sizeof(vec_t)));
 
       // Allocate memory for buckets 
-      gpuErrchk(cudaMallocHost(&h_bucket_a, k * stream_multiplier * num_host_threads * num_buckets * sizeof(vec_t)));
-      gpuErrchk(cudaMalloc(&d_bucket_a, k * stream_multiplier * num_host_threads * num_buckets * sizeof(vec_t)));
-      gpuErrchk(cudaMallocHost(&h_bucket_c, k * stream_multiplier * num_host_threads * num_buckets * sizeof(vec_hash_t)));
-      gpuErrchk(cudaMalloc(&d_bucket_c, k * stream_multiplier * num_host_threads * num_buckets * sizeof(vec_hash_t)));
+      gpuErrchk(cudaMallocHost(&h_bucket_a, stream_multiplier * num_host_threads * num_buckets * sizeof(vec_t)));
+      gpuErrchk(cudaMalloc(&d_bucket_a, stream_multiplier * num_host_threads * num_buckets * sizeof(vec_t)));
+      gpuErrchk(cudaMallocHost(&h_bucket_c, stream_multiplier * num_host_threads * num_buckets * sizeof(vec_hash_t)));
+      gpuErrchk(cudaMalloc(&d_bucket_c, stream_multiplier * num_host_threads * num_buckets * sizeof(vec_hash_t)));
 
       std::cout << "Allocated buckets\n";
       
       // Initialize host buckets
-      for (size_t i = 0; i < k * stream_multiplier * num_host_threads * num_buckets; i++) {
+      for (size_t i = 0; i < stream_multiplier * num_host_threads * num_buckets; i++) {
         h_bucket_a[i] = 0;
         h_bucket_c[i] = 0;
       }

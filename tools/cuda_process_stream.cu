@@ -97,7 +97,7 @@ int main(int argc, char **argv) {
   driver.process_stream_until(END_OF_STREAM);
 
   auto cc_start = std::chrono::steady_clock::now();
-  driver.prep_query();
+  driver.prep_query(CONNECTIVITY);
   cudaDeviceSynchronize();
   cc_gpu_alg.apply_flush_updates();
   // Re-measure flush_end to include time taken for applying delta sketches from flushing

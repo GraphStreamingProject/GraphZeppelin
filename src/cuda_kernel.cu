@@ -128,54 +128,50 @@ __global__ void sketchUpdate_kernel(node_id_t src, node_id_t num_nodes, vec_t* e
   }
 }
 
-__global__ void k_sketchUpdate_kernel(node_id_t src, int k, node_id_t num_nodes, vec_t* edgeUpdates, vec_t update_start_id, size_t update_size,
+__global__ void k_sketchUpdate_kernel(node_id_t src, node_id_t num_nodes, vec_t* edgeUpdates, vec_t update_start_id, size_t update_size,
     size_t num_buckets, size_t d_bucket_id, vec_t* d_bucket_a, vec_hash_t* d_bucket_c, size_t num_samples, size_t num_columns, size_t bkt_per_col, long sketchSeed) {
 
   extern __shared__ vec_t_cu sketches[];
   vec_t_cu* bucket_a = sketches;
   vec_hash_t* bucket_c = (vec_hash_t*)&bucket_a[num_buckets];
 
-  for (int k_id = 0; k_id < k; k_id++) {
-    __syncthreads();
-  
-    // Each thread will initialize a bucket
-    for (int i = threadIdx.x; i < num_buckets; i += blockDim.x) {
-      bucket_a[i] = 0;
-      bucket_c[i] = 0;
+  // Each thread will initialize a bucket
+  for (int i = threadIdx.x; i < num_buckets; i += blockDim.x) {
+    bucket_a[i] = 0;
+    bucket_c[i] = 0;
+  }
+
+  __syncthreads();
+
+  // Update sketch - each thread works on 1 update for on 1 column
+  for (int id = threadIdx.x; id < update_size * num_columns; id += blockDim.x) {
+
+    int column_id = id % num_columns;
+    int update_id = id / num_columns;
+    
+    vec_hash_t checksum = bucket_get_index_hash(edgeUpdates[update_start_id + update_id], sketchSeed);
+    
+    if (column_id == 0) {
+      // Update depth 0 bucket
+      bucket_update(bucket_a[num_buckets - 1], bucket_c[num_buckets - 1], edgeUpdates[update_start_id + update_id], checksum);
     }
 
-    __syncthreads();
+    // Update higher depth buckets
+    col_hash_t depth = bucket_get_index_depth(edgeUpdates[update_start_id + update_id], sketchSeed + (column_id * 5), bkt_per_col);
+    size_t bucket_id = column_id * bkt_per_col + depth;
+    if(depth < bkt_per_col)
+      bucket_update(bucket_a[bucket_id], bucket_c[bucket_id], edgeUpdates[update_start_id + update_id], checksum);
+  }
 
-    // Update sketch - each thread works on 1 update for on 1 column
-    for (int id = threadIdx.x; id < update_size * num_columns; id += blockDim.x) {
+  __syncthreads();
 
-      int column_id = id % num_columns;
-      int update_id = id / num_columns;
-      
-      vec_hash_t checksum = bucket_get_index_hash(edgeUpdates[update_start_id + update_id], sketchSeed);
-      
-      if (column_id == 0) {
-        // Update depth 0 bucket
-        bucket_update(bucket_a[num_buckets - 1], bucket_c[num_buckets - 1], edgeUpdates[update_start_id + update_id], checksum);
-      }
-
-      // Update higher depth buckets
-      col_hash_t depth = bucket_get_index_depth(edgeUpdates[update_start_id + update_id], sketchSeed + (k_id * num_columns) + (column_id * 5), bkt_per_col);
-      size_t bucket_id = column_id * bkt_per_col + depth;
-      if(depth < bkt_per_col)
-        bucket_update(bucket_a[bucket_id], bucket_c[bucket_id], edgeUpdates[update_start_id + update_id], checksum);
-    }
-
-    __syncthreads();
-
-    if (threadIdx.x == 0) {
-      int k_bucket_id = d_bucket_id + (k_id * num_buckets);
-      for (int i = 0; i < num_buckets; i++) {
-        d_bucket_a[k_bucket_id + i] = bucket_a[i];
-        d_bucket_c[k_bucket_id + i] = bucket_c[i];
-      }
+  if (threadIdx.x == 0) {
+    for (int i = 0; i < num_buckets; i++) {
+      d_bucket_a[d_bucket_id + i] = bucket_a[i];
+      d_bucket_c[d_bucket_id + i] = bucket_c[i];
     }
   }
+  
 }
 
 // Function that calls sketch update kernel code.
@@ -211,18 +207,15 @@ void CudaKernel::k_sketchUpdate(int num_threads, int num_blocks, node_id_t src, 
 
   int maxbytes = num_buckets * sizeof(vec_t_cu) + num_buckets * sizeof(vec_hash_t);
 
-  int k = cudaUpdateParams[0].k;
-
-  if (num_nodes == 0 || num_buckets == 0 || num_samples == 0 || num_columns == 0 || bkt_per_col == 0 || k == 0) {
+  if (num_nodes == 0 || num_buckets == 0 || num_samples == 0 || num_columns == 0 || bkt_per_col == 0) {
     std::cout << "num_nodes: " << num_nodes << "\n";
     std::cout << "num_buckets: " << num_buckets << "\n";
     std::cout << "num_samples: " << num_samples << "\n";
     std::cout << "num_columns: " << num_columns << "\n";
     std::cout << "bkt_per_col: " << bkt_per_col << "\n";
-    std::cout << "k: " << k << "\n";
   }
   
-  k_sketchUpdate_kernel<<<num_blocks, num_threads, maxbytes, stream>>>(src, k, num_nodes, edgeUpdates, update_start_id, update_size, num_buckets, d_bucket_id, cudaUpdateParams[0].d_bucket_a, cudaUpdateParams[0].d_bucket_c, num_samples, num_columns, bkt_per_col, sketchSeed);
+  k_sketchUpdate_kernel<<<num_blocks, num_threads, maxbytes, stream>>>(src, num_nodes, edgeUpdates, update_start_id, update_size, num_buckets, d_bucket_id, cudaUpdateParams[0].d_bucket_a, cudaUpdateParams[0].d_bucket_c, num_samples, num_columns, bkt_per_col, sketchSeed);
 }
 
 void CudaKernel::updateSharedMemory(size_t maxBytes) {

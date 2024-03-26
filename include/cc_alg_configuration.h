@@ -27,7 +27,7 @@ public:
 
   // getters
   std::string get_disk_dir() { return _disk_dir; }
-  double get_sketch_factor() { return _sketches_factor; }
+  double get_sketches_factor() { return _sketches_factor; }
   double get_batch_factor() { return _batch_factor; }
 
   friend std::ostream& operator<< (std::ostream &out, const CCAlgConfiguration &conf);

@@ -67,3 +67,6 @@ test/statistical_testing/stat_config.txt
 /datasets
 /CUDAtest
 /results
+
+# VieCut
+/VieCut
