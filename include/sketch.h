@@ -125,6 +125,18 @@ class Sketch {
 
   std::mutex mutex; // lock the sketch for applying updates in multithreaded processing
 
+
+  /**
+   * Gets the 1-index of the deepest non-zero bucket. 
+   * @return  The depth of the non-zero'th bucket + 1. If the bucket is entirely empty, returns 0
+  */
+  uint8_t effective_size(size_t col_idx) const;
+
+  #ifdef EAGER_BUCKET_CHECK
+  vec_t *good_buckets;
+  void update_flags(size_t col_idx, size_t start_row, size_t end_row);
+  #endif
+
   /**
    * In-place merge function.
    * @param other  Sketch to merge into caller
