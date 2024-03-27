@@ -133,7 +133,7 @@ class Sketch {
   uint8_t effective_size(size_t col_idx) const;
 
   #ifdef EAGER_BUCKET_CHECK
-  vec_t *good_buckets;
+  vec_t *nonempty_buckets;
   void update_flags(size_t col_idx, size_t start_row, size_t end_row);
   #endif
 

@@ -8,7 +8,6 @@
 struct Bucket {
   vec_t alpha;
   vec_hash_t gamma;
-  inline Bucket operator^(Bucket other) { return {alpha ^ other.alpha, gamma ^ other.gamma}; };
 };
 #pragma pack(pop)
 
