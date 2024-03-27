@@ -292,7 +292,7 @@ uint8_t Sketch::effective_size(size_t col_idx) const
   {
     return 0;
   }
-#if defined EAGER_BUCKET_CHECK && EAGER_BUCKET_CHECK == EmptyOnly
+#ifdef EAGER_BUCKET_CHECK
   unlikely_if(nonempty_buckets[col_idx] == 0) return 0;
   return (uint8_t)((sizeof(unsigned long long) * 8) - __builtin_clzll(nonempty_buckets[col_idx]));
 #else
