@@ -99,6 +99,7 @@ int main(int argc, char **argv) {
   auto cc_start = std::chrono::steady_clock::now();
   driver.prep_query(CONNECTIVITY);
   cudaDeviceSynchronize();
+  auto apply_flush_start = std::chrono::steady_clock::now();
   cc_gpu_alg.apply_flush_updates();
   // Re-measure flush_end to include time taken for applying delta sketches from flushing
   auto flush_end = std::chrono::steady_clock::now();
@@ -108,6 +109,7 @@ int main(int argc, char **argv) {
   std::chrono::duration<double> insert_time = flush_end - ins_start;
   std::chrono::duration<double> cc_time = std::chrono::steady_clock::now() - cc_start;
   std::chrono::duration<double> flush_time = flush_end - driver.flush_start;
+  std::chrono::duration<double> apply_flush_time = flush_end - apply_flush_start;
   std::chrono::duration<double> cc_alg_time = cc_gpu_alg.cc_alg_end - cc_gpu_alg.cc_alg_start;
 
   shutdown = true;
@@ -118,6 +120,7 @@ int main(int argc, char **argv) {
   std::cout << "Updates per second:           " << stream.edges() / num_seconds << std::endl;
   std::cout << "Total CC query latency:       " << cc_time.count() << std::endl;
   std::cout << "  Flush Gutters(sec):           " << flush_time.count() << std::endl;
+  std::cout << "  Applying Flush Updates(sec):  " << apply_flush_time.count() << std::endl;
   std::cout << "  Boruvka's Algorithm(sec):     " << cc_alg_time.count() << std::endl;
   std::cout << "Connected Components:         " << CC_num << std::endl;
   std::cout << "Maximum Memory Usage(MiB):    " << get_max_mem_used() << std::endl;

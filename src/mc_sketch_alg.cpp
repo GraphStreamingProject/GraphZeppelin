@@ -791,7 +791,7 @@ SpanningForest MCSketchAlg::get_k_spanning_forest(int graph_id) {
   std::cout << "    round = " << last_query_rounds << " cc size = " << cc.size() << "\n";
 
   // get ready for ingesting more from the stream by resetting the sketches sample state
-  for (node_id_t i = 0; i < num_vertices; i++) {
+  for (node_id_t i = 0; i < num_vertices * num_sketch_graphs; i++) {
     sketches[i]->reset_sample_state();
   }
 
