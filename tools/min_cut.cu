@@ -112,9 +112,8 @@ int main(int argc, char **argv) {
 
   // Total bytes of sketching datastructure of one subgraph
   int w = 4; // 4 bytes when num_nodes < 2^32
-  double cameo_sketch_bytes = 4 * w * num_nodes * ((2 * log2(num_nodes)) + 2) * ((log2(num_nodes))/(1 - log2(1.2)));
-  double sketch_bytes = reduced_k * cameo_sketch_bytes;
-  double adjlist_edge_bytes = 9;
+  double sketch_bytes = 4 * w * num_nodes * ((2 * log2(num_nodes)) + 2) * ((reduced_k * log2(num_nodes))/(1 - log2(1.2)));
+  double adjlist_edge_bytes = 8;
 
   std::cout << "Total bytes of sketching data structure of one subgraph: " << sketch_bytes / 1000000000 << "GB\n";
 
@@ -168,11 +167,21 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
+  // Total number of estimated edges of minimum number of adj. list graphs
+  size_t num_est_edges_adj_graphs = (2 * num_edges_complete) / (1 << (num_fixed_sketch_graphs));
+  double total_adjlist_bytes = adjlist_edge_bytes * num_est_edges_adj_graphs;
+  double total_sketch_bytes = sketch_bytes * num_fixed_sketch_graphs;
+
   std::cout << "Number of adj. list graphs: " << num_adj_graphs << "\n";
   std::cout << "Number of sketch graphs: " << num_sketch_graphs << "\n";
   std::cout << "  If complete graph with current num_nodes..." << "\n";
-  std::cout << "    Number of adj. list graphs: " << num_fixed_adj_graphs << "\n";
-  std::cout << "    Number of sketch graphs: " << num_fixed_sketch_graphs << "\n";
+  std::cout << "    Minimum number of adj. list graphs: " << num_fixed_adj_graphs << "\n";
+  std::cout << "    Maximum number of sketch graphs: " << num_fixed_sketch_graphs << "\n";
+  std::cout << "    Total minimum memory required for minimum number of adj. list graphs: " << total_adjlist_bytes / 1000000000 << "GB\n";
+  std::cout << "    Total minimum memory required for maximum number of sketch graphs: " << total_sketch_bytes / 1000000000 << "GB\n";
+  std::cout << "    Total minimum memory required for current num_nodes: " << (total_adjlist_bytes + total_sketch_bytes) / 1000000000 << "GB\n";
+
+  return;
 
   // Reconfigure sketches_factor based on num_sketch_graphs
   mc_config.sketches_factor(reduced_k);
