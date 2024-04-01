@@ -18,6 +18,11 @@ struct SketchParams {
   size_t bkt_per_col;  
 };
 
+struct Adjlist_Edge {
+  std::pair<int, int> edge;
+  int graph_id;
+};
+
 struct AdjList {
   // Id: source vertex
   // Content: vector of dst vertices
@@ -49,8 +54,9 @@ private:
   // Threshold for switching a subgraph into sketch representation
   int num_req_edges;
 
+  std::vector<std::vector<Adjlist_Edge>> worker_adjlist;
   std::vector<AdjList> adjlists;
-  std::vector<std::mutex> adjlists_mutexes;
+  //std::vector<std::mutex> adjlists_mutexes;
 
   CudaKernel cudaKernel;
 
@@ -61,8 +67,8 @@ private:
   size_t bkt_per_col;
 
   // Number of threads and thread blocks for CUDA kernel
-  int num_device_threads = 1024;
-  int num_device_blocks = 1;
+  int num_device_threads;
+  int num_device_blocks;
 
   // Number of CPU's graph workers
   int num_host_threads;
@@ -92,6 +98,9 @@ public:
     sketches_factor = config.get_sketches_factor();
     num_host_threads = num_threads;
 
+    num_device_threads = 1024;
+    num_device_blocks = k;
+
     num_graphs = _num_graphs;
     num_sketch_graphs = _num_sketch_graphs;
     num_adj_graphs = _num_adj_graphs;
@@ -108,6 +117,8 @@ public:
     std::cout << "num_columns: " << num_columns << "\n";
     std::cout << "bkt_per_col: " << bkt_per_col << "\n";
 
+    worker_adjlist.reserve(num_host_threads);
+    
     // Initialize adj. list subgraphs 
     for (int i = 0; i < num_adj_graphs; i++) {
       AdjList adjlist;
@@ -121,7 +132,7 @@ public:
     sketch_mutexes = std::vector<std::mutex>(num_sketch_graphs);
 
     // Initialize mutexes for adj. list subgraphs
-    adjlists_mutexes = std::vector<std::mutex>(num_adj_graphs);
+    //adjlists_mutexes = std::vector<std::mutex>(num_adj_graphs);
 
     // Create a bigger batch size to apply edge updates when subgraph is turning into sketch representation
     batch_size = get_desired_updates_per_batch();
@@ -129,7 +140,7 @@ public:
     // Create cudaUpdateParams
     gpuErrchk(cudaMallocManaged(&cudaUpdateParams, num_sketch_graphs * sizeof(CudaUpdateParams)));
     for (int i = 0; i < num_sketch_graphs; i++) {
-      cudaUpdateParams[i] = new CudaUpdateParams(num_vertices, num_updates, num_samples, num_buckets, num_columns, bkt_per_col, num_threads, batch_size, stream_multiplier);
+      cudaUpdateParams[i] = new CudaUpdateParams(num_vertices, num_updates, num_samples, num_buckets, num_columns, bkt_per_col, num_threads, batch_size, stream_multiplier, k);
     }
     
     int device_id = cudaGetDevice(&device_id);
@@ -139,7 +150,7 @@ public:
     std::cout << "CUDA Device ID: " << device_id << "\n";
 
     // Set maxBytes for GPU kernel's shared memory
-    size_t maxBytes = num_buckets * sizeof(vec_t_cu) + num_buckets * sizeof(vec_hash_t);
+    size_t maxBytes = ((num_buckets / k) + 1) * sizeof(vec_t_cu) + ((num_buckets / k) + 1) * sizeof(vec_hash_t);
     cudaKernel.updateSharedMemory(maxBytes);
     std::cout << "Allocated Shared Memory of: " << maxBytes << "\n";
 
@@ -182,6 +193,8 @@ public:
       std::cout << "  S" << graph_id << ": " << adjlists[graph_id].num_updates << "\n";
     }
   }
+
+  void merge_adjlist();
 
   std::vector<Edge> get_adjlist_spanning_forests(int graph_id, int k);
 

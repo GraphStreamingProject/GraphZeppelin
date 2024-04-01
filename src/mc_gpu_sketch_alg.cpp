@@ -65,7 +65,7 @@ void MCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
   sketch_update_size.assign(num_sketch_graphs, 0);
   int max_depth = 0;
 
-  if(trim_enabled) {
+  if(trim_enabled) { // Trimming sketch subgraphs
     if (trim_graph_id < 0 || trim_graph_id > num_sketch_graphs) {
       std::cout << "INVALID trim_graph_id: " << trim_graph_id << "\n";
     }
@@ -97,13 +97,10 @@ void MCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
         if (graph_id >= num_sketch_graphs) { // Add to adj list graphs
           int adjlist_id = graph_id - num_sketch_graphs;
 
-          std::unique_lock<std::mutex> adjlist_lk(adjlists_mutexes[adjlist_id]);
-          if (adjlists[adjlist_id].list.find(src_vertex) == adjlists[adjlist_id].list.end()) {
-            adjlists[adjlist_id].list[src_vertex] = std::vector<node_id_t>();
-          }
-          adjlists[adjlist_id].list[src_vertex].push_back(dst_vertices[i]);
-          adjlists[adjlist_id].num_updates++;
-          adjlist_lk.unlock();
+          Adjlist_Edge edge;
+          edge.edge = std::make_pair(src_vertex, dst_vertices[i]);
+          edge.graph_id = adjlist_id;
+          worker_adjlist[thr_id].push_back(edge);
         }
         else {
           cudaUpdateParams[graph_id]->h_edgeUpdates[start_index + sketch_update_size[graph_id]] = edge_id;
@@ -167,6 +164,22 @@ void MCGPUSketchAlg::apply_flush_updates() {
       streams[stream_id].delta_applied = 1;
       streams[stream_id].src_vertex = -1;
       streams[stream_id].num_graphs = -1;
+    }
+  }
+}
+
+void MCGPUSketchAlg::merge_adjlist() {
+  for (int i = 0; i < num_host_threads; i++) {
+    for (int j = 0; j < worker_adjlist[i].size(); j++) {
+      Adjlist_Edge adjlist_edge = worker_adjlist[i][j];
+      std::pair<int, int> edge = adjlist_edge.edge;
+      int adjlist_id = adjlist_edge.graph_id;
+
+      if (adjlists[adjlist_id].list.find(edge.first) == adjlists[adjlist_id].list.end()) {
+        adjlists[adjlist_id].list[edge.first] = std::vector<node_id_t>();
+      }
+      adjlists[adjlist_id].list[edge.first].push_back(edge.second);
+      adjlists[adjlist_id].num_updates++;
     }
   }
 }

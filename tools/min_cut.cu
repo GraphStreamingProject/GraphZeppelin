@@ -181,8 +181,6 @@ int main(int argc, char **argv) {
   std::cout << "    Total minimum memory required for maximum number of sketch graphs: " << total_sketch_bytes / 1000000000 << "GB\n";
   std::cout << "    Total minimum memory required for current num_nodes: " << (total_adjlist_bytes + total_sketch_bytes) / 1000000000 << "GB\n";
 
-  return;
-
   // Reconfigure sketches_factor based on num_sketch_graphs
   mc_config.sketches_factor(reduced_k);
 
@@ -203,6 +201,12 @@ int main(int argc, char **argv) {
 
   shutdown = true;
   querier.join();
+
+  // Merge worker_adjlist into one adj. list
+  auto merge_adjlist_start = std::chrono::steady_clock::now();
+  std::cout << "Merging Adj. lists...\n";
+  mc_gpu_alg.merge_adjlist();
+  auto merge_adjlist_end = std::chrono::steady_clock::now();
 
   // Display number of inserted updates to every subgraphs
   mc_gpu_alg.print_subgraph_edges();
@@ -392,13 +396,15 @@ int main(int argc, char **argv) {
      }
   }
 
-  std::chrono::duration<double> insert_time = flush_end - ins_start;
+  std::chrono::duration<double> insert_time = merge_adjlist_end - ins_start;
   std::chrono::duration<double> flush_time = flush_end - flush_start;
+  std::chrono::duration<double> merge_adjlist_time = merge_adjlist_end - merge_adjlist_start;
 
   double num_seconds = insert_time.count();
   std::cout << "Insertion time(sec): " << num_seconds << std::endl;
   std::cout << "  Updates per second: " << stream.edges() / num_seconds << std::endl;
   std::cout << "  Flush Gutters(sec): " << flush_time.count() << std::endl;
+  std::cout << "  Adj. list Merging time(sec): " << merge_adjlist_time.count() << std::endl;
   std::cout << "K-Connectivity: (Sketch Subgraphs)" << std::endl;
   std::cout << "  Sampling Forests Time(sec): " << sampling_forests_time.count() << std::endl;
   std::cout << "  Trimming Forests Reading Time(sec): " << trim_reading_time.count() << std::endl;
