@@ -14,6 +14,8 @@ private:
   CudaUpdateParams* cudaUpdateParams;
   size_t sketchSeed;
 
+  Bucket* delta_buckets;
+
   CudaKernel cudaKernel;
 
   // Variables from sketch
@@ -57,6 +59,9 @@ public:
     std::cout << "num_buckets: " << num_buckets << "\n";
     std::cout << "num_columns: " << num_columns << "\n";
     std::cout << "bkt_per_col: " << bkt_per_col << "\n"; 
+
+    // Initialize delta_buckets
+    delta_buckets = new Bucket[num_buckets * num_host_threads];
 
     batch_size = get_desired_updates_per_batch();
 

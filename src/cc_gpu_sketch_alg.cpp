@@ -16,10 +16,11 @@ void CCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
 
       // CUDA Stream is available, check if it has any delta sketch
       if(streams[stream_id].delta_applied == 0) {
-        Bucket* delta_buckets = new Bucket[num_buckets];
+
+        size_t bucket_offset = thr_id * num_buckets;
         for (size_t i = 0; i < num_buckets; i++) {
-          delta_buckets[i].alpha = cudaUpdateParams[0].h_bucket_a[(stream_id * num_buckets) + i];
-          delta_buckets[i].gamma = cudaUpdateParams[0].h_bucket_c[(stream_id * num_buckets) + i];
+          delta_buckets[bucket_offset + i].alpha = cudaUpdateParams[0].h_bucket_a[(stream_id * num_buckets) + i];
+          delta_buckets[bucket_offset + i].gamma = cudaUpdateParams[0].h_bucket_c[(stream_id * num_buckets) + i];
         }
 
         int prev_src = streams[stream_id].src_vertex;
@@ -29,7 +30,7 @@ void CCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
         }
 
         // Apply the delta sketch
-        apply_raw_buckets_update(prev_src, delta_buckets);
+        apply_raw_buckets_update(prev_src, &delta_buckets[bucket_offset]);
         streams[stream_id].delta_applied = 1;
         streams[stream_id].src_vertex = -1;
       }
@@ -65,7 +66,6 @@ void CCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
 void CCGPUSketchAlg::apply_flush_updates() {
   for (int stream_id = 0; stream_id < num_host_threads * stream_multiplier; stream_id++) {
     if(streams[stream_id].delta_applied == 0) {
-      Bucket* delta_buckets = new Bucket[num_buckets];
       for (size_t i = 0; i < num_buckets; i++) {
         delta_buckets[i].alpha = cudaUpdateParams[0].h_bucket_a[(stream_id * num_buckets) + i];
         delta_buckets[i].gamma = cudaUpdateParams[0].h_bucket_c[(stream_id * num_buckets) + i];

@@ -35,6 +35,8 @@ private:
   CudaUpdateParams** cudaUpdateParams;
   size_t sketchSeed;
 
+  Bucket* delta_buckets;
+
   node_id_t num_nodes;
   int k;
   int sketches_factor;
@@ -117,6 +119,9 @@ public:
     std::cout << "num_columns: " << num_columns << "\n";
     std::cout << "bkt_per_col: " << bkt_per_col << "\n";
 
+    // Initialize delta_buckets
+    delta_buckets = new Bucket[num_buckets * num_host_threads];
+
     worker_adjlist.reserve(num_host_threads);
     
     // Initialize adj. list subgraphs 
@@ -130,9 +135,6 @@ public:
       sketch_num_edges.push_back(0);
     }
     sketch_mutexes = std::vector<std::mutex>(num_sketch_graphs);
-
-    // Initialize mutexes for adj. list subgraphs
-    //adjlists_mutexes = std::vector<std::mutex>(num_adj_graphs);
 
     // Create a bigger batch size to apply edge updates when subgraph is turning into sketch representation
     batch_size = get_desired_updates_per_batch();

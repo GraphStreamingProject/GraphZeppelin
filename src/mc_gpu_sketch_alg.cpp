@@ -27,10 +27,10 @@ void MCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
             graph_id = trim_graph_id;
           }
           
-          Bucket* delta_buckets = new Bucket[num_buckets];
+          size_t bucket_offset = thr_id * num_buckets;
           for (size_t i = 0; i < num_buckets; i++) {
-            delta_buckets[i].alpha = cudaUpdateParams[graph_id]->h_bucket_a[(stream_id * num_buckets) + i];
-            delta_buckets[i].gamma = cudaUpdateParams[graph_id]->h_bucket_c[(stream_id * num_buckets) + i];
+            delta_buckets[bucket_offset + i].alpha = cudaUpdateParams[graph_id]->h_bucket_a[(stream_id * num_buckets) + i];
+            delta_buckets[bucket_offset + i].gamma = cudaUpdateParams[graph_id]->h_bucket_c[(stream_id * num_buckets) + i];
           }
 
           int prev_src = streams[stream_id].src_vertex;
@@ -40,8 +40,7 @@ void MCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
           }
 
           // Apply the delta sketch
-          apply_raw_buckets_update((graph_id * num_nodes) + prev_src, delta_buckets);
-          free(delta_buckets);
+          apply_raw_buckets_update((graph_id * num_nodes) + prev_src, &delta_buckets[bucket_offset]);
         }
         streams[stream_id].delta_applied = 1;
         streams[stream_id].src_vertex = -1;
@@ -145,7 +144,6 @@ void MCGPUSketchAlg::apply_flush_updates() {
           graph_id = trim_graph_id;
         }
 
-        Bucket* delta_buckets = new Bucket[num_buckets];
         for (size_t i = 0; i < num_buckets; i++) {
           delta_buckets[i].alpha = cudaUpdateParams[graph_id]->h_bucket_a[(stream_id * num_buckets) + i];
           delta_buckets[i].gamma = cudaUpdateParams[graph_id]->h_bucket_c[(stream_id * num_buckets) + i];
@@ -159,7 +157,6 @@ void MCGPUSketchAlg::apply_flush_updates() {
 
         // Apply the delta sketch
         apply_raw_buckets_update((graph_id * num_nodes) + prev_src, delta_buckets);
-        free(delta_buckets);
       }
       streams[stream_id].delta_applied = 1;
       streams[stream_id].src_vertex = -1;
