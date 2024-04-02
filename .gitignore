@@ -48,16 +48,10 @@
 # other IDEs
 /.vscode
 
-#Doxygen docs
-/docs/
-
-# Our configuration file
-streaming.conf
-test/statistical_testing/stat_config.txt
-
 # Mac Files
 *.DS_Store
 
 # Python stuff for statistical testing
 *__pycache__/
 *test_env/
+
