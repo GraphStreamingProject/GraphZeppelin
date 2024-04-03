@@ -185,6 +185,11 @@ if (BUILD_EXE)
     tools/converter/stream_converter.cpp
   )
   target_link_libraries(stream_converter PRIVATE GraphZeppelin)
+
+  add_executable(stream_shuffler
+    tools/others/stream_shuffler.cpp
+  )
+  target_link_libraries(stream_shuffler PRIVATE GraphZeppelin)
 endif()
 
 if (BUILD_BENCH)
