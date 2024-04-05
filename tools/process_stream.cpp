@@ -49,8 +49,6 @@ public:
         }
     }
 
-    ~MinCutSimple();
-
     void allocate_worker_memory(size_t num_workers){
         for(unsigned int i=0;i<num_subgraphs;i++){
             k_edge_algs[i]->allocate_worker_memory(num_workers);
@@ -92,7 +90,11 @@ public:
     }
 
     
-    void pre_insert(GraphUpdate upd, node_id_t thr_id) { }
+    void pre_insert(GraphUpdate upd, node_id_t thr_id) {
+        for(unsigned int i=0;i<num_subgraphs;i++){
+            k_edge_algs[i]->pre_insert(upd, thr_id);
+        }
+    }
 
     // Custom comparator function to sort dst_vertices based on end_index in descending order
     static bool compareEndIndexDescending(const unsigned int &a, const unsigned int &b, const std::vector<unsigned int> &end_index) {
@@ -102,6 +104,20 @@ public:
     // TODO: Change the apply update batch function as opposed to change pre_insert
 
     void apply_update_batch(size_t thr_id, node_id_t src_vertex, const std::vector<node_id_t> &dst_vertices) {
+        for(unsigned int i=0;i<num_subgraphs;i++) {
+                k_edge_algs[i]->apply_update_batch(thr_id, src_vertex, dst_vertices);
+                // The following while loop: keep the position variable to be always aligned with the last vertex
+                // that has not been deleted yet
+                // If the vertex-corresponding end_index is at most the iteration number, it means it has already been
+                // accounted for in this iteration, and should not be accounted of at the next iteration; so we should
+                // remove
+//                while (dst_end_index[position].second <= i && position>=0) {
+//                    input_dst_vertices.pop_back();
+//                    position--;
+//                }
+            }
+        /**************** just 4 test
+        std::cout<<"We made it to the apply-batch-update for the first time!"<<std::endl;
         std::vector<std::pair<unsigned int, unsigned int>> dst_end_index;
         // Collect the end-index on which an edge is deleted, then sort the indices to achieve O(N) total update time
         // for the vector.
@@ -116,6 +132,7 @@ public:
                 }
             }
         }
+        std::cout<<"We made it outside the for loop!"<<std::endl;
         // Sort end_index vector by the end_index of dst_end_index
         std::sort(dst_end_index.begin(), dst_end_index.end(), [](auto &left, auto &right) {
             return left.second > right.second;
@@ -145,7 +162,7 @@ public:
                     position--;
                 }
             }
-        }
+        } ******************/
     }
 
     bool has_cached_query(){
@@ -185,6 +202,7 @@ public:
      }
 
     void query(){
+        std::cout<<"We made it to the query function!"<<std::endl;
         for(unsigned int i=0;i<num_subgraphs;i++) {
             std::map<size_t, std::vector<size_t>> nodes_list;
             std::vector<std::pair<node_id_t, std::vector<node_id_t>>> current_forest;
@@ -206,25 +224,28 @@ public:
             // run the min-cut algorithm -- stolen from gpu min-cut
             std::string file_name = "temp-graph-min-cut.metis";
             std::string output_name = "mincut.txt";
-            std::string command = "./mincut_parallel " + file_name + " exact >" + output_name; // Run VieCut and store the output
-            std::system(command.data());
-
-            std::string line;
-            std::ifstream output_file(output_name);
-            if (output_file.is_open()) {
-                while (std::getline(output_file, line)) {
-                    size_t cut_pos = line.find("cut=");
-                    if (cut_pos != std::string::npos) {
-                        unsigned int cut_value = std::stoul(line.substr(cut_pos + 4));
-                        std::cout << "Cut value: " << cut_value << std::endl;
-                        mincut_values.push_back(cut_value);
-                        break; // Stop reading after finding the first "cut=" value
-                    }
-                }
-                output_file.close();
-            } else {
-                std::cout << "Error: Couldn't find file name: " << output_name << "!\n";
-            }
+            // ************** test with a dummy cut value first ****************
+            unsigned int cut_value = 5;
+            mincut_values.push_back(cut_value);
+//            std::string command = "./mincut_parallel " + file_name + " exact >" + output_name; // Run VieCut and store the output
+//            std::system(command.data());
+//
+//            std::string line;
+//            std::ifstream output_file(output_name);
+//            if (output_file.is_open()) {
+//                while (std::getline(output_file, line)) {
+//                    size_t cut_pos = line.find("cut=");
+//                    if (cut_pos != std::string::npos) {
+//                        unsigned int cut_value = std::stoul(line.substr(cut_pos + 4));
+//                        std::cout << "Cut value: " << cut_value << std::endl;
+//                        mincut_values.push_back(cut_value);
+//                        break; // Stop reading after finding the first "cut=" value
+//                    }
+//                }
+//                output_file.close();
+//            } else {
+//                std::cout << "Error: Couldn't find file name: " << output_name << "!\n";
+//            }
             if (mincut_values[i]<num_forest){
                 return_min_cut = mincut_values[i] * std::pow(2, i);
                 break;
@@ -232,7 +253,8 @@ public:
         }
     }
 
-}; // class
+};
+// class
 
 class TwoEdgeConnect {
  public:
@@ -402,18 +424,26 @@ int main(int argc, char **argv) {
       config_vec.push_back(subgraph_config_vec);
   }
 
+  std::cout<<"************* Checkpoint 1 *******************"<<std::endl;
   // KEdgeConnect k_edge_alg{num_nodes, num_edge_connect, config_vec};
   MinCutSimple min_cut_alg{num_nodes, config_vec};
 
+    std::cout<<"************* Checkpoint 2 *******************"<<std::endl;
   GraphSketchDriver<MinCutSimple> driver{&min_cut_alg, &stream, driver_config, reader_threads};
 
+    std::cout<<"************* Checkpoint 3 *******************"<<std::endl;
   auto ins_start = std::chrono::steady_clock::now();
   std::thread querier(track_insertions<GraphSketchDriver<MinCutSimple>>, num_updates, &driver, ins_start);
 
+    std::cout<<"************* Checkpoint 4 *******************"<<std::endl;
   driver.process_stream_until(END_OF_STREAM);
 
+    std::cout<<"************* Checkpoint 5 *******************"<<std::endl;
   auto cc_start = std::chrono::steady_clock::now();
+    std::cout<<"************* Checkpoint 6 *******************"<<std::endl;
   driver.prep_query();
+
+    std::cout<<"************* Checkpoint 7 *******************"<<std::endl;
   min_cut_alg.query();
 
 
