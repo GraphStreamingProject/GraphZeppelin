@@ -25,6 +25,8 @@ public:
     const int my_prime = 100003; // Prime number for polynomial hashing
     std::vector<std::vector<int>> hash_coefficients;
     std::vector<std::unique_ptr<KEdgeConnect>> k_edge_algs;
+    std::vector<unsigned int> mincut_values;
+    unsigned int return_min_cut;
 
     explicit MinCutSimple(node_id_t num_nodes, const std::vector<std::vector<CCAlgConfiguration>> &config_vec):
             num_nodes(num_nodes) {
@@ -155,17 +157,82 @@ public:
 
     void print_configuration(){k_edge_algs[0]->print_configuration(); }
 
+
+    void write_k_edge_cert(const std::map<size_t, std::vector<size_t>>& nodes_list, size_t num_edge){
+        // below are the codes stolen from the converter file
+        std::string file_name = "temp-graph-min-cut.metis";
+        std::ofstream metis_file(file_name);
+
+        std::cout << "Writing METIS file...\n";
+
+        // could be a hidden bug later -- at the moment, num_nodes is taken from the class
+        metis_file << num_nodes << " " << num_edge << " 0" << "\n";
+
+        for (auto it : nodes_list) {
+            for (size_t neighbor = 0; neighbor < it.second.size(); neighbor++) {
+                if (it.second[neighbor] == it.first) {
+                    continue;
+                }
+                metis_file << (it.second[neighbor]) << " ";
+
+            }
+            metis_file << "\n";
+        }
+
+        metis_file.close();
+
+        std::cout << "Finished Writing METIS file...\n";
+     }
+
     void query(){
-        std::vector<std::pair<node_id_t, std::vector<node_id_t>>> last_forest;
         for(unsigned int i=0;i<num_subgraphs;i++) {
+            std::map<size_t, std::vector<size_t>> nodes_list;
+            std::vector<std::pair<node_id_t, std::vector<node_id_t>>> current_forest;
+            size_t subgraph_num_edge = 0;
             // easy version: check from the i=0 to i=log n without using an additional layer of binary search
-            k_edge_algs[i]->query();
-            // chech whether the spanning forests are connected
-            last_forest = k_edge_algs[i]->forests_collection[k_edge_algs[i]->forests_collection.size()-1];
-            // Vihan said he's going to finish the rest
+            k_edge_algs[i]->query(); // This creates the k forests
+            unsigned int k = k_edge_algs[i]->forests_collection.size();
+            for (unsigned int j=0;j<k;j++) {
+                current_forest = k_edge_algs[i]->forests_collection[j];
+                for(auto v_neighbors_pair: current_forest){
+                    for (auto neighbor_ver: v_neighbors_pair.second){
+                        nodes_list[v_neighbors_pair.first].push_back(neighbor_ver);
+                        nodes_list[neighbor_ver].push_back(v_neighbors_pair.first);
+                        subgraph_num_edge++;
+                    }
+                }
+            }
+            write_k_edge_cert(nodes_list, subgraph_num_edge);
+            // run the min-cut algorithm -- stolen from gpu min-cut
+            std::string file_name = "temp-graph-min-cut.metis";
+            std::string output_name = "mincut.txt";
+            std::string command = "./mincut_parallel " + file_name + " exact >" + output_name; // Run VieCut and store the output
+            std::system(command.data());
+
+            std::string line;
+            std::ifstream output_file(output_name);
+            if (output_file.is_open()) {
+                while (std::getline(output_file, line)) {
+                    size_t cut_pos = line.find("cut=");
+                    if (cut_pos != std::string::npos) {
+                        unsigned int cut_value = std::stoul(line.substr(cut_pos + 4));
+                        std::cout << "Cut value: " << cut_value << std::endl;
+                        mincut_values.push_back(cut_value);
+                        break; // Stop reading after finding the first "cut=" value
+                    }
+                }
+                output_file.close();
+            } else {
+                std::cout << "Error: Couldn't find file name: " << output_name << "!\n";
+            }
+            if (mincut_values[i]<num_forest){
+                return_min_cut = mincut_values[i] * std::pow(2, i);
+                break;
+            }
         }
     }
-};
+
+}; // class
 
 class TwoEdgeConnect {
  public:
@@ -308,7 +375,9 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
   size_t reader_threads = std::atol(argv[3]);
-  unsigned int num_edge_connect = 5;
+
+  unsigned int num_subgraphs;
+  unsigned int num_edge_connect;
 
   BinaryFileStream stream(stream_file);
   BinaryFileStream stream_ref(stream_file);
@@ -319,86 +388,94 @@ int main(int argc, char **argv) {
   std::cout << "num_updates = " << num_updates << std::endl;
   std::cout << std::endl;
 
-  auto driver_config = DriverConfiguration().gutter_sys(CACHETREE).worker_threads(num_threads);
-  std::vector<CCAlgConfiguration> config_vec;
+  num_subgraphs = (unsigned int)(2*std::ceil(std::log2(num_nodes)));
+  num_edge_connect = 10*num_subgraphs;
 
-  for (unsigned int i=0;i<num_edge_connect;i++){
-      config_vec.push_back(CCAlgConfiguration().batch_factor(1));
+  auto driver_config = DriverConfiguration().gutter_sys(CACHETREE).worker_threads(num_threads);
+  std::vector<std::vector<CCAlgConfiguration>> config_vec;
+
+  for (unsigned int i=0;i<num_subgraphs;i++){
+      std::vector<CCAlgConfiguration> subgraph_config_vec;
+      for (unsigned int j=0;j<num_edge_connect;j++){
+          subgraph_config_vec.push_back(CCAlgConfiguration().batch_factor(1));
+      }
+      config_vec.push_back(subgraph_config_vec);
   }
 
-  KEdgeConnect k_edge_alg{num_nodes, num_edge_connect, config_vec};
+  // KEdgeConnect k_edge_alg{num_nodes, num_edge_connect, config_vec};
+  MinCutSimple min_cut_alg{num_nodes, config_vec};
 
-  GraphSketchDriver<KEdgeConnect> driver{&k_edge_alg, &stream, driver_config, reader_threads};
+  GraphSketchDriver<MinCutSimple> driver{&min_cut_alg, &stream, driver_config, reader_threads};
 
   auto ins_start = std::chrono::steady_clock::now();
-  std::thread querier(track_insertions<GraphSketchDriver<KEdgeConnect>>, num_updates, &driver, ins_start);
+  std::thread querier(track_insertions<GraphSketchDriver<MinCutSimple>>, num_updates, &driver, ins_start);
 
   driver.process_stream_until(END_OF_STREAM);
 
   auto cc_start = std::chrono::steady_clock::now();
   driver.prep_query();
-  k_edge_alg.query();
+  min_cut_alg.query();
 
 
-  size_t m = stream_ref.edges();
-  // test the edges in the spanning forest are in the original graph
-  MatGraphVerifier kEdgeVerifier(num_nodes);
+//  size_t m = stream_ref.edges();
+//  // test the edges in the spanning forest are in the original graph
+//  MatGraphVerifier kEdgeVerifier(num_nodes);
+//
+//  while (m--) {
+//     GraphStreamUpdate upd;
+//     stream_ref.get_update_buffer(&upd, 1);
+//     kEdgeVerifier.edge_update(upd.edge.src, upd.edge.dst);
+//   }
+//
+//  std::vector<std::vector<bool>> test_adj_mat(num_nodes);
+//  test_adj_mat =  kEdgeVerifier.extract_adj_matrix();
+//
+//  Edge temp_edge;
+//  std::vector<std::pair<node_id_t, std::vector<node_id_t>>> temp_forest;
+//  for(unsigned int i=0;i<num_edge_connect;i++) {
+//      temp_forest = k_edge_alg.forests_collection[i];
+//      // Test the maximality of the connected components
+//      DisjointSetUnion<node_id_t> kruskal_dsu(num_nodes);
+//      std::vector<std::set<node_id_t>> temp_retval;
+//      for (unsigned int l = 0; l < temp_forest.size(); l++) {
+//          for (unsigned int j = 0; j < temp_forest[l].second.size(); j++) {
+//              kruskal_dsu.merge(temp_forest[l].first, temp_forest[l].second[j]);
+//          }
+//      }
+//      std::map<node_id_t, std::set<node_id_t>> temp_map;
+//      for (unsigned l = 0; l < num_nodes; ++l) {
+//          temp_map[kruskal_dsu.find_root(l)].insert(l);
+//      }
+//      temp_retval.reserve(temp_map.size());
+//      for (const auto& entry : temp_map) {
+//          temp_retval.push_back(entry.second);
+//      }
+//      std::cout<< std::endl;
+//      kEdgeVerifier.reset_cc_state();
+//      kEdgeVerifier.verify_soln(temp_retval);
+//      // End of the test of CC maximality
+//      // start of the test of CC edge existence
+//      for (unsigned int j = 0; j < temp_forest.size(); j++) {
+//            for (auto dst: temp_forest[j].second) {
+//                temp_edge.src = temp_forest[j].first;
+//                temp_edge.dst = dst;
+//                kEdgeVerifier.verify_edge(temp_edge);
+//                kEdgeVerifier.edge_update(temp_edge.src, temp_edge.dst);
+//            }
+//      }
+//      test_adj_mat =  kEdgeVerifier.extract_adj_matrix();
+//  }
 
-  while (m--) {
-     GraphStreamUpdate upd;
-     stream_ref.get_update_buffer(&upd, 1);
-     kEdgeVerifier.edge_update(upd.edge.src, upd.edge.dst);
-   }
-
-  std::vector<std::vector<bool>> test_adj_mat(num_nodes);
-  test_adj_mat =  kEdgeVerifier.extract_adj_matrix();
-
-  Edge temp_edge;
-  std::vector<std::pair<node_id_t, std::vector<node_id_t>>> temp_forest;
-  for(unsigned int i=0;i<num_edge_connect;i++) {
-      temp_forest = k_edge_alg.forests_collection[i];
-      // Test the maximality of the connected components
-      DisjointSetUnion<node_id_t> kruskal_dsu(num_nodes);
-      std::vector<std::set<node_id_t>> temp_retval;
-      for (unsigned int l = 0; l < temp_forest.size(); l++) {
-          for (unsigned int j = 0; j < temp_forest[l].second.size(); j++) {
-              kruskal_dsu.merge(temp_forest[l].first, temp_forest[l].second[j]);
-          }
-      }
-      std::map<node_id_t, std::set<node_id_t>> temp_map;
-      for (unsigned l = 0; l < num_nodes; ++l) {
-          temp_map[kruskal_dsu.find_root(l)].insert(l);
-      }
-      temp_retval.reserve(temp_map.size());
-      for (const auto& entry : temp_map) {
-          temp_retval.push_back(entry.second);
-      }
-      std::cout<< std::endl;
-      kEdgeVerifier.reset_cc_state();
-      kEdgeVerifier.verify_soln(temp_retval);
-      // End of the test of CC maximality
-      // start of the test of CC edge existence
-      for (unsigned int j = 0; j < temp_forest.size(); j++) {
-            for (auto dst: temp_forest[j].second) {
-                temp_edge.src = temp_forest[j].first;
-                temp_edge.dst = dst;
-                kEdgeVerifier.verify_edge(temp_edge);
-                kEdgeVerifier.edge_update(temp_edge.src, temp_edge.dst);
-            }
-      }
-      test_adj_mat =  kEdgeVerifier.extract_adj_matrix();
-  }
-
-  unsigned long CC_nums[num_edge_connect];
-  for(unsigned int i=0;i<num_edge_connect;i++){
-      CC_nums[i]= k_edge_alg.cc_alg[i]->connected_components().size();
-  }
+//  unsigned long CC_nums[num_edge_connect];
+//  for(unsigned int i=0;i<num_edge_connect;i++){
+//      CC_nums[i]= k_edge_alg.cc_alg[i]->connected_components().size();
+//  }
 
   std::chrono::duration<double> insert_time = driver.flush_end - ins_start;
   std::chrono::duration<double> cc_time = std::chrono::steady_clock::now() - cc_start;
   std::chrono::duration<double> flush_time = driver.flush_end - driver.flush_start;
   std::chrono::duration<double> cc_alg_time =
-          k_edge_alg.cc_alg[num_edge_connect-1]->cc_alg_end - k_edge_alg.cc_alg[0]->cc_alg_start;
+          min_cut_alg.k_edge_algs[num_subgraphs-1]->cc_alg[num_edge_connect-1]->cc_alg_end - min_cut_alg.k_edge_algs[0]->cc_alg[0]->cc_alg_start;
 
   shutdown = true;
   querier.join();
@@ -407,10 +484,11 @@ int main(int argc, char **argv) {
   std::cout << "Total insertion time(sec):    " << num_seconds << std::endl;
   std::cout << "Updates per second:           " << stream.edges() / num_seconds << std::endl;
   std::cout << "Total CC query latency:       " << cc_time.count() << std::endl;
-  std::cout << "  Flush Gutters(sec):           " << flush_time.count() << std::endl;
-  std::cout << "  Boruvka's Algorithm(sec):     " << cc_alg_time.count() << std::endl;
-  for(unsigned int i=0;i<num_edge_connect;i++){
-      std::cout << "Number of connected Component in :         " << i+1 << " is " << CC_nums[i] << std::endl;
-  }
+  std::cout << "  Flush Gutters(sec):         " << flush_time.count() << std::endl;
+//  std::cout << "  Boruvka's Algorithm(sec):     " << cc_alg_time.count() << std::endl;
+  std::cout << "Min-cut size:                 " << min_cut_alg.return_min_cut << std::endl;
+//  for(unsigned int i=0;i<num_edge_connect;i++){
+//      std::cout << "Number of connected Component in :         " << i+1 << " is " << CC_nums[i] << std::endl;
+//  }
   std::cout << "Maximum Memory Usage(MiB):    " << get_max_mem_used() << std::endl;
 }
