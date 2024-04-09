@@ -129,8 +129,21 @@ __global__ void sketchUpdate_kernel(node_id_t src, node_id_t num_nodes, vec_t* e
 }
 
 __global__ void k_sketchUpdate_kernel(node_id_t src, node_id_t num_nodes, int k ,vec_t* edgeUpdates, vec_t update_start_id, size_t update_size,
-    size_t num_buckets, size_t d_bucket_id, vec_t* d_bucket_a, vec_hash_t* d_bucket_c, size_t num_columns, size_t bkt_per_col, long sketchSeed) {
+   size_t d_bucket_id, vec_t* d_bucket_a, vec_hash_t* d_bucket_c, int* num_tb_columns, size_t bkt_per_col, long sketchSeed) {
 
+  size_t num_columns = num_tb_columns[blockIdx.x];
+  size_t num_buckets = num_columns * bkt_per_col;
+  size_t column_offset = 0;
+
+  if (blockIdx.x != 0) {
+    column_offset = num_tb_columns[blockIdx.x - 1];
+  }
+
+  // Increment num_buckets for last thread block
+  if (blockIdx.x == (k - 1)) {
+    num_buckets++;
+  }
+  
   extern __shared__ vec_t_cu sketches[];
   vec_t_cu* bucket_a = sketches;
   vec_hash_t* bucket_c = (vec_hash_t*)&bucket_a[num_buckets];
@@ -146,7 +159,6 @@ __global__ void k_sketchUpdate_kernel(node_id_t src, node_id_t num_nodes, int k 
   // Update sketch - each thread works on 1 update for on 1 column
   for (int id = threadIdx.x; id < update_size * num_columns; id += blockDim.x) {
 
-    int column_offset = blockIdx.x * num_columns;
     int column_id = id % num_columns;
     int update_id = id / num_columns;
     
@@ -167,14 +179,15 @@ __global__ void k_sketchUpdate_kernel(node_id_t src, node_id_t num_nodes, int k 
   __syncthreads();
 
   if (threadIdx.x == 0) {
-    int bucket_offset = blockIdx.x * (num_buckets - 1);
-    for (int i = 0; i < num_buckets - 1; i++) {
+    size_t bucket_offset = 0;
+
+    for (int i = 0; i < blockIdx.x; i++) {
+      bucket_offset += (num_tb_columns[i] * bkt_per_col);
+    }
+    
+    for (int i = 0; i < num_buckets; i++) {
       d_bucket_a[d_bucket_id + bucket_offset + i] = bucket_a[i];
       d_bucket_c[d_bucket_id + bucket_offset + i] = bucket_c[i];
-    }
-    if (blockIdx.x == (k - 1)) { // Update last bucket
-      d_bucket_a[d_bucket_id + bucket_offset + num_buckets - 1] = bucket_a[num_buckets - 1];
-      d_bucket_c[d_bucket_id + bucket_offset + num_buckets - 1] = bucket_c[num_buckets - 1];     
     }
   }
   
@@ -205,21 +218,21 @@ void CudaKernel::k_sketchUpdate(int num_threads, int num_blocks, node_id_t src, 
   node_id_t num_nodes = cudaUpdateParams[0].num_nodes;
   
   int k = cudaUpdateParams[0].k;
-  size_t num_buckets = (cudaUpdateParams[0].num_buckets / k) + 1;
 
-  size_t num_columns = cudaUpdateParams[0].num_columns / k;
   size_t bkt_per_col = cudaUpdateParams[0].bkt_per_col;
 
-  size_t maxBytes = num_buckets * sizeof(vec_t_cu) + num_buckets * sizeof(vec_hash_t);
+  // Calculate the num_buckets assigned to the last thread block
+  size_t num_last_tb_buckets = (cudaUpdateParams[0].num_tb_columns[k-1] * bkt_per_col) + 1;
+  
+  // Set maxBytes for GPU kernel's shared memory
+  size_t maxBytes = (num_last_tb_buckets * sizeof(vec_t_cu)) + (num_last_tb_buckets * sizeof(vec_hash_t));
 
-  if (num_nodes == 0 || num_buckets == 0 || num_columns == 0 || bkt_per_col == 0) {
+  if (num_nodes == 0 || bkt_per_col == 0) {
     std::cout << "num_nodes: " << num_nodes << "\n";
-    std::cout << "num_buckets: " << num_buckets << "\n";
-    std::cout << "num_columns: " << num_columns << "\n";
     std::cout << "bkt_per_col: " << bkt_per_col << "\n";
   }
   
-  k_sketchUpdate_kernel<<<num_blocks, num_threads, maxBytes, stream>>>(src, num_nodes, k, edgeUpdates, update_start_id, update_size, num_buckets, d_bucket_id, cudaUpdateParams[0].d_bucket_a, cudaUpdateParams[0].d_bucket_c, num_columns, bkt_per_col, sketchSeed);
+  k_sketchUpdate_kernel<<<num_blocks, num_threads, maxBytes, stream>>>(src, num_nodes, k, edgeUpdates, update_start_id, update_size, d_bucket_id, cudaUpdateParams[0].d_bucket_a, cudaUpdateParams[0].d_bucket_c, cudaUpdateParams[0].num_tb_columns, bkt_per_col, sketchSeed);
 }
 
 void CudaKernel::updateSharedMemory(size_t maxBytes) {

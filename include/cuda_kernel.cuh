@@ -33,6 +33,9 @@ class CudaUpdateParams {
     vec_t *h_bucket_a, *d_bucket_a;
     vec_hash_t *h_bucket_c, *d_bucket_c;
 
+    // Number of columns that each thread block will handle
+    int *num_tb_columns;
+
     // Parameter for entire graph
     node_id_t num_nodes;
     size_t num_updates;
@@ -65,8 +68,27 @@ class CudaUpdateParams {
       gpuErrchk(cudaMallocHost(&h_bucket_c, stream_multiplier * num_host_threads * num_buckets * sizeof(vec_hash_t)));
       gpuErrchk(cudaMalloc(&d_bucket_c, stream_multiplier * num_host_threads * num_buckets * sizeof(vec_hash_t)));
 
-      std::cout << "Allocated buckets\n";
       
+      gpuErrchk(cudaMallocManaged(&num_tb_columns, k * sizeof(int)));
+
+      for (int i = 0; i < k ; i++) {
+        num_tb_columns[i] = num_columns / k;
+      }
+
+      // If num_columns doesn't get divided evenly
+      size_t leftover_num_columns = num_columns - ((num_columns / k) * k);
+      int k_id = k - 1;
+      while (leftover_num_columns > 0) {
+        num_tb_columns[k_id]++;
+        k_id--;
+        leftover_num_columns--;
+      }
+      std::cout << "Number of columns of each thread block: ";
+      for (int i = 0; i < k ; i++) {
+        std::cout << num_tb_columns[i] << ", ";
+      }
+      std::cout << "\n";
+
       // Initialize host buckets
       for (size_t i = 0; i < stream_multiplier * num_host_threads * num_buckets; i++) {
         h_bucket_a[i] = 0;

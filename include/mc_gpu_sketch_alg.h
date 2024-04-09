@@ -58,7 +58,6 @@ private:
 
   std::vector<std::vector<Adjlist_Edge>> worker_adjlist;
   std::vector<AdjList> adjlists;
-  //std::vector<std::mutex> adjlists_mutexes;
 
   CudaKernel cudaKernel;
 
@@ -145,24 +144,30 @@ public:
       cudaUpdateParams[i] = new CudaUpdateParams(num_vertices, num_updates, num_samples, num_buckets, num_columns, bkt_per_col, num_threads, batch_size, stream_multiplier, k);
     }
     
-    int device_id = cudaGetDevice(&device_id);
-    int device_count = 0;
-    cudaGetDeviceCount(&device_count);
-    std::cout << "CUDA Device Count: " << device_count << "\n";
-    std::cout << "CUDA Device ID: " << device_id << "\n";
+    if (num_sketch_graphs > 0) {
+      int device_id = cudaGetDevice(&device_id);
+      int device_count = 0;
+      cudaGetDeviceCount(&device_count);
+      std::cout << "CUDA Device Count: " << device_count << "\n";
+      std::cout << "CUDA Device ID: " << device_id << "\n";
 
-    // Set maxBytes for GPU kernel's shared memory
-    size_t maxBytes = ((num_buckets / k) + 1) * sizeof(vec_t_cu) + ((num_buckets / k) + 1) * sizeof(vec_hash_t);
-    cudaKernel.updateSharedMemory(maxBytes);
-    std::cout << "Allocated Shared Memory of: " << maxBytes << "\n";
+      // Calculate the num_buckets assigned to the last thread block
+      size_t num_last_tb_buckets = (cudaUpdateParams[0]->num_tb_columns[k-1] * bkt_per_col) + 1;
+      
+      // Set maxBytes for GPU kernel's shared memory
+      size_t maxBytes = (num_last_tb_buckets * sizeof(vec_t_cu)) + (num_last_tb_buckets * sizeof(vec_hash_t));
+      cudaKernel.updateSharedMemory(maxBytes);
+      std::cout << "Allocated Shared Memory of: " << maxBytes << "\n";
 
-    // Initialize CUDA Streams
-    for (int i = 0; i < num_host_threads * stream_multiplier; i++) {
-      cudaStream_t stream;
+      // Initialize CUDA Streams
+      for (int i = 0; i < num_host_threads * stream_multiplier; i++) {
+        cudaStream_t stream;
 
-      cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
-      streams.push_back({stream, 1, -1, -1});
+        cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
+        streams.push_back({stream, 1, -1, -1});
+      }
     }
+
 
     trim_enabled = false;
     trim_graph_id = -1;
