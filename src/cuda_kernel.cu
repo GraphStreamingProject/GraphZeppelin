@@ -135,8 +135,8 @@ __global__ void k_sketchUpdate_kernel(node_id_t src, node_id_t num_nodes, int k 
   size_t num_buckets = num_columns * bkt_per_col;
   size_t column_offset = 0;
 
-  if (blockIdx.x != 0) {
-    column_offset = num_tb_columns[blockIdx.x - 1];
+  for (int i = 0; i < blockIdx.x; i++) {
+    column_offset += num_tb_columns[blockIdx.x];
   }
 
   // Increment num_buckets for last thread block
