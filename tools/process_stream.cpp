@@ -166,10 +166,11 @@ public:
     }
 
     bool has_cached_query(){
-        bool cached_query_flag = true;
-        for (unsigned int i=0;i<num_subgraphs;i++) {
-            cached_query_flag = cached_query_flag && k_edge_algs[i]->has_cached_query();
-        }
+	return false;
+        // bool cached_query_flag = true;
+        // for (unsigned int i=0;i<num_subgraphs;i++) {
+        //     cached_query_flag = cached_query_flag && k_edge_algs[i]->has_cached_query();
+        // }
     }
 
     void print_configuration(){k_edge_algs[0]->print_configuration(); }
