@@ -101,23 +101,13 @@ public:
         return end_index[a] > end_index[b];
     }
 
-    // TODO: Change the apply update batch function as opposed to change pre_insert
 
     void apply_update_batch(size_t thr_id, node_id_t src_vertex, const std::vector<node_id_t> &dst_vertices) {
+        /************* tests
         for(unsigned int i=0;i<num_subgraphs;i++) {
                 k_edge_algs[i]->apply_update_batch(thr_id, src_vertex, dst_vertices);
-                // The following while loop: keep the position variable to be always aligned with the last vertex
-                // that has not been deleted yet
-                // If the vertex-corresponding end_index is at most the iteration number, it means it has already been
-                // accounted for in this iteration, and should not be accounted of at the next iteration; so we should
-                // remove
-//                while (dst_end_index[position].second <= i && position>=0) {
-//                    input_dst_vertices.pop_back();
-//                    position--;
-//                }
             }
-        /**************** just 4 test
-        std::cout<<"We made it to the apply-batch-update for the first time!"<<std::endl;
+        ***************/
         std::vector<std::pair<unsigned int, unsigned int>> dst_end_index;
         // Collect the end-index on which an edge is deleted, then sort the indices to achieve O(N) total update time
         // for the vector.
@@ -132,7 +122,7 @@ public:
                 }
             }
         }
-        std::cout<<"We made it outside the for loop!"<<std::endl;
+        // std::cout<<"We made it outside the for loop!"<<std::endl;
         // Sort end_index vector by the end_index of dst_end_index
         std::sort(dst_end_index.begin(), dst_end_index.end(), [](auto &left, auto &right) {
             return left.second > right.second;
@@ -162,7 +152,7 @@ public:
                     position--;
                 }
             }
-        } ******************/
+        }
     }
 
     bool has_cached_query(){
