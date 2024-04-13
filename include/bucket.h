@@ -13,6 +13,13 @@ struct Bucket {
 
 namespace Bucket_Boruvka {
   static constexpr size_t col_hash_bits = sizeof(col_hash_t) * 8;
+
+  /**
+   * Returns whether or not a bucket is empty.
+   * @param bucket    Bucket to check for empty.
+   * @return          With high probability, return whether or not a given bucket is empty. 
+   */
+  inline static bool is_empty(const Bucket &bucket);
   /**
    * Hashes the column index and the update index together to determine the depth of an update
    * This is used as a parameter to Bucket::contains.
@@ -51,6 +58,10 @@ namespace Bucket_Boruvka {
                             const vec_hash_t update_hash);
 } // namespace Bucket_Boruvka
 
+inline bool Bucket_Boruvka::is_empty(const Bucket &bucket) {
+  return (bucket.alpha | bucket.gamma) == 0;
+}
+
 inline col_hash_t Bucket_Boruvka::get_index_depth(const vec_t update_idx, const long seed_and_col,
                                                   const vec_hash_t max_depth) {
   col_hash_t depth_hash = col_hash(&update_idx, sizeof(vec_t), seed_and_col);
@@ -63,7 +74,7 @@ inline vec_hash_t Bucket_Boruvka::get_index_hash(const vec_t update_idx, const l
 }
 
 inline bool Bucket_Boruvka::is_good(const Bucket &bucket, const long sketch_seed) {
-  return bucket.gamma == get_index_hash(bucket.alpha, sketch_seed);
+  return !Bucket_Boruvka::is_empty(bucket) && bucket.gamma == get_index_hash(bucket.alpha, sketch_seed);
 }
 
 inline void Bucket_Boruvka::update(Bucket& bucket, const vec_t update_idx,
