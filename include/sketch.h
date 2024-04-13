@@ -51,6 +51,19 @@ class Sketch {
   // bucket data
   Bucket* buckets;
 
+  // flags
+
+#ifdef EAGER_BUCKET_CHECK
+  vec_t *nonempty_buckets;
+  /**
+   * Updates the nonempty flags in a given range by recalculating the is_empty() call.
+   * @param col_idx   The column to update
+   * @param start_row The depth of the first bucket in the column to check the emptyness of.
+   * @param end_row   The depth of the first bucket not to check the emptyness (i.e., an exclusive bound)
+    */
+  void recalculate_flags(size_t col_idx, size_t start_row, size_t end_row);
+#endif
+
  public:
   /**
    * The below constructors use vector length as their input. However, in graph sketching our input
@@ -85,6 +98,19 @@ class Sketch {
   Sketch(vec_t vector_len, uint64_t seed, size_t num_samples = 1,
          size_t cols_per_sample = default_cols_per_sample);
 
+
+  /**
+   * Construct a sketch from a (potentially compressed) serialized stream
+   * @param vector_len       Length of the vector we are sketching
+   * @param seed             Random seed of the sketch
+   * @param binary_in        Stream holding serialized sketch object
+   * @param num_samples      [Optional] Number of samples this sketch supports (default = 1)
+   * @param cols_per_sample  [Optional] Number of sketch columns for each sample (default = 1)
+   * @param compressed       Whether or not to use the compression (default = true) 
+   */
+  Sketch(vec_t vector_len, uint64_t seed, bool compressed, std::istream& binary_in, size_t num_samples = 1,
+         size_t cols_per_sample = default_cols_per_sample);
+
   /**
    * Construct a sketch from a serialized stream
    * @param vector_len       Length of the vector we are sketching
@@ -103,6 +129,16 @@ class Sketch {
   Sketch(const Sketch& s);
 
   ~Sketch();
+
+
+  /**
+   * Occupies the contents of an empty sketch with input from a stream that contains
+   * the compressed version.
+   * @param binary_in   Stream holding serialized/compressed sketch object.
+   */
+  void compressed_deserialize(std::istream& binary_in) {
+
+  }
 
   /**
    * Update a sketch based on information about one of its indices.
@@ -127,15 +163,11 @@ class Sketch {
 
 
   /**
-   * Gets the 1-index of the deepest non-zero bucket. 
+   * Gives the cutoff index such that all non-empty buckets are strictly above. 
+   * @param col_idx The column to find the cutoff index of.
    * @return  The depth of the non-zero'th bucket + 1. If the bucket is entirely empty, returns 0
-  */
+   */
   uint8_t effective_size(size_t col_idx) const;
-
-  #ifdef EAGER_BUCKET_CHECK
-  vec_t *nonempty_buckets;
-  void update_flags(size_t col_idx, size_t start_row, size_t end_row);
-  #endif
 
   /**
    * In-place merge function.
@@ -175,12 +207,25 @@ class Sketch {
    */
   void serialize(std::ostream& binary_out) const;
 
+  /**
+   * Serialize the sketch to a binary output stream, with a compressed representation.
+   * takes significantly less space for mostly-empty sketches.
+   * @param binary_out   the stream to write to.
+   */
+  void compressed_serialize(std::ostream& binary_out) const;
+
   inline void reset_sample_state() {
     sample_idx = 0;
   }
 
   // return the size of the sketching datastructure in bytes (just the buckets, not the metadata)
-  inline size_t bucket_array_bytes() const { return num_buckets * sizeof(Bucket); }
+  inline size_t bucket_array_bytes() const { 
+#ifdef EAGER_BUCKET_CHECK
+    return (num_buckets * sizeof(Bucket)) + (num_columns * sizeof(vec_t)); 
+#else
+    return num_buckets * sizeof(Bucket);
+#endif
+  }
 
   inline const Bucket* get_readonly_bucket_ptr() const { return (const Bucket*) buckets; }
   inline uint64_t get_seed() const { return seed; }
