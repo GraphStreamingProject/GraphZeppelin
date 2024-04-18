@@ -32,7 +32,7 @@ public:
             num_nodes(num_nodes) {
         num_subgraphs = (unsigned int)(2*std::ceil(std::log2(num_nodes)));
         // TODO: make the approximation factor tunable later
-        num_forest = 10*num_subgraphs;
+        num_forest = 4*num_subgraphs;
         for(unsigned int i=0;i<num_subgraphs;i++){
             k_edge_algs.push_back(std::make_unique<KEdgeConnect>(num_nodes, num_forest, config_vec[i]));
         }
