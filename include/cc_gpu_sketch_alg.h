@@ -67,7 +67,7 @@ public:
 
     // Create cudaUpdateParams
     gpuErrchk(cudaMallocManaged(&cudaUpdateParams, sizeof(CudaUpdateParams)));
-    cudaUpdateParams = new CudaUpdateParams(num_vertices, num_updates, num_samples, num_buckets, num_columns, bkt_per_col, num_threads, batch_size, stream_multiplier);
+    cudaUpdateParams = new CudaUpdateParams(num_vertices, num_updates, num_samples, num_buckets, num_columns, bkt_per_col, num_threads, batch_size, stream_multiplier, num_device_blocks);
 
     int device_id = cudaGetDevice(&device_id);
     int device_count = 0;

@@ -181,7 +181,7 @@ int main(int argc, char **argv) {
   std::cout << "    Total minimum memory required for maximum number of sketch graphs: " << total_sketch_bytes / 1000000000 << "GB\n";
   std::cout << "    Total minimum memory required for current num_nodes: " << (total_adjlist_bytes + total_sketch_bytes) / 1000000000 << "GB\n";
 
-  // Reconfigure sketches_factor based on num_sketch_graphs
+  // Reconfigure sketches_factor based on reduced_k
   mc_config.sketches_factor(reduced_k);
 
   MCGPUSketchAlg mc_gpu_alg{num_nodes, num_updates, num_threads, get_seed(), sketchParams, num_graphs, num_sketch_graphs, num_adj_graphs, num_fixed_adj_graphs, reduced_k, mc_config};
@@ -224,7 +224,6 @@ int main(int argc, char **argv) {
     std::vector<Edge> spanningForests;
     std::set<Edge> edges;
     
-    auto spanning_forests_start = std::chrono::steady_clock::now();
     if (graph_id >= num_sketch_graphs) { // Get Spanning forests from adj list
       int adjlist_id = graph_id - num_sketch_graphs;
       std::cout << "Adj.list Graph #" << adjlist_id << "\n";
@@ -236,9 +235,6 @@ int main(int argc, char **argv) {
       std::cout << "Sketch Graph #" << graph_id << ":\n";
       mc_gpu_alg.set_trim_enbled(true, graph_id); // When trimming, only apply sketch updates to current subgraph
       for (int k_id = 0; k_id < k; k_id++) {
-        //int num_samples_per_sketch = (k / reduced_k) + 1;
-        //int sketch_k_id = k_id / num_samples_per_sketch;
-        
         std::cout << "  Getting spanning forest " << k_id << "\n";
 
         // Get spanning forest k_id
@@ -250,7 +246,7 @@ int main(int argc, char **argv) {
         for (auto edge : spanningForest.get_edges()) {
           spanningForests.push_back(edge);
         }
-
+        
         // Trim spanning forest
         auto trim_reading_start = std::chrono::steady_clock::now();
         driver.trim_spanning_forest(spanningForest.get_edges());
@@ -259,8 +255,6 @@ int main(int argc, char **argv) {
         // Flush sketch updates
         auto trim_flushing_start = std::chrono::steady_clock::now();
         driver.prep_query(KSPANNINGFORESTS);
-        cudaDeviceSynchronize();
-        mc_gpu_alg.apply_flush_updates();
         trim_flushing_time += std::chrono::steady_clock::now() - trim_flushing_start;
 
         // Verify sampled edges from spanning forest
@@ -269,7 +263,7 @@ int main(int argc, char **argv) {
             edges.insert(edge);
           }
           else {
-            std::cerr << "ERROR: duplicate error in forests!" << "\n";
+            std::cerr << "ERROR: duplicate edge in forests! {" << edge.src << "," << edge.dst << "}\n";
             exit(EXIT_FAILURE);
           }
         }
@@ -396,7 +390,7 @@ int main(int argc, char **argv) {
      }
   }
 
-  std::chrono::duration<double> insert_time = merge_adjlist_end - ins_start;
+  std::chrono::duration<double> insert_time = flush_end - ins_start;
   std::chrono::duration<double> flush_time = flush_end - flush_start;
   std::chrono::duration<double> merge_adjlist_time = merge_adjlist_end - merge_adjlist_start;
 

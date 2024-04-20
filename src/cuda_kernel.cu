@@ -1,7 +1,6 @@
 
 #include <vector>
 #include <cuda_xxhash64.cuh>
-//#include <sketch.h>
 #include "../include/cuda_kernel.cuh"
 
 typedef unsigned long long int uint64_cu;
@@ -15,7 +14,7 @@ typedef uint64_cu vec_t_cu;
 
 // Source: http://graphics.stanford.edu/~seander/bithacks.html#ZerosOnRightLinear
 __device__ int ctzll(col_hash_t v) {
-  int c;
+  uint64_t c;
   if (v) {
     v = (v ^ (v - 1)) >> 1;
     for (c = 0; v; c++) {
@@ -29,12 +28,11 @@ __device__ int ctzll(col_hash_t v) {
 }
 
 __device__ col_hash_t bucket_get_index_depth(const vec_t_cu update_idx, const long seed_and_col, const vec_hash_t max_depth) {
-  // Update CUDA_XXH, confirm they are correct with xxhash_test.cu
   col_hash_t depth_hash = CUDA_XXH64(&update_idx, sizeof(vec_t), seed_and_col);
   depth_hash |= (1ull << max_depth); // assert not > max_depth by ORing
 
   //return ctzll(depth_hash);
-  return __ffsll(depth_hash);
+  return __ffsll(depth_hash) - 1;
 }
 
 __device__ vec_hash_t bucket_get_index_hash(const vec_t update_idx, const long sketch_seed) {
@@ -128,7 +126,7 @@ __global__ void sketchUpdate_kernel(node_id_t src, node_id_t num_nodes, vec_t* e
   }
 }
 
-__global__ void k_sketchUpdate_kernel(node_id_t src, node_id_t num_nodes, int k ,vec_t* edgeUpdates, vec_t update_start_id, size_t update_size,
+__global__ void k_sketchUpdate_kernel(node_id_t src, node_id_t num_nodes, int num_device_blocks ,vec_t* edgeUpdates, vec_t update_start_id, size_t update_size,
    size_t d_bucket_id, vec_t* d_bucket_a, vec_hash_t* d_bucket_c, int* num_tb_columns, size_t bkt_per_col, long sketchSeed) {
 
   size_t num_columns = num_tb_columns[blockIdx.x];
@@ -136,11 +134,11 @@ __global__ void k_sketchUpdate_kernel(node_id_t src, node_id_t num_nodes, int k 
   size_t column_offset = 0;
 
   for (int i = 0; i < blockIdx.x; i++) {
-    column_offset += num_tb_columns[blockIdx.x];
+    column_offset += num_tb_columns[i];
   }
 
   // Increment num_buckets for last thread block
-  if (blockIdx.x == (k - 1)) {
+  if (blockIdx.x == (num_device_blocks - 1)) {
     num_buckets++;
   }
   
@@ -164,7 +162,7 @@ __global__ void k_sketchUpdate_kernel(node_id_t src, node_id_t num_nodes, int k 
     
     vec_hash_t checksum = bucket_get_index_hash(edgeUpdates[update_start_id + update_id], sketchSeed);
     
-    if ((blockIdx.x == (k - 1)) && (column_id == 0)) {
+    if ((blockIdx.x == (num_device_blocks - 1)) && (column_id == 0)) {
       // Update depth 0 bucket
       bucket_update(bucket_a[num_buckets - 1], bucket_c[num_buckets - 1], edgeUpdates[update_start_id + update_id], checksum);
     }
@@ -222,7 +220,7 @@ void CudaKernel::k_sketchUpdate(int num_threads, int num_blocks, node_id_t src, 
   size_t bkt_per_col = cudaUpdateParams[0].bkt_per_col;
 
   // Calculate the num_buckets assigned to the last thread block
-  size_t num_last_tb_buckets = (cudaUpdateParams[0].num_tb_columns[k-1] * bkt_per_col) + 1;
+  size_t num_last_tb_buckets = (cudaUpdateParams[0].num_tb_columns[num_blocks-1] * bkt_per_col) + 1;
   
   // Set maxBytes for GPU kernel's shared memory
   size_t maxBytes = (num_last_tb_buckets * sizeof(vec_t_cu)) + (num_last_tb_buckets * sizeof(vec_hash_t));
@@ -232,7 +230,7 @@ void CudaKernel::k_sketchUpdate(int num_threads, int num_blocks, node_id_t src, 
     std::cout << "bkt_per_col: " << bkt_per_col << "\n";
   }
   
-  k_sketchUpdate_kernel<<<num_blocks, num_threads, maxBytes, stream>>>(src, num_nodes, k, edgeUpdates, update_start_id, update_size, d_bucket_id, cudaUpdateParams[0].d_bucket_a, cudaUpdateParams[0].d_bucket_c, cudaUpdateParams[0].num_tb_columns, bkt_per_col, sketchSeed);
+  k_sketchUpdate_kernel<<<num_blocks, num_threads, maxBytes, stream>>>(src, num_nodes, num_blocks, edgeUpdates, update_start_id, update_size, d_bucket_id, cudaUpdateParams[0].d_bucket_a, cudaUpdateParams[0].d_bucket_c, cudaUpdateParams[0].num_tb_columns, bkt_per_col, sketchSeed);
 }
 
 void CudaKernel::updateSharedMemory(size_t maxBytes) {

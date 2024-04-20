@@ -100,7 +100,7 @@ public:
     num_host_threads = num_threads;
 
     num_device_threads = 1024;
-    num_device_blocks = k;
+    num_device_blocks = k * 3; // Change this value based on dataset <-- Come up with formula to compute this automatically
 
     num_graphs = _num_graphs;
     num_sketch_graphs = _num_sketch_graphs;
@@ -141,7 +141,7 @@ public:
     // Create cudaUpdateParams
     gpuErrchk(cudaMallocManaged(&cudaUpdateParams, num_sketch_graphs * sizeof(CudaUpdateParams)));
     for (int i = 0; i < num_sketch_graphs; i++) {
-      cudaUpdateParams[i] = new CudaUpdateParams(num_vertices, num_updates, num_samples, num_buckets, num_columns, bkt_per_col, num_threads, batch_size, stream_multiplier, k);
+      cudaUpdateParams[i] = new CudaUpdateParams(num_vertices, num_updates, num_samples, num_buckets, num_columns, bkt_per_col, num_threads, batch_size, stream_multiplier, num_device_blocks, k);
     }
     
     if (num_sketch_graphs > 0) {
@@ -152,20 +152,20 @@ public:
       std::cout << "CUDA Device ID: " << device_id << "\n";
 
       // Calculate the num_buckets assigned to the last thread block
-      size_t num_last_tb_buckets = (cudaUpdateParams[0]->num_tb_columns[k-1] * bkt_per_col) + 1;
+      size_t num_last_tb_buckets = (cudaUpdateParams[0]->num_tb_columns[num_device_blocks-1] * bkt_per_col) + 1;
       
       // Set maxBytes for GPU kernel's shared memory
       size_t maxBytes = (num_last_tb_buckets * sizeof(vec_t_cu)) + (num_last_tb_buckets * sizeof(vec_hash_t));
       cudaKernel.updateSharedMemory(maxBytes);
       std::cout << "Allocated Shared Memory of: " << maxBytes << "\n";
+    }
 
-      // Initialize CUDA Streams
-      for (int i = 0; i < num_host_threads * stream_multiplier; i++) {
-        cudaStream_t stream;
+    // Initialize CUDA Streams
+    for (int i = 0; i < num_host_threads * stream_multiplier; i++) {
+      cudaStream_t stream;
 
-        cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
-        streams.push_back({stream, 1, -1, -1});
-      }
+      cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
+      streams.push_back({stream, 1, -1, -1});
     }
 
 

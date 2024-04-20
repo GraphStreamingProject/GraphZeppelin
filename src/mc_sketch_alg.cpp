@@ -129,6 +129,20 @@ void MCSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
   sketches[src_vertex]->merge(delta_sketch);
 }
 
+void MCSketchAlg::apply_update_batch_single_graph(int thr_id, int graph_id, node_id_t src_vertex,
+                                     const std::vector<node_id_t> &dst_vertices) {
+  if (update_locked) throw UpdateLockedException();
+  Sketch &delta_sketch = *delta_sketches[thr_id];
+  delta_sketch.zero_contents();
+
+  for (const auto &dst : dst_vertices) {
+    delta_sketch.update(static_cast<vec_t>(concat_pairing_fn(src_vertex, dst)));
+  }
+
+  std::lock_guard<std::mutex> lk(sketches[(graph_id * num_vertices) + src_vertex]->mutex);
+  sketches[(graph_id * num_vertices) + src_vertex]->merge(delta_sketch);                                 
+}
+
 void MCSketchAlg::apply_raw_buckets_update(node_id_t src_vertex, Bucket *raw_buckets) {
   std::lock_guard<std::mutex> lk(sketches[src_vertex]->mutex);
   sketches[src_vertex]->merge_raw_bucket_buffer(raw_buckets);
@@ -790,10 +804,11 @@ SpanningForest MCSketchAlg::get_k_spanning_forest(int graph_id) {
   // Note: Get num_cc for spanning forest
   std::cout << "    round = " << last_query_rounds << " cc size = " << cc.size() << "\n";
 
+  // Note: Turning these off for now for performance, but turn it back on if run into OutOfSamplesException 
   // get ready for ingesting more from the stream by resetting the sketches sample state
-  for (node_id_t i = 0; i < num_vertices * num_sketch_graphs; i++) {
+  /*for (node_id_t i = 0; i < num_vertices * num_sketch_graphs; i++) {
     sketches[i]->reset_sample_state();
-  }
+  }*/
 
   if (except) std::rethrow_exception(err);
 

@@ -7,85 +7,72 @@ void MCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
                                      const std::vector<node_id_t> &dst_vertices) {
   if (MCSketchAlg::get_update_locked()) throw UpdateLockedException();
 
-  int stream_id = thr_id * stream_multiplier;
-  int stream_offset = 0;
-  while(true) {
-    if (cudaStreamQuery(streams[stream_id + stream_offset].stream) == cudaSuccess) {
-      // Update stream_id
-      stream_id += stream_offset;
-
-      // CUDA Stream is available, check if it has any delta sketch
-      if(streams[stream_id].delta_applied == 0) {
-
-        if (streams[stream_id].num_graphs < 0 || streams[stream_id].num_graphs > num_sketch_graphs ) {
-          std::cout << "Stream #" << stream_id << ": invalid num_graphs! " << streams[stream_id].num_graphs << "\n";
-        }
-
-        for (int graph_id = 0; graph_id < streams[stream_id].num_graphs; graph_id++) {
-
-          if(trim_enabled) {
-            graph_id = trim_graph_id;
-          }
-          
-          size_t bucket_offset = thr_id * num_buckets;
-          for (size_t i = 0; i < num_buckets; i++) {
-            delta_buckets[bucket_offset + i].alpha = cudaUpdateParams[graph_id]->h_bucket_a[(stream_id * num_buckets) + i];
-            delta_buckets[bucket_offset + i].gamma = cudaUpdateParams[graph_id]->h_bucket_c[(stream_id * num_buckets) + i];
-          }
-
-          int prev_src = streams[stream_id].src_vertex;
-          
-          if(prev_src == -1) {
-            std::cout << "Stream #" << stream_id << ": Shouldn't be here!\n";
-          }
-
-          // Apply the delta sketch
-          apply_raw_buckets_update((graph_id * num_nodes) + prev_src, &delta_buckets[bucket_offset]);
-        }
-        streams[stream_id].delta_applied = 1;
-        streams[stream_id].src_vertex = -1;
-        streams[stream_id].num_graphs = -1;
-      }
-      else {
-        if (streams[stream_id].src_vertex != -1) {
-          std::cout << "Stream #" << stream_id << ": not applying but has delta sketch: " << streams[stream_id].src_vertex << " deltaApplied: " << streams[stream_id].delta_applied << "\n";
-        }
-      }
-      break;
-    }
-    stream_offset++;
-    if (stream_offset == stream_multiplier) {
-        stream_offset = 0;
-    }
-  }
-
-  int start_index = stream_id * batch_size;
-  std::vector<int> sketch_update_size;
-  sketch_update_size.assign(num_sketch_graphs, 0);
-  int max_depth = 0;
-
-  if(trim_enabled) { // Trimming sketch subgraphs
+  if (trim_enabled) {
     if (trim_graph_id < 0 || trim_graph_id > num_sketch_graphs) {
       std::cout << "INVALID trim_graph_id: " << trim_graph_id << "\n";
     }
 
-    int count = 0;
-    for (vec_t i = start_index; i < start_index + dst_vertices.size(); i++) {
-        cudaUpdateParams[trim_graph_id]->h_edgeUpdates[i] = static_cast<vec_t>(concat_pairing_fn(src_vertex, dst_vertices[count]));
-        count++;
-    } 
-
-    streams[stream_id].num_graphs = 1; 
-    streams[stream_id].src_vertex = src_vertex;
-    streams[stream_id].delta_applied = 0;
-
-    cudaMemcpyAsync(&cudaUpdateParams[trim_graph_id]->d_edgeUpdates[start_index], &cudaUpdateParams[trim_graph_id]->h_edgeUpdates[start_index], dst_vertices.size() * sizeof(vec_t), cudaMemcpyHostToDevice, streams[stream_id].stream);
-    cudaKernel.k_sketchUpdate(num_device_threads, num_device_blocks, src_vertex, streams[stream_id].stream, start_index, dst_vertices.size(), stream_id * num_buckets, cudaUpdateParams[trim_graph_id], sketchSeed);
-    cudaMemcpyAsync(&cudaUpdateParams[trim_graph_id]->h_bucket_a[stream_id * num_buckets], &cudaUpdateParams[trim_graph_id]->d_bucket_a[stream_id * num_buckets], num_buckets * sizeof(vec_t), cudaMemcpyDeviceToHost, streams[stream_id].stream);
-    cudaMemcpyAsync(&cudaUpdateParams[trim_graph_id]->h_bucket_c[stream_id * num_buckets], &cudaUpdateParams[trim_graph_id]->d_bucket_c[stream_id * num_buckets], num_buckets * sizeof(vec_hash_t), cudaMemcpyDeviceToHost, streams[stream_id].stream);
-
+    apply_update_batch_single_graph(thr_id, trim_graph_id, src_vertex, dst_vertices);
   }
+
   else {
+    int stream_id = thr_id * stream_multiplier;
+    int stream_offset = 0;
+    while(true) {
+      if (cudaStreamQuery(streams[stream_id + stream_offset].stream) == cudaSuccess) {
+        // Update stream_id
+        stream_id += stream_offset;
+
+        // CUDA Stream is available, check if it has any delta sketch
+        if(streams[stream_id].delta_applied == 0) {
+
+          if (streams[stream_id].num_graphs < 0 || streams[stream_id].num_graphs > num_sketch_graphs ) {
+            std::cout << "Stream #" << stream_id << ": invalid num_graphs! " << streams[stream_id].num_graphs << "\n";
+          }
+
+          for (int graph_id = 0; graph_id < streams[stream_id].num_graphs; graph_id++) {   
+
+            if (trim_enabled) {
+              graph_id = trim_graph_id;
+            }       
+
+            size_t bucket_offset = thr_id * num_buckets;
+            for (size_t i = 0; i < num_buckets; i++) {
+              delta_buckets[bucket_offset + i].alpha = cudaUpdateParams[graph_id]->h_bucket_a[(stream_id * num_buckets) + i];
+              delta_buckets[bucket_offset + i].gamma = cudaUpdateParams[graph_id]->h_bucket_c[(stream_id * num_buckets) + i];
+            }
+
+            int prev_src = streams[stream_id].src_vertex;
+            
+            if(prev_src == -1) {
+              std::cout << "Stream #" << stream_id << ": Shouldn't be here!\n";
+            }
+
+            // Apply the delta sketch
+            apply_raw_buckets_update((graph_id * num_nodes) + prev_src, &delta_buckets[bucket_offset]);
+          }
+          streams[stream_id].delta_applied = 1;
+          streams[stream_id].src_vertex = -1;
+          streams[stream_id].num_graphs = -1;
+        }
+        else {
+          if (streams[stream_id].src_vertex != -1) {
+            std::cout << "Stream #" << stream_id << ": not applying but has delta sketch: " << streams[stream_id].src_vertex << " deltaApplied: " << streams[stream_id].delta_applied << "\n";
+          }
+        }
+        break;
+      }
+      stream_offset++;
+      if (stream_offset == stream_multiplier) {
+          stream_offset = 0;
+      }
+    }
+
+    int start_index = stream_id * batch_size;
+    std::vector<int> sketch_update_size;
+    sketch_update_size.assign(num_sketch_graphs, 0);
+    int max_depth = 0;
+
     for (vec_t i = 0; i < dst_vertices.size(); i++) {
       // Determine the depth of current edge
       vec_t edge_id = static_cast<vec_t>(concat_pairing_fn(src_vertex, dst_vertices[i]));
@@ -125,7 +112,7 @@ void MCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
       cudaKernel.k_sketchUpdate(num_device_threads, num_device_blocks, src_vertex, streams[stream_id].stream, start_index, sketch_update_size[graph_id], stream_id * num_buckets, cudaUpdateParams[graph_id], sketchSeed);
       cudaMemcpyAsync(&cudaUpdateParams[graph_id]->h_bucket_a[stream_id * num_buckets], &cudaUpdateParams[graph_id]->d_bucket_a[stream_id * num_buckets], num_buckets * sizeof(vec_t), cudaMemcpyDeviceToHost, streams[stream_id].stream);
       cudaMemcpyAsync(&cudaUpdateParams[graph_id]->h_bucket_c[stream_id * num_buckets], &cudaUpdateParams[graph_id]->d_bucket_c[stream_id * num_buckets], num_buckets * sizeof(vec_hash_t), cudaMemcpyDeviceToHost, streams[stream_id].stream);
-    }
+    }      
   }
 
 };
@@ -133,14 +120,13 @@ void MCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
 void MCGPUSketchAlg::apply_flush_updates() {
   for (int stream_id = 0; stream_id < num_host_threads * stream_multiplier; stream_id++) {
     if(streams[stream_id].delta_applied == 0) {
-
       if (streams[stream_id].num_graphs < 0 || streams[stream_id].num_graphs > num_sketch_graphs ) {
         std::cout << "Stream #" << stream_id << ": invalid num_graphs! " << streams[stream_id].num_graphs << "\n";
       }
 
       for (int graph_id = 0; graph_id < streams[stream_id].num_graphs; graph_id++) {
 
-        if(trim_enabled) {
+        if (trim_enabled) {
           graph_id = trim_graph_id;
         }
 
@@ -157,6 +143,14 @@ void MCGPUSketchAlg::apply_flush_updates() {
 
         // Apply the delta sketch
         apply_raw_buckets_update((graph_id * num_nodes) + prev_src, delta_buckets);
+
+        if (prev_src == 0 && trim_enabled) {
+            std::cout << "GPU Delta Sketch:\n";
+            for (int i = 0; i < num_buckets; i++) {
+              std::cout << delta_buckets[i].alpha << " ";
+            }
+            std::cout << "\n";
+          }
       }
       streams[stream_id].delta_applied = 1;
       streams[stream_id].src_vertex = -1;

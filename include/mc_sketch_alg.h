@@ -190,6 +190,16 @@ class MCSketchAlg {
                           const std::vector<node_id_t> &dst_vertices);
 
   /**
+   * Update all the sketches for a node, given a batch of updates. (Multi-graphs version, Applies update to specified graph)
+   * @param thr_id         The id of the thread performing the update [0, num_threads)
+   * @param graph_id       The id of sketch graph
+   * @param src_vertex     The vertex where the edges originate.
+   * @param dst_vertices   A vector of destinations.
+   */
+  void apply_update_batch_single_graph(int thr_id, int graph_id, node_id_t src_vertex,
+                          const std::vector<node_id_t> &dst_vertices);
+
+  /**
    * Return if we have cached an answer to query.
    * This allows the driver to avoid flushing the gutters before calling query functions.
    */

@@ -167,6 +167,10 @@ if (BUILD_EXE)
     tools/cuda_process_stream.cu)
   target_link_libraries(cuda_process_stream PRIVATE GraphZeppelin CUDALibrary)
 
+  add_executable(xxhash_test
+    test/xxhash_test.cu)
+  target_link_libraries(xxhash_test PRIVATE GraphZeppelin CUDALibrary)
+
   add_executable(min_cut
     tools/min_cut.cu)
   target_link_libraries(min_cut PRIVATE GraphZeppelin CUDALibrary)
