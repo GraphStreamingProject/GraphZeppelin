@@ -82,11 +82,20 @@ void MCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
       for (int graph_id = 0; graph_id <= depth; graph_id++) {
         if (graph_id >= num_sketch_graphs) { // Add to adj list graphs
           int adjlist_id = graph_id - num_sketch_graphs;
-
-          Adjlist_Edge edge;
+    
+          std::lock_guard<std::mutex> lk(adjlists[adjlist_id].src_mutexes[src_vertex]);
+          // Check if current edge exists
+          if (adjlists[adjlist_id].list[src_vertex].find(dst_vertices[i]) == adjlists[adjlist_id].list[src_vertex].end()) {
+            adjlists[adjlist_id].list[src_vertex].insert({dst_vertices[i], 1});
+          }
+          else {
+            adjlists[adjlist_id].list[src_vertex].erase(dst_vertices[i]); // Current edge already exist, so delete
+          }
+          
+          /*Adjlist_Edge edge;
           edge.edge = std::make_pair(src_vertex, dst_vertices[i]);
           edge.graph_id = adjlist_id;
-          worker_adjlist[thr_id].push_back(edge);
+          worker_adjlist[thr_id].push_back(edge);*/
         }
         else {
           cudaUpdateParams[graph_id]->h_edgeUpdates[start_index + sketch_update_size[graph_id]] = edge_id;
@@ -143,14 +152,6 @@ void MCGPUSketchAlg::apply_flush_updates() {
 
         // Apply the delta sketch
         apply_raw_buckets_update((graph_id * num_nodes) + prev_src, delta_buckets);
-
-        if (prev_src == 0 && trim_enabled) {
-            std::cout << "GPU Delta Sketch:\n";
-            for (int i = 0; i < num_buckets; i++) {
-              std::cout << delta_buckets[i].alpha << " ";
-            }
-            std::cout << "\n";
-          }
       }
       streams[stream_id].delta_applied = 1;
       streams[stream_id].src_vertex = -1;
@@ -159,8 +160,9 @@ void MCGPUSketchAlg::apply_flush_updates() {
   }
 }
 
+// Right now, no need to merge adjlist, so just adding num_updates
 void MCGPUSketchAlg::merge_adjlist() {
-  for (int i = 0; i < num_host_threads; i++) {
+  /*for (int i = 0; i < num_host_threads; i++) {
     for (int j = 0; j < worker_adjlist[i].size(); j++) {
       Adjlist_Edge adjlist_edge = worker_adjlist[i][j];
       std::pair<int, int> edge = adjlist_edge.edge;
@@ -172,22 +174,31 @@ void MCGPUSketchAlg::merge_adjlist() {
       adjlists[adjlist_id].list[edge.first].push_back(edge.second);
       adjlists[adjlist_id].num_updates++;
     }
+  }*/
+  for (int i = 0; i < num_adj_graphs; i++) {
+    for (node_id_t j = 0; j < num_nodes; j++) {
+      if (adjlists[i].list.find(j) != adjlists[i].list.end()) {
+        adjlists[i].num_updates += adjlists[i].list[j].size();
+      }
+    }
   }
+
 }
 
 std::vector<Edge> MCGPUSketchAlg::get_adjlist_spanning_forests(int graph_id, int k) {
-  AdjList adjlist = adjlists[graph_id];
   std::vector<Edge> forests;
   for (int k_id = 0; k_id < k; k_id++) {
     for (node_id_t node_id = 0; node_id < num_nodes; node_id++) {
-      if (adjlist.list.find(node_id) == adjlist.list.end()) { // Doesn't exist, skip
+      if (adjlists[graph_id].list.find(node_id) == adjlists[graph_id].list.end()) { // Doesn't exist, skip
         continue;
       }
 
-      if (adjlist.list[node_id].size() != 0) {
-        forests.push_back({node_id, adjlist.list[node_id].back()});
-        adjlist.list[node_id].pop_back();
+      if (adjlists[graph_id].list[node_id].size() != 0) {
+        node_id_t dst_vertex = adjlists[graph_id].list[node_id].begin()->first;
+        forests.push_back({node_id, dst_vertex});
+        adjlists[graph_id].list[node_id].erase(dst_vertex);
       }
+
     }
   }
   return forests;

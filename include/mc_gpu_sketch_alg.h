@@ -24,9 +24,8 @@ struct Adjlist_Edge {
 };
 
 struct AdjList {
-  // Id: source vertex
-  // Content: vector of dst vertices
-  std::map<node_id_t, std::vector<node_id_t>> list;
+  std::map<node_id_t, std::map<node_id_t, node_id_t>> list;
+  std::mutex* src_mutexes;
   size_t num_updates;
 };
 
@@ -100,7 +99,7 @@ public:
     num_host_threads = num_threads;
 
     num_device_threads = 1024;
-    num_device_blocks = k * 3; // Change this value based on dataset <-- Come up with formula to compute this automatically
+    num_device_blocks = k; // Change this value based on dataset <-- Come up with formula to compute this automatically
 
     num_graphs = _num_graphs;
     num_sketch_graphs = _num_sketch_graphs;
@@ -127,6 +126,10 @@ public:
     for (int i = 0; i < num_adj_graphs; i++) {
       AdjList adjlist;
       adjlist.num_updates = 0;
+      adjlist.src_mutexes = new std::mutex[num_nodes];
+      for (node_id_t j = 0; j < num_nodes; j++) {
+        adjlist.list[j] = std::map<node_id_t, node_id_t>();
+      }
       adjlists.push_back(adjlist);   
     }
 

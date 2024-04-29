@@ -175,6 +175,10 @@ if (BUILD_EXE)
     tools/min_cut.cu)
   target_link_libraries(min_cut PRIVATE GraphZeppelin CUDALibrary)
 
+  add_executable(adjlist_test
+    tools/adjlist_test.cpp)
+  target_link_libraries(adjlist_test PRIVATE GraphZeppelin CUDALibrary)
+
   add_executable(generate_stream
     tools/stream_generators/non_trivial_stream_generator.cpp
   )
