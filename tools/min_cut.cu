@@ -120,8 +120,9 @@ int main(int argc, char **argv) {
   // Calculate number of minimum adj. list subgraph
   size_t num_edges_complete = (size_t(num_nodes) * (size_t(num_nodes) - 1)) / 2;
   int num_adj_graphs = 0;
-  int num_fixed_adj_graphs = 0;
-  int num_fixed_sketch_graphs = 0;
+  int num_sketch_graphs = 0;
+  int min_adj_graphs = 0;
+  int max_sketch_graphs = 0;
 
   for (int i = 0; i < num_graphs; i++) {
     // Calculate estimated memory for current subgraph
@@ -129,54 +130,26 @@ int main(int argc, char **argv) {
     double adjlist_bytes = adjlist_edge_bytes * num_est_edges;
 
     if (adjlist_bytes < sketch_bytes) {
-      num_fixed_adj_graphs++;
+      min_adj_graphs++;
     }
     else {
-      num_fixed_sketch_graphs++;
+      max_sketch_graphs++;
     }
   }
 
-  // Calculate number of sketch graphs;
-  int num_sketch_graphs = 0;
-
-  for (int i = 0; i < num_graphs; i++) {
-    // Calculate estimated memory for current subgraph
-    size_t num_est_edges = num_updates / (1 << i);
-    double adjlist_bytes = adjlist_edge_bytes * num_est_edges;
-
-    if (i == 0) {
-      std::cout << "Total bytes of adj data structure of the biggest subgraph: " << adjlist_bytes / 1000000000 << "GB\n";
-    }
-    
-  
-    if (adjlist_bytes > sketch_bytes) {
-      num_sketch_graphs++;
-    }
-    else {
-      num_adj_graphs++;
-    }
-  }
-
-  // Check if numbers of different types of subgraphs are valid
-  if (num_adj_graphs + num_sketch_graphs != num_graphs) {
-    std::cout << "ERROR: Invalid number of num_adj_graphs and num_sketch_graphs! " << num_adj_graphs << " + " << num_sketch_graphs << " != " << num_graphs << std::endl;
-    exit(EXIT_FAILURE);
-  }
-  if (num_fixed_adj_graphs > num_adj_graphs) {
-    std::cout << "ERROR: Invalid number of num_fixed_adj_graphs! " << num_fixed_adj_graphs << " > " << num_adj_graphs << std::endl;
-    exit(EXIT_FAILURE);
-  }
+  // # of adj. list graphs in the beginning
+  num_adj_graphs = num_graphs;
 
   // Total number of estimated edges of minimum number of adj. list graphs
-  size_t num_est_edges_adj_graphs = (2 * num_edges_complete) / (1 << (num_fixed_sketch_graphs));
+  size_t num_est_edges_adj_graphs = (2 * num_edges_complete) / (1 << (max_sketch_graphs));
   double total_adjlist_bytes = adjlist_edge_bytes * num_est_edges_adj_graphs;
-  double total_sketch_bytes = sketch_bytes * num_fixed_sketch_graphs;
+  double total_sketch_bytes = sketch_bytes * max_sketch_graphs;
 
   std::cout << "Number of adj. list graphs: " << num_adj_graphs << "\n";
   std::cout << "Number of sketch graphs: " << num_sketch_graphs << "\n";
   std::cout << "  If complete graph with current num_nodes..." << "\n";
-  std::cout << "    Minimum number of adj. list graphs: " << num_fixed_adj_graphs << "\n";
-  std::cout << "    Maximum number of sketch graphs: " << num_fixed_sketch_graphs << "\n";
+  std::cout << "    Minimum number of adj. list graphs: " << min_adj_graphs << "\n";
+  std::cout << "    Maximum number of sketch graphs: " << max_sketch_graphs << "\n";
   std::cout << "    Total minimum memory required for minimum number of adj. list graphs: " << total_adjlist_bytes / 1000000000 << "GB\n";
   std::cout << "    Total minimum memory required for maximum number of sketch graphs: " << total_sketch_bytes / 1000000000 << "GB\n";
   std::cout << "    Total minimum memory required for current num_nodes: " << (total_adjlist_bytes + total_sketch_bytes) / 1000000000 << "GB\n";
@@ -184,7 +157,7 @@ int main(int argc, char **argv) {
   // Reconfigure sketches_factor based on reduced_k
   mc_config.sketches_factor(reduced_k);
 
-  MCGPUSketchAlg mc_gpu_alg{num_nodes, num_updates, num_threads, get_seed(), sketchParams, num_graphs, num_sketch_graphs, num_adj_graphs, num_fixed_adj_graphs, reduced_k, mc_config};
+  MCGPUSketchAlg mc_gpu_alg{num_nodes, num_updates, num_threads, get_seed(), sketchParams, num_graphs, min_adj_graphs, max_sketch_graphs, reduced_k, sketch_bytes, adjlist_edge_bytes, mc_config};
   GraphSketchDriver<MCGPUSketchAlg> driver{&mc_gpu_alg, &stream, driver_config, reader_threads};
 
   auto ins_start = std::chrono::steady_clock::now();
@@ -202,12 +175,6 @@ int main(int argc, char **argv) {
   shutdown = true;
   querier.join();
 
-  // Merge worker_adjlist into one adj. list
-  auto merge_adjlist_start = std::chrono::steady_clock::now();
-  std::cout << "Merging Adj. lists...\n";
-  mc_gpu_alg.merge_adjlist();
-  auto merge_adjlist_end = std::chrono::steady_clock::now();
-
   // Display number of inserted updates to every subgraphs
   mc_gpu_alg.print_subgraph_edges();
 
@@ -217,6 +184,12 @@ int main(int argc, char **argv) {
   std::chrono::duration<double> cert_write_time = std::chrono::nanoseconds::zero();
   std::chrono::duration<double> viecut_time = std::chrono::nanoseconds::zero();
 
+  std::cout << "After Insertion:\n";
+  num_adj_graphs = mc_gpu_alg.get_num_adj_graphs();
+  num_sketch_graphs = mc_gpu_alg.get_num_sketch_graphs();
+  std::cout << "Number of adj. list graphs: " << num_adj_graphs << "\n";
+  std::cout << "Number of sketch graphs: " << num_sketch_graphs << "\n";
+
   // Get spanning forests then create a METIS format file
   std::cout << "Generating Certificates...\n";
   int num_sampled_zero_graphs = 0;
@@ -225,14 +198,13 @@ int main(int argc, char **argv) {
     std::set<Edge> edges;
     
     if (graph_id >= num_sketch_graphs) { // Get Spanning forests from adj list
-      int adjlist_id = graph_id - num_sketch_graphs;
-      std::cout << "Adj.list Graph #" << adjlist_id << "\n";
+      std::cout << "S" << graph_id << " (Adj. list):\n";
       auto sampling_forest_start = std::chrono::steady_clock::now();
-      spanningForests = mc_gpu_alg.get_adjlist_spanning_forests(adjlist_id, k);
+      spanningForests = mc_gpu_alg.get_adjlist_spanning_forests(graph_id, k);
       sampling_forests_time += std::chrono::steady_clock::now() - sampling_forest_start;
     } 
     else { // Get Spanning forests from sketch subgraph
-      std::cout << "Sketch Graph #" << graph_id << ":\n";
+      std::cout << "S" << graph_id << " (Sketch):\n";
       mc_gpu_alg.set_trim_enbled(true, graph_id); // When trimming, only apply sketch updates to current subgraph
       for (int k_id = 0; k_id < k; k_id++) {
         std::cout << "  Getting spanning forest " << k_id << "\n";
@@ -363,10 +335,10 @@ int main(int argc, char **argv) {
       if (start_index != std::string::npos || end_index != std::string::npos ) {
         int cut = stoi(line.substr((start_index + 4), ((end_index) - (start_index + 4)))); 
         if (graph_id >= num_sketch_graphs) {
-          std::cout << "  Adj.list Graph #" << graph_id - num_sketch_graphs << ": " << cut << "\n";
+          std::cout << "  S" << graph_id << " (Adj. list): " << cut << "\n";
         }
         else {
-          std::cout << "  Sketch Graph #" << graph_id << ": " << cut << "\n";
+          std::cout << "  S" << graph_id << " (Sketch): " << cut << "\n";
         }
         mincut_values.push_back(cut);
       }
@@ -392,13 +364,11 @@ int main(int argc, char **argv) {
 
   std::chrono::duration<double> insert_time = flush_end - ins_start;
   std::chrono::duration<double> flush_time = flush_end - flush_start;
-  std::chrono::duration<double> merge_adjlist_time = merge_adjlist_end - merge_adjlist_start;
 
   double num_seconds = insert_time.count();
   std::cout << "Insertion time(sec): " << num_seconds << std::endl;
   std::cout << "  Updates per second: " << stream.edges() / num_seconds << std::endl;
   std::cout << "  Flush Gutters(sec): " << flush_time.count() << std::endl;
-  std::cout << "  Adj. list Merging time(sec): " << merge_adjlist_time.count() << std::endl;
   std::cout << "K-Connectivity: (Sketch Subgraphs)" << std::endl;
   std::cout << "  Sampling Forests Time(sec): " << sampling_forests_time.count() << std::endl;
   std::cout << "  Trimming Forests Reading Time(sec): " << trim_reading_time.count() << std::endl;

@@ -126,7 +126,7 @@ __global__ void sketchUpdate_kernel(node_id_t src, node_id_t num_nodes, vec_t* e
   }
 }
 
-__global__ void k_sketchUpdate_kernel(node_id_t src, node_id_t num_nodes, int num_device_blocks ,vec_t* edgeUpdates, vec_t update_start_id, size_t update_size,
+__global__ void k_sketchUpdate_kernel(node_id_t num_nodes, int num_device_blocks ,vec_t* edgeUpdates, vec_t update_start_id, size_t update_size,
    size_t d_bucket_id, vec_t* d_bucket_a, vec_hash_t* d_bucket_c, int* num_tb_columns, size_t bkt_per_col, long sketchSeed) {
 
   size_t num_columns = num_tb_columns[blockIdx.x];
@@ -209,14 +209,9 @@ void CudaKernel::sketchUpdate(int num_threads, int num_blocks, node_id_t src, cu
 }
 
 // Function that calls sketch update kernel code. (K-Connectivity Version)
-void CudaKernel::k_sketchUpdate(int num_threads, int num_blocks, node_id_t src, cudaStream_t stream, vec_t update_start_id, size_t update_size, vec_t d_bucket_id, CudaUpdateParams* cudaUpdateParams, long sketchSeed) {
-  // Unwarp variables from cudaUpdateParams
-  vec_t *edgeUpdates = cudaUpdateParams[0].d_edgeUpdates;
-
+void CudaKernel::k_sketchUpdate(int num_threads, int num_blocks, cudaStream_t stream, vec_t *edgeUpdates, vec_t update_start_id, size_t update_size, vec_t d_bucket_id, CudaUpdateParams* cudaUpdateParams, vec_t* d_bucket_a, vec_hash_t* d_bucket_c, long sketchSeed) {
   node_id_t num_nodes = cudaUpdateParams[0].num_nodes;
   
-  int k = cudaUpdateParams[0].k;
-
   size_t bkt_per_col = cudaUpdateParams[0].bkt_per_col;
 
   // Calculate the num_buckets assigned to the last thread block
@@ -225,12 +220,13 @@ void CudaKernel::k_sketchUpdate(int num_threads, int num_blocks, node_id_t src, 
   // Set maxBytes for GPU kernel's shared memory
   size_t maxBytes = (num_last_tb_buckets * sizeof(vec_t_cu)) + (num_last_tb_buckets * sizeof(vec_hash_t));
 
-  if (num_nodes == 0 || bkt_per_col == 0) {
+  if (num_nodes == 0 || bkt_per_col == 0 || num_last_tb_buckets == 0) {
     std::cout << "num_nodes: " << num_nodes << "\n";
     std::cout << "bkt_per_col: " << bkt_per_col << "\n";
+    std::cout << "num_last_tb_buckets: " << num_last_tb_buckets << "\n";
   }
   
-  k_sketchUpdate_kernel<<<num_blocks, num_threads, maxBytes, stream>>>(src, num_nodes, num_blocks, edgeUpdates, update_start_id, update_size, d_bucket_id, cudaUpdateParams[0].d_bucket_a, cudaUpdateParams[0].d_bucket_c, cudaUpdateParams[0].num_tb_columns, bkt_per_col, sketchSeed);
+  k_sketchUpdate_kernel<<<num_blocks, num_threads, maxBytes, stream>>>(num_nodes, num_blocks, edgeUpdates, update_start_id, update_size, d_bucket_id, d_bucket_a, d_bucket_c, cudaUpdateParams[0].num_tb_columns, bkt_per_col, sketchSeed);
 }
 
 void CudaKernel::updateSharedMemory(size_t maxBytes) {

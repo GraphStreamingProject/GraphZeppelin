@@ -33,6 +33,9 @@ class CudaUpdateParams {
     vec_t *h_bucket_a, *d_bucket_a;
     vec_hash_t *h_bucket_c, *d_bucket_c;
 
+    vec_t *convert_h_bucket_a, *convert_d_bucket_a;
+    vec_hash_t *convert_h_bucket_c, *convert_d_bucket_c;
+
     // Number of columns that each thread block will handle
     int *num_tb_columns;
 
@@ -69,7 +72,11 @@ class CudaUpdateParams {
       gpuErrchk(cudaMallocHost(&h_bucket_c, stream_multiplier * num_host_threads * num_buckets * sizeof(vec_hash_t)));
       gpuErrchk(cudaMalloc(&d_bucket_c, stream_multiplier * num_host_threads * num_buckets * sizeof(vec_hash_t)));
 
-      
+      gpuErrchk(cudaMallocHost(&convert_h_bucket_a, num_buckets * sizeof(vec_t)));
+      gpuErrchk(cudaMalloc(&convert_d_bucket_a, num_buckets * sizeof(vec_t)));
+      gpuErrchk(cudaMallocHost(&convert_h_bucket_c, num_buckets * sizeof(vec_hash_t)));
+      gpuErrchk(cudaMalloc(&convert_d_bucket_c, num_buckets * sizeof(vec_hash_t)));
+
       gpuErrchk(cudaMallocManaged(&num_tb_columns, num_device_blocks * sizeof(int)));
 
       for (int i = 0; i < num_device_blocks ; i++) {
@@ -96,6 +103,11 @@ class CudaUpdateParams {
         h_bucket_c[i] = 0;
       }
 
+      for (size_t i = 0; i < num_buckets; i++) {
+        convert_h_bucket_a[i] = 0;
+        convert_h_bucket_c[i] = 0;
+      }
+
     };
 };
 
@@ -107,7 +119,7 @@ class CudaKernel {
     *
     */
     void sketchUpdate(int num_threads, int num_blocks, node_id_t src, cudaStream_t stream, vec_t update_start_id, size_t update_size, vec_t d_bucket_id, CudaUpdateParams* cudaUpdateParams, long sketchSeed);
-    void k_sketchUpdate(int num_threads, int num_blocks, node_id_t src, cudaStream_t stream, vec_t update_start_id, size_t update_size, vec_t d_bucket_id, CudaUpdateParams* cudaUpdateParams, long sketchSeed);
+    void k_sketchUpdate(int num_threads, int num_blocks, cudaStream_t stream, vec_t *edgeUpdates, vec_t update_start_id, size_t update_size, vec_t d_bucket_id, CudaUpdateParams* cudaUpdateParams, vec_t* d_bucket_a, vec_hash_t* d_bucket_c, long sketchSeed);
 
     void updateSharedMemory(size_t maxBytes);
 };

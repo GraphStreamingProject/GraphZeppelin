@@ -3,6 +3,7 @@
 #include <map>
 #include "mc_sketch_alg.h"
 #include "cuda_kernel.cuh"
+#include "mc_subgraph.h"
 
 struct CudaStream {
   cudaStream_t stream;
@@ -18,20 +19,8 @@ struct SketchParams {
   size_t bkt_per_col;  
 };
 
-struct Adjlist_Edge {
-  std::pair<int, int> edge;
-  int graph_id;
-};
-
-struct AdjList {
-  std::map<node_id_t, std::map<node_id_t, node_id_t>> list;
-  std::mutex* src_mutexes;
-  size_t num_updates;
-};
-
 class MCGPUSketchAlg : public MCSketchAlg{
 private:
-  CudaUpdateParams** cudaUpdateParams;
   size_t sketchSeed;
 
   Bucket* delta_buckets;
@@ -44,19 +33,17 @@ private:
   int num_graphs;
   
   // Number of subgraphs in sketch representation
+  int max_sketch_graphs; // Max. number of subgraphs that can be in sketch graphs
   int num_sketch_graphs;
-  std::vector<size_t> sketch_num_edges;
-  std::vector<std::mutex> sketch_mutexes;
 
   // Number of adj. list subgraphs
+  int min_adj_graphs; // Number of subgraphs that will always be in adj. list
   int num_adj_graphs;
-  int num_fixed_adj_graphs; // Number of subgraphs that will always be in adj. list
+  
+  double sketch_bytes; // Bytes of sketch graph
+  double adjlist_edge_bytes; // Bytes of one edge in adj. list
 
-  // Threshold for switching a subgraph into sketch representation
-  int num_req_edges;
-
-  std::vector<std::vector<Adjlist_Edge>> worker_adjlist;
-  std::vector<AdjList> adjlists;
+  MCSubgraph** subgraphs;
 
   CudaKernel cudaKernel;
 
@@ -87,7 +74,7 @@ private:
   int trim_graph_id;
 
 public:
-  MCGPUSketchAlg(node_id_t num_vertices, size_t num_updates, int num_threads, size_t seed, SketchParams sketchParams, int _num_graphs, int _num_sketch_graphs, int _num_adj_graphs, int _num_fixed_adj_graphs, int _k, CCAlgConfiguration config = CCAlgConfiguration()) : MCSketchAlg(num_vertices, seed, _num_sketch_graphs, config){ 
+  MCGPUSketchAlg(node_id_t num_vertices, size_t num_updates, int num_threads, size_t seed, SketchParams sketchParams, int _num_graphs, int _min_adj_graphs, int _max_sketch_graphs, int _k, double _sketch_bytes, double _adjlist_edge_bytes, CCAlgConfiguration config = CCAlgConfiguration()) : MCSketchAlg(num_vertices, seed, _max_sketch_graphs, config){ 
 
     // Start timer for initializing
     auto init_start = std::chrono::steady_clock::now();
@@ -102,9 +89,15 @@ public:
     num_device_blocks = k; // Change this value based on dataset <-- Come up with formula to compute this automatically
 
     num_graphs = _num_graphs;
-    num_sketch_graphs = _num_sketch_graphs;
-    num_adj_graphs = _num_adj_graphs;
-    num_fixed_adj_graphs = _num_fixed_adj_graphs;
+
+    max_sketch_graphs = _max_sketch_graphs;
+    num_sketch_graphs = 0;
+
+    min_adj_graphs = _min_adj_graphs;
+    num_adj_graphs = num_graphs;
+
+    sketch_bytes = _sketch_bytes;
+    adjlist_edge_bytes = _adjlist_edge_bytes;
 
     // Extract sketchParams variables
     num_samples = sketchParams.num_samples;
@@ -119,35 +112,26 @@ public:
 
     // Initialize delta_buckets
     delta_buckets = new Bucket[num_buckets * num_host_threads];
-
-    worker_adjlist.reserve(num_host_threads);
     
-    // Initialize adj. list subgraphs 
-    for (int i = 0; i < num_adj_graphs; i++) {
-      AdjList adjlist;
-      adjlist.num_updates = 0;
-      adjlist.src_mutexes = new std::mutex[num_nodes];
-      for (node_id_t j = 0; j < num_nodes; j++) {
-        adjlist.list[j] = std::map<node_id_t, node_id_t>();
-      }
-      adjlists.push_back(adjlist);   
-    }
+    // Initialize all subgraphs
+    subgraphs = new MCSubgraph* [num_graphs];
+    for (int graph_id = 0; graph_id < num_graphs; graph_id++) {
+      if (graph_id < max_sketch_graphs) { // subgraphs that can be turned into adj. list
+        CudaUpdateParams* cudaUpdateParams;
+        gpuErrchk(cudaMallocManaged(&cudaUpdateParams, sizeof(CudaUpdateParams)));
+        cudaUpdateParams = new CudaUpdateParams(num_nodes, num_updates, num_samples, num_buckets, num_columns, bkt_per_col, num_threads, batch_size, stream_multiplier, num_device_blocks, k);
 
-    for (int graph_id = 0; graph_id < num_sketch_graphs; graph_id++) {
-      sketch_num_edges.push_back(0);
+        subgraphs[graph_id] = new MCSubgraph(graph_id, num_host_threads * stream_multiplier, cudaUpdateParams, ADJLIST, num_nodes, sketch_bytes, adjlist_edge_bytes);
+      }
+      else { // subgraphs that are always going to be in adj. list
+        subgraphs[graph_id] = new MCSubgraph(graph_id, num_host_threads * stream_multiplier, NULL, FIXED_ADJLIST, num_nodes, sketch_bytes, adjlist_edge_bytes);
+      }
     }
-    sketch_mutexes = std::vector<std::mutex>(num_sketch_graphs);
 
     // Create a bigger batch size to apply edge updates when subgraph is turning into sketch representation
     batch_size = get_desired_updates_per_batch();
-    
-    // Create cudaUpdateParams
-    gpuErrchk(cudaMallocManaged(&cudaUpdateParams, num_sketch_graphs * sizeof(CudaUpdateParams)));
-    for (int i = 0; i < num_sketch_graphs; i++) {
-      cudaUpdateParams[i] = new CudaUpdateParams(num_vertices, num_updates, num_samples, num_buckets, num_columns, bkt_per_col, num_threads, batch_size, stream_multiplier, num_device_blocks, k);
-    }
-    
-    if (num_sketch_graphs > 0) {
+
+    if (max_sketch_graphs > 0) { // If max_sketch_graphs is 0, there will never be any sketch graphs
       int device_id = cudaGetDevice(&device_id);
       int device_count = 0;
       cudaGetDeviceCount(&device_count);
@@ -155,7 +139,7 @@ public:
       std::cout << "CUDA Device ID: " << device_id << "\n";
 
       // Calculate the num_buckets assigned to the last thread block
-      size_t num_last_tb_buckets = (cudaUpdateParams[0]->num_tb_columns[num_device_blocks-1] * bkt_per_col) + 1;
+      size_t num_last_tb_buckets = (subgraphs[0]->get_cudaUpdateParams()->num_tb_columns[num_device_blocks-1] * bkt_per_col) + 1;
       
       // Set maxBytes for GPU kernel's shared memory
       size_t maxBytes = (num_last_tb_buckets * sizeof(vec_t_cu)) + (num_last_tb_buckets * sizeof(vec_hash_t));
@@ -170,7 +154,6 @@ public:
       cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
       streams.push_back({stream, 1, -1, -1});
     }
-
 
     trim_enabled = false;
     trim_graph_id = -1;
@@ -194,25 +177,25 @@ public:
 
   void print_subgraph_edges() {
     std::cout << "Number of inserted updates for each subgraph:\n";
-    std::cout << "  Sketch Graphs:\n";
-    for (int graph_id = 0; graph_id < num_sketch_graphs; graph_id++) {
-      std::cout << "  S" << graph_id << ": " << sketch_num_edges[graph_id] << "\n";
-    }
-    std::cout << "  Adj. list Graphs:\n";
-    for (int graph_id = 0; graph_id < num_adj_graphs; graph_id++) {
-      std::cout << "  S" << graph_id << ": " << adjlists[graph_id].num_updates << "\n";
+    for (int graph_id = 0; graph_id < num_graphs; graph_id++) {
+      if (subgraphs[graph_id]->get_type() == SKETCH) {
+        std::cout << "  S" << graph_id << " (Sketch): " << subgraphs[graph_id]->get_num_updates() << "\n";
+      }
+      else {
+        std::cout << "  S" << graph_id << " (Adj. list): " << subgraphs[graph_id]->get_num_updates() << "\n";
+      }
     }
   }
 
-  void merge_adjlist();
-
   std::vector<Edge> get_adjlist_spanning_forests(int graph_id, int k);
+  int get_num_sketch_graphs() { return num_sketch_graphs; }
+  int get_num_adj_graphs() { return num_adj_graphs; }
 
   void set_trim_enbled(bool enabled, int graph_id) {
     trim_enabled = enabled;
     trim_graph_id = graph_id;
 
-    if (trim_graph_id < 0 || trim_graph_id > num_sketch_graphs) {
+    if (trim_graph_id < 0 || trim_graph_id > num_graphs) {
       std::cout << "INVALID trim_graph_id: " << trim_graph_id << "\n";
     }
   }

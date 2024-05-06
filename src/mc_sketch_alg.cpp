@@ -8,23 +8,18 @@
 #include <omp.h>
 #include <unordered_map>
 
-MCSketchAlg::MCSketchAlg(node_id_t num_vertices, size_t seed, int _num_sketch_graphs, CCAlgConfiguration config)
+MCSketchAlg::MCSketchAlg(node_id_t num_vertices, size_t seed, int _max_sketch_graphs, CCAlgConfiguration config)
     : num_vertices(num_vertices), seed(seed), dsu(num_vertices), config(config) {
   representatives = new std::set<node_id_t>();
-  num_sketch_graphs = _num_sketch_graphs;
+  max_sketch_graphs = _max_sketch_graphs;
+  num_sketch_graphs = 0; // Initially 0 sketch graph
   vec_t sketch_vec_len = Sketch::calc_vector_length(num_vertices);
   size_t sketch_num_samples = Sketch::calc_cc_samples(num_vertices, config.get_sketches_factor());
-  if (num_sketch_graphs == 0) { // If no sketch graph, make one sample sketch for the driver
-    sketches = new Sketch *[1];
-    sketches[0] = new Sketch(sketch_vec_len, seed, sketch_num_samples);
-  }
-  else {
-    sketches = new Sketch *[num_vertices * num_sketch_graphs];
 
-    for (node_id_t i = 0; i < num_vertices * num_sketch_graphs; ++i) {
-      sketches[i] = new Sketch(sketch_vec_len, seed, sketch_num_samples);
-    }    
-  }
+  sketches = new Sketch *[num_vertices * max_sketch_graphs];
+
+  // Create a sample sketch for the driver
+  sketches[0] = new Sketch(sketch_vec_len, seed, sketch_num_samples);
 
   for (node_id_t i = 0; i < num_vertices; ++i) {
     representatives->insert(i);
@@ -86,6 +81,29 @@ MCSketchAlg::~MCSketchAlg() {
   delete representatives;
   delete[] spanning_forest;
   delete[] spanning_forest_mtx;
+}
+
+void MCSketchAlg::create_sketch_graph(int graph_id) {
+  // Validate graph_id
+  if (graph_id >= max_sketch_graphs || graph_id != num_sketch_graphs) {
+    std::cout << "Invalid graph_id in create_sketch_graph()! " << graph_id << "\n";
+    return;
+  }
+
+  if (graph_id == 0) { // Delete the sample sketch
+    delete sketches[0];
+  }
+
+  std::cout << "Creating sketches for graph #" << graph_id << "\n";
+
+  vec_t sketch_vec_len = Sketch::calc_vector_length(num_vertices);
+  size_t sketch_num_samples = Sketch::calc_cc_samples(num_vertices, config.get_sketches_factor());
+
+  for (node_id_t i = 0; i < num_vertices; ++i) {
+    sketches[(graph_id * num_vertices) + i] = new Sketch(sketch_vec_len, seed, sketch_num_samples);
+  }  
+
+  num_sketch_graphs++;
 }
 
 void MCSketchAlg::pre_insert(GraphUpdate upd, int /* thr_id */) {
