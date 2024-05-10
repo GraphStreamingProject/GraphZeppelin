@@ -10,12 +10,26 @@ MCSubgraph::MCSubgraph(int graph_id, int num_streams, CudaUpdateParams* cudaUpda
   num_sketch_updates = 0;
   num_adj_edges = 0;
 
+  fixed_adj_mutex = new std::mutex[num_nodes];
+
   for (node_id_t i = 0; i < num_nodes; i++) {
     adjlist[i] = std::map<node_id_t, node_id_t>();
   }
 }
 
 void MCSubgraph::insert_adj_edge(node_id_t src, node_id_t dst) {
+  if (adjlist[src].find(dst) == adjlist[src].end()) {
+    adjlist[src].insert({dst, 1});
+    num_adj_edges++;
+  }
+  else {
+    adjlist[src].erase(dst); // Current edge already exist, so delete
+    num_adj_edges--;
+  }
+}
+
+void MCSubgraph::insert_fixed_adj_edge(node_id_t src, node_id_t dst) {
+  std::lock_guard<std::mutex> lk(fixed_adj_mutex[src]);
   if (adjlist[src].find(dst) == adjlist[src].end()) {
     adjlist[src].insert({dst, 1});
     num_adj_edges++;
