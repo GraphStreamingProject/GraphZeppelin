@@ -31,7 +31,7 @@ void MCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
         // CUDA Stream is available, check if it has any delta sketch
         if(streams[stream_id].delta_applied == 0) {
 
-          for (int graph_id = 0; graph_id < streams[stream_id].num_graphs; graph_id++) {   
+          for (int graph_id = 0; graph_id < streams[stream_id].num_sketch_graphs; graph_id++) {   
   
             if (subgraphs[graph_id]->get_type() != SKETCH) {
               break;
@@ -54,7 +54,7 @@ void MCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
           }
           streams[stream_id].delta_applied = 1;
           streams[stream_id].src_vertex = -1;
-          streams[stream_id].num_graphs = -1;
+          streams[stream_id].num_sketch_graphs = -1;
         }
         else {
           if (streams[stream_id].src_vertex != -1) {
@@ -74,6 +74,7 @@ void MCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
     sketch_update_size.assign(max_sketch_graphs, 0);
     int max_depth = 0;
     int convert_sketch = -1;
+    streams[stream_id].num_sketch_graphs = 0;
 
     for (vec_t i = 0; i < dst_vertices.size(); i++) {
       // Determine the depth of current edge
@@ -82,37 +83,34 @@ void MCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
       max_depth = std::max(depth, max_depth);
 
       for (int graph_id = 0; graph_id <= depth; graph_id++) {
-        if (subgraphs[graph_id]->get_type() == FIXED_ADJLIST) { // Graph Type 3: Fixed Adj. List
-          subgraphs[graph_id]->insert_fixed_adj_edge(src_vertex, dst_vertices[i]);
+        if (graph_id >= max_sketch_graphs) { // Graph Type 3: Fixed Adj. List
+          subgraphs[graph_id]->insert_adj_edge(src_vertex, dst_vertices[i]);
         }
         else {
-          std::lock_guard<std::mutex> lk(subgraphs[graph_id]->mutex);
           if (subgraphs[graph_id]->get_type() == SKETCH) { // Graph Type 1: Sketch graph
             subgraphs[graph_id]->get_cudaUpdateParams()->h_edgeUpdates[start_index + sketch_update_size[graph_id]] = edge_id;
             sketch_update_size[graph_id]++;
             subgraphs[graph_id]->increment_num_sketch_updates(1);
           }
           else { // Graph Type 2: Adj. list
+
             subgraphs[graph_id]->insert_adj_edge(src_vertex, dst_vertices[i]);
 
             // Check the size of adj. list after insertion
             double adjlist_bytes = subgraphs[graph_id]->get_num_updates() * adjlist_edge_bytes;
             if (adjlist_bytes > sketch_bytes) { // With size of current adj. list, it is more space-efficient to convert into sketch graph
-              
-              // Update num_sketch_updates
-              subgraphs[graph_id]->increment_num_sketch_updates(subgraphs[graph_id]->get_num_updates());
-              
-              // Set subgraph into SKETCH type
-              subgraphs[graph_id]->set_type(SKETCH);
 
-              // Init sketches 
-              create_sketch_graph(graph_id);
+              if(subgraphs[graph_id]->try_acq_conversion()) {
+                // Init sketches 
+                create_sketch_graph(graph_id);
 
-              //convert_sketch = graph_id;
-              num_adj_graphs--;
-              num_sketch_graphs++;
+                //convert_sketch = graph_id;
+                num_adj_graphs--;
+                num_sketch_graphs++;
 
-              convert_sketch = graph_id;
+                convert_sketch = graph_id;
+                subgraphs[graph_id]->set_type(SKETCH);
+              }
             }
           }
         }
@@ -120,16 +118,11 @@ void MCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
       } 
     }
 
-    streams[stream_id].num_graphs = max_depth + 1; 
     streams[stream_id].src_vertex = src_vertex;
     streams[stream_id].delta_applied = 0;
 
     // Go every subgraph and apply updates
-    for (int graph_id = 0; graph_id < streams[stream_id].num_graphs; graph_id++) {
-      if (subgraphs[graph_id]->get_type() != SKETCH) {
-        break;
-      }
-
+    for (int graph_id = 0; graph_id < max_sketch_graphs; graph_id++) {
       if (graph_id == convert_sketch) {
         convert_sketch = -1; 
 
@@ -172,6 +165,9 @@ void MCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
             current_index++;
           }
 
+          // Update num_sketch_updates
+          subgraphs[graph_id]->increment_num_sketch_updates(adjlist[src].size());
+
           // Start sketch updates
           CudaUpdateParams* cudaUpdateParams = subgraphs[graph_id]->get_cudaUpdateParams();
           cudaMemcpyAsync(&convert_d_edgeUpdates[0], &convert_h_edgeUpdates[0], adjlist[src].size() * sizeof(vec_t), cudaMemcpyHostToDevice, streams[stream_id].stream);
@@ -199,6 +195,12 @@ void MCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
         std::chrono::duration<double> conversion_time = std::chrono::steady_clock::now() - conversion_start;
         std::cout << "Finished Converting graph #" << graph_id << " into sketch. Elpased time: " << conversion_time.count() << "\n";
       }
+      
+      if (sketch_update_size[graph_id] == 0) { // If empty buffer, skip
+        continue;
+      }
+
+      streams[stream_id].num_sketch_graphs++;
 
       // Regular sketch updates
       CudaUpdateParams* cudaUpdateParams = subgraphs[graph_id]->get_cudaUpdateParams();
@@ -214,7 +216,7 @@ void MCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
 void MCGPUSketchAlg::apply_flush_updates() {
   for (int stream_id = 0; stream_id < num_host_threads * stream_multiplier; stream_id++) {
     if(streams[stream_id].delta_applied == 0) {
-      for (int graph_id = 0; graph_id < streams[stream_id].num_graphs; graph_id++) {
+      for (int graph_id = 0; graph_id < streams[stream_id].num_sketch_graphs; graph_id++) {
 
         if (subgraphs[graph_id]->get_type() != SKETCH) {
           break;
@@ -236,7 +238,7 @@ void MCGPUSketchAlg::apply_flush_updates() {
       }
       streams[stream_id].delta_applied = 1;
       streams[stream_id].src_vertex = -1;
-      streams[stream_id].num_graphs = -1;
+      streams[stream_id].num_sketch_graphs = -1;
     }
   }
 }

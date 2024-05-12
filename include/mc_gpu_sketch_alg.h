@@ -9,7 +9,7 @@ struct CudaStream {
   cudaStream_t stream;
   int delta_applied;
   int src_vertex;
-  int num_graphs;
+  int num_sketch_graphs;
 };
 
 struct SketchParams {
@@ -34,11 +34,11 @@ private:
   
   // Number of subgraphs in sketch representation
   int max_sketch_graphs; // Max. number of subgraphs that can be in sketch graphs
-  int num_sketch_graphs;
+  std::atomic<int> num_sketch_graphs;
 
   // Number of adj. list subgraphs
   int min_adj_graphs; // Number of subgraphs that will always be in adj. list
-  int num_adj_graphs;
+  std::atomic<int> num_adj_graphs;
   
   double sketch_bytes; // Bytes of sketch graph
   double adjlist_edge_bytes; // Bytes of one edge in adj. list

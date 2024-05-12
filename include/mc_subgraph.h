@@ -16,13 +16,15 @@ class MCSubgraph {
 private:
   int graph_id;
   CudaUpdateParams* cudaUpdateParams;
-  GraphType type;
+  std::atomic<GraphType> type;
   node_id_t num_nodes;
 
   int num_streams; // Number of CUDA Streams
 
-  size_t num_sketch_updates;
-  size_t num_adj_edges;
+  std::atomic<int> conversion_counter;
+
+  std::atomic<size_t> num_sketch_updates;
+  std::atomic<size_t> num_adj_edges;
 
   std::map<node_id_t, std::map<node_id_t, node_id_t>> adjlist;
 
@@ -30,14 +32,13 @@ private:
   double adjlist_edge_bytes; // Bytes of one edge in adj. list
 
 public:
-  std::mutex mutex;
-  std::mutex* fixed_adj_mutex;
+  std::mutex* adj_mutex;
 
   // Constructor
   MCSubgraph(int graph_id, int num_streams, CudaUpdateParams* cudaUpdateParams, GraphType type, node_id_t num_nodes, double sketch_bytes, double adjlist_edge_bytes);
 
   void insert_adj_edge(node_id_t src, node_id_t dst);
-  void insert_fixed_adj_edge(node_id_t src, node_id_t dst);
+  //void insert_fixed_adj_edge(node_id_t src, node_id_t dst);
 
   // Sample from Adj. list
   node_id_t sample_dst_node(node_id_t src);
@@ -54,6 +55,12 @@ public:
     }
   }
   std::map<node_id_t, std::map<node_id_t, node_id_t>> get_adjlist() { return adjlist; }
+
+  bool try_acq_conversion() { 
+    int org_val = 0;
+    int new_val = 1;
+    return conversion_counter.compare_exchange_strong(org_val, new_val); 
+  }
 
   // Set methods
   void set_type(GraphType new_type) { type = new_type; }
