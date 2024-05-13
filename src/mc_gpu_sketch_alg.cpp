@@ -1,6 +1,7 @@
 #include "mc_gpu_sketch_alg.h"
 
 #include <iostream>
+#include <thread>
 #include <vector>
 
 void MCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
@@ -73,8 +74,6 @@ void MCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
     std::vector<int> sketch_update_size;
     sketch_update_size.assign(max_sketch_graphs, 0);
     int max_depth = 0;
-    int convert_sketch = -1;
-    streams[stream_id].num_sketch_graphs = 0;
 
     for (vec_t i = 0; i < dst_vertices.size(); i++) {
       // Determine the depth of current edge
@@ -108,7 +107,6 @@ void MCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
                 num_adj_graphs--;
                 num_sketch_graphs++;
 
-                convert_sketch = graph_id;
                 subgraphs[graph_id]->set_type(SKETCH);
               }
             }
@@ -120,82 +118,10 @@ void MCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
 
     streams[stream_id].src_vertex = src_vertex;
     streams[stream_id].delta_applied = 0;
+    streams[stream_id].num_sketch_graphs = 0;
 
     // Go every subgraph and apply updates
     for (int graph_id = 0; graph_id < max_sketch_graphs; graph_id++) {
-      if (graph_id == convert_sketch) {
-        convert_sketch = -1; 
-
-        // Start conversion with sketch updates
-        std::cout << "Converting graph #" << graph_id << " into sketch\n";
-        auto conversion_start = std::chrono::steady_clock::now();
-
-        std::map<node_id_t, std::map<node_id_t, node_id_t>> adjlist = subgraphs[graph_id]->get_adjlist();
-
-        int max_batch_size = 0;
-        for (auto it = adjlist.begin(); it != adjlist.end(); it++) { // Go through adj list and get the max batch size
-          if (it->second.size() > max_batch_size) {
-            max_batch_size = it->second.size();
-          }
-        }
-
-        // Allocate buffer with the max. batch size
-        vec_t *convert_h_edgeUpdates, *convert_d_edgeUpdates;
-
-        gpuErrchk(cudaMallocHost(&convert_h_edgeUpdates, max_batch_size * sizeof(vec_t)));
-        gpuErrchk(cudaMalloc(&convert_d_edgeUpdates, max_batch_size * sizeof(vec_t)));
-
-        for (auto it = adjlist.begin(); it != adjlist.end(); it++) {
-          node_id_t src = it->first;
-
-          if (adjlist.find(src) == adjlist.end()) { // If current source node not found, skip
-            continue;
-          }
-
-          // Reset buffer for edge updates
-          for (int i = 0; i < max_batch_size; i++) {
-            convert_h_edgeUpdates[i] = 0;
-          }
-
-          // Go through all neighbor nodes and fill in buffer
-          int current_index = 0;
-          for (auto dst_it = adjlist[src].begin(); dst_it != adjlist[src].end(); dst_it++) {
-            node_id_t dst = dst_it->first;
-            convert_h_edgeUpdates[current_index] = static_cast<vec_t>(concat_pairing_fn(src, dst));
-            current_index++;
-          }
-
-          // Update num_sketch_updates
-          subgraphs[graph_id]->increment_num_sketch_updates(adjlist[src].size());
-
-          // Start sketch updates
-          CudaUpdateParams* cudaUpdateParams = subgraphs[graph_id]->get_cudaUpdateParams();
-          cudaMemcpyAsync(&convert_d_edgeUpdates[0], &convert_h_edgeUpdates[0], adjlist[src].size() * sizeof(vec_t), cudaMemcpyHostToDevice, streams[stream_id].stream);
-          cudaKernel.k_sketchUpdate(num_device_threads, num_device_blocks, streams[stream_id].stream, convert_d_edgeUpdates, 0, adjlist[src].size(), 0, cudaUpdateParams, cudaUpdateParams->convert_d_bucket_a, cudaUpdateParams->convert_d_bucket_c, sketchSeed);
-          cudaMemcpyAsync(&cudaUpdateParams->convert_h_bucket_a[0], &cudaUpdateParams->convert_d_bucket_a[0], num_buckets * sizeof(vec_t), cudaMemcpyDeviceToHost, streams[stream_id].stream);
-          cudaMemcpyAsync(&cudaUpdateParams->convert_h_bucket_c[0], &cudaUpdateParams->convert_d_bucket_c[0], num_buckets * sizeof(vec_hash_t), cudaMemcpyDeviceToHost, streams[stream_id].stream);
-
-          // Wait until GPU kernel ends and transfer buckets back
-          cudaStreamSynchronize(streams[stream_id].stream);
-
-          // Apply delta sketch
-          size_t bucket_offset = thr_id * num_buckets;
-          for (size_t i = 0; i < num_buckets; i++) {
-            delta_buckets[bucket_offset + i].alpha = cudaUpdateParams->convert_h_bucket_a[i];
-            delta_buckets[bucket_offset + i].gamma = cudaUpdateParams->convert_h_bucket_c[i];
-          }
-
-          // Apply the delta sketch
-          apply_raw_buckets_update((graph_id * num_nodes) + src, &delta_buckets[bucket_offset]);
-
-          // Delete from adj list
-          subgraphs[graph_id]->adjlist_delete_src(src);
-        }
-
-        std::chrono::duration<double> conversion_time = std::chrono::steady_clock::now() - conversion_start;
-        std::cout << "Finished Converting graph #" << graph_id << " into sketch. Elpased time: " << conversion_time.count() << "\n";
-      }
-      
       if (sketch_update_size[graph_id] == 0) { // If empty buffer, skip
         continue;
       }
@@ -212,6 +138,92 @@ void MCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
   }
 
 };
+
+void MCGPUSketchAlg::convert_adj_to_sketch() {
+  if (num_sketch_graphs == 0) {
+    return;
+  }
+
+  std::cout << "Converting adj.list graphs (" << num_sketch_graphs << ") into sketch graphs\n";
+  std::vector<std::chrono::duration<double>> indiv_conversion_time;
+  auto conversion_start = std::chrono::steady_clock::now();
+
+  // Allocate buffer with the max. batch size
+  vec_t *convert_h_edgeUpdates, *convert_d_edgeUpdates;
+
+  gpuErrchk(cudaMallocHost(&convert_h_edgeUpdates, num_host_threads * num_nodes * sizeof(vec_t)));
+  gpuErrchk(cudaMalloc(&convert_d_edgeUpdates, num_host_threads * num_nodes * sizeof(vec_t)));
+
+  for (node_id_t i = 0; i < num_host_threads * num_nodes; i++) {
+    convert_h_edgeUpdates[i] = 0;
+  }
+
+  auto task = [&](int thr_id, int graph_id) {
+
+    int stream_id = thr_id;
+    int start_index = stream_id * num_nodes;
+
+    std::map<node_id_t, std::map<node_id_t, node_id_t>> adjlist = subgraphs[graph_id]->get_adjlist();
+
+    for (int src = thr_id; src < num_nodes; src += num_host_threads) {
+
+      if ((adjlist.find(src) == adjlist.end()) || adjlist[src].size() == 0) { // No neighbor nodes for this src vertex
+        continue;
+      }
+
+      // Go through all neighbor nodes and fill in buffer
+      int current_index = 0;
+      for (auto dst_it = adjlist[src].begin(); dst_it != adjlist[src].end(); dst_it++) {
+        node_id_t dst = dst_it->first;
+        convert_h_edgeUpdates[start_index + current_index] = static_cast<vec_t>(concat_pairing_fn(src, dst));
+        current_index++;
+      }
+
+      // Update num_sketch_updates
+      subgraphs[graph_id]->increment_num_sketch_updates(adjlist[src].size());
+
+      // Start sketch updates
+      CudaUpdateParams* cudaUpdateParams = subgraphs[graph_id]->get_cudaUpdateParams();
+      cudaMemcpyAsync(&convert_d_edgeUpdates[start_index], &convert_h_edgeUpdates[start_index], adjlist[src].size() * sizeof(vec_t), cudaMemcpyHostToDevice, streams[stream_id].stream);
+      cudaKernel.k_sketchUpdate(num_device_threads, num_device_blocks, streams[stream_id].stream, convert_d_edgeUpdates, start_index, adjlist[src].size(), stream_id * num_buckets, cudaUpdateParams, cudaUpdateParams->convert_d_bucket_a, cudaUpdateParams->convert_d_bucket_c, sketchSeed);
+      cudaMemcpyAsync(&cudaUpdateParams->convert_h_bucket_a[stream_id * num_buckets], &cudaUpdateParams->convert_d_bucket_a[stream_id * num_buckets], num_buckets * sizeof(vec_t), cudaMemcpyDeviceToHost, streams[stream_id].stream);
+      cudaMemcpyAsync(&cudaUpdateParams->convert_h_bucket_c[stream_id * num_buckets], &cudaUpdateParams->convert_d_bucket_c[stream_id * num_buckets], num_buckets * sizeof(vec_hash_t), cudaMemcpyDeviceToHost, streams[stream_id].stream);
+
+      // Wait until GPU kernel ends and transfer buckets back
+      cudaStreamSynchronize(streams[stream_id].stream);
+
+      // Apply delta sketch
+      size_t bucket_offset = thr_id * num_buckets;
+      for (size_t i = 0; i < num_buckets; i++) {
+        delta_buckets[bucket_offset + i].alpha = cudaUpdateParams->convert_h_bucket_a[(stream_id * num_buckets) + i];
+        delta_buckets[bucket_offset + i].gamma = cudaUpdateParams->convert_h_bucket_c[(stream_id * num_buckets) + i];
+      }
+
+      // Apply the delta sketch
+      apply_raw_buckets_update((graph_id * num_nodes) + src, &delta_buckets[bucket_offset]);
+
+      // Delete from adj list
+      subgraphs[graph_id]->adjlist_delete_src(src);
+    }
+
+  };
+
+  for (int graph_id = 0; graph_id < num_sketch_graphs; graph_id++) {
+    auto indiv_conversion_start = std::chrono::steady_clock::now();
+    std::vector<std::thread> threads;
+    for (int i = 0; i < num_host_threads; i++) threads.emplace_back(task, i, graph_id);
+
+    // wait for threads to finish
+    for (int i = 0; i < num_host_threads; i++) threads[i].join();
+    indiv_conversion_time.push_back(std::chrono::steady_clock::now() - indiv_conversion_start);
+  }
+
+  std::chrono::duration<double> conversion_time = std::chrono::steady_clock::now() - conversion_start;
+  std::cout << "Finished converting adj.list graphs (" << num_sketch_graphs << ") into sketch graphs. Total Elpased time: " << conversion_time.count() << "\n";
+  for (int graph_id = 0; graph_id < num_sketch_graphs; graph_id++) {
+    std::cout << "  S" << graph_id << ": " << indiv_conversion_time[graph_id].count() << "\n";
+  }
+}
 
 void MCGPUSketchAlg::apply_flush_updates() {
   for (int stream_id = 0; stream_id < num_host_threads * stream_multiplier; stream_id++) {

@@ -90,16 +90,13 @@ void MCSketchAlg::create_sketch_graph(int graph_id) {
     return;
   }
 
-  if (graph_id == 0) { // Delete the sample sketch
-    delete sketches[0];
-  }
-
   std::cout << "Creating sketches for graph #" << graph_id << "\n";
 
   vec_t sketch_vec_len = Sketch::calc_vector_length(num_vertices);
   size_t sketch_num_samples = Sketch::calc_cc_samples(num_vertices, config.get_sketches_factor());
 
   for (node_id_t i = 0; i < num_vertices; ++i) {
+    if (graph_id == 0 && i == 0) continue;
     sketches[(graph_id * num_vertices) + i] = new Sketch(sketch_vec_len, seed, sketch_num_samples);
   }  
 

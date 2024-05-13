@@ -72,10 +72,10 @@ class CudaUpdateParams {
       gpuErrchk(cudaMallocHost(&h_bucket_c, stream_multiplier * num_host_threads * num_buckets * sizeof(vec_hash_t)));
       gpuErrchk(cudaMalloc(&d_bucket_c, stream_multiplier * num_host_threads * num_buckets * sizeof(vec_hash_t)));
 
-      gpuErrchk(cudaMallocHost(&convert_h_bucket_a, num_buckets * sizeof(vec_t)));
-      gpuErrchk(cudaMalloc(&convert_d_bucket_a, num_buckets * sizeof(vec_t)));
-      gpuErrchk(cudaMallocHost(&convert_h_bucket_c, num_buckets * sizeof(vec_hash_t)));
-      gpuErrchk(cudaMalloc(&convert_d_bucket_c, num_buckets * sizeof(vec_hash_t)));
+      gpuErrchk(cudaMallocHost(&convert_h_bucket_a, num_host_threads * num_buckets * sizeof(vec_t)));
+      gpuErrchk(cudaMalloc(&convert_d_bucket_a, num_host_threads * num_buckets * sizeof(vec_t)));
+      gpuErrchk(cudaMallocHost(&convert_h_bucket_c, num_host_threads * num_buckets * sizeof(vec_hash_t)));
+      gpuErrchk(cudaMalloc(&convert_d_bucket_c, num_host_threads * num_buckets * sizeof(vec_hash_t)));
 
       gpuErrchk(cudaMallocManaged(&num_tb_columns, num_device_blocks * sizeof(int)));
 
@@ -103,7 +103,7 @@ class CudaUpdateParams {
         h_bucket_c[i] = 0;
       }
 
-      for (size_t i = 0; i < num_buckets; i++) {
+      for (size_t i = 0; i < num_host_threads * num_buckets; i++) {
         convert_h_bucket_a[i] = 0;
         convert_h_bucket_c[i] = 0;
       }

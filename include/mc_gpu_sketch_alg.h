@@ -172,6 +172,8 @@ public:
   void apply_update_batch(int thr_id, node_id_t src_vertex,
                           const std::vector<node_id_t> &dst_vertices);
 
+  void convert_adj_to_sketch();
+
   // Update with the delta sketches that haven't been applied yet.
   void apply_flush_updates();
 
