@@ -112,6 +112,9 @@ public:
 
     // Initialize delta_buckets
     delta_buckets = new Bucket[num_buckets * num_host_threads];
+
+    // Create a bigger batch size to apply edge updates when subgraph is turning into sketch representation
+    batch_size = get_desired_updates_per_batch();
     
     // Initialize all subgraphs
     subgraphs = new MCSubgraph* [num_graphs];
@@ -127,9 +130,6 @@ public:
         subgraphs[graph_id] = new MCSubgraph(graph_id, num_host_threads * stream_multiplier, NULL, FIXED_ADJLIST, num_nodes, sketch_bytes, adjlist_edge_bytes);
       }
     }
-
-    // Create a bigger batch size to apply edge updates when subgraph is turning into sketch representation
-    batch_size = get_desired_updates_per_batch();
 
     if (max_sketch_graphs > 0) { // If max_sketch_graphs is 0, there will never be any sketch graphs
       int device_id = cudaGetDevice(&device_id);

@@ -97,6 +97,10 @@ class CudaUpdateParams {
       }
       std::cout << "\n";
 
+      for (size_t i = 0; i < stream_multiplier * num_host_threads * batch_size; i++) {
+        h_edgeUpdates[i] = 0;
+      }
+
       // Initialize host buckets
       for (size_t i = 0; i < stream_multiplier * num_host_threads * num_buckets; i++) {
         h_bucket_a[i] = 0;
