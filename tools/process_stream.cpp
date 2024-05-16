@@ -166,7 +166,7 @@ public:
     void print_configuration(){k_edge_algs[0]->print_configuration(); }
 
 
-    void write_k_edge_cert(const std::map<size_t, std::vector<size_t>>& nodes_list, size_t num_edge){
+    void write_k_edge_cert(std::map<size_t, std::vector<size_t>>& nodes_list, size_t num_edge){
         // below are the codes stolen from the converter file
         std::string file_name = "temp-graph-min-cut.metis";
         std::ofstream metis_file(file_name);
@@ -176,12 +176,12 @@ public:
         // could be a hidden bug later -- at the moment, num_nodes is taken from the class
         metis_file << num_nodes << " " << num_edge << " 0" << "\n";
 
-        for (auto it : nodes_list) {
-            for (size_t neighbor = 0; neighbor < it.second.size(); neighbor++) {
-                if (it.second[neighbor] == it.first) {
+        for (unsigned int it=0; it<num_nodes;it++) {
+            for (size_t neighbor = 0; neighbor < nodes_list[it].size(); neighbor++) {
+                if (nodes_list[it][neighbor] == it) {
                     continue;
                 }
-                metis_file << (it.second[neighbor]) << " ";
+                metis_file << (1+nodes_list[it][neighbor]) << " ";
 
             }
             metis_file << "\n";
@@ -190,6 +190,17 @@ public:
         metis_file.close();
 
         std::cout << "Finished Writing METIS file...\n";
+
+	int new_count=0;
+        for (unsigned int it=0; it<num_nodes;it++) {
+            for (size_t neighbor = 0; neighbor < nodes_list[it].size(); neighbor++) {
+                if (nodes_list[it][neighbor] == it) {
+                    continue;
+		}
+		new_count++;
+	}}
+	std::cout<<"new count: "<<new_count<<std::endl;
+	std::cout<<"num edges:" <<num_edge<<std::endl;
      }
 
     void query(){
@@ -216,27 +227,27 @@ public:
             std::string file_name = "temp-graph-min-cut.metis";
             std::string output_name = "mincut.txt";
             // ************** test with a dummy cut value first ****************
-            unsigned int cut_value = 5;
-            mincut_values.push_back(cut_value);
-//            std::string command = "./mincut_parallel " + file_name + " exact >" + output_name; // Run VieCut and store the output
-//            std::system(command.data());
-//
-//            std::string line;
-//            std::ifstream output_file(output_name);
-//            if (output_file.is_open()) {
-//                while (std::getline(output_file, line)) {
-//                    size_t cut_pos = line.find("cut=");
-//                    if (cut_pos != std::string::npos) {
-//                        unsigned int cut_value = std::stoul(line.substr(cut_pos + 4));
-//                        std::cout << "Cut value: " << cut_value << std::endl;
-//                        mincut_values.push_back(cut_value);
-//                        break; // Stop reading after finding the first "cut=" value
-//                    }
-//                }
-//                output_file.close();
-//            } else {
-//                std::cout << "Error: Couldn't find file name: " << output_name << "!\n";
-//            }
+            //unsigned int cut_value = 5;
+            //mincut_values.push_back(cut_value);
+            std::string command = "./mincut_parallel " + file_name + " exact >" + output_name; // Run VieCut and store the output
+            std::system(command.data());
+
+            std::string line;
+            std::ifstream output_file(output_name);
+            if (output_file.is_open()) {
+                while (std::getline(output_file, line)) {
+                    size_t cut_pos = line.find("cut=");
+                    if (cut_pos != std::string::npos) {
+                        unsigned int cut_value = std::stoul(line.substr(cut_pos + 4));
+                        std::cout << "Cut value: " << cut_value << std::endl;
+                        mincut_values.push_back(cut_value);
+                        break; // Stop reading after finding the first "cut=" value
+                    }
+                }
+                output_file.close();
+            } else {
+                std::cout << "Error: Couldn't find file name: " << output_name << "!\n";
+            }
             if (mincut_values[i]<num_forest){
                 return_min_cut = mincut_values[i] * std::pow(2, i);
                 break;
@@ -415,18 +426,14 @@ int main(int argc, char **argv) {
       config_vec.push_back(subgraph_config_vec);
   }
 
-  std::cout<<"************* Checkpoint 1 *******************"<<std::endl;
   // KEdgeConnect k_edge_alg{num_nodes, num_edge_connect, config_vec};
   MinCutSimple min_cut_alg{num_nodes, config_vec};
 
-    std::cout<<"************* Checkpoint 2 *******************"<<std::endl;
   GraphSketchDriver<MinCutSimple> driver{&min_cut_alg, &stream, driver_config, reader_threads};
 
-    std::cout<<"************* Checkpoint 3 *******************"<<std::endl;
   auto ins_start = std::chrono::steady_clock::now();
   std::thread querier(track_insertions<GraphSketchDriver<MinCutSimple>>, num_updates, &driver, ins_start);
 
-    std::cout<<"************* Checkpoint 4 *******************"<<std::endl;
   driver.process_stream_until(END_OF_STREAM);
 
     std::cout<<"************* Checkpoint 5 *******************"<<std::endl;
