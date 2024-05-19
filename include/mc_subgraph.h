@@ -37,8 +37,7 @@ public:
   // Constructor
   MCSubgraph(int graph_id, int num_streams, CudaUpdateParams* cudaUpdateParams, GraphType type, node_id_t num_nodes, double sketch_bytes, double adjlist_edge_bytes);
 
-  void insert_adj_edge(node_id_t src, node_id_t dst);
-  //void insert_fixed_adj_edge(node_id_t src, node_id_t dst);
+  void insert_adj_edge(node_id_t src, std::vector<node_id_t> dst_vertices);
 
   // Sample from Adj. list
   node_id_t sample_dst_node(node_id_t src);

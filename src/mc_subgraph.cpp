@@ -19,16 +19,19 @@ MCSubgraph::MCSubgraph(int graph_id, int num_streams, CudaUpdateParams* cudaUpda
   }
 }
 
-void MCSubgraph::insert_adj_edge(node_id_t src, node_id_t dst) {
+void MCSubgraph::insert_adj_edge(node_id_t src, std::vector<node_id_t> dst_vertices) {
   std::lock_guard<std::mutex> lk(adj_mutex[src]);
-  if (adjlist[src].find(dst) == adjlist[src].end()) {
-    adjlist[src].insert({dst, 1});
-    num_adj_edges++;
+  for (auto dst : dst_vertices) {
+    if (adjlist[src].find(dst) == adjlist[src].end()) {
+      adjlist[src].insert({dst, 1});
+      num_adj_edges++;
+    }
+    else {
+      adjlist[src].erase(dst); // Current edge already exist, so delete
+      num_adj_edges--;
+    }
   }
-  else {
-    adjlist[src].erase(dst); // Current edge already exist, so delete
-    num_adj_edges--;
-  }
+
 }
 
 // Sample neighbor node from adjlist

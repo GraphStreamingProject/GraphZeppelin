@@ -9,7 +9,7 @@ struct CudaStream {
   cudaStream_t stream;
   int delta_applied;
   int src_vertex;
-  int num_sketch_graphs;
+  int num_graphs;
 };
 
 struct SketchParams {
