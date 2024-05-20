@@ -60,6 +60,9 @@ private:
   // Number of CPU's graph workers
   int num_host_threads;
 
+  // Number of CPU threads that read edge stream
+  int num_reader_threads;
+
   // Maximum number of edge updates in one batch
   int batch_size;
 
@@ -74,7 +77,7 @@ private:
   int trim_graph_id;
 
 public:
-  MCGPUSketchAlg(node_id_t num_vertices, size_t num_updates, int num_threads, size_t seed, SketchParams sketchParams, int _num_graphs, int _min_adj_graphs, int _max_sketch_graphs, int _k, double _sketch_bytes, double _adjlist_edge_bytes, CCAlgConfiguration config = CCAlgConfiguration()) : MCSketchAlg(num_vertices, seed, _max_sketch_graphs, config){ 
+  MCGPUSketchAlg(node_id_t num_vertices, size_t num_updates, int num_threads, int _num_reader_threads, size_t seed, SketchParams sketchParams, int _num_graphs, int _min_adj_graphs, int _max_sketch_graphs, int _k, double _sketch_bytes, double _adjlist_edge_bytes, CCAlgConfiguration config = CCAlgConfiguration()) : MCSketchAlg(num_vertices, seed, _max_sketch_graphs, config){ 
 
     // Start timer for initializing
     auto init_start = std::chrono::steady_clock::now();
@@ -84,6 +87,7 @@ public:
     k = _k;
     sketches_factor = config.get_sketches_factor();
     num_host_threads = num_threads;
+    num_reader_threads = _num_reader_threads;
 
     num_device_threads = 1024;
     num_device_blocks = k; // Change this value based on dataset <-- Come up with formula to compute this automatically
@@ -122,7 +126,7 @@ public:
       if (graph_id < max_sketch_graphs) { // subgraphs that can be turned into adj. list
         CudaUpdateParams* cudaUpdateParams;
         gpuErrchk(cudaMallocManaged(&cudaUpdateParams, sizeof(CudaUpdateParams)));
-        cudaUpdateParams = new CudaUpdateParams(num_nodes, num_updates, num_samples, num_buckets, num_columns, bkt_per_col, num_threads, batch_size, stream_multiplier, num_device_blocks, k);
+        cudaUpdateParams = new CudaUpdateParams(num_nodes, num_updates, num_samples, num_buckets, num_columns, bkt_per_col, num_threads, num_reader_threads, batch_size, stream_multiplier, num_device_blocks, k);
 
         subgraphs[graph_id] = new MCSubgraph(graph_id, num_host_threads * stream_multiplier, cudaUpdateParams, ADJLIST, num_nodes, sketch_bytes, adjlist_edge_bytes);
       }

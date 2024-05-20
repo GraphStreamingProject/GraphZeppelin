@@ -157,7 +157,7 @@ int main(int argc, char **argv) {
   // Reconfigure sketches_factor based on reduced_k
   mc_config.sketches_factor(reduced_k);
 
-  MCGPUSketchAlg mc_gpu_alg{num_nodes, num_updates, num_threads, get_seed(), sketchParams, num_graphs, min_adj_graphs, max_sketch_graphs, reduced_k, sketch_bytes, adjlist_edge_bytes, mc_config};
+  MCGPUSketchAlg mc_gpu_alg{num_nodes, num_updates, num_threads, reader_threads, get_seed(), sketchParams, num_graphs, min_adj_graphs, max_sketch_graphs, reduced_k, sketch_bytes, adjlist_edge_bytes, mc_config};
   GraphSketchDriver<MCGPUSketchAlg> driver{&mc_gpu_alg, &stream, driver_config, reader_threads};
 
   auto ins_start = std::chrono::steady_clock::now();

@@ -151,6 +151,14 @@ void MCGPUSketchAlg::convert_adj_to_sketch() {
     return;
   }
 
+  int num_threads = num_host_threads + num_reader_threads;
+
+  if (num_threads > (num_host_threads * stream_multiplier)) {
+    std::cout << "ERROR in convert_adj_to_sketch(): Not enough CUDA Streams!\n";
+    std::cout << "  # of CUDA Streams: " << num_host_threads * stream_multiplier << "\n";
+    std::cout << "  # of threasd being used in this function: " << num_threads << "\n";
+  }
+
   std::cout << "Converting adj.list graphs (" << num_sketch_graphs << ") into sketch graphs\n";
   std::vector<std::chrono::duration<double>> indiv_conversion_time;
   auto conversion_start = std::chrono::steady_clock::now();
@@ -158,41 +166,44 @@ void MCGPUSketchAlg::convert_adj_to_sketch() {
   // Allocate buffer with the max. batch size
   vec_t *convert_h_edgeUpdates, *convert_d_edgeUpdates;
 
-  gpuErrchk(cudaMallocHost(&convert_h_edgeUpdates, num_host_threads * num_nodes * sizeof(vec_t)));
-  gpuErrchk(cudaMalloc(&convert_d_edgeUpdates, num_host_threads * num_nodes * sizeof(vec_t)));
+  gpuErrchk(cudaMallocHost(&convert_h_edgeUpdates, num_threads * num_nodes * sizeof(vec_t)));
+  gpuErrchk(cudaMalloc(&convert_d_edgeUpdates, num_threads * num_nodes * sizeof(vec_t)));
 
-  for (node_id_t i = 0; i < num_host_threads * num_nodes; i++) {
+  for (node_id_t i = 0; i < num_threads * num_nodes; i++) {
     convert_h_edgeUpdates[i] = 0;
   }
+
+  // delta buckets for conversion
+  Bucket* convert_delta_buckets = new Bucket[num_buckets * num_threads];
 
   auto task = [&](int thr_id, int graph_id) {
 
     int stream_id = thr_id;
     int start_index = stream_id * num_nodes;
 
-    std::map<node_id_t, std::map<node_id_t, node_id_t>> adjlist = subgraphs[graph_id]->get_adjlist();
+    for (int src = thr_id; src < num_nodes; src += num_threads) {
 
-    for (int src = thr_id; src < num_nodes; src += num_host_threads) {
-
-      if ((adjlist.find(src) == adjlist.end()) || adjlist[src].size() == 0) { // No neighbor nodes for this src vertex
+      std::map<node_id_t, node_id_t> dst_vertices = subgraphs[graph_id]->get_neighbor_nodes(src);
+      
+      if (dst_vertices.size() == 0) { // No neighbor nodes for this src vertex
         continue;
       }
 
       // Go through all neighbor nodes and fill in buffer
       int current_index = 0;
-      for (auto dst_it = adjlist[src].begin(); dst_it != adjlist[src].end(); dst_it++) {
+      for (auto dst_it = dst_vertices.begin(); dst_it != dst_vertices.end(); dst_it++) {
         node_id_t dst = dst_it->first;
         convert_h_edgeUpdates[start_index + current_index] = static_cast<vec_t>(concat_pairing_fn(src, dst));
         current_index++;
       }
 
       // Update num_sketch_updates
-      subgraphs[graph_id]->increment_num_sketch_updates(adjlist[src].size());
+      subgraphs[graph_id]->increment_num_sketch_updates(dst_vertices.size());
 
       // Start sketch updates
       CudaUpdateParams* cudaUpdateParams = subgraphs[graph_id]->get_cudaUpdateParams();
-      cudaMemcpyAsync(&convert_d_edgeUpdates[start_index], &convert_h_edgeUpdates[start_index], adjlist[src].size() * sizeof(vec_t), cudaMemcpyHostToDevice, streams[stream_id].stream);
-      cudaKernel.k_sketchUpdate(num_device_threads, num_device_blocks, streams[stream_id].stream, convert_d_edgeUpdates, start_index, adjlist[src].size(), stream_id * num_buckets, cudaUpdateParams, cudaUpdateParams->convert_d_bucket_a, cudaUpdateParams->convert_d_bucket_c, sketchSeed);
+      cudaMemcpyAsync(&convert_d_edgeUpdates[start_index], &convert_h_edgeUpdates[start_index], dst_vertices.size() * sizeof(vec_t), cudaMemcpyHostToDevice, streams[stream_id].stream);
+      cudaKernel.k_sketchUpdate(num_device_threads, num_device_blocks, streams[stream_id].stream, convert_d_edgeUpdates, start_index, dst_vertices.size(), stream_id * num_buckets, cudaUpdateParams, cudaUpdateParams->convert_d_bucket_a, cudaUpdateParams->convert_d_bucket_c, sketchSeed);
       cudaMemcpyAsync(&cudaUpdateParams->convert_h_bucket_a[stream_id * num_buckets], &cudaUpdateParams->convert_d_bucket_a[stream_id * num_buckets], num_buckets * sizeof(vec_t), cudaMemcpyDeviceToHost, streams[stream_id].stream);
       cudaMemcpyAsync(&cudaUpdateParams->convert_h_bucket_c[stream_id * num_buckets], &cudaUpdateParams->convert_d_bucket_c[stream_id * num_buckets], num_buckets * sizeof(vec_hash_t), cudaMemcpyDeviceToHost, streams[stream_id].stream);
 
@@ -202,15 +213,12 @@ void MCGPUSketchAlg::convert_adj_to_sketch() {
       // Apply delta sketch
       size_t bucket_offset = thr_id * num_buckets;
       for (size_t i = 0; i < num_buckets; i++) {
-        delta_buckets[bucket_offset + i].alpha = cudaUpdateParams->convert_h_bucket_a[(stream_id * num_buckets) + i];
-        delta_buckets[bucket_offset + i].gamma = cudaUpdateParams->convert_h_bucket_c[(stream_id * num_buckets) + i];
+        convert_delta_buckets[bucket_offset + i].alpha = cudaUpdateParams->convert_h_bucket_a[(stream_id * num_buckets) + i];
+        convert_delta_buckets[bucket_offset + i].gamma = cudaUpdateParams->convert_h_bucket_c[(stream_id * num_buckets) + i];
       }
 
       // Apply the delta sketch
-      apply_raw_buckets_update((graph_id * num_nodes) + src, &delta_buckets[bucket_offset]);
-
-      // Delete from adj list
-      subgraphs[graph_id]->adjlist_delete_src(src);
+      apply_raw_buckets_update((graph_id * num_nodes) + src, &convert_delta_buckets[bucket_offset]);
     }
 
   };
@@ -219,10 +227,10 @@ void MCGPUSketchAlg::convert_adj_to_sketch() {
     std::cout << "Graph #" << graph_id << "\n";
     auto indiv_conversion_start = std::chrono::steady_clock::now();
     std::vector<std::thread> threads;
-    for (int i = 0; i < num_host_threads; i++) threads.emplace_back(task, i, graph_id);
+    for (int i = 0; i < num_threads; i++) threads.emplace_back(task, i, graph_id);
 
     // wait for threads to finish
-    for (int i = 0; i < num_host_threads; i++) threads[i].join();
+    for (int i = 0; i < num_threads; i++) threads[i].join();
     indiv_conversion_time.push_back(std::chrono::steady_clock::now() - indiv_conversion_start);
     std::cout << "Finished Graph #" << graph_id << "\n";
   }

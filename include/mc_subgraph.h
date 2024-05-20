@@ -54,6 +54,7 @@ public:
     }
   }
   std::map<node_id_t, std::map<node_id_t, node_id_t>> get_adjlist() { return adjlist; }
+  std::map<node_id_t, node_id_t> get_neighbor_nodes (node_id_t src) { return adjlist[src]; }
 
   bool try_acq_conversion() { 
     int org_val = 0;
@@ -67,4 +68,5 @@ public:
 
   // Delete methods
   void adjlist_delete_src(node_id_t src) { adjlist.erase(src); }
+  void clear_adjlist() { adjlist.clear(); }
 };
