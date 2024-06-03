@@ -26,7 +26,7 @@ private:
 
   // Number of threads and thread blocks for CUDA kernel
   int num_device_threads = 1024;
-  int num_device_blocks = 1;
+  int num_device_blocks = 3;
 
   // Number of CPU's graph workers
   int num_host_threads;
