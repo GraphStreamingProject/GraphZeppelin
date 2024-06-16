@@ -8,6 +8,11 @@
 #include <omp.h>
 #include <unordered_map>
 
+#include <algorithms/global_mincut/algorithms.h>
+#include <algorithms/global_mincut/minimum_cut.h>
+#include <data_structure/graph_access.h>
+#include <data_structure/mutable_graph.h>
+
 MCSketchAlg::MCSketchAlg(node_id_t num_vertices, size_t seed, int _max_sketch_graphs, CCAlgConfiguration config)
     : num_vertices(num_vertices), seed(seed), dsu(num_vertices), config(config) {
   representatives = new std::set<node_id_t>();
@@ -872,6 +877,43 @@ bool MCSketchAlg::point_query(node_id_t a, node_id_t b) {
   bool retval = (dsu.find_root(a) == dsu.find_root(b));
   cc_alg_end = std::chrono::steady_clock::now();
   return retval;
+}
+
+MinCut MCSketchAlg::calc_minimum_cut(const std::vector<Edge> &edges) {
+  typedef VieCut::mutable_graph Graph;
+  typedef std::shared_ptr<VieCut::mutable_graph> GraphPtr;
+
+  // Create a VieCut graph
+  GraphPtr G = std::make_shared<Graph>();
+  G->start_construction(num_vertices, edges.size());
+
+  // Add edges to VieCut graph
+  for (auto edge : edges) {
+    G->new_edge(edge.src, edge.dst);
+  }
+
+  // finish construction and compute degrees
+  // TODO: Don't know if degrees are necessary. Its in the VieCut code tho
+  G->finish_construction();
+  G->computeDegrees();
+
+  // Perform the mincut computation
+  VieCut::EdgeWeight cut;
+  VieCut::minimum_cut* mc = new VieCut::viecut<GraphPtr>();
+  cut = mc->perform_minimum_cut(G);
+
+  // Return answer
+  std::set<node_id_t> left;
+  std::set<node_id_t> right;
+
+  for (node_id_t i = 0; i < num_vertices; i++) {
+    if (G->getNodeInCut(i))
+      left.insert(i);
+    else
+      right.insert(i);
+  }
+
+  return {left, right, cut};
 }
 
 void MCSketchAlg::write_binary(const std::string &filename) {

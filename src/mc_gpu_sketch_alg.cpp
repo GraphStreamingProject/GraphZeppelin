@@ -138,13 +138,9 @@ void MCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
           }
         }
       }
-
-
-
     }    
   }
-
-};
+}
 
 void MCGPUSketchAlg::convert_adj_to_sketch() {
   if (num_sketch_graphs == 0) {
@@ -277,15 +273,6 @@ std::vector<Edge> MCGPUSketchAlg::get_adjlist_spanning_forests(int graph_id, int
     std::cout << "Subgraph with graph_id: " << graph_id << " is Sketch graph!\n";
   }
 
-  std::vector<Edge> forests;
-  for (int k_id = 0; k_id < k; k_id++) {
-    for (node_id_t node_id = 0; node_id < num_nodes; node_id++) {
-      node_id_t dst = subgraphs[graph_id]->sample_dst_node(node_id);
-
-      if (dst != -1) {
-        forests.push_back({node_id, dst});
-      }
-    }
-  }
-  return forests;
+  auto adjlist = subgraphs[graph_id]->get_adjlist();
+  return std::vector<Edge>(adjlist.begin(), adjlist.end());
 }
