@@ -30,7 +30,7 @@ void MCSubgraph::insert_adj_edge(node_id_t src, std::vector<node_id_t> dst_verti
   std::lock_guard<std::mutex> lk(adj_mutex[src]);
   for (auto dst : dst_vertices) {
     if (adjlist[src].find(dst) == adjlist[src].end()) {
-      adjlist[src].insert({dst, 1});
+      adjlist[src].insert(dst);
       num_adj_edges++;
     } else {
       adjlist[src].erase(dst);  // Current edge already exist, so delete

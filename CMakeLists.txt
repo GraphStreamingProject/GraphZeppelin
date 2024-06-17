@@ -67,6 +67,14 @@ FetchContent_Declare(
   GIT_TAG         main
 )
 
+# Get VieCut
+FetchContent_Declare(
+  VieCut
+
+  GIT_REPOSITORY  https://github.com/etwest/VieCut.git
+  GIT_TAG         master
+)
+
 if (BUILD_BENCH)
   # Get Google Benchmark
   FetchContent_Declare(
@@ -80,7 +88,7 @@ if (BUILD_BENCH)
   FetchContent_MakeAvailable(benchmark)
 endif()
 
-FetchContent_MakeAvailable(GutterTree StreamingUtilities)
+FetchContent_MakeAvailable(GutterTree StreamingUtilities VieCut)
 
 # AVAILABLE COMPILATION DEFINITIONS:
 # VERIFY_SAMPLES_F   Use a deterministic connected-components
