@@ -26,7 +26,7 @@ private:
   std::atomic<size_t> num_sketch_updates;
   std::atomic<size_t> num_adj_edges;
 
-  std::map<node_id_t, std::map<node_id_t, node_id_t>> adjlist;
+  std::vector<std::set<Edge>> adjlist;
 
   double sketch_bytes; // Bytes of sketch graph
   double adjlist_edge_bytes; // Bytes of one edge in adj. list
@@ -35,7 +35,9 @@ public:
   std::mutex* adj_mutex;
 
   // Constructor
-  MCSubgraph(int graph_id, int num_streams, CudaUpdateParams* cudaUpdateParams, GraphType type, node_id_t num_nodes, double sketch_bytes, double adjlist_edge_bytes);
+  MCSubgraph(int graph_id, int num_streams, CudaUpdateParams* cudaUpdateParams, GraphType type,
+             node_id_t num_nodes, double sketch_bytes, double adjlist_edge_bytes);
+  ~MCSubgraph();
 
   void insert_adj_edge(node_id_t src, std::vector<node_id_t> dst_vertices);
 
@@ -53,8 +55,8 @@ public:
       return num_adj_edges;
     }
   }
-  std::map<node_id_t, std::map<node_id_t, node_id_t>> get_adjlist() { return adjlist; }
-  std::map<node_id_t, node_id_t> get_neighbor_nodes (node_id_t src) { return adjlist[src]; }
+  const std::vector<std::set<Edge>>& get_adjlist() { return adjlist; }
+  const std::set<Edge>& get_neighbor_nodes (node_id_t src) { return adjlist[src]; }
 
   bool try_acq_conversion() { 
     int org_val = 0;
