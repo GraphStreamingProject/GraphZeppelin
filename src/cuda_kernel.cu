@@ -151,8 +151,9 @@ void CudaKernel::sketchUpdate(int num_threads, int num_blocks, cudaStream_t stre
   sketchUpdate_kernel<<<num_blocks, num_threads, maxBytes, stream>>>(num_nodes, num_blocks, edgeUpdates, update_start_id, update_size, d_bucket_id, d_bucket_a, d_bucket_c, cudaUpdateParams[0].num_tb_columns, bkt_per_col, sketchSeed);
 }
 
-__global__ void single_sketchUpdate_kernel(node_id_t* update_src, vec_t* update_sizes, vec_t* update_start_index, vec_t* edgeUpdates, vec_t* d_bucket_a, vec_hash_t* d_bucket_c, size_t num_buckets, size_t num_columns, size_t bkt_per_col, size_t sketchSeed) {
+__global__ void single_sketchUpdate_kernel(node_id_t* update_src, vec_t* update_sizes, vec_t* update_start_indexes, vec_t* edgeUpdates, vec_t* d_bucket_a, vec_hash_t* d_bucket_c, size_t num_buckets, size_t num_columns, size_t bkt_per_col, size_t sketchSeed) {
 
+  // ORIGINAL
   extern __shared__ vec_t_cu sketches[];
   vec_t_cu* bucket_a = sketches;
   vec_hash_t* bucket_c = (vec_hash_t*)&bucket_a[num_buckets];
@@ -171,18 +172,18 @@ __global__ void single_sketchUpdate_kernel(node_id_t* update_src, vec_t* update_
     int column_id = id % num_columns;
     int update_id = id / num_columns;
     
-    vec_hash_t checksum = bucket_get_index_hash(edgeUpdates[update_start_index[blockIdx.x] + update_id], sketchSeed);
+    vec_hash_t checksum = bucket_get_index_hash(edgeUpdates[update_start_indexes[blockIdx.x] + update_id], sketchSeed);
     
     if (column_id == 0) {
       // Update depth 0 bucket
-      bucket_update(bucket_a[num_buckets - 1], bucket_c[num_buckets - 1], edgeUpdates[update_start_index[blockIdx.x] + update_id], checksum);
+      bucket_update(bucket_a[num_buckets - 1], bucket_c[num_buckets - 1], edgeUpdates[update_start_indexes[blockIdx.x] + update_id], checksum);
     }
 
     // Update higher depth buckets
-    col_hash_t depth = bucket_get_index_depth(edgeUpdates[update_start_index[blockIdx.x] + update_id], sketchSeed + (column_id * 5), bkt_per_col);
+    col_hash_t depth = bucket_get_index_depth(edgeUpdates[update_start_indexes[blockIdx.x] + update_id], sketchSeed + (column_id * 5), bkt_per_col);
     size_t bucket_id = column_id * bkt_per_col + depth;
     if(depth < bkt_per_col)
-      bucket_update(bucket_a[bucket_id], bucket_c[bucket_id], edgeUpdates[update_start_index[blockIdx.x] + update_id], checksum);
+      bucket_update(bucket_a[bucket_id], bucket_c[bucket_id], edgeUpdates[update_start_indexes[blockIdx.x] + update_id], checksum);
   }
 
   __syncthreads();

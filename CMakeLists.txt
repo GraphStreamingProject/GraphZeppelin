@@ -98,7 +98,8 @@ add_library(CUDALibrary
   src/cuda_library.cu
   src/cuda_kernel.cu
   src/cc_gpu_sketch_alg.cpp
-  src/mc_gpu_sketch_alg.cpp)
+  src/mc_gpu_sketch_alg.cpp
+  src/sk_gpu_sketch_alg.cpp)
 add_dependencies(CUDALibrary GutterTree)
 target_link_libraries(CUDALibrary PUBLIC xxhash GutterTree StreamingUtilities)
 target_include_directories(CUDALibrary PUBLIC include/)
@@ -167,6 +168,10 @@ if (BUILD_EXE)
   add_executable(cuda_process_stream
     tools/cuda_process_stream.cu)
   target_link_libraries(cuda_process_stream PRIVATE GraphZeppelin CUDALibrary)
+
+  add_executable(single_kernel_stream
+    tools/single_kernel_stream.cu)
+  target_link_libraries(single_kernel_stream PRIVATE GraphZeppelin CUDALibrary)
 
   add_executable(xxhash_test
     test/xxhash_test.cu)

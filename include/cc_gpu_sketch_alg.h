@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cmath>
 #include "cc_sketch_alg.h"
 #include "cuda_kernel.cuh"
 
@@ -26,7 +27,7 @@ private:
 
   // Number of threads and thread blocks for CUDA kernel
   int num_device_threads = 1024;
-  int num_device_blocks = 3;
+  int num_device_blocks = 1;
 
   // Number of CPU's graph workers
   int num_host_threads;
@@ -35,10 +36,15 @@ private:
   int batch_size;
 
   // Number of CUDA Streams per graph worker
-  int stream_multiplier = 4;
+  int stream_multiplier;
 
   // Vector for storing information for each CUDA Stream
   std::vector<CudaStream> streams;
+
+  std::vector<std::chrono::duration<double>> batch_process_time;
+  std::vector<std::chrono::duration<double>> buffer_process_time;
+  std::vector<std::chrono::duration<double>> stream_finding_time;
+  std::vector<std::chrono::duration<double>> delta_apply_time;
 
 public:
   CCGPUSketchAlg(node_id_t num_vertices, size_t num_updates, int num_threads, size_t seed, CCAlgConfiguration config = CCAlgConfiguration()) : CCSketchAlg(num_vertices, seed, config){ 
@@ -48,6 +54,11 @@ public:
 
     num_host_threads = num_threads;
     sketchSeed = seed;
+
+    batch_process_time.reserve(num_host_threads);
+    buffer_process_time.reserve(num_host_threads);
+    stream_finding_time.reserve(num_host_threads);
+    delta_apply_time.reserve(num_host_threads);
 
     // Get variables from sketch
     num_samples = Sketch::calc_cc_samples(num_vertices, 1);
@@ -64,19 +75,29 @@ public:
     delta_buckets = new Bucket[num_buckets * num_host_threads];
 
     batch_size = get_desired_updates_per_batch();
+    std::cout << "Batch Size: " << batch_size << "\n";
+
+    int device_id = cudaGetDevice(&device_id);
+    int device_count = 0;
+    cudaGetDeviceCount(&device_count);
+    cudaDeviceProp deviceProp;
+    cudaGetDeviceProperties(&deviceProp, device_id);
+    std::cout << "CUDA Device Count: " << device_count << "\n";
+    std::cout << "CUDA Device ID: " << device_id << "\n";
+    std::cout << "CUDA Device Number of SMs: " << deviceProp.multiProcessorCount << "\n"; 
+
+    stream_multiplier = std::ceil((double)deviceProp.multiProcessorCount / num_host_threads);
+    std::cout << "Stream Multiplier: " << stream_multiplier << "\n";
 
     // Create cudaUpdateParams
     gpuErrchk(cudaMallocManaged(&cudaUpdateParams, sizeof(CudaUpdateParams)));
     cudaUpdateParams = new CudaUpdateParams(num_vertices, num_updates, num_samples, num_buckets, num_columns, bkt_per_col, num_threads, 0, batch_size, stream_multiplier, num_device_blocks);
 
-    int device_id = cudaGetDevice(&device_id);
-    int device_count = 0;
-    cudaGetDeviceCount(&device_count);
-    std::cout << "CUDA Device Count: " << device_count << "\n";
-    std::cout << "CUDA Device ID: " << device_id << "\n";
-
+    // Calculate the num_buckets assigned to the last thread block
+    size_t num_last_tb_buckets = (cudaUpdateParams[0].num_tb_columns[num_device_blocks-1] * bkt_per_col) + 1;
+    
     // Set maxBytes for GPU kernel's shared memory
-    size_t maxBytes = num_buckets * sizeof(vec_t_cu) + num_buckets * sizeof(vec_hash_t);
+    size_t maxBytes = (num_last_tb_buckets * sizeof(vec_t_cu)) + (num_last_tb_buckets * sizeof(vec_hash_t));
     cudaKernel.updateSharedMemory(maxBytes);
     std::cout << "Allocated Shared Memory of: " << maxBytes << "\n";
 

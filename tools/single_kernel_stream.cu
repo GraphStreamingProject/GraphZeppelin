@@ -87,7 +87,7 @@ int main(int argc, char **argv) {
   std::cout << std::endl;
 
   auto driver_config = DriverConfiguration().gutter_sys(CACHETREE).worker_threads(num_threads);
-  auto cc_config = CCAlgConfiguration().batch_factor(3);
+  auto cc_config = CCAlgConfiguration().batch_factor(6);
   SKGPUSketchAlg sk_gpu_alg{num_nodes, num_updates * 2, num_threads, get_seed(), cc_config};
   GraphSketchDriver<SKGPUSketchAlg> driver{&sk_gpu_alg, &stream, driver_config, reader_threads};
   
@@ -95,7 +95,7 @@ int main(int argc, char **argv) {
   std::thread querier(track_insertions, num_updates, &driver, ins_start);
 
   driver.process_stream_until(END_OF_STREAM);
-  std::cout << "Flushing...\n";
+  std::cout << "Flushing... Current batch_count: " << sk_gpu_alg.get_batch_count() << "\n";
 
   auto flush_start = std::chrono::steady_clock::now();
   driver.prep_query(KSPANNINGFORESTS);
@@ -125,7 +125,7 @@ int main(int argc, char **argv) {
 
   std::cout << "GTS insertion time(sec):    " << insert_time.count() << std::endl;
   std::cout << "  Flush Gutters(sec):           " << flush_time.count() << std::endl;
-  std::cout << "GPU kernel time (sec):    " << sketch_time.count() << std::endl;
+  std::cout << "GPU time (sec):    " << sketch_time.count() << std::endl;
   std::cout << "Delta sketch applying time (sec):    " << delta_time.count() << std::endl;
   std::cout << "Total CC query latency:       " << cc_time.count() << std::endl;
   std::cout << "Connected Components:         " << CC_num << std::endl;

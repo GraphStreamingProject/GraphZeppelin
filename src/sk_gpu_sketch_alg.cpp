@@ -51,10 +51,14 @@ void SKGPUSketchAlg::launch_gpu_kernel() {
 
   // Launch GPU kernel
   std::cout << "Launching GPU Kernel...\n";
+  auto kernel_start = std::chrono::steady_clock::now();
   cudaKernel.single_sketchUpdate(num_device_threads, num_device_blocks, maxBytes, update_src, update_sizes, update_start_index, edgeUpdates, bucket_a, bucket_c, num_buckets, num_columns, bkt_per_col, sketchSeed);
 
   cudaDeviceSynchronize();
+  auto kernel_end = std::chrono::steady_clock::now();
   std::cout << "  GPU Kernel Finished.\n";
+  std::chrono::duration<double> kernel_time = kernel_end - kernel_start;
+  std::cout << "    Elapsed Time: " << kernel_time.count() << "\n";
 
   // Prefecth buffers back to CPU
   gpuErrchk(cudaMemPrefetchAsync(bucket_a, num_nodes * num_buckets * sizeof(vec_t), cudaCpuDeviceId));

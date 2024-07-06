@@ -121,4 +121,7 @@ public:
 
   void launch_gpu_kernel();
   void apply_delta_sketch();
+  uint64_t get_batch_count() { 
+    uint64_t temp = batch_count;
+    return temp; }
 };
