@@ -134,6 +134,7 @@ class CCSketchAlg {
 
  public:
   CCSketchAlg(node_id_t num_vertices, size_t seed, CCAlgConfiguration config = CCAlgConfiguration());
+  CCSketchAlg(node_id_t num_vertices, size_t seed, Bucket* _buckets, CCAlgConfiguration config = CCAlgConfiguration());
   ~CCSketchAlg();
 
   // construct a CC algorithm from a serialized file

@@ -113,7 +113,7 @@ void MCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
           // Regular sketch updates
           CudaUpdateParams* cudaUpdateParams = subgraphs[graph_id]->get_cudaUpdateParams();
           cudaMemcpyAsync(&cudaUpdateParams->d_edgeUpdates[start_index], &cudaUpdateParams->h_edgeUpdates[start_index], sketch_update_size[graph_id] * sizeof(vec_t), cudaMemcpyHostToDevice, streams[stream_id].stream);
-          cudaKernel.k_sketchUpdate(num_device_threads, num_device_blocks, streams[stream_id].stream, cudaUpdateParams->d_edgeUpdates, start_index, sketch_update_size[graph_id], stream_id * num_buckets, cudaUpdateParams, cudaUpdateParams->d_bucket_a, cudaUpdateParams->d_bucket_c, sketchSeed);
+          cudaKernel.sketchUpdate(num_device_threads, num_device_blocks, streams[stream_id].stream, cudaUpdateParams->d_edgeUpdates, start_index, sketch_update_size[graph_id], stream_id * num_buckets, cudaUpdateParams, cudaUpdateParams->d_bucket_a, cudaUpdateParams->d_bucket_c, sketchSeed);
           cudaMemcpyAsync(&cudaUpdateParams->h_bucket_a[stream_id * num_buckets], &cudaUpdateParams->d_bucket_a[stream_id * num_buckets], num_buckets * sizeof(vec_t), cudaMemcpyDeviceToHost, streams[stream_id].stream);
           cudaMemcpyAsync(&cudaUpdateParams->h_bucket_c[stream_id * num_buckets], &cudaUpdateParams->d_bucket_c[stream_id * num_buckets], num_buckets * sizeof(vec_hash_t), cudaMemcpyDeviceToHost, streams[stream_id].stream);
         }
@@ -203,7 +203,7 @@ void MCGPUSketchAlg::convert_adj_to_sketch() {
       // Start sketch updates
       CudaUpdateParams* cudaUpdateParams = subgraphs[graph_id]->get_cudaUpdateParams();
       cudaMemcpyAsync(&convert_d_edgeUpdates[start_index], &convert_h_edgeUpdates[start_index], dst_vertices.size() * sizeof(vec_t), cudaMemcpyHostToDevice, streams[stream_id].stream);
-      cudaKernel.k_sketchUpdate(num_device_threads, num_device_blocks, streams[stream_id].stream, convert_d_edgeUpdates, start_index, dst_vertices.size(), stream_id * num_buckets, cudaUpdateParams, cudaUpdateParams->convert_d_bucket_a, cudaUpdateParams->convert_d_bucket_c, sketchSeed);
+      cudaKernel.sketchUpdate(num_device_threads, num_device_blocks, streams[stream_id].stream, convert_d_edgeUpdates, start_index, dst_vertices.size(), stream_id * num_buckets, cudaUpdateParams, cudaUpdateParams->convert_d_bucket_a, cudaUpdateParams->convert_d_bucket_c, sketchSeed);
       cudaMemcpyAsync(&cudaUpdateParams->convert_h_bucket_a[stream_id * num_buckets], &cudaUpdateParams->convert_d_bucket_a[stream_id * num_buckets], num_buckets * sizeof(vec_t), cudaMemcpyDeviceToHost, streams[stream_id].stream);
       cudaMemcpyAsync(&cudaUpdateParams->convert_h_bucket_c[stream_id * num_buckets], &cudaUpdateParams->convert_d_bucket_c[stream_id * num_buckets], num_buckets * sizeof(vec_hash_t), cudaMemcpyDeviceToHost, streams[stream_id].stream);
 
@@ -272,12 +272,31 @@ void MCGPUSketchAlg::apply_flush_updates() {
   }
 }
 
+void MCGPUSketchAlg::traverse_DFS(std::vector<Edge> *forest, int graph_id, node_id_t node_id, std::vector<int> *visited) {
+  (*visited)[node_id] = 1;
+
+  if (forest->size() == num_nodes) {
+    return;
+  }
+
+  std::map<node_id_t, node_id_t> dst_vertices = subgraphs[graph_id]->get_neighbor_nodes(node_id);
+  for (auto it = dst_vertices.begin(); it != dst_vertices.end(); it++) {
+    node_id_t dst = it->first;
+    if((*visited)[dst] == 0) {
+      forest->push_back({node_id, dst});
+
+      traverse_DFS(forest, graph_id, dst, visited);
+    }
+  }
+}
+
 std::vector<Edge> MCGPUSketchAlg::get_adjlist_spanning_forests(int graph_id, int k) {
   if (subgraphs[graph_id]->get_type() == SKETCH) {
     std::cout << "Subgraph with graph_id: " << graph_id << " is Sketch graph!\n";
   }
 
   std::vector<Edge> forests;
+  // Method 1: Sample a neighbor node, edge might be a "bad" edge
   for (int k_id = 0; k_id < k; k_id++) {
     for (node_id_t node_id = 0; node_id < num_nodes; node_id++) {
       node_id_t dst = subgraphs[graph_id]->sample_dst_node(node_id);
@@ -285,7 +304,49 @@ std::vector<Edge> MCGPUSketchAlg::get_adjlist_spanning_forests(int graph_id, int
       if (dst != -1) {
         forests.push_back({node_id, dst});
       }
+
     }
   }
+
+  // Method 2: Convert the entire adj. list into a spanning tree
+  /*for (node_id_t node_id = 0; node_id < num_nodes; node_id++) {
+    std::map<node_id_t, node_id_t> dst_vertices = subgraphs[graph_id]->get_neighbor_nodes(node_id);
+
+    for (auto it = dst_vertices.begin(); it != dst_vertices.end(); it++) {
+      forests.push_back({node_id, it->first});
+    }
+  }*/
+
+  // Method 3: Perform DFS to construct a spanning tree
+  /*std::set<Edge> edges;
+  for (int k_id = 0; k_id < k; k_id++) {
+    std::cout << "  Getting spanning forest " << k_id << "\n";
+    std::vector<int> visited;
+    std::vector<Edge> forest;
+
+    visited.assign(num_nodes, 0);
+    traverse_DFS(&forest, graph_id, 0, &visited);
+
+    // Fill forests with forest
+    for (auto& edge : forest) {
+      forests.push_back(edge);
+    }
+
+    // Delete sampled edge from adj. list
+    std::cout << "    Trimming spanning forest " << k_id << "\n";
+    subgraphs[graph_id]->adjlist_trim_forest(forest);
+  }
+
+  // Check for any duplicate edge
+  for (auto& edge : forests) {
+    if (edges.count(edge) == 0) {
+      edges.insert(edge);
+    }
+    else {
+      std::cerr << "ERROR: duplicate edge in forests! {" << edge.src << "," << edge.dst << "}\n";
+      exit(EXIT_FAILURE);
+    }
+  }*/
+
   return forests;
 }

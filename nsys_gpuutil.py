@@ -52,12 +52,24 @@ def compute_utilization(filename, freq=10000):
     avg_net_util = usage/count_nonzero 
     effective_util = usage/freq/100
       
-    print(f"Avg gross GPU utilization:\t%lf %%" % avg_gross_util) 
-    print(f"Avg net GPU utilization:\t%lf %%" % avg_net_util) 
-    print(f"Effective GPU utilization time:\t%lf s" % effective_util) 
-    print("Number of times where 100% SMs were active: ", count_100)
-    print("Number of times where 0% SMs were active: ", count_zero)
-    print(type(smactive_df.loc[smactive_df['value']==0]))
+    #print(f"Avg gross GPU utilization:\t%lf %%" % avg_gross_util) 
+    #print(f"Avg net GPU utilization:\t%lf %%" % avg_net_util) 
+    #print(f"Effective GPU utilization time:\t%lf s" % effective_util) 
+    #print("Number of times where 100% SMs were active: ", count_100)
+    #print("Number of times where 0% SMs were active: ", count_zero)
+    
+    smactive = smactive_df.loc[smactive_df['value']!=0]
+    smactive_index = smactive.index.to_list()
+
+    start_loc = smactive_index[0]
+    end_loc = smactive_index[-1]
+    ingestion_smactive = smactive_df.loc[list(range(start_loc, end_loc + 1, 14))]
+    ingestion_len = len(ingestion_smactive.index)
+    print("Total captured freq for ingestion: ", ingestion_len)
+    print(f"Avg net GPU utilization:\t%lf %%" % (usage / ingestion_len)) 
+    print("Number of times where 100% SMs were active: ", len(ingestion_smactive.loc[ingestion_smactive['value']==100]))
+    print("Number of times where 0% SMs were active: ", len(ingestion_smactive.loc[ingestion_smactive['value']==0]) )
+
     return metadata_df 
       
 if __name__ == '__main__': 

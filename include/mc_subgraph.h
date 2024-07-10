@@ -53,8 +53,8 @@ public:
       return num_adj_edges;
     }
   }
-  std::map<node_id_t, std::map<node_id_t, node_id_t>> get_adjlist() { return adjlist; }
-  std::map<node_id_t, node_id_t> get_neighbor_nodes (node_id_t src) { return adjlist[src]; }
+  std::map<node_id_t, std::map<node_id_t, node_id_t>>& get_adjlist() { return adjlist; }
+  std::map<node_id_t, node_id_t>& get_neighbor_nodes (node_id_t src) { return adjlist[src]; }
 
   bool try_acq_conversion() { 
     int org_val = 0;
@@ -67,6 +67,7 @@ public:
   void increment_num_sketch_updates(int value) { num_sketch_updates += value; }
 
   // Delete methods
+  void adjlist_trim_forest(std::vector<Edge> forest);
   void adjlist_delete_src(node_id_t src) { adjlist.erase(src); }
   void clear_adjlist() { adjlist.clear(); }
 };

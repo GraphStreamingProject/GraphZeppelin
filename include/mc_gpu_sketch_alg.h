@@ -193,6 +193,7 @@ public:
     }
   }
 
+  void traverse_DFS(std::vector<Edge> *forest, int graph_id, node_id_t node_id, std::vector<int> *visited);
   std::vector<Edge> get_adjlist_spanning_forests(int graph_id, int k);
   int get_num_sketch_graphs() { return num_sketch_graphs; }
   int get_num_adj_graphs() { return num_adj_graphs; }

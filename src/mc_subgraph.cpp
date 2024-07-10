@@ -43,3 +43,11 @@ node_id_t MCSubgraph::sample_dst_node(node_id_t src) {
   adjlist[src].erase(dst);
   return dst;
 }
+
+void MCSubgraph::adjlist_trim_forest(std::vector<Edge> forest) {
+  for (auto edge : forest) {
+    node_id_t src = edge.src; 
+    node_id_t dst = edge.dst;
+    adjlist[src].erase(dst);
+  }
+}

@@ -47,6 +47,16 @@ nsys profile --gpu-metrics-device=0 -o kron_17_48_6bf_2tb_gpumetric -f true ./cu
 nsys profile --gpu-metrics-device=0 -o kron_17_48_6bf_3tb_gpumetric -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
 nsys profile --gpu-metrics-device=0 -o kron_17_48_6bf_4tb_gpumetric -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
 nsys profile --gpu-metrics-device=0 -o kron_17_48_6bf_5tb_gpumetric -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+nsys profile --gpu-metrics-device=0 -o kron_17_48_6bf_1tb_gpumetric_new -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+nsys profile --gpu-metrics-device=0 -o kron_17_48_6bf_2tb_gpumetric_new -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+nsys profile --gpu-metrics-device=0 -o kron_17_48_6bf_2tb_gpumetric_new_512t -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+nsys profile --gpu-metrics-device=0 -o kron_17_48_6bf_3tb_gpumetric_new -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+nsys profile --gpu-metrics-device=0 -o kron_17_48_6bf_4tb_gpumetric_new_256t -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+nsys profile --gpu-metrics-device=0 -o kron_17_48_6bf_4tb_gpumetric_new_1024t -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+nsys profile --gpu-metrics-device=0 -o kron_17_48_6bf_8tb_gpumetric_new_256t -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+nsys profile --gpu-metrics-device=0 -o kron_17_48_6bf_8tb_gpumetric_new_256t -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+nsys profile --gpu-metrics-device=0 -o kron_17_96_6bf_1tb_gpumetric_new -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 48 48
+
 
 nsys profile --gpu-metrics-device=0 -o kron_17_48_2tb_gpumetric -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
 nsys profile --gpu-metrics-device=0 -o kron_17_48_3tb_gpumetric -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24

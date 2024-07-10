@@ -50,6 +50,7 @@ class Sketch {
 
   // bucket data
   Bucket* buckets;
+  bool is_cuda_bucket = false;
 
  public:
   /**
@@ -74,6 +75,18 @@ class Sketch {
   static size_t calc_cc_samples(node_id_t num_vertices, double f) {
     return std::max(size_t(18), (size_t) ceil(f * log2(num_vertices) / num_samples_div));
   }
+
+  /**
+   * Construct a sketch object with already allocated bucket (For GPU-Purpose)
+   * @param vector_len       Length of the vector we are sketching
+   * @param seed             Random seed of the sketch
+   * @param sketch_id        Id of current sketch (Vertex Id)
+   * @param _buckets         Pointer to all buckets
+   * @param num_samples      [Optional] Number of samples this sketch supports (default = 1)
+   * @param cols_per_sample  [Optional] Number of sketch columns for each sample (default = 1)
+   */
+  Sketch(vec_t vector_len, uint64_t seed, node_id_t sketch_id, Bucket* _buckets, size_t num_samples = 1,
+         size_t cols_per_sample = default_cols_per_sample);
 
   /**
    * Construct a sketch object

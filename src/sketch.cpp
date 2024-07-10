@@ -5,6 +5,22 @@
 #include <vector>
 #include <cassert>
 
+Sketch::Sketch(vec_t vector_len, uint64_t seed, node_id_t sketch_id, Bucket* _buckets, size_t _samples, size_t _cols) : seed(seed) {
+  num_samples = _samples;
+  cols_per_sample = _cols;
+  num_columns = num_samples * cols_per_sample;
+  bkt_per_col = calc_bkt_per_col(vector_len);
+  num_buckets = num_columns * bkt_per_col + 1; // plus 1 for deterministic bucket
+  buckets = &(_buckets[sketch_id * num_buckets]);
+
+  // initialize bucket values
+  for (size_t i = 0; i < num_buckets; ++i) {
+    buckets[i].alpha = 0;
+    buckets[i].gamma = 0;
+  }
+  is_cuda_bucket = true;
+}
+
 Sketch::Sketch(vec_t vector_len, uint64_t seed, size_t _samples, size_t _cols) : seed(seed) {
   num_samples = _samples;
   cols_per_sample = _cols;
@@ -45,7 +61,7 @@ Sketch::Sketch(const Sketch &s) : seed(s.seed) {
   std::memcpy(buckets, s.buckets, bucket_array_bytes());
 }
 
-Sketch::~Sketch() { delete[] buckets; }
+Sketch::~Sketch() { if(!is_cuda_bucket) delete[] buckets; }
 
 #ifdef L0_SAMPLING
 void Sketch::update(const vec_t update_idx) {

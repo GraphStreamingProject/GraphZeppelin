@@ -321,7 +321,7 @@ int main(int argc, char **argv) {
   for (int graph_id = 0; graph_id < num_graphs - num_sampled_zero_graphs; graph_id++) {
     std::string file_name = "certificates" + std::to_string(graph_id) + ".metis";
     std::string output_name = "mincut" + std::to_string(graph_id) + ".txt";
-    std::string command = "../VieCut/build/mincut_parallel " + file_name + " exact >" + output_name; // Run VieCut and store the output
+    std::string command = "_deps/viecut-build/mincut_parallel " + file_name + " exact >" + output_name; // Run VieCut and store the output
     std::system(command.data());
 
     std::string line;
