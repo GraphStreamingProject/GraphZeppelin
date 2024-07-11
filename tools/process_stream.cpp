@@ -35,12 +35,12 @@ public:
     std::vector<unsigned int> mincut_values;
     unsigned int return_min_cut;
 
-    explicit MinCutSimple(node_id_t num_nodes, const std::vector<std::vector<CCAlgConfiguration>> &config_vec):
+    explicit MinCutSimple(node_id_t num_nodes, double eps, const std::vector<std::vector<CCAlgConfiguration>> &config_vec):
             num_nodes(num_nodes) {
         num_subgraphs = (unsigned int)(2*std::ceil(std::log2(num_nodes)));
   	std::cout<<"Number of subgraphs(constructor):"<<num_subgraphs<<std::endl;
         // TODO: make the approximation factor tunable later
-        num_forest = 2*num_subgraphs;
+        num_forest = (unsigned int)(3*num_subgraphs/(eps*eps));
   	std::cout<<"Number of forests(k)(constructor):"<<num_forest<<std::endl;
         for(unsigned int i=0;i<num_subgraphs;i++){
             k_edge_algs.push_back(std::make_unique<KEdgeConnect>(num_nodes, num_forest, config_vec[i]));
@@ -439,6 +439,7 @@ int main(int argc, char **argv) {
 
   unsigned int num_subgraphs;
   unsigned int num_edge_connect;
+  double eps = 0.8;
 
   BinaryFileStream stream(stream_file);
   BinaryFileStream stream_ref(stream_file);
@@ -450,7 +451,7 @@ int main(int argc, char **argv) {
   std::cout << std::endl;
 
   num_subgraphs = (unsigned int)(2*std::ceil(std::log2(num_nodes)));
-  num_edge_connect = 2*num_subgraphs;
+  num_edge_connect = (unsigned int)(3*num_subgraphs/(eps*eps));
   std::cout<<"Number of subgraphs:"<<num_subgraphs<<std::endl;
   std::cout<<"Edges Connectivity Param (k):"<<num_edge_connect<<std::endl;
 
@@ -466,7 +467,7 @@ int main(int argc, char **argv) {
   }
 
   // KEdgeConnect k_edge_alg{num_nodes, num_edge_connect, config_vec};
-  MinCutSimple min_cut_alg{num_nodes, config_vec};
+  MinCutSimple min_cut_alg{num_nodes, eps, config_vec};
 
   GraphSketchDriver<MinCutSimple> driver{&min_cut_alg, &stream, driver_config, reader_threads};
 
