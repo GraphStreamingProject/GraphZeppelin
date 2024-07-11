@@ -14,6 +14,13 @@
 // TODO: make num_edge_connect an input argument;
 // TODO: Daniel's concern: right now, the deletion of the edge to the stream makes the query only possible to be supported once -- fix this later
 
+int ctr_x=0;
+int ctr_y=0;
+
+unsigned long long ctr_z=0;
+unsigned long long ctr_o=0;
+unsigned long long ctr_t=0;
+
 
 static bool shutdown = false;
 
@@ -22,7 +29,7 @@ public:
     const node_id_t num_nodes;
     unsigned int num_forest;  // this value is k in the k-edge connectivity
     unsigned int num_subgraphs;
-    const int my_prime = 100003; // Prime number for polynomial hashing
+    const int my_prime = 44497; // Prime number for polynomial hashing
     std::vector<std::vector<int>> hash_coefficients;
     std::vector<std::unique_ptr<KEdgeConnect>> k_edge_algs;
     std::vector<unsigned int> mincut_values;
@@ -31,12 +38,15 @@ public:
     explicit MinCutSimple(node_id_t num_nodes, const std::vector<std::vector<CCAlgConfiguration>> &config_vec):
             num_nodes(num_nodes) {
         num_subgraphs = (unsigned int)(2*std::ceil(std::log2(num_nodes)));
+  	std::cout<<"Number of subgraphs(constructor):"<<num_subgraphs<<std::endl;
         // TODO: make the approximation factor tunable later
-        num_forest = 4*num_subgraphs;
+        num_forest = 2*num_subgraphs;
+  	std::cout<<"Number of forests(k)(constructor):"<<num_forest<<std::endl;
         for(unsigned int i=0;i<num_subgraphs;i++){
             k_edge_algs.push_back(std::make_unique<KEdgeConnect>(num_nodes, num_forest, config_vec[i]));
         }
         // Initialize coefficients randomly
+  	//std::cout<<"hash coeffs (constructor):"<<std::endl;
         std::random_device rd_ind;
         std::mt19937 gen_ind(rd_ind());
         std::uniform_int_distribution<int> dist_coeff(1, my_prime - 1); // random numbers between 1 and p-1
@@ -44,9 +54,12 @@ public:
             std::vector<int> this_subgraph_coeff;
             for (int j = 0; j < num_subgraphs; j++) {
                 this_subgraph_coeff.push_back(dist_coeff(gen_ind));
+  		//std::cout<<this_subgraph_coeff[j]<<" ";
             }
             hash_coefficients.push_back(this_subgraph_coeff);
+	    std::cout<<std::endl;
         }
+  	std::cout<<"end of constructor"<<std::endl;
     }
 
     void allocate_worker_memory(size_t num_workers){
@@ -78,7 +91,7 @@ public:
 
     // Function to generate k-wise independent hash
     int k_wise_hash(const std::vector<int>& coefficients, unsigned int src_vertex, unsigned int dst_vertex) {
-        int hash_val = 0;
+        unsigned int hash_val = 0;
         if (src_vertex>dst_vertex){
             std::swap(src_vertex, dst_vertex);
         }
@@ -86,6 +99,16 @@ public:
         for (int i = 0; i < coefficients.size(); ++i) {
             hash_val = (hash_val + coefficients[i] * power(edge_id, i, my_prime)) % my_prime;
         }
+	//std::cout<<"Hash val inside hash func: "<<(hash_val % 2)<<std::endl;
+	if(hash_val % 2==0)
+	{
+		ctr_x++;
+	}
+	else
+	{
+		ctr_y++;
+	}
+
         return (hash_val % 2);
     }
 
@@ -139,15 +162,30 @@ public:
         else{
             position = -1;
         }
+	
+	//std::cout<<"Vertex: "<<src_vertex<<std::endl;
         for(unsigned int i=0;i<num_subgraphs;i++) {
             if (position>=0) {
                 k_edge_algs[i]->apply_update_batch(thr_id, src_vertex, input_dst_vertices);
+		//std::cout<<"Nbhd size in round "<<i<<" is: "<<input_dst_vertices.size()<<std::endl;
+		if(i==0)
+		{
+			ctr_z = ctr_z + input_dst_vertices.size();
+		}
+		else if(i==1)
+		{
+			ctr_o = ctr_o + input_dst_vertices.size();
+		}
+		else if(i==2)
+		{
+			ctr_t = ctr_t + input_dst_vertices.size();
+		}
                 // The following while loop: keep the position variable to be always aligned with the last vertex
                 // that has not been deleted yet
                 // If the vertex-corresponding end_index is at most the iteration number, it means it has already been
                 // accounted for in this iteration, and should not be accounted of at the next iteration; so we should
                 // remove
-                while (dst_end_index[position].second <= i && position>=0) {
+                while (dst_end_index[position].second <= i+1 && position>=0) {
                     input_dst_vertices.pop_back();
                     position--;
                 }
@@ -172,6 +210,7 @@ public:
         std::ofstream metis_file(file_name);
 
         std::cout << "Writing METIS file...\n";
+	std::cout<<"no of vertices and edges "<< num_nodes << " " << num_edge << std::endl;
 
         // could be a hidden bug later -- at the moment, num_nodes is taken from the class
         metis_file << num_nodes << " " << num_edge << " 0" << "\n";
@@ -198,13 +237,13 @@ public:
                     continue;
 		}
 		new_count++;
-	}}
-	std::cout<<"new count: "<<new_count<<std::endl;
-	std::cout<<"num edges:" <<num_edge<<std::endl;
+	    }
+	}
+	std::cout<<"no of edges (going through the nodelist): "<<new_count<<std::endl;
      }
 
     void query(){
-        std::cout<<"We made it to the query function!"<<std::endl;
+        std::cout<<std::endl<<"We made it to the query function!"<<std::endl;
         for(unsigned int i=0;i<num_subgraphs;i++) {
             std::map<size_t, std::vector<size_t>> nodes_list;
             std::vector<std::pair<node_id_t, std::vector<node_id_t>>> current_forest;
@@ -212,6 +251,7 @@ public:
             // easy version: check from the i=0 to i=log n without using an additional layer of binary search
             k_edge_algs[i]->query(); // This creates the k forests
             unsigned int k = k_edge_algs[i]->forests_collection.size();
+	    std::cout<<"query func, k= "<<k<<std::endl;
             for (unsigned int j=0;j<k;j++) {
                 current_forest = k_edge_algs[i]->forests_collection[j];
                 for(auto v_neighbors_pair: current_forest){
@@ -226,9 +266,6 @@ public:
             // run the min-cut algorithm -- stolen from gpu min-cut
             std::string file_name = "temp-graph-min-cut.metis";
             std::string output_name = "mincut.txt";
-            // ************** test with a dummy cut value first ****************
-            //unsigned int cut_value = 5;
-            //mincut_values.push_back(cut_value);
             std::string command = "./mincut_parallel " + file_name + " exact >" + output_name; // Run VieCut and store the output
             std::system(command.data());
 
@@ -413,7 +450,9 @@ int main(int argc, char **argv) {
   std::cout << std::endl;
 
   num_subgraphs = (unsigned int)(2*std::ceil(std::log2(num_nodes)));
-  num_edge_connect = 10*num_subgraphs;
+  num_edge_connect = 2*num_subgraphs;
+  std::cout<<"Number of subgraphs:"<<num_subgraphs<<std::endl;
+  std::cout<<"Edges Connectivity Param (k):"<<num_edge_connect<<std::endl;
 
   auto driver_config = DriverConfiguration().gutter_sys(CACHETREE).worker_threads(num_threads);
   std::vector<std::vector<CCAlgConfiguration>> config_vec;
@@ -436,12 +475,9 @@ int main(int argc, char **argv) {
 
   driver.process_stream_until(END_OF_STREAM);
 
-    std::cout<<"************* Checkpoint 5 *******************"<<std::endl;
   auto cc_start = std::chrono::steady_clock::now();
-    std::cout<<"************* Checkpoint 6 *******************"<<std::endl;
   driver.prep_query();
 
-    std::cout<<"************* Checkpoint 7 *******************"<<std::endl;
   min_cut_alg.query();
 
 
@@ -519,4 +555,12 @@ int main(int argc, char **argv) {
 //      std::cout << "Number of connected Component in :         " << i+1 << " is " << CC_nums[i] << std::endl;
 //  }
   std::cout << "Maximum Memory Usage(MiB):    " << get_max_mem_used() << std::endl;
+
+
+  std::cout<<"No of times hash func returns 0 (x)="<<ctr_x<<std::endl;
+  std::cout<<"No of times hash func returns 1 (y)="<<ctr_y<<std::endl;
+  std::cout<<"Counter to check numbers in sampling using concentration"<<std::endl;
+  std::cout<<"count of 0: "<<ctr_z<<std::endl;
+  std::cout<<"count of 1: "<<ctr_o<<std::endl;
+  std::cout<<"count of 2: "<<ctr_t<<std::endl;
 }

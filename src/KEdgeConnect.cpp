@@ -65,33 +65,33 @@ void KEdgeConnect::query() {
 
     std::vector<std::pair<node_id_t, std::vector<node_id_t>>> temp_forest;
     for(unsigned int i=0;i<num_forest-1;i++) {
-        std::cout << "SPANNING FOREST " << (i+1) << std::endl;
+        //std::cout << "SPANNING FOREST " << (i+1) << std::endl;
         // getting the spanning forest from the i-th cc-alg
         temp_forest = cc_alg[i]->calc_spanning_forest();
         forests_collection.push_back(temp_forest);
 
         for (unsigned int j = 0; j < temp_forest.size(); j++) {
-            std::cout << temp_forest[j].first << ":";
+            //std::cout << temp_forest[j].first << ":";
             for (auto dst: temp_forest[j].second) {
-                std::cout << " " << dst;
+                //std::cout << " " << dst;
                 temp_edge.edge.src = temp_forest[j].first;
                 temp_edge.edge.dst = dst;
                 for (int l=i+1;l<num_forest;l++){
                     cc_alg[l]->update(temp_edge);
                 }
             }
-            std::cout << std::endl;
+            //std::cout << std::endl;
         }
     }
 
-    std::cout << "THE LAST SPANNING FOREST" << std::endl;
+    //std::cout << "THE LAST SPANNING FOREST" << std::endl;
     temp_forest = cc_alg[num_forest-1]->calc_spanning_forest();
     forests_collection.push_back(temp_forest);
     for (unsigned int j = 0; j < temp_forest.size(); j++) {
-        std::cout << temp_forest[j].first << ":";
+        //std::cout << temp_forest[j].first << ":";
         for (auto dst: temp_forest[j].second) {
-            std::cout << " " << dst;
+            //std::cout << " " << dst;
         }
-        std::cout << std::endl;
+        //std::cout << std::endl;
     }
 }
