@@ -64,6 +64,7 @@ class CudaUpdateParams {
       num_nodes(num_nodes), num_updates(num_updates), buckets(buckets), num_samples(num_samples), num_buckets(num_buckets), num_columns(num_columns), bkt_per_col(bkt_per_col), num_host_threads(num_host_threads), num_reader_threads(num_reader_threads), batch_size(batch_size), stream_multiplier(stream_multiplier), num_device_blocks(num_device_blocks), k(k) {
       
       // Allocate memory for buffer that stores edge updates
+
       gpuErrchk(cudaMallocHost(&h_edgeUpdates, stream_multiplier * num_host_threads * batch_size * sizeof(vec_t)));
       gpuErrchk(cudaMalloc(&d_edgeUpdates, stream_multiplier * num_host_threads * batch_size * sizeof(vec_t)));
 
@@ -115,4 +116,5 @@ class CudaKernel {
     void single_sketchUpdate(int num_threads, int num_blocks, size_t maxBytes, node_id_t* update_src, vec_t* update_sizes, vec_t* update_start_index, vec_t* edgeUpdates, vec_t* bucket_a, vec_hash_t* bucket_c, size_t num_buckets, size_t num_columns, size_t bkt_per_col, size_t sketchSeed);
 
     void updateSharedMemory(size_t maxBytes);
+
 };
