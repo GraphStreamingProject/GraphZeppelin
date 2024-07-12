@@ -27,6 +27,25 @@ CCSketchAlg::CCSketchAlg(node_id_t num_vertices, size_t seed, CCAlgConfiguration
   shared_dsu_valid = true;
 }
 
+CCSketchAlg::CCSketchAlg(node_id_t num_vertices, size_t seed, Bucket* _buckets, CCAlgConfiguration config)
+    : num_vertices(num_vertices), seed(seed), dsu(num_vertices), config(config) {
+  representatives = new std::set<node_id_t>();
+  sketches = new Sketch *[num_vertices];
+
+  vec_t sketch_vec_len = Sketch::calc_vector_length(num_vertices);
+  size_t sketch_num_samples = Sketch::calc_cc_samples(num_vertices, config.get_sketches_factor());
+
+  for (node_id_t i = 0; i < num_vertices; ++i) {
+    representatives->insert(i);
+    sketches[i] = new Sketch(sketch_vec_len, seed, i, _buckets, sketch_num_samples);
+  }
+
+  spanning_forest = new std::unordered_set<node_id_t>[num_vertices];
+  spanning_forest_mtx = new std::mutex[num_vertices];
+  dsu_valid = true;
+  shared_dsu_valid = true;
+}
+
 CCSketchAlg *CCSketchAlg::construct_from_serialized_data(const std::string &input_file,
                                                         CCAlgConfiguration config) {
   double sketches_factor;

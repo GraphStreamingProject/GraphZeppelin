@@ -11,6 +11,19 @@ ncu -o ./multiples_1024_two -f --set full --target-processes all --import-source
 ncu -o ./kron_17_kcon_1tblocks_4 -f --set full -c 10 --target-processes all --import-source yes ./k_connectivity ../../../datasets/kron_17_stream_binary 24 24
 ncu -o ./kron_17_kcon_ktblocks_2 -f --set full -c 10 --target-processes all --import-source yes ./k_connectivity ../../../datasets/kron_17_stream_binary 24 24
 ncu -o ./kron_17_kcon_ktblocks_4 -f --set full -c 10 --target-processes all --import-source yes ./k_connectivity ../../../datasets/kron_17_stream_binary 24 24
+ncu -o ./kron_16_16 -f --set full -c 10 --target-processes all --import-source yes ./cuda_process_stream ../../../datasets/kron_16_stream_binary 8 8
+ncu -o ./kron_17_16_3tb_dram_2 -f --set full -c 10 --target-processes all --import-source yes ./cuda_process_stream ../../../datasets/kron_17_stream_binary 8 8
+ncu -o ./kron_17_48_1tb -f --set full -c 20 --target-processes all --import-source yes ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+ncu -o ./kron_17_48_2tb -f --set full -c 20 --target-processes all --import-source yes ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+ncu -o ./kron_17_48_4tb -f --set full -c 20 --target-processes all --import-source yes ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+ncu -o ./kron_17_48_10tb -f --set full -c 20 --target-processes all --import-source yes ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+
+ncu -o ./kron_15_single_kernel -f --set full --target-processes all --import-source yes ./single_kernel_stream ../../../datasets/kron_15_stream_binary 8 8
+ncu -o ./kron_15_single_kernel_edgeUpdates_sm -f --set full --target-processes all --import-source yes ./single_kernel_stream ../../../datasets/kron_15_stream_binary 8 8
+ncu -o ./kron_15_single_kernel_merge_buckets -f --set full --target-processes all --import-source yes ./single_kernel_stream ../../../datasets/kron_15_stream_binary 8 8
+ncu -o ./kron_16_single_kernel_parallel_dram -f --set full --target-processes all --import-source yes ./single_kernel_stream ../../../datasets/kron_16_stream_binary 8 8
+ncu -o ./kron_16_single_kernel -f --set full --target-processes all --import-source yes ./single_kernel_stream ../../../datasets/kron_16_stream_binary 8 8
+ncu -o ./kron_17_single_kernel -f --set full --target-processes all --import-source yes ./single_kernel_stream ../../../datasets/kron_17_stream_binary 8 8
 
 nsys profile -o multiples_1024_one -f true ./cuda_process_stream ../test/res/multiples_graph_1024_stream.data 1 1
 nsys profile -o kron_13_one -f true ./cuda_process_stream ../../../datasets/kron_13_stream_binary 1 1
@@ -28,6 +41,32 @@ nsys profile -o kron_16_48_test2 -f true ./cuda_process_stream ../../../datasets
 nsys profile -o kron_16_48_test2 -f true ./cuda_process_stream ../../../datasets/kron_16_stream_binary 48 48
 nsys profile -o kron_16_48_test3 -f true ./cuda_process_stream ../../../datasets/kron_16_stream_binary 48 48
 nsys profile -o kron_16_48_test4 -f true ./cuda_process_stream ../../../datasets/kron_16_stream_binary 48 48
+nsys profile -o kron_16_16 -f true ./cuda_process_stream ../../../datasets/kron_16_stream_binary 8 8
+nsys profile --gpu-metrics-device=0 -o kron_17_48_6bf_1tb_gpumetric -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+nsys profile --gpu-metrics-device=0 -o kron_17_48_6bf_2tb_gpumetric -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+nsys profile --gpu-metrics-device=0 -o kron_17_48_6bf_3tb_gpumetric -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+nsys profile --gpu-metrics-device=0 -o kron_17_48_6bf_4tb_gpumetric -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+nsys profile --gpu-metrics-device=0 -o kron_17_48_6bf_5tb_gpumetric -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+nsys profile --gpu-metrics-device=0 -o kron_17_48_6bf_1tb_gpumetric_new -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+nsys profile --gpu-metrics-device=0 -o kron_17_48_6bf_2tb_gpumetric_new -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+nsys profile --gpu-metrics-device=0 -o kron_17_48_6bf_2tb_gpumetric_new_512t -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+nsys profile --gpu-metrics-device=0 -o kron_17_48_6bf_3tb_gpumetric_new -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+nsys profile --gpu-metrics-device=0 -o kron_17_48_6bf_4tb_gpumetric_new_256t -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+nsys profile --gpu-metrics-device=0 -o kron_17_48_6bf_4tb_gpumetric_new_1024t -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+nsys profile --gpu-metrics-device=0 -o kron_17_48_6bf_8tb_gpumetric_new_256t -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+nsys profile --gpu-metrics-device=0 -o kron_17_48_6bf_8tb_gpumetric_new_256t -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+nsys profile --gpu-metrics-device=0 -o kron_17_96_6bf_1tb_gpumetric_new -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 48 48
+
+
+nsys profile --gpu-metrics-device=0 -o kron_17_48_2tb_gpumetric -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+nsys profile --gpu-metrics-device=0 -o kron_17_48_3tb_gpumetric -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+nsys profile --gpu-metrics-device=0 -o kron_17_48_4tb_gpumetric -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+nsys profile --gpu-metrics-device=0 -o kron_17_48_5tb_gpumetric -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+nsys profile --gpu-metrics-device=0 -o kron_17_48_10tb_gpumetric -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+nsys profile --gpu-metrics-device=0 -o kron_17_48_20tb_gpumetric -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+nsys profile --soc-metrics=true -o kron_17_16_3tb_soc -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+nsys profile -o kron_17_48_1tb -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+
 
 nsys stats -o kron_13_48 --format json -r /opt/nvidia/nsight-systems/2022.4.2/host-linux-x64/reports/gputrace.py kron_13_48.sqlite
 nsys stats -o kron_15_48 --format json -r /opt/nvidia/nsight-systems/2022.4.2/host-linux-x64/reports/gputrace.py kron_15_48.sqlite
@@ -39,6 +78,7 @@ nsys stats -o kron_16_12 --format json -r /opt/nvidia/nsight-systems/2022.4.2/ho
 nsys profile -o kron_16_24 -f true ./cuda_process_stream ../../../datasets/kron_16_stream_binary 24 24
 nsys profile -o kron_17_12 -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 12 12
 nsys profile -o kron_17_24 -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
+nsys profile -o kron_17_24_test -f true ./cuda_process_stream ../../../datasets/kron_17_stream_binary 24 24
 
 nsys stats -o kron_13_12 --format json -r /opt/nvidia/nsight-systems/2023.2.3/host-linux-x64/reports/gputrace.py kron_13_12.sqlite
 

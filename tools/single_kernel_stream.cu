@@ -1,6 +1,6 @@
 #include <vector>
 #include <graph_sketch_driver.h>
-#include <cc_gpu_sketch_alg.h>
+#include <sk_gpu_sketch_alg.h>
 #include <binary_file_stream.h>
 #include <thread>
 #include <sys/resource.h> // for rusage
@@ -26,7 +26,7 @@ static size_t get_seed() {
  * @param g           the graph object to query
  * @param start_time  the time that we started stream ingestion
  */
-void track_insertions(uint64_t total, GraphSketchDriver<CCGPUSketchAlg> *driver,
+void track_insertions(uint64_t total, GraphSketchDriver<SKGPUSketchAlg> *driver,
                       std::chrono::steady_clock::time_point start_time) {
   total = total * 2; // we insert 2 edge updates per edge
 
@@ -86,57 +86,48 @@ int main(int argc, char **argv) {
   std::cout << "num_updates = " << num_updates << std::endl;
   std::cout << std::endl;
 
-  // Get variables from sketch
-  SketchParam sketchParam;
-  sketchParam.num_samples = Sketch::calc_cc_samples(num_nodes, 1);
-  sketchParam.num_columns = sketchParam.num_samples * Sketch::default_cols_per_sample;
-  sketchParam.bkt_per_col = Sketch::calc_bkt_per_col(Sketch::calc_vector_length(num_nodes));
-  sketchParam.num_buckets = sketchParam.num_columns * sketchParam.bkt_per_col + 1;
-
-  std::cout << "num_samples: " << sketchParam.num_samples << "\n";
-  std::cout << "num_buckets: " << sketchParam.num_buckets << "\n";
-  std::cout << "num_columns: " << sketchParam.num_columns << "\n";
-  std::cout << "bkt_per_col: " << sketchParam.bkt_per_col << "\n"; 
-
-  // Allocate memory for buckets
-  Bucket* buckets;
-  gpuErrchk(cudaMallocManaged(&buckets, num_nodes * sketchParam.num_buckets * sizeof(Bucket)));
-
   auto driver_config = DriverConfiguration().gutter_sys(CACHETREE).worker_threads(num_threads);
   auto cc_config = CCAlgConfiguration().batch_factor(6);
-
-  CCGPUSketchAlg cc_gpu_alg{num_nodes, num_updates, num_threads, buckets, get_seed(), sketchParam, cc_config};
-  GraphSketchDriver<CCGPUSketchAlg> driver{&cc_gpu_alg, &stream, driver_config, reader_threads};
+  SKGPUSketchAlg sk_gpu_alg{num_nodes, num_updates * 2, num_threads, get_seed(), cc_config};
+  GraphSketchDriver<SKGPUSketchAlg> driver{&sk_gpu_alg, &stream, driver_config, reader_threads};
   
   auto ins_start = std::chrono::steady_clock::now();
   std::thread querier(track_insertions, num_updates, &driver, ins_start);
 
   driver.process_stream_until(END_OF_STREAM);
+  std::cout << "Flushing... Current batch_count: " << sk_gpu_alg.get_batch_count() << "\n";
 
-  auto cc_start = std::chrono::steady_clock::now();
-  driver.prep_query(CONNECTIVITY);
-  cudaDeviceSynchronize();
+  auto flush_start = std::chrono::steady_clock::now();
+  driver.prep_query(KSPANNINGFORESTS);
   auto flush_end = std::chrono::steady_clock::now();
-  
-  // Prefetch sketches back to CPU
-  gpuErrchk(cudaMemPrefetchAsync(buckets, num_nodes * sketchParam.num_buckets * sizeof(Bucket), cudaCpuDeviceId));
-
-  auto CC_num = cc_gpu_alg.connected_components().size();
-
-  std::chrono::duration<double> insert_time = flush_end - ins_start;
-  std::chrono::duration<double> cc_time = std::chrono::steady_clock::now() - cc_start;
-  std::chrono::duration<double> flush_time = flush_end - driver.flush_start;
-  std::chrono::duration<double> cc_alg_time = cc_gpu_alg.cc_alg_end - cc_gpu_alg.cc_alg_start;
 
   shutdown = true;
   querier.join();
 
-  double num_seconds = insert_time.count();
-  std::cout << "Total insertion time(sec):    " << num_seconds << std::endl;
-  std::cout << "Updates per second:           " << stream.edges() / num_seconds << std::endl;
-  std::cout << "Total CC query latency:       " << cc_time.count() + flush_time.count() << std::endl;
+  // Perform all sketch updates in gpu
+  auto sketch_start = std::chrono::steady_clock::now();
+  sk_gpu_alg.launch_gpu_kernel();
+  auto sketch_end = std::chrono::steady_clock::now();
+
+  // Apply delta sketch
+  auto delta_start = std::chrono::steady_clock::now();
+  sk_gpu_alg.apply_delta_sketch();
+  auto delta_end = std::chrono::steady_clock::now();
+
+  // Get CC
+  auto cc_start = std::chrono::steady_clock::now();
+  auto CC_num = sk_gpu_alg.connected_components().size();
+  std::chrono::duration<double> cc_time = std::chrono::steady_clock::now() - cc_start;
+  std::chrono::duration<double> insert_time = flush_end - ins_start;
+  std::chrono::duration<double> flush_time = flush_end - flush_start;
+  std::chrono::duration<double> sketch_time = sketch_end - sketch_start;
+  std::chrono::duration<double> delta_time = delta_end - delta_start;
+
+  std::cout << "GTS insertion time(sec):    " << insert_time.count() << std::endl;
   std::cout << "  Flush Gutters(sec):           " << flush_time.count() << std::endl;
-  std::cout << "  Boruvka's Algorithm(sec):     " << cc_alg_time.count() << std::endl;
+  std::cout << "GPU time (sec):    " << sketch_time.count() << std::endl;
+  std::cout << "Delta sketch applying time (sec):    " << delta_time.count() << std::endl;
+  std::cout << "Total CC query latency:       " << cc_time.count() << std::endl;
   std::cout << "Connected Components:         " << CC_num << std::endl;
   std::cout << "Maximum Memory Usage(MiB):    " << get_max_mem_used() << std::endl;
 }
