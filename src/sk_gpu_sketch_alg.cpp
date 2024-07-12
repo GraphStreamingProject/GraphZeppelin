@@ -7,7 +7,7 @@ void SKGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
                                      const std::vector<node_id_t> &dst_vertices) {
   if (CCSketchAlg::get_update_locked()) throw UpdateLockedException();
   // Get offset
-  size_t offset = std::atomic_fetch_add(&edgeUpdate_offset, dst_vertices.size());
+  size_t offset = edgeUpdate_offset.fetch_add(dst_vertices.size());
 
   // Fill in buffer
   size_t index = 0;
@@ -16,7 +16,7 @@ void SKGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
     index++;
   }
 
-  size_t batch_id = std::atomic_fetch_add(&batch_count, 1);
+  size_t batch_id = batch_count.fetch_add(1);
   std::lock_guard<std::mutex> lk(batch_mutex);
   batch_sizes.insert({batch_id, dst_vertices.size()});
   batch_src.insert({batch_id, src_vertex});
