@@ -1,6 +1,8 @@
 #pragma once
-#include <graph.h>
-#include <sketch.h>
+#include <atomic>
+#include <iostream>
+#include "bucket.h"
+#include "types.h"
 #include "../src/cuda_library.cu"
 
 typedef unsigned long long int uint64_cu;
@@ -24,144 +26,83 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 *
 */
 
-class CudaSketch {
-  public:
-    vec_t* d_bucket_a;
-    vec_hash_t* d_bucket_c;
-
-    uint64_t seed;
-
-    // Default Constructor of CudaSketch
-    CudaSketch():d_bucket_a(nullptr), d_bucket_c(nullptr) {};
-
-    CudaSketch(vec_t* d_bucket_a, vec_hash_t* d_bucket_c, uint64_t seed): d_bucket_a(d_bucket_a), d_bucket_c(d_bucket_c), seed(seed) {};
-};
-
 class CudaUpdateParams {
   public:
     // List of edge ids that thread will be responsble for updating
     vec_t *h_edgeUpdates, *d_edgeUpdates;
 
+    Bucket* buckets;
+
+    vec_t *convert_h_bucket_a, *convert_d_bucket_a;
+    vec_hash_t *convert_h_bucket_c, *convert_d_bucket_c;
+
+    // Number of columns that each thread block will handle
+    int *num_tb_columns;
+
     // Parameter for entire graph
     node_id_t num_nodes;
-    vec_t num_updates;
-    
-    // Parameter for each supernode (consistent with other supernodes)
-    int num_sketches;
+    size_t num_updates;
     
     // Parameter for each sketch (consistent with other sketches)
-    size_t num_elems;
+    size_t num_samples;
+    size_t num_buckets;
     size_t num_columns;
-    size_t num_guesses;
+    size_t bkt_per_col;
 
     int num_host_threads;
+    int num_reader_threads;
+    int num_device_blocks;
     int batch_size;
     int stream_multiplier; 
+
+    int k;
 
     // Default Constructor of CudaUpdateParams
     CudaUpdateParams():h_edgeUpdates(nullptr), d_edgeUpdates(nullptr) {};
     
-    CudaUpdateParams(node_id_t num_nodes, size_t num_updates, int num_sketches, size_t num_elems, size_t num_columns, size_t num_guesses, int num_host_threads, int batch_size, int stream_multiplier):
-      num_nodes(num_nodes), num_updates(num_updates), num_sketches(num_sketches), num_elems(num_elems), num_columns(num_columns), num_guesses(num_guesses), num_host_threads(num_host_threads), batch_size(batch_size), stream_multiplier(stream_multiplier) {
+    CudaUpdateParams(node_id_t num_nodes, size_t num_updates, Bucket* buckets, int num_samples, size_t num_buckets, size_t num_columns, size_t bkt_per_col, int num_host_threads, int num_reader_threads, int batch_size, int stream_multiplier, int num_device_blocks, int k = 1):
+      num_nodes(num_nodes), num_updates(num_updates), buckets(buckets), num_samples(num_samples), num_buckets(num_buckets), num_columns(num_columns), bkt_per_col(bkt_per_col), num_host_threads(num_host_threads), num_reader_threads(num_reader_threads), batch_size(batch_size), stream_multiplier(stream_multiplier), num_device_blocks(num_device_blocks), k(k) {
       
-      // Allocate memory space for GPU
+      // Allocate memory for buffer that stores edge updates
+
       gpuErrchk(cudaMallocHost(&h_edgeUpdates, stream_multiplier * num_host_threads * batch_size * sizeof(vec_t)));
       gpuErrchk(cudaMalloc(&d_edgeUpdates, stream_multiplier * num_host_threads * batch_size * sizeof(vec_t)));
-    };
-};
 
-struct CudaQuery {
-  Edge edge;
-  SampleSketchRet ret_code;
-};
+      gpuErrchk(cudaMallocHost(&convert_h_bucket_a, (num_reader_threads + num_host_threads) * num_buckets * sizeof(vec_t)));
+      gpuErrchk(cudaMalloc(&convert_d_bucket_a, (num_reader_threads + num_host_threads) * num_buckets * sizeof(vec_t)));
+      gpuErrchk(cudaMallocHost(&convert_h_bucket_c, (num_reader_threads + num_host_threads) * num_buckets * sizeof(vec_hash_t)));
+      gpuErrchk(cudaMalloc(&convert_d_bucket_c, (num_reader_threads + num_host_threads) * num_buckets * sizeof(vec_hash_t)));
 
-struct CudaToMerge {
-  node_id_t* children;
-  int* size;
-};
+      gpuErrchk(cudaMallocManaged(&num_tb_columns, num_device_blocks * sizeof(int)));
 
-class CudaCCParams {
-  public:
-    // List of node ids that need to be sampled
-    node_id_t* reps;
-
-    node_id_t* temp_reps;
-
-    // List of querys
-    CudaQuery* query;
-
-    // List of parent of each node id
-    node_id_t* parent;
-
-    // List of parent of each node id
-    node_id_t* size;
-
-    // List of node ids to be merged
-    CudaToMerge* to_merge;
-    node_id_t* merge_children;
-    int* merge_size;
-
-    // Number of remaining supernodes in a graph
-    // [0]: Current reps size
-    // [1]: num_nodes of the graph
-    node_id_t* num_nodes;
-
-    // Indicate if supernode has been merged or not
-    bool* modified; 
-
-    // List of sample_idx and merged_sketches for all nodes
-    size_t* sample_idxs;
-    size_t* merged_sketches;
-
-    // Parameter for each supernode (consistent with other supernodes)
-    int num_sketches;
-
-    // Parameter for each sketch (consistent with other sketches)
-    size_t num_elems;
-    size_t num_columns;
-    size_t num_guesses;
-
-    CudaCCParams(node_id_t total_nodes, int num_sketches, size_t num_elems, size_t num_columns, size_t num_guesses): 
-      num_sketches(num_sketches), num_elems(num_elems), num_columns(num_columns), num_guesses(num_guesses) {
-
-      gpuErrchk(cudaMallocManaged(&num_nodes, 2 * sizeof(node_id_t)));
-      num_nodes[0] = total_nodes;
-      num_nodes[1] = total_nodes;
-
-      // Allocate memory space for GPU
-      gpuErrchk(cudaMallocManaged(&reps, num_nodes[0] * sizeof(node_id_t)));
-      gpuErrchk(cudaMallocManaged(&temp_reps, num_nodes[0] * sizeof(node_id_t)));
-      gpuErrchk(cudaMallocManaged(&query, num_nodes[0] * sizeof(CudaQuery)));
-      gpuErrchk(cudaMallocManaged(&parent, num_nodes[0] * sizeof(node_id_t)));
-      gpuErrchk(cudaMallocManaged(&size, num_nodes[0] * sizeof(node_id_t)));
-
-      gpuErrchk(cudaMallocManaged(&to_merge, num_nodes[0] * sizeof(CudaToMerge)));
-
-      gpuErrchk(cudaMallocManaged(&modified, sizeof(bool)));
-      gpuErrchk(cudaMallocManaged(&sample_idxs, num_nodes[0] * sizeof(size_t)));
-      gpuErrchk(cudaMallocManaged(&merged_sketches, num_nodes[0] * sizeof(size_t)));
-
-      gpuErrchk(cudaMallocManaged(&merge_children, num_nodes[0] * num_nodes[0] * sizeof(node_id_t)));
-      memset(merge_children, 0, num_nodes[0] * num_nodes[0] * sizeof(node_id_t));
-
-      gpuErrchk(cudaMallocManaged(&merge_size, num_nodes[0] * sizeof(int)));
-      memset(merge_size, 0, num_nodes[0] * sizeof(int));
-
-      for (size_t i = 0; i < num_nodes[0]; i++) {
-        to_merge[i] = CudaToMerge{&merge_children[i * num_nodes[0]], &merge_size[i]};
+      for (int i = 0; i < num_device_blocks ; i++) {
+        num_tb_columns[i] = num_columns / num_device_blocks;
       }
-      modified[0] = false;
-    };
 
-    void reset() {
-      for (size_t i = 0; i < num_nodes[0]; i++) {
-        temp_reps[i] = 0;
-        for (int j = 0; j < to_merge[i].size[0]; j++) {
-          to_merge[i].children[j] = 0;
-        }
-        to_merge[i].size[0] = 0;
+      // If num_columns doesn't get divided evenly
+      size_t leftover_num_columns = num_columns - ((num_columns / num_device_blocks) * num_device_blocks);
+      int k_id = num_device_blocks - 1;
+      while (leftover_num_columns > 0) {
+        num_tb_columns[k_id]++;
+        k_id--;
+        leftover_num_columns--;
       }
-    }
+      std::cout << "Number of columns of each thread block: ";
+      for (int i = 0; i < num_device_blocks ; i++) {
+        std::cout << num_tb_columns[i] << ", ";
+      }
+      std::cout << "\n";
+
+      for (size_t i = 0; i < stream_multiplier * num_host_threads * batch_size; i++) {
+        h_edgeUpdates[i] = 0;
+      }
+
+      for (size_t i = 0; i < (num_reader_threads + num_host_threads) * num_buckets; i++) {
+        convert_h_bucket_a[i] = 0;
+        convert_h_bucket_c[i] = 0;
+      }
+
+    };
 };
 
 class CudaKernel {
@@ -171,20 +112,9 @@ class CudaKernel {
     *   Sketch's Update Functions
     *
     */
+    void sketchUpdate(int num_threads, int num_blocks, node_id_t src_vertex, cudaStream_t stream, vec_t *edgeUpdates, size_t update_size, CudaUpdateParams* cudaUpdateParams, long sketchSeed);
+    void single_sketchUpdate(int num_threads, int num_blocks, size_t maxBytes, node_id_t* update_src, vec_t* update_sizes, vec_t* update_start_index, vec_t* edgeUpdates, vec_t* bucket_a, vec_hash_t* bucket_c, size_t num_buckets, size_t num_columns, size_t bkt_per_col, size_t sketchSeed);
 
-   int maxBytes;
+    void updateSharedMemory(size_t maxBytes);
 
-    void gtsStreamUpdate(int num_threads, int num_blocks, node_id_t src, cudaStream_t stream, vec_t prev_offset, size_t update_size, CudaUpdateParams* cudaUpdateParams, CudaSketch* cudaSketches, long* sketchSeeds);
-    void streamUpdate(int num_threads, int num_blocks, CudaUpdateParams* cudaUpdateParams, CudaSketch* cudaSketches, long* sketchSeeds);
-    void kernelUpdateSharedMemory(int _maxBytes);
-
-    /*
-    *   
-    *   Sketch's Query Functions
-    *
-    */
-
-    void cuda_sample_supernodes(int num_threads, int num_blocks, CudaCCParams* cudaCCParams, CudaSketch* cudaSketches);
-    void cuda_supernodes_to_merge(int num_threads, int num_blocks, CudaCCParams* cudaCCParams);
-    void cuda_merge_supernodes(int num_threads, int num_blocks, CudaCCParams* cudaCCParams, CudaSketch* cudaSketches);
 };

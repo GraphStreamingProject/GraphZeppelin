@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 set(CMAKE_CUDA_ARCHITECTURES "70")
 
@@ -49,19 +50,20 @@ message(STATUS "CMAKE_CUDA_COMPILER = ${CMAKE_CUDA_COMPILER}")
 message(STATUS "CMAKE_CUDA_COMPILER_ID = ${CMAKE_CUDA_COMPILER_ID}")
 message(STATUS "CMAKE_CUDA_COMPILER_VERSION = ${CMAKE_CUDA_COMPILER_VERSION}")
 
-# Get xxHash
-FetchContent_Declare(
-  xxhash
-
-  GIT_REPOSITORY https://github.com/Cyan4973/xxHash.git
-  GIT_TAG        v0.8.0
-)
 
 # Get GutterTree Project
 FetchContent_Declare(
   GutterTree
 
   GIT_REPOSITORY  https://github.com/GraphStreamingProject/GutterTree.git
+  GIT_TAG         main
+)
+
+# Get StreamingUtilities
+FetchContent_Declare(
+  StreamingUtilities
+
+  GIT_REPOSITORY  https://github.com/GraphStreamingProject/StreamingUtilities.git
   GIT_TAG         main
 )
 
@@ -78,130 +80,130 @@ if (BUILD_BENCH)
   FetchContent_MakeAvailable(benchmark)
 endif()
 
-FetchContent_MakeAvailable(xxHash GutterTree)
-#####
-# Some additional steps for xxHash as it is unofficial
-#####
-#xxHash messes with BUILD_SHARED_LIBS if it is empty
-set(SAVED_BUILD_SHARED_LIBS "${BUILD_SHARED_LIBS}")
-
-add_subdirectory(
-  "${xxhash_SOURCE_DIR}/cmake_unofficial"
-  "${xxhash_BINARY_DIR}"
-  EXCLUDE_FROM_ALL
-)
-
-#Restore BUILD_SHARED_LIBS
-set(BUILD_SHARED_LIBS "${SAVED_BUILD_SHARED_LIBS}" CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(GutterTree StreamingUtilities)
 
 # AVAILABLE COMPILATION DEFINITIONS:
-# VERIFY_SAMPLES_F   Use a deterministic connected-components 
+# VERIFY_SAMPLES_F   Use a deterministic connected-components
 #                    algorithm to verify post-processing.
-# USE_EAGER_DSU      Use the eager DSU query optimization if this flag is present.
+# NO_EAGER_DSU       Do not use the eager DSU query optimization
+#                    if this flag is present.
+# L0_SAMPLING        Run the CubeSketch l0 sampling algorithm
+#                    to ensure that we sample uniformly.
+#                    Otherwise, run a support finding algorithm.
+#
+# Example:
+# cmake -DCMAKE_CXX_FLAGS="-DL0_SAMPLING" ..
 
 add_library(CUDALibrary
-  src/cuda_library.cu)
+  src/cuda_library.cu
+  src/cuda_kernel.cu
+  src/cc_gpu_sketch_alg.cpp
+  #src/mc_gpu_sketch_alg.cpp
+  src/sk_gpu_sketch_alg.cpp)
 add_dependencies(CUDALibrary GutterTree)
-target_link_libraries(CUDALibrary PUBLIC xxhash GutterTree)
-target_include_directories(CUDALibrary PUBLIC include/ include/l0_sampling/)
-target_compile_options(CUDALibrary PUBLIC -lineinfo)
-
+target_link_libraries(CUDALibrary PUBLIC xxhash GutterTree StreamingUtilities)
+target_include_directories(CUDALibrary PUBLIC include/)
+target_compile_options(CUDALibrary PUBLIC -lineinfo) # -lineinfo: For profiling
+#target_compile_options(CUDALibrary PUBLIC -expt-relaxed-constexpr)
 
 add_library(GraphZeppelin
-  src/cuda_kernel.cu
-  src/graph.cpp
-  src/graph_configuration.cpp
-  src/supernode.cpp
-  src/graph_worker.cpp
-  src/l0_sampling/sketch.cpp
+  src/cc_sketch_alg.cpp
+  #src/mc_sketch_alg.cpp
+  #src/mc_subgraph.cpp
+  src/return_types.cpp
+  src/driver_configuration.cpp
+  src/cc_alg_configuration.cpp
+  src/sketch.cpp
   src/util.cpp)
-add_dependencies(GraphZeppelin GutterTree)
-target_link_libraries(GraphZeppelin PUBLIC xxhash GutterTree CUDALibrary)
-target_include_directories(GraphZeppelin PUBLIC include/ include/l0_sampling/)
+add_dependencies(GraphZeppelin GutterTree StreamingUtilities)
+target_link_libraries(GraphZeppelin PUBLIC xxhash GutterTree StreamingUtilities)
+target_include_directories(GraphZeppelin PUBLIC include/)
 target_compile_options(GraphZeppelin PUBLIC -fopenmp)
 target_link_options(GraphZeppelin PUBLIC -fopenmp)
-target_compile_definitions(GraphZeppelin PUBLIC XXH_INLINE_ALL USE_EAGER_DSU)
+target_compile_definitions(GraphZeppelin PUBLIC XXH_INLINE_ALL)
 
 add_library(GraphZeppelinVerifyCC
-  src/cuda_kernel.cu
-  src/graph.cpp
-  src/graph_configuration.cpp
-  src/supernode.cpp
-  src/graph_worker.cpp
-  src/l0_sampling/sketch.cpp
+  src/cc_sketch_alg.cpp
+  src/return_types.cpp
+  src/driver_configuration.cpp
+  src/cc_alg_configuration.cpp
+  src/sketch.cpp
   src/util.cpp
-  test/util/file_graph_verifier.cpp
-  test/util/mat_graph_verifier.cpp)
-add_dependencies(GraphZeppelinVerifyCC GutterTree)
-target_link_libraries(GraphZeppelinVerifyCC PUBLIC xxhash GutterTree CUDALibrary)
-target_include_directories(GraphZeppelinVerifyCC PUBLIC include/ include/l0_sampling/ include/test/)
+  test/util/graph_verifier.cpp)
+add_dependencies(GraphZeppelinVerifyCC GutterTree StreamingUtilities)
+target_link_libraries(GraphZeppelinVerifyCC PUBLIC xxhash GutterTree StreamingUtilities)
+target_include_directories(GraphZeppelinVerifyCC PUBLIC include/ include/test/)
 target_compile_options(GraphZeppelinVerifyCC PUBLIC -fopenmp)
 target_link_options(GraphZeppelinVerifyCC PUBLIC -fopenmp)
-target_compile_definitions(GraphZeppelinVerifyCC PUBLIC XXH_INLINE_ALL VERIFY_SAMPLES_F USE_EAGER_DSU)
+target_compile_definitions(GraphZeppelinVerifyCC PUBLIC XXH_INLINE_ALL VERIFY_SAMPLES_F)
 
 if (BUILD_EXE)
   add_executable(tests
     test/test_runner.cpp
-    test/graph_test.cpp
+    test/cc_alg_test.cpp
     test/sketch_test.cpp
-    test/supernode_test.cpp
+    test/dsu_test.cpp
     test/util_test.cpp
-    test/util/file_graph_verifier.cpp
-    test/util/graph_gen.cpp
-    test/util/graph_gen_test.cpp
     test/util/graph_verifier_test.cpp)
   add_dependencies(tests GraphZeppelinVerifyCC)
   target_link_libraries(tests PRIVATE GraphZeppelinVerifyCC)
 
-  add_executable(sketch_test
-    test/test_runner.cpp
-    test/sketch_test.cpp)
-  add_dependencies(sketch_test GraphZeppelinVerifyCC)
-  target_link_libraries(sketch_test PRIVATE GraphZeppelinVerifyCC)
-
-  add_executable(statistical_test
-    tools/statistical_testing/graph_testing.cpp
-    test/util/file_graph_verifier.cpp
-    test/util/graph_gen.cpp)
-  add_dependencies(statistical_test GraphZeppelinVerifyCC)
-  target_link_libraries(statistical_test PRIVATE GraphZeppelinVerifyCC)
-
-  # executables for experiment/benchmarking
-  add_executable(efficient_gen
-    src/util.cpp
-    test/util/efficient_gen/edge_gen.cpp
-    test/util/efficient_gen/efficient_gen.cpp)
-  target_link_libraries(efficient_gen PRIVATE xxhash GraphZeppelinCommon)
-
-  # executable for converting to stream format
-  add_executable(to_binary_format
-    tools/to_binary_format.cpp)
-  target_link_libraries(to_binary_format PRIVATE GraphZeppelinCommon)
+  add_executable(statistical_sketch_test
+    tools/sketch_testing.cpp)
+  add_dependencies(statistical_sketch_test GraphZeppelinVerifyCC)
+  target_link_libraries(statistical_sketch_test PRIVATE GraphZeppelinVerifyCC)
+ 
 
   # executable for processing a binary graph stream
   add_executable(process_stream
     tools/process_stream.cpp)
   target_link_libraries(process_stream PRIVATE GraphZeppelin)
 
+  # executable for performing in depth correctness testing
+  add_executable(test_correctness
+    tools/test_correctness.cpp)
+  target_link_libraries(test_correctness PRIVATE GraphZeppelinVerifyCC)
+
   # executable for processing a binary graph stream for CUDA
   add_executable(cuda_process_stream
     tools/cuda_process_stream.cu)
-  target_link_libraries(cuda_process_stream PRIVATE GraphZeppelin)
+  target_link_libraries(cuda_process_stream PRIVATE GraphZeppelin CUDALibrary)
+
+  add_executable(single_kernel_stream
+    tools/single_kernel_stream.cu)
+  target_link_libraries(single_kernel_stream PRIVATE GraphZeppelin CUDALibrary)
 
   add_executable(xxhash_test
     test/xxhash_test.cu)
-  target_link_libraries(xxhash_test PRIVATE GraphZeppelin)
+  target_link_libraries(xxhash_test PRIVATE GraphZeppelin CUDALibrary)
 
-  #add_executable(cuda_sketch_test
-  #  test/cuda_sketch_test.cu)
-  #add_dependencies(cuda_sketch_test GraphZeppelinVerifyCUDA)
-  #target_link_libraries(cuda_sketch_test PRIVATE GraphZeppelinVerifyCUDA)
+  #add_executable(min_cut
+  #  tools/min_cut.cu)
+  #target_link_libraries(min_cut PRIVATE GraphZeppelin CUDALibrary)
 
-  # tool for validating that a binary stream appears correct  
-  add_executable(validate_binary_stream
-    tools/validate_binary_stream.cpp
+  add_executable(adjlist_test
+    tools/adjlist_test.cpp)
+  target_link_libraries(adjlist_test PRIVATE GraphZeppelin CUDALibrary)
+
+  add_executable(generate_stream
+    tools/stream_generators/non_trivial_stream_generator.cpp
   )
-  target_link_libraries(validate_binary_stream PRIVATE GraphZeppelin)
+  target_link_libraries(generate_stream PRIVATE GraphZeppelin)
+
+  add_executable(metis_converter
+    tools/converter/metis_converter.cpp
+  )
+  target_link_libraries(metis_converter PRIVATE GraphZeppelin)
+
+  add_executable(stream_converter
+    tools/converter/stream_converter.cpp
+  )
+  target_link_libraries(stream_converter PRIVATE GraphZeppelin)
+
+  add_executable(stream_shuffler
+    tools/others/stream_shuffler.cpp
+  )
+  target_link_libraries(stream_shuffler PRIVATE GraphZeppelin)
 endif()
 
 if (BUILD_BENCH)
@@ -210,3 +212,4 @@ if (BUILD_BENCH)
   add_dependencies(bench_cc GraphZeppelin benchmark)
   target_link_libraries(bench_cc GraphZeppelin benchmark::benchmark xxhash)
 endif()
+

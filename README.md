@@ -1,9 +1,15 @@
 # GraphZeppelin: A C++ Library for Solving the Connected Components Problem on Large, Dense Graph Streams
 This is the source code of GraphZeppelin: a compact, fast, and scalable graph processing system. Graph Zeppelin is described in detail in our paper published in [SIGMOD2022](https://dl.acm.org/doi/10.1145/3514221.3526146).
 
-The full experiments for our SIGMOD paper can be found in our [Experiments Repository](https://github.com/GraphStreamingProject/ZeppelinExperiments).
+The full experiments for our SIGMOD paper can be found in our [Experiments Repository](https://github.com/GraphStreamingProject/ZeppelinExperiments). Our experiments were replicated by the SIGMOD reproducibility committee, details can be found in the [reproducibility report](https://reproducibility.sigmod.org/rep_rep/2023/Dayan-SIGMODReproReport26.pdf).
+
+Since submitting to SIGMOD, GraphZeppelin has been continually updated improve robustness, performance, and reduce memory consumption.
 
 ## Installing and Running GraphZeppelin
+### Requirements
+- Unix OS (not Mac, tested on Ubuntu)
+- cmake>=3.15
+
 ### Installation
 1. Clone this repository
 2. Create a `build` sub directory at the project root dir.
@@ -12,28 +18,43 @@ The full experiments for our SIGMOD paper can be found in our [Experiments Repos
 
 This library can easily be included with other cmake projects using FetchContent or ExternalProject.
 
-### Basic Example
+## Minimal Example
 ```
-#include <graph.h>
-#include <binary_graph_stream.h>
+#include <binary_file_stream.h>
+#include <cc_sketch_alg.h>
+#include <graph_sketch_driver.h>
+#include <time.h>
 
 std::string file_name = "/path/to/binary/stream";
 
 int main() {
-  BinaryGraphStream stream(file_name, 1024*32);  // Create a stream object for parsing a stream 'file_name' with 32 KiB buffer
-  node_id_t num_nodes   = stream.nodes();        // Extract the number of nodes from the stream 
-  size_t    num_updates = stream.edges();        // Extract the number of edge updates from the stream
-  Graph g{num_nodes};                            // Create a empty graph with 'num_nodes' nodes
-
-  for (size_t e = 0; e < num_updates; e++)       // Loop through all the updates in the stream
-    g.update(stream.get_edge());                 // Update the graph by applying the next edge update
-
-  auto CC = g.connected_components();            // Extract the connected components in the graph defined by the stream
+  BinaryFileStream stream(file_name);           // Create a stream object for parsing a graph stream 'file_name'
+  node_id_t num_vertices = stream.vertices();   // Extract the number of graph vertices from the stream
+  CCSketchAlg cc_alg{                           // Create connected components sketch algorithm
+    num_vertices,                                  // vertices in graph
+    size_t(time(NULL)),                            // seed
+    CCAlgConfiguration()                           // configuration
+  }; 
+  GraphSketchDriver<CCSketchAlg> driver{        // Create a driver to manage the CC algorithm
+    &cc_alg,                                       // algorithm to update
+    &stream,                                       // stream to read
+    DriverConfiguration()                          // configuration
+  };
+  driver.process_stream_until(END_OF_STREAM);   // Tell the driver to process the entire graph stream
+  driver.prep_query(CONNECTIVITY);              // Ensure algorithm is ready for a connectivity query
+  auto CC = cc_alg.connected_components();      // Extract the connected components
 }
 ```
 A more detailed example can be found in `tools/process_stream.cpp`.
 
-### Binary Stream Format
+## Configuration
+GraphZeppelin has a number of parameters both for the driver and the sketch algorithm. Examples of these parameters include the number of threads and which GutteringSystem to run for the driver and the desired batch size for the algorithm.
+To achieve high performance, it is important to set these parameters correctly. See `tools/process_stream.cpp`.
+
+The driver options are set with the `DriverConfiguration` object (see `include/driver_configuration.h`).
+The algorithm configuration is allowed to vary by algorithm. The connected components algorithm options is managed with the `CCAlgConfiguration` object (see `include/cc_alg_configuration.h`).
+
+## Binary Stream Format
 GraphZeppelin uses a binary stream format for efficient file parsing. The format of these files is as follows.
 ```
 <num_nodes> <num_updates> <edge_update>  ...  <edge_update>
@@ -46,17 +67,14 @@ Each edge_update has the following format:
 <UpdateType> <src_node> <dst_node>
 |  1 byte   | 4 bytes  | 4 bytes  |
 ```
-The UpdateType is 0 to indicate an insertion of the associated edge and 1 to indicate a deletion.
+Where UpdateType is 0 to indicate an insertion and 1 to indicate a deletion.
 
-### Other Stream Formats
-Other file formats can be used by writing a simple file parser that passes graph `update()` the expected edge update format `GraphUpdate := std::pair<Edge, UpdateType>`. See our unit tests under `/test/graph_test.cpp` for examples of string based stream parsing.
+See our [StreamingUtilities](https://github.com/GraphStreamingProject/StreamingUtilities) repository for more details.
 
-If receiving edge updates over the network it is equally straightforward to define a stream format that will receive, parse, and provide those updates to the graph `update()` function.
+## GutteringSystems
+To achieve high update throughput, GraphZeppelin buffers updates in what we call a GutteringSystem. Choosing the correct GutteringSystem is important for performance. If you expect storage to include on disk data-structures, choose the `GutterTree`. Otherwise, choose the `CacheTree`.
 
-## Configuration
-GraphZeppelin has a number of parameters. These can be defined with the `GraphConfiguration` object. Key parameters include the number of graph workers and the guttering system to use for buffering updates.
-
-See `include/graph_configuration.h` for more details.
+For more details see the [GutteringSystems](https://github.com/GraphStreamingProject/GutterTree) repository.
 
 ## Debugging
 You can enable the symbol table and turn off compiler optimizations for debugging with tools like `gdb` or `valgrind` by performing the following steps

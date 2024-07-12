@@ -1,6 +1,9 @@
 #pragma once
 #include <set>
-#include "../supernode.h"
+#include <vector>
+
+#include "types.h"
+#include "return_types.h"
 
 /**
  * A plugin for the Graph class that runs Boruvka alongside the graph algorithm
@@ -8,55 +11,98 @@
  * generates.
  */
 class GraphVerifier {
-protected:
+private:
+  const node_id_t num_vertices;
   std::vector<std::vector<bool>> adj_matrix;
+  DisjointSetUnion<node_id_t> kruskal_dsu;
+  node_id_t kruskal_ccs;
+  bool need_query_compute = true;
 
+  /**
+   * Runs Kruskal's (deterministic) CC algo to compute the kruskal dsu.
+   */
+  void kruskal();
 public:
   /**
-   * Verifies an edge exists in the graph. Verifies that the edge is in the cut
-   * of both the endpoints of the edge.
-   * @param edge the edge to be tested.
-   * @param det_graph the adjacency list representation of the graph in question.
-   * @throws BadEdgeException if the edge does not satisfy both conditions.
+   * Empty Graph Verifier constructor
    */
-  virtual void verify_edge(Edge edge) = 0;
+  GraphVerifier(node_id_t vertices);
+  
+  /**
+   * Construct GraphVerifier from a cumulative stream file
+   */
+  GraphVerifier(node_id_t num_vertices, const std::string &cumul_file_name);
 
   /**
-   * Verifies the supernode of the given node is a (maximal) connected component.
-   * That is, there are no edges in its cut.
-   * @param node the node to be tested.
-   * @throws NotCCException   if the supernode is not a connected component.
+   * Copy a GraphVerifier
    */
-  virtual void verify_cc(node_id_t node) = 0;
+  GraphVerifier(const GraphVerifier &oth_verifier)
+      : num_vertices(oth_verifier.num_vertices),
+        adj_matrix(oth_verifier.adj_matrix),
+        kruskal_dsu(oth_verifier.kruskal_dsu) {};
+
+  /**
+   * Flip an edge in the adjacency list.
+   * @param edge   the edge to flip
+   */
+  void edge_update(Edge edge);
+
+  /**
+   * Verifies an edge exists in the graph.
+   * @param edge the edge to be tested.
+   * @throws BadEdgeException if the edge does not exist in the graph.
+   */
+  void verify_edge(Edge edge);
 
   /**
    * Verifies the connected components solution is correct. Compares
    * retval against kruskal_ref.
+   * @throws IncorrectCCException if the solution cannot be verified
    */
-  virtual void verify_soln(std::vector<std::set<node_id_t>> &retval) = 0;
+  void verify_connected_components(const ConnectedComponents &cc);
 
-  std::vector<std::vector<bool>> extract_adj_matrix() {return adj_matrix;}
+  /**
+   * Verifies that one or more spanning forests are valid
+   * Additionally, enforces that spanning forests must be edge disjoint.
+   * @param SFs    the spanning forests to check
+   * @throws IncorrectForestException if a bad spanning forest is found
+   */
+  void verify_spanning_forests(std::vector<SpanningForest> SFs);
 
-  GraphVerifier() = default;
-  GraphVerifier(std::vector<std::vector<bool>> _adj) : adj_matrix(std::move(_adj)) {};
+  /*
+   * Merge two GraphVerifiers that have seen two different streams.
+   * Yields a GraphVerifier that has seen both streams.
+   * @param oth   a GraphVerifier to combine into this one.
+   */
+  void combine(const GraphVerifier &oth);
 
-  virtual ~GraphVerifier() {};
+  std::vector<std::vector<bool>> extract_adj_matrix() { return adj_matrix; }
+  node_id_t get_num_kruskal_ccs() { return kruskal_ccs; }
+
+  bool operator==(const GraphVerifier &oth) { return adj_matrix == oth.adj_matrix; }
+  bool operator!=(const GraphVerifier &oth) { return !(*this == oth); }
 };
 
 class BadEdgeException : public std::exception {
-  virtual const char* what() const throw() {
-    return "The edge is not in the cut of the sample!";
-  }
-};
-
-class NotCCException : public std::exception {
-  virtual const char* what() const throw() {
-    return "The supernode is not a connected component. It has edges in its cut!";
-  }
+ private:
+  std::string err_msg;
+ public:
+  BadEdgeException(std::string err) : err_msg(err) {};
+  virtual const char* what() const throw() { return err_msg.c_str(); }
 };
 
 class IncorrectCCException : public std::exception {
-  virtual const char* what() const throw() {
-    return "The connected components are incorrect!";
-  }
+ private:
+  std::string err_msg;
+ public:
+  IncorrectCCException(std::string err) : err_msg(err) {};
+  virtual const char* what() const throw() { return err_msg.c_str(); }
+};
+
+class IncorrectForestException : public std::exception {
+ private:
+  std::string err_msg;
+ public:
+  IncorrectForestException(std::string err) : err_msg(err) {};
+  virtual const char* what() const throw() { return err_msg.c_str(); }
 };

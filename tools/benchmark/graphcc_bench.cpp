@@ -10,10 +10,10 @@
 #include <vector>
 #include <sstream>
 
-#include "binary_graph_stream.h"
+#include "binary_file_stream.h"
 #include "bucket.h"
 #include "dsu.h"
-#include "test/sketch_constructors.h"
+#include "sketch.h"
 
 constexpr uint64_t KB = 1024;
 constexpr uint64_t MB = KB * KB;
@@ -41,7 +41,7 @@ static void BM_FileIngest(benchmark::State& state) {
   // determine the number of edges in the graph
   uint64_t num_edges;
   {
-    BinaryGraphStream stream("/mnt/ssd2/binary_streams/kron_15_stream_binary", 1024);
+    BinaryFileStream stream("/mnt/ssd2/binary_streams/kron_15_stream_binary");
     num_edges = stream.edges();
   }
 
@@ -50,12 +50,19 @@ static void BM_FileIngest(benchmark::State& state) {
 
   // perform benchmark
   for (auto _ : state) {
-    BinaryGraphStream stream("/mnt/ssd2/binary_streams/kron_15_stream_binary", state.range(0));
+    BinaryFileStream stream("/mnt/ssd2/binary_streams/kron_15_stream_binary");
 
-    uint64_t m = stream.edges();
-    GraphUpdate upd;
-    while (m--) {
-      benchmark::DoNotOptimize(upd = stream.get_edge());
+    bool reading = true;
+    while (reading) {
+      GraphStreamUpdate upds[state.range(0)];
+      size_t num_updates = stream->get_update_buffer(upds, state.range(0));
+      for (size_t i = 0; i < num_updates; i++) {
+        GraphStreamUpdate &upd = upds[i];
+        if (upd.type == BREAKPOINT) {
+          reading = false;
+          break;
+        }
+      }
     }
   }
   state.counters["Ingestion_Rate"] =
@@ -68,7 +75,7 @@ static void BM_MTFileIngest(benchmark::State& state) {
   // determine the number of edges in the graph
   uint64_t num_edges;
   {
-    BinaryGraphStream_MT stream("/mnt/ssd2/binary_streams/kron_15_stream_binary", 1024);
+    BinaryFileStream stream("/mnt/ssd2/binary_streams/kron_15_stream_binary");
     num_edges = stream.edges();
   }
 
@@ -80,14 +87,21 @@ static void BM_MTFileIngest(benchmark::State& state) {
     std::vector<std::thread> threads;
     threads.reserve(state.range(0));
 
-    BinaryGraphStream_MT stream("/mnt/ssd2/binary_streams/kron_15_stream_binary", 32 * 1024);
+    BinaryFileStream stream("/mnt/ssd2/binary_streams/kron_15_stream_binary");
 
     auto task = [&]() {
-      MT_StreamReader reader(stream);
-      GraphUpdate upd;
-      do {
-        upd = reader.get_edge();
-      } while (upd.type != BREAKPOINT);
+      bool reading = true;
+      while (reading) {
+        GraphStreamUpdate upds[1024];
+        size_t num_updates = stream->get_update_buffer(upds, 1024);
+        for (size_t i = 0; i < num_updates; i++) {
+          GraphStreamUpdate &upd = upds[i];
+          if (upd.type == BREAKPOINT) {
+            reading = false;
+            break;
+          }
+        }
+      }
     };
 
     for (int i = 0; i < state.range(0); i++) threads.emplace_back(task);
@@ -173,17 +187,15 @@ static void BM_index_hash(benchmark::State& state) {
 BENCHMARK(BM_index_hash);
 
 static void BM_update_bucket(benchmark::State& state) {
-  vec_t a = 0;
-  vec_hash_t c = 0;
+  Bucket bkt;
   vec_t input = 0x0EADBEEF;
   vec_hash_t checksum = 0x0EEDBEEF;
 
   for (auto _ : state) {
     ++input;
     ++checksum;
-    Bucket_Boruvka::update(a, c, input, checksum);
-    benchmark::DoNotOptimize(a);
-    benchmark::DoNotOptimize(c);
+    Bucket_Boruvka::update(bkt, input, checksum);
+    benchmark::DoNotOptimize(bkt);
   }
 }
 BENCHMARK(BM_update_bucket);
@@ -193,17 +205,16 @@ static void BM_Sketch_Update(benchmark::State& state) {
   size_t vec_size = state.range(0);
   vec_t input = vec_size / 3;
   // initialize sketches
-  Sketch::configure(vec_size, Supernode::default_fail_factor);
-  SketchUniquePtr skt = makeSketch(seed);
+  Sketch skt(vec_size, seed, 1, Sketch::default_cols_per_sample);
 
   // Test the speed of updating the sketches
   for (auto _ : state) {
     ++input;
-    skt->update(input);
+    skt.update(input);
   }
   state.counters["Updates"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
   state.counters["Hashes"] =
-      benchmark::Counter(state.iterations() * (Sketch::get_columns() + 1), benchmark::Counter::kIsRate);
+      benchmark::Counter(state.iterations() * (skt.get_columns() + 1), benchmark::Counter::kIsRate);
 }
 BENCHMARK(BM_Sketch_Update)->RangeMultiplier(4)->Ranges({{KB << 4, MB << 4}});
 
@@ -214,10 +225,9 @@ static void BM_Sketch_Query(benchmark::State& state) {
   double density = ((double)state.range(0)) / 100;
 
   // initialize sketches
-  Sketch::configure(vec_size, 100);
-  SketchUniquePtr sketches[num_sketches];
+  Sketch* sketches[num_sketches];
   for (size_t i = 0; i < num_sketches; i++) {
-    sketches[i] = makeSketch(seed + i);
+    sketches[i] = new Sketch(vec_size, seed, 1, Sketch::default_cols_per_sample);
   }
 
   // perform updates (do at least 1)
@@ -226,13 +236,13 @@ static void BM_Sketch_Query(benchmark::State& state) {
       sketches[i]->update(j + 1);
     }
   }
-  std::pair<vec_t, SampleSketchRet> q_ret;
+  SketchSample sample_ret;
 
   for (auto _ : state) {
     // perform queries
     for (size_t j = 0; j < num_sketches; j++) {
-      benchmark::DoNotOptimize(q_ret = sketches[j]->query());
-      sketches[j]->reset_queried();
+      benchmark::DoNotOptimize(sample_ret = sketches[j]->sample());
+      sketches[j]->reset_sample_state();
     }
   }
   state.counters["Query Rate"] =
@@ -240,64 +250,153 @@ static void BM_Sketch_Query(benchmark::State& state) {
 }
 BENCHMARK(BM_Sketch_Query)->DenseRange(0, 90, 10);
 
-static void BM_Supernode_Merge(benchmark::State& state) {
+static void BM_Sketch_Merge(benchmark::State& state) {
   size_t n = state.range(0);
   size_t upds = n / 100;
-  Supernode::configure(n);
-  Supernode* s1 = Supernode::makeSupernode(n, seed);
-  Supernode* s2 = Supernode::makeSupernode(n, seed);
+  Sketch s1(n, seed);
+  Sketch s2(n, seed);
 
   for (size_t i = 0; i < upds; i++) {
-    s1->update(static_cast<vec_t>(concat_pairing_fn(rand() % n, rand() % n)));
-    s2->update(static_cast<vec_t>(concat_pairing_fn(rand() % n, rand() % n)));
+    s1.update(static_cast<vec_t>(concat_pairing_fn(rand() % n, rand() % n)));
+    s2.update(static_cast<vec_t>(concat_pairing_fn(rand() % n, rand() % n)));
   }
 
   for (auto _ : state) {
-    s1->merge(*s2);
+    s1.merge(s2);
   }
-
-  free(s1);
-  free(s2);
 }
-BENCHMARK(BM_Supernode_Merge)->RangeMultiplier(10)->Range(1e3, 1e6);
+BENCHMARK(BM_Sketch_Merge)->RangeMultiplier(10)->Range(1e3, 1e6);
 
-static void BM_Supernode_Serialize(benchmark::State& state) {
+static void BM_Sketch_Serialize(benchmark::State& state) {
   size_t n = state.range(0);
   size_t upds = n / 100;
-  Supernode::configure(n);
-  Supernode* s1 = Supernode::makeSupernode(n, seed);
+  Sketch s1(n, seed);
 
   for (size_t i = 0; i < upds; i++) {
-    s1->update(static_cast<vec_t>(concat_pairing_fn(rand() % n, rand() % n)));
+    s1.update(static_cast<vec_t>(concat_pairing_fn(rand() % n, rand() % n)));
   }
 
   for (auto _ : state) {
     std::stringstream stream;
-    s1->write_binary(stream);
+    s1.serialize(stream);
   }
-
-  free(s1);
 }
-BENCHMARK(BM_Supernode_Serialize)->RangeMultiplier(10)->Range(1e3, 1e6);
+BENCHMARK(BM_Sketch_Serialize)->RangeMultiplier(10)->Range(1e3, 1e6);
 
-static void BM_Supernode_Sparse_Serialize(benchmark::State& state) {
-  size_t n = state.range(0);
-  size_t upds = n / 100;
-  Supernode::configure(n);
-  Supernode* s1 = Supernode::makeSupernode(n, seed);
+// static void BM_Sketch_Sparse_Serialize(benchmark::State& state) {
+//   size_t n = state.range(0);
+//   size_t upds = n / 100;
+//   Sketch s1(n, seed);
 
-  for (size_t i = 0; i < upds; i++) {
-    s1->update(static_cast<vec_t>(concat_pairing_fn(rand() % n, rand() % n)));
+//   for (size_t i = 0; i < upds; i++) {
+//     s1.update(static_cast<vec_t>(concat_pairing_fn(rand() % n, rand() % n)));
+//   }
+
+//   for (auto _ : state) {
+//     std::stringstream stream;
+//     s1.serialize(stream, SPARSE);
+//   }
+// }
+// BENCHMARK(BM_Sketch_Sparse_Serialize)->RangeMultiplier(10)->Range(1e3, 1e6);
+
+// Benchmark DSU Find Root
+static void BM_DSU_Find(benchmark::State& state) {
+  constexpr size_t size_of_dsu = 16 * MB;
+  DisjointSetUnion<node_id_t> dsu(size_of_dsu);
+
+  auto rng = std::default_random_engine{};
+  std::vector<node_id_t> queries;
+  for (size_t i = 0; i < 4096; i++) {
+    queries.push_back((size_of_dsu / 4096) * i);
   }
+  std::shuffle(queries.begin(), queries.end(), rng);
 
+  // perform find test
   for (auto _ : state) {
-    std::stringstream stream;
-    s1->write_binary(stream, true);
+    for (auto q : queries)
+      dsu.find_root(q);
+  }
+  state.counters["Find_Latency"] =
+      benchmark::Counter(state.iterations() * queries.size(),
+                         benchmark::Counter::kIsRate | benchmark::Counter::kInvert);
+}
+BENCHMARK(BM_DSU_Find);
+
+static void BM_DSU_Find_After_Combine(benchmark::State& state) {
+  constexpr size_t size_of_dsu = 16 * MB;
+  DisjointSetUnion<node_id_t> dsu(size_of_dsu);
+  // merge everything into same root
+  for (size_t i = 0; i < size_of_dsu - 1; i++) {
+    dsu.merge(i, i+1);
   }
 
-  free(s1);
+  auto rng = std::default_random_engine{};
+  std::vector<node_id_t> queries;
+  for (size_t i = 0; i < 4096; i++) {
+    queries.push_back((size_of_dsu / 4096) * i);
+  }
+  std::shuffle(queries.begin(), queries.end(), rng);
+
+  // perform find test
+  for (auto _ : state) {
+    for (auto q : queries)
+      dsu.find_root(q);
+  }
+  state.counters["Find_Latency"] =
+      benchmark::Counter(state.iterations() * queries.size(),
+                         benchmark::Counter::kIsRate | benchmark::Counter::kInvert);
 }
-BENCHMARK(BM_Supernode_Sparse_Serialize)->RangeMultiplier(10)->Range(1e3, 1e6);
+BENCHMARK(BM_DSU_Find_After_Combine);
+
+// MT DSU Find Root
+static void BM_MT_DSU_Find(benchmark::State& state) {
+  constexpr size_t size_of_dsu = 16 * MB;
+  DisjointSetUnion_MT<node_id_t> dsu(size_of_dsu);
+
+  auto rng = std::default_random_engine{};
+  std::vector<node_id_t> queries;
+  for (size_t i = 0; i < 4096; i++) {
+    queries.push_back((size_of_dsu / 4096) * i);
+  }
+  std::shuffle(queries.begin(), queries.end(), rng);
+
+  // perform find test
+  for (auto _ : state) {
+    for (auto q : queries)
+      dsu.find_root(q);
+  }
+  state.counters["Find_Latency"] =
+      benchmark::Counter(state.iterations() * queries.size(),
+                         benchmark::Counter::kIsRate | benchmark::Counter::kInvert);
+}
+BENCHMARK(BM_MT_DSU_Find);
+
+// MT DSU Find Root
+static void BM_MT_DSU_Find_After_Combine(benchmark::State& state) {
+  constexpr size_t size_of_dsu = MB;
+  DisjointSetUnion_MT<node_id_t> dsu(size_of_dsu);
+  // merge everything into same root
+  for (size_t i = 0; i < size_of_dsu - 1; i++) {
+    dsu.merge(i, i+1);
+  }
+
+  auto rng = std::default_random_engine{};
+  std::vector<node_id_t> queries;
+  for (size_t i = 0; i < 512; i++) {
+    queries.push_back((size_of_dsu / 512) * i);
+  }
+  std::shuffle(queries.begin(), queries.end(), rng);
+
+  // perform find test
+  for (auto _ : state) {
+    for (auto q : queries)
+      dsu.find_root(q);
+  }
+  state.counters["Find_Latency"] =
+      benchmark::Counter(state.iterations() * queries.size(),
+                         benchmark::Counter::kIsRate | benchmark::Counter::kInvert);
+}
+BENCHMARK(BM_MT_DSU_Find_After_Combine);
 
 // Benchmark speed of DSU merges when the sequence of merges is adversarial
 // This means we avoid joining roots wherever possible
@@ -364,5 +463,75 @@ static void BM_DSU_Root(benchmark::State& state) {
                          benchmark::Counter::kIsRate | benchmark::Counter::kInvert);
 }
 BENCHMARK(BM_DSU_Root);
+
+// Benchmark the efficiency of parallel DSU merges
+// when the sequence of DSU merges is adversarial
+// This means we avoid joining roots wherever possible
+static void BM_Parallel_DSU_Adversarial(benchmark::State& state) {
+  constexpr size_t size_of_dsu = 16 * MB;
+
+  auto rng = std::default_random_engine{};
+
+  std::vector<std::pair<node_id_t, node_id_t>> updates;
+  // generate updates
+  for (size_t iter = 0; ((size_t)2 << iter) <= size_of_dsu; iter++) {
+    size_t loc_size = 1 << iter;
+    size_t jump = 2 << iter;
+    std::vector<std::pair<node_id_t, node_id_t>> new_updates;
+    for (size_t i = 0; i < size_of_dsu; i += jump) {
+      new_updates.push_back({i + loc_size - 1, i + loc_size - 1 + jump / 2});
+    }
+    std::shuffle(new_updates.begin(), new_updates.end(), rng);
+    updates.insert(updates.end(), new_updates.begin(), new_updates.end());
+  }
+
+  // Perform merge test
+  for (auto _ : state) {
+    DisjointSetUnion_MT<node_id_t> dsu(size_of_dsu);
+#pragma omp parallel for num_threads(state.range(0))
+    for (auto upd : updates) {
+      dsu.merge(upd.first, upd.second);
+    }
+  }
+  state.counters["Merge_Latency"] =
+      benchmark::Counter(state.iterations() * updates.size(),
+                         benchmark::Counter::kIsRate | benchmark::Counter::kInvert);
+}
+BENCHMARK(BM_Parallel_DSU_Adversarial)->RangeMultiplier(2)->Range(1, 8)->UseRealTime();
+
+// Benchmark the efficiency of parallel DSU merges
+// when the sequence of DSU merges is helpful
+// this means we only join roots
+static void BM_Parallel_DSU_Root(benchmark::State& state) {
+  constexpr size_t size_of_dsu = 16 * MB;
+
+  auto rng = std::default_random_engine{};
+
+  // generate updates
+  std::vector<std::pair<node_id_t, node_id_t>> updates;
+  // generate updates
+  for (size_t iter = 0; ((size_t)2 << iter) <= size_of_dsu; iter++) {
+    size_t jump = 2 << iter;
+    std::vector<std::pair<node_id_t, node_id_t>> new_updates;
+    for (size_t i = 0; i < size_of_dsu; i += jump) {
+      new_updates.push_back({i, i + jump / 2});
+    }
+    std::shuffle(new_updates.begin(), new_updates.end(), rng);
+    updates.insert(updates.end(), new_updates.begin(), new_updates.end());
+  }
+
+  // Perform merge test
+  for (auto _ : state) {
+    DisjointSetUnion_MT<node_id_t> dsu(size_of_dsu);
+#pragma omp parallel for num_threads(state.range(0))
+    for (auto upd : updates) {
+      dsu.merge(upd.first, upd.second);
+    }
+  }
+  state.counters["Merge_Latency"] =
+      benchmark::Counter(state.iterations() * updates.size(),
+                         benchmark::Counter::kIsRate | benchmark::Counter::kInvert);
+}
+BENCHMARK(BM_Parallel_DSU_Root)->RangeMultiplier(2)->Range(1, 8)->UseRealTime();
 
 BENCHMARK_MAIN();
