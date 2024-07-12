@@ -138,13 +138,9 @@ void MCGPUSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
           }
         }
       }
-
-
-
     }    
   }
-
-};
+}
 
 void MCGPUSketchAlg::convert_adj_to_sketch() {
   if (num_sketch_graphs == 0) {
@@ -181,9 +177,9 @@ void MCGPUSketchAlg::convert_adj_to_sketch() {
     int stream_id = thr_id;
     int start_index = stream_id * num_nodes;
 
-    for (int src = thr_id; src < num_nodes; src += num_threads) {
+    for (node_id_t src = thr_id; src < num_nodes; src += num_threads) {
 
-      std::map<node_id_t, node_id_t> dst_vertices = subgraphs[graph_id]->get_neighbor_nodes(src);
+      std::set<node_id_t> dst_vertices = subgraphs[graph_id]->get_neighbor_nodes(src);
       
       if (dst_vertices.size() == 0) { // No neighbor nodes for this src vertex
         continue;
@@ -191,8 +187,7 @@ void MCGPUSketchAlg::convert_adj_to_sketch() {
 
       // Go through all neighbor nodes and fill in buffer
       int current_index = 0;
-      for (auto dst_it = dst_vertices.begin(); dst_it != dst_vertices.end(); dst_it++) {
-        node_id_t dst = dst_it->first;
+      for (auto dst : dst_vertices) {
         convert_h_edgeUpdates[start_index + current_index] = static_cast<vec_t>(concat_pairing_fn(src, dst));
         current_index++;
       }
@@ -294,59 +289,16 @@ std::vector<Edge> MCGPUSketchAlg::get_adjlist_spanning_forests(int graph_id, int
   if (subgraphs[graph_id]->get_type() == SKETCH) {
     std::cout << "Subgraph with graph_id: " << graph_id << " is Sketch graph!\n";
   }
-
-  std::vector<Edge> forests;
-  // Method 1: Sample a neighbor node, edge might be a "bad" edge
-  for (int k_id = 0; k_id < k; k_id++) {
-    for (node_id_t node_id = 0; node_id < num_nodes; node_id++) {
-      node_id_t dst = subgraphs[graph_id]->sample_dst_node(node_id);
-
-      if (dst != -1) {
-        forests.push_back({node_id, dst});
-      }
-
-    }
-  }
-
-  // Method 2: Convert the entire adj. list into a spanning tree
-  /*for (node_id_t node_id = 0; node_id < num_nodes; node_id++) {
-    std::map<node_id_t, node_id_t> dst_vertices = subgraphs[graph_id]->get_neighbor_nodes(node_id);
-
-    for (auto it = dst_vertices.begin(); it != dst_vertices.end(); it++) {
-      forests.push_back({node_id, it->first});
-    }
-  }*/
-
-  // Method 3: Perform DFS to construct a spanning tree
-  /*std::set<Edge> edges;
-  for (int k_id = 0; k_id < k; k_id++) {
-    std::cout << "  Getting spanning forest " << k_id << "\n";
-    std::vector<int> visited;
-    std::vector<Edge> forest;
-
-    visited.assign(num_nodes, 0);
-    traverse_DFS(&forest, graph_id, 0, &visited);
-
-    // Fill forests with forest
-    for (auto& edge : forest) {
-      forests.push_back(edge);
+  
+  std::vector<Edge> edges;
+  for (node_id_t src = 0; src < num_nodes; src++) {
+    for (auto dst : subgraphs[graph_id]->get_neighbor_nodes(src)) {
+      edges.push_back({src, dst});
     }
 
     // Delete sampled edge from adj. list
     std::cout << "    Trimming spanning forest " << k_id << "\n";
     subgraphs[graph_id]->adjlist_trim_forest(forest);
   }
-
-  // Check for any duplicate edge
-  for (auto& edge : forests) {
-    if (edges.count(edge) == 0) {
-      edges.insert(edge);
-    }
-    else {
-      std::cerr << "ERROR: duplicate edge in forests! {" << edge.src << "," << edge.dst << "}\n";
-      exit(EXIT_FAILURE);
-    }
-  }*/
-
-  return forests;
+  return edges;
 }

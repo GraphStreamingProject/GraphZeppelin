@@ -191,6 +191,12 @@ int main(int argc, char **argv) {
   std::cout << "Number of adj. list graphs: " << num_adj_graphs << "\n";
   std::cout << "Number of sketch graphs: " << num_sketch_graphs << "\n";
 
+  /********************************************************************\
+  |                                                                    |
+  |                       POST PROCESSING BEGINS                       |
+  |                                                                    |
+  \********************************************************************/
+
   // Get spanning forests then create a METIS format file
   std::cout << "Generating Certificates...\n";
   int num_sampled_zero_graphs = 0;
@@ -241,126 +247,29 @@ int main(int argc, char **argv) {
           }
         }
       }
-
     }
 
     std::cout << "  Number of edges in spanning forests: " << spanningForests.size() << "\n";
 
-    if (spanningForests.size() == 0) { // No need to make certificate for empty spanning forest
-      num_sampled_zero_graphs++;
-      continue;
-    }
-
-    auto cert_write_start = std::chrono::steady_clock::now();
-
-    std::string file_name = "certificates" + std::to_string(graph_id) + ".metis";
-    std::ofstream cert (file_name);
-
-    // Read edges then categorize them based on src node
-    int sampled_num_nodes = 0;
-    int sampled_num_edges = 0;
-    node_id_t current_node_id = 1;
-    int num_self_edges = 0;
-
-    std::map<node_id_t, std::vector<node_id_t>> nodes_list;
-    std::map<node_id_t, node_id_t> simplified_node_ids;
-
-    for (auto& edge : spanningForests) {
-      if (simplified_node_ids.find(edge.src) == simplified_node_ids.end()) { // Has not been inserted yet
-        simplified_node_ids[edge.src] = current_node_id;
-        nodes_list[current_node_id] = std::vector<node_id_t>();
-
-        sampled_num_nodes++;
-        current_node_id++;
-      }
-
-      if (simplified_node_ids.find(edge.dst) == simplified_node_ids.end()) {
-        simplified_node_ids[edge.dst] = current_node_id;
-        nodes_list[current_node_id] = std::vector<node_id_t>();
-
-        sampled_num_nodes++;
-        current_node_id++;
-      }
-      
-      node_id_t simplified_node1 = simplified_node_ids[edge.src];
-      node_id_t simplified_node2 = simplified_node_ids[edge.dst];
-      
-      if (simplified_node1 == simplified_node2) {
-        num_self_edges++;
-      }
-      
-      nodes_list[simplified_node1].push_back(simplified_node2);
-      nodes_list[simplified_node2].push_back(simplified_node1);
-
-      sampled_num_edges++;
-    }
-
-    if (num_self_edges > 0) {
-      std::cout << "WARNING: There are self edges! " << num_self_edges << "\n";
-    }
-
-    // Write sampled num_nodes and num_edges to file
-    cert << sampled_num_nodes << " " << sampled_num_edges << " 0" << "\n";
-
-    for (auto it : nodes_list) {
-      for (size_t neighbor = 0; neighbor < it.second.size(); neighbor++) {
-        if (it.second[neighbor] == it.first) {
-          continue;
-        }
-        cert << (it.second[neighbor]) << " ";
-      }
-      cert << "\n";  
-    }
-    cert.close();
-    cert_write_time += std::chrono::steady_clock::now() - cert_write_start;
-  }
-
-  std::cout << "Getting minimum cut of certificates...\n";
-  auto viecut_start = std::chrono::steady_clock::now();
-  std::vector<int> mincut_values;
-  for (int graph_id = 0; graph_id < num_graphs - num_sampled_zero_graphs; graph_id++) {
-    std::string file_name = "certificates" + std::to_string(graph_id) + ".metis";
-    std::string output_name = "mincut" + std::to_string(graph_id) + ".txt";
-    std::string command = "_deps/viecut-build/mincut_parallel " + file_name + " exact >" + output_name; // Run VieCut and store the output
-    std::system(command.data());
-
-    std::string line;
-    std::ifstream output_file(output_name);
-    if(output_file.is_open()) {
-      std::getline(output_file, line); // Skip first line
-      std::getline(output_file, line);
-
-      int start_index = line.find("cut=");
-      int end_index = line.find(" n=");
-
-      if (start_index != std::string::npos || end_index != std::string::npos ) {
-        int cut = stoi(line.substr((start_index + 4), ((end_index) - (start_index + 4)))); 
-        if (graph_id >= num_sketch_graphs) {
-          std::cout << "  S" << graph_id << " (Adj. list): " << cut << "\n";
-        }
-        else {
-          std::cout << "  S" << graph_id << " (Sketch): " << cut << "\n";
-        }
-        mincut_values.push_back(cut);
-      }
-      else {
-        std::cout << "Error: Couldn't find 'cut=' or 'n=' in the output file\n";
-      }
-      output_file.close();
+    // now perform minimum cut computation
+    auto viecut_start = std::chrono::steady_clock::now();
+    MinCut mc = mc_gpu_alg.calc_minimum_cut(spanningForests);
+    viecut_time += std::chrono::steady_clock::now() - viecut_start;
+    if (graph_id >= num_sketch_graphs) {
+      std::cout << "  S" << graph_id << " (Adj. list): " << mc.value << "\n";
     }
     else {
-      std::cout << "Error: Couldn't find file name: " << output_name << "!\n";
+      std::cout << "  S" << graph_id << " (Sketch): " << mc.value << "\n";
     }
-  }
-  viecut_time += std::chrono::steady_clock::now() - viecut_start;
 
-  // Go through min cut values of each subgraph and find the minimum cut of subgraph that is smaller than k
-  for (int i = 0; i < mincut_values.size(); i++) {
-    if(mincut_values[i] < k) {
-      std::cout << "Mincut value found! i: " << i << " mincut: " << mincut_values[i] << "\n";
-      std::cout << "Final mincut value: " << (mincut_values[i] * (pow(2, i))) << "\n";
+    if (graph_id >= num_sketch_graphs || mc.value < k) {
+      // we return the adjacency answer regardless of its value
+      // This works under the assumption that all the previous sketched min cuts were invalid
+      // Otherwise, if a sketched subgraph returns a value < k, we use that
+      std::cout << "Mincut found in graph: " << graph_id << " mincut: " << mc.value << std::endl;
+      std::cout << "Final mincut value: " << (mc.value * (pow(2, graph_id))) << std::endl;
       break;
-     }
+    }
   }
 
   std::chrono::duration<double> insert_time = flush_end - ins_start;
@@ -377,13 +286,4 @@ int main(int argc, char **argv) {
   std::cout << "Certificate Writing Time(sec): " << cert_write_time.count() << std::endl;
   std::cout << "VieCut Program Time(sec): " << viecut_time.count() << std::endl;
   std::cout << "Maximum Memory Usage(MiB): " << get_max_mem_used() << std::endl;
-
-  // If enabled, remove all certificate and VieCut output files
-  if(cert_clean_up) {
-    for (int graph_id = 0; graph_id < num_graphs - num_sampled_zero_graphs; graph_id++) {
-      std::remove(("certificates" + std::to_string(graph_id) + ".metis").c_str());
-      std::remove(("mincut" + std::to_string(graph_id) + ".txt").c_str());
-    }
-  }
-
 }

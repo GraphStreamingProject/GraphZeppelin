@@ -60,6 +60,13 @@ struct alignas(64) GlobalMergeData {
 enum QueryCode {
   CONNECTIVITY,     // connected components and spanning forest of graph
   KSPANNINGFORESTS, // k disjoint spanning forests
+  MINIMUMCUT,       // compute the minimum cut of the graph
+};
+
+struct MinCut {
+  std::set<node_id_t> left_vertices;
+  std::set<node_id_t> right_vertices;
+  size_t value;
 };
 
 /**
@@ -260,6 +267,9 @@ class MCSketchAlg {
   SpanningForest calc_spanning_forest();
 
   SpanningForest get_k_spanning_forest(int graph_id);
+
+  // compute the minimum cut of the graph defined by the input stream
+  MinCut calc_minimum_cut(const std::vector<Edge> &edges);
 
 #ifdef VERIFY_SAMPLES_F
   void set_verifier(std::unique_ptr<GraphVerifier> verifier) {
