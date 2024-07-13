@@ -87,25 +87,25 @@ int main(int argc, char **argv) {
   std::cout << std::endl;
 
   // Get variables from sketch
-  SketchParam sketchParam;
-  sketchParam.num_samples = Sketch::calc_cc_samples(num_nodes, 1);
-  sketchParam.num_columns = sketchParam.num_samples * Sketch::default_cols_per_sample;
-  sketchParam.bkt_per_col = Sketch::calc_bkt_per_col(Sketch::calc_vector_length(num_nodes));
-  sketchParam.num_buckets = sketchParam.num_columns * sketchParam.bkt_per_col + 1;
+  SketchParams sketchParams;
+  sketchParams.num_samples = Sketch::calc_cc_samples(num_nodes, 1);
+  sketchParams.num_columns = sketchParams.num_samples * Sketch::default_cols_per_sample;
+  sketchParams.bkt_per_col = Sketch::calc_bkt_per_col(Sketch::calc_vector_length(num_nodes));
+  sketchParams.num_buckets = sketchParams.num_columns * sketchParams.bkt_per_col + 1;
 
-  std::cout << "num_samples: " << sketchParam.num_samples << "\n";
-  std::cout << "num_buckets: " << sketchParam.num_buckets << "\n";
-  std::cout << "num_columns: " << sketchParam.num_columns << "\n";
-  std::cout << "bkt_per_col: " << sketchParam.bkt_per_col << "\n"; 
+  std::cout << "num_samples: " << sketchParams.num_samples << "\n";
+  std::cout << "num_buckets: " << sketchParams.num_buckets << "\n";
+  std::cout << "num_columns: " << sketchParams.num_columns << "\n";
+  std::cout << "bkt_per_col: " << sketchParams.bkt_per_col << "\n"; 
 
   // Allocate memory for buckets
   Bucket* buckets;
-  gpuErrchk(cudaMallocManaged(&buckets, num_nodes * sketchParam.num_buckets * sizeof(Bucket)));
+  gpuErrchk(cudaMallocManaged(&buckets, num_nodes * sketchParams.num_buckets * sizeof(Bucket)));
 
   auto driver_config = DriverConfiguration().gutter_sys(CACHETREE).worker_threads(num_threads);
   auto cc_config = CCAlgConfiguration().batch_factor(6);
 
-  CCGPUSketchAlg cc_gpu_alg{num_nodes, num_updates, num_threads, buckets, get_seed(), sketchParam, cc_config};
+  CCGPUSketchAlg cc_gpu_alg{num_nodes, num_updates, num_threads, buckets, get_seed(), sketchParams, cc_config};
   GraphSketchDriver<CCGPUSketchAlg> driver{&cc_gpu_alg, &stream, driver_config, reader_threads};
   
   auto ins_start = std::chrono::steady_clock::now();
@@ -119,7 +119,7 @@ int main(int argc, char **argv) {
   auto flush_end = std::chrono::steady_clock::now();
   
   // Prefetch sketches back to CPU
-  gpuErrchk(cudaMemPrefetchAsync(buckets, num_nodes * sketchParam.num_buckets * sizeof(Bucket), cudaCpuDeviceId));
+  gpuErrchk(cudaMemPrefetchAsync(buckets, num_nodes * sketchParams.num_buckets * sizeof(Bucket), cudaCpuDeviceId));
 
   auto CC_num = cc_gpu_alg.connected_components().size();
 

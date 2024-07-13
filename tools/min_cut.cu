@@ -157,7 +157,10 @@ int main(int argc, char **argv) {
   // Reconfigure sketches_factor based on reduced_k
   mc_config.sketches_factor(reduced_k);
 
-  MCGPUSketchAlg mc_gpu_alg{num_nodes, num_updates, num_threads, reader_threads, get_seed(), sketchParams, num_graphs, min_adj_graphs, max_sketch_graphs, reduced_k, sketch_bytes, adjlist_edge_bytes, mc_config};
+  Bucket* buckets;
+  gpuErrchk(cudaMallocManaged(&buckets, max_sketch_graphs * num_nodes * sketchParams.num_buckets * sizeof(Bucket)));
+
+  MCGPUSketchAlg mc_gpu_alg{num_nodes, num_updates, num_threads, buckets, reader_threads, get_seed(), sketchParams, num_graphs, min_adj_graphs, max_sketch_graphs, reduced_k, sketch_bytes, adjlist_edge_bytes, mc_config};
   GraphSketchDriver<MCGPUSketchAlg> driver{&mc_gpu_alg, &stream, driver_config, reader_threads};
 
   auto ins_start = std::chrono::steady_clock::now();
@@ -168,7 +171,6 @@ int main(int argc, char **argv) {
   auto flush_start = std::chrono::steady_clock::now();
   driver.prep_query(KSPANNINGFORESTS);
   cudaDeviceSynchronize();
-  mc_gpu_alg.apply_flush_updates();
   mc_gpu_alg.convert_adj_to_sketch();
   // Re-measure flush_end to include time taken for applying delta sketches from flushing
   auto flush_end = std::chrono::steady_clock::now();
@@ -203,7 +205,7 @@ int main(int argc, char **argv) {
   for (int graph_id = 0; graph_id < num_graphs; graph_id++) {
     std::vector<Edge> spanningForests;
     std::set<Edge> edges;
-    
+
     if (graph_id >= num_sketch_graphs) { // Get Spanning forests from adj list
       std::cout << "S" << graph_id << " (Adj. list):\n";
       auto sampling_forest_start = std::chrono::steady_clock::now();
@@ -225,7 +227,7 @@ int main(int argc, char **argv) {
         for (auto edge : spanningForest.get_edges()) {
           spanningForests.push_back(edge);
         }
-        
+
         // Trim spanning forest
         auto trim_reading_start = std::chrono::steady_clock::now();
         driver.trim_spanning_forest(spanningForest.get_edges());

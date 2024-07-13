@@ -12,7 +12,7 @@ Sketch::Sketch(vec_t vector_len, uint64_t seed, node_id_t sketch_id, Bucket* _bu
   bkt_per_col = calc_bkt_per_col(vector_len);
   num_buckets = num_columns * bkt_per_col + 1; // plus 1 for deterministic bucket
   buckets = &(_buckets[sketch_id * num_buckets]);
-
+  
   // initialize bucket values
   for (size_t i = 0; i < num_buckets; ++i) {
     buckets[i].alpha = 0;

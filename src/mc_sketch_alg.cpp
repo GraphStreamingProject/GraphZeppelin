@@ -13,19 +13,24 @@
 #include <data_structure/graph_access.h>
 #include <data_structure/mutable_graph.h>
 
-MCSketchAlg::MCSketchAlg(node_id_t num_vertices, size_t seed, int _max_sketch_graphs, CCAlgConfiguration config)
+MCSketchAlg::MCSketchAlg(node_id_t num_vertices, size_t seed, Bucket* buckets, int _max_sketch_graphs, CCAlgConfiguration config)
     : num_vertices(num_vertices), seed(seed), dsu(num_vertices), config(config) {
   representatives = new std::set<node_id_t>();
   max_sketch_graphs = _max_sketch_graphs;
-  num_sketch_graphs = 0; // Initially 0 sketch graph
   vec_t sketch_vec_len = Sketch::calc_vector_length(num_vertices);
   size_t sketch_num_samples = Sketch::calc_cc_samples(num_vertices, config.get_sketches_factor());
+  size_t sketch_num_columns = sketch_num_samples * Sketch::default_cols_per_sample;
+  size_t sketch_bkt_per_col = Sketch::calc_bkt_per_col(Sketch::calc_vector_length(num_vertices));
+  size_t sketch_num_buckets = sketch_num_columns * sketch_bkt_per_col + 1;
 
   sketches = new Sketch *[num_vertices * max_sketch_graphs];
 
-  // Create a sample sketch for the driver
-  sketches[0] = new Sketch(sketch_vec_len, seed, sketch_num_samples);
-
+  for (int graph_id = 0; graph_id < max_sketch_graphs; graph_id++) {
+    for (node_id_t i = 0; i < num_vertices; ++i) {
+      sketches[(graph_id * num_vertices) + i] = new Sketch(sketch_vec_len, seed, i, &buckets[graph_id * num_vertices * sketch_num_buckets], sketch_num_samples);
+    }
+  }
+  
   for (node_id_t i = 0; i < num_vertices; ++i) {
     representatives->insert(i);
   }
@@ -76,7 +81,7 @@ MCSketchAlg::MCSketchAlg(node_id_t num_vertices, size_t seed, std::ifstream &bin
 }
 
 MCSketchAlg::~MCSketchAlg() {
-  for (size_t i = 0; i < num_vertices * num_sketch_graphs; ++i) delete sketches[i];
+  for (size_t i = 0; i < num_vertices * max_sketch_graphs; ++i) delete sketches[i];
   delete[] sketches;
   if (delta_sketches != nullptr) {
     for (size_t i = 0; i < num_delta_sketches; i++) delete delta_sketches[i];
@@ -86,26 +91,6 @@ MCSketchAlg::~MCSketchAlg() {
   delete representatives;
   delete[] spanning_forest;
   delete[] spanning_forest_mtx;
-}
-
-void MCSketchAlg::create_sketch_graph(int graph_id) {
-  // Validate graph_id
-  if (graph_id >= max_sketch_graphs || graph_id != num_sketch_graphs) {
-    std::cout << "Invalid graph_id in create_sketch_graph()! " << graph_id << "\n";
-    return;
-  }
-
-  std::cout << "Creating sketches for graph #" << graph_id << "\n";
-
-  vec_t sketch_vec_len = Sketch::calc_vector_length(num_vertices);
-  size_t sketch_num_samples = Sketch::calc_cc_samples(num_vertices, config.get_sketches_factor());
-
-  for (node_id_t i = 0; i < num_vertices; ++i) {
-    if (graph_id == 0 && i == 0) continue;
-    sketches[(graph_id * num_vertices) + i] = new Sketch(sketch_vec_len, seed, sketch_num_samples);
-  }  
-
-  num_sketch_graphs++;
 }
 
 void MCSketchAlg::pre_insert(GraphUpdate upd, int /* thr_id */) {
@@ -749,8 +734,8 @@ void MCSketchAlg::k_boruvka_emulation(int graph_id) {
   }
   last_query_rounds = round_num;
 
-  dsu_valid = true;
-  shared_dsu_valid = true;
+  //dsu_valid = true;
+  //shared_dsu_valid = true;
   update_locked = false;
 }
 
@@ -826,9 +811,9 @@ SpanningForest MCSketchAlg::get_k_spanning_forest(int graph_id) {
 
   // Note: Turning these off for now for performance, but turn it back on if run into OutOfSamplesException 
   // get ready for ingesting more from the stream by resetting the sketches sample state
-  /*for (node_id_t i = 0; i < num_vertices * num_sketch_graphs; i++) {
+  for (node_id_t i = 0; i < num_vertices * max_sketch_graphs; i++) {
     sketches[i]->reset_sample_state();
-  }*/
+  }
 
   if (except) std::rethrow_exception(err);
 

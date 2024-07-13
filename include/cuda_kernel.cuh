@@ -33,9 +33,6 @@ class CudaUpdateParams {
 
     Bucket* buckets;
 
-    vec_t *convert_h_bucket_a, *convert_d_bucket_a;
-    vec_hash_t *convert_h_bucket_c, *convert_d_bucket_c;
-
     // Number of columns that each thread block will handle
     int *num_tb_columns;
 
@@ -68,11 +65,6 @@ class CudaUpdateParams {
       gpuErrchk(cudaMallocHost(&h_edgeUpdates, stream_multiplier * num_host_threads * batch_size * sizeof(vec_t)));
       gpuErrchk(cudaMalloc(&d_edgeUpdates, stream_multiplier * num_host_threads * batch_size * sizeof(vec_t)));
 
-      gpuErrchk(cudaMallocHost(&convert_h_bucket_a, (num_reader_threads + num_host_threads) * num_buckets * sizeof(vec_t)));
-      gpuErrchk(cudaMalloc(&convert_d_bucket_a, (num_reader_threads + num_host_threads) * num_buckets * sizeof(vec_t)));
-      gpuErrchk(cudaMallocHost(&convert_h_bucket_c, (num_reader_threads + num_host_threads) * num_buckets * sizeof(vec_hash_t)));
-      gpuErrchk(cudaMalloc(&convert_d_bucket_c, (num_reader_threads + num_host_threads) * num_buckets * sizeof(vec_hash_t)));
-
       gpuErrchk(cudaMallocManaged(&num_tb_columns, num_device_blocks * sizeof(int)));
 
       for (int i = 0; i < num_device_blocks ; i++) {
@@ -96,12 +88,6 @@ class CudaUpdateParams {
       for (size_t i = 0; i < stream_multiplier * num_host_threads * batch_size; i++) {
         h_edgeUpdates[i] = 0;
       }
-
-      for (size_t i = 0; i < (num_reader_threads + num_host_threads) * num_buckets; i++) {
-        convert_h_bucket_a[i] = 0;
-        convert_h_bucket_c[i] = 0;
-      }
-
     };
 };
 
@@ -113,7 +99,7 @@ class CudaKernel {
     *
     */
     void sketchUpdate(int num_threads, int num_blocks, node_id_t src_vertex, cudaStream_t stream, vec_t *edgeUpdates, size_t update_size, CudaUpdateParams* cudaUpdateParams, long sketchSeed);
-    void single_sketchUpdate(int num_threads, int num_blocks, size_t maxBytes, node_id_t* update_src, vec_t* update_sizes, vec_t* update_start_index, vec_t* edgeUpdates, vec_t* bucket_a, vec_hash_t* bucket_c, size_t num_buckets, size_t num_columns, size_t bkt_per_col, size_t sketchSeed);
+    void single_sketchUpdate(int num_threads, int num_blocks, vec_t* edgeUpdates, node_id_t* update_src, vec_t* update_sizes, vec_t* update_start_index, CudaUpdateParams* cudaUpdateParams, size_t sketchSeed);
 
     void updateSharedMemory(size_t maxBytes);
 

@@ -75,6 +75,14 @@ FetchContent_Declare(
   GIT_TAG         master
 )
 
+# Get tlx
+FetchContent_Declare(
+  tlx
+
+  GIT_REPOSITORY  https://github.com/tlx/tlx.git
+  GIT_TAG         master
+)
+
 if (BUILD_BENCH)
   # Get Google Benchmark
   FetchContent_Declare(
@@ -88,7 +96,7 @@ if (BUILD_BENCH)
   FetchContent_MakeAvailable(benchmark)
 endif()
 
-FetchContent_MakeAvailable(GutterTree StreamingUtilities VieCut)
+FetchContent_MakeAvailable(GutterTree StreamingUtilities VieCut tlx)
 
 # AVAILABLE COMPILATION DEFINITIONS:
 # VERIFY_SAMPLES_F   Use a deterministic connected-components
@@ -106,25 +114,25 @@ add_library(CUDALibrary
   src/cuda_library.cu
   src/cuda_kernel.cu
   src/cc_gpu_sketch_alg.cpp
-  #src/mc_gpu_sketch_alg.cpp
-  src/sk_gpu_sketch_alg.cpp)
-add_dependencies(CUDALibrary GutterTree)
-target_link_libraries(CUDALibrary PUBLIC xxhash GutterTree StreamingUtilities)
+  src/mc_gpu_sketch_alg.cpp)
+  #src/sk_gpu_sketch_alg.cpp)
+add_dependencies(CUDALibrary GutterTree StreamingUtilities VieCut tlx)
+target_link_libraries(CUDALibrary PUBLIC xxhash GutterTree StreamingUtilities VieCut tlx)
 target_include_directories(CUDALibrary PUBLIC include/)
 target_compile_options(CUDALibrary PUBLIC -lineinfo) # -lineinfo: For profiling
 #target_compile_options(CUDALibrary PUBLIC -expt-relaxed-constexpr)
 
 add_library(GraphZeppelin
   src/cc_sketch_alg.cpp
-  #src/mc_sketch_alg.cpp
-  #src/mc_subgraph.cpp
+  src/mc_sketch_alg.cpp
+  src/mc_subgraph.cpp
   src/return_types.cpp
   src/driver_configuration.cpp
   src/cc_alg_configuration.cpp
   src/sketch.cpp
   src/util.cpp)
-add_dependencies(GraphZeppelin GutterTree StreamingUtilities VieCut)
-target_link_libraries(GraphZeppelin PUBLIC xxhash GutterTree StreamingUtilities VieCut)
+add_dependencies(GraphZeppelin GutterTree StreamingUtilities VieCut tlx)
+target_link_libraries(GraphZeppelin PUBLIC xxhash GutterTree StreamingUtilities VieCut tlx)
 target_include_directories(GraphZeppelin PUBLIC include/)
 target_compile_options(GraphZeppelin PUBLIC -fopenmp)
 target_link_options(GraphZeppelin PUBLIC -fopenmp)
@@ -177,17 +185,17 @@ if (BUILD_EXE)
     tools/cuda_process_stream.cu)
   target_link_libraries(cuda_process_stream PRIVATE GraphZeppelin CUDALibrary)
 
-  add_executable(single_kernel_stream
-    tools/single_kernel_stream.cu)
-  target_link_libraries(single_kernel_stream PRIVATE GraphZeppelin CUDALibrary)
+  #add_executable(single_kernel_stream
+  #  tools/single_kernel_stream.cu)
+  #target_link_libraries(single_kernel_stream PRIVATE GraphZeppelin CUDALibrary)
 
   add_executable(xxhash_test
     test/xxhash_test.cu)
   target_link_libraries(xxhash_test PRIVATE GraphZeppelin CUDALibrary)
 
-  #add_executable(min_cut
-  #  tools/min_cut.cu)
-  #target_link_libraries(min_cut PRIVATE GraphZeppelin CUDALibrary)
+  add_executable(min_cut
+    tools/min_cut.cu)
+  target_link_libraries(min_cut PRIVATE GraphZeppelin CUDALibrary)
 
   add_executable(adjlist_test
     tools/adjlist_test.cpp)

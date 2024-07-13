@@ -10,7 +10,7 @@ struct CudaStream {
   int src_vertex;
 };
 
-struct SketchParam{
+struct SketchParams {
   size_t num_samples;
   size_t num_buckets;
   size_t num_columns;
@@ -48,7 +48,7 @@ private:
   std::vector<int> streams_offset;
 
 public:
-  CCGPUSketchAlg(node_id_t num_vertices, size_t num_updates, int num_threads, Bucket* buckets, size_t seed, SketchParam sketchParam, CCAlgConfiguration config = CCAlgConfiguration()) : CCSketchAlg(num_vertices, seed, buckets, config){ 
+  CCGPUSketchAlg(node_id_t num_vertices, size_t num_updates, int num_threads, Bucket* buckets, size_t seed, SketchParams sketchParams, CCAlgConfiguration config = CCAlgConfiguration()) : CCSketchAlg(num_vertices, seed, buckets, config){ 
 
     // Start timer for initializing
     auto init_start = std::chrono::steady_clock::now();
@@ -57,10 +57,10 @@ public:
     sketchSeed = seed;
 
     // Get variables from sketch
-    num_samples = sketchParam.num_samples;
-    num_columns = sketchParam.num_columns;
-    bkt_per_col = sketchParam.bkt_per_col;
-    num_buckets = sketchParam.num_buckets;
+    num_samples = sketchParams.num_samples;
+    num_columns = sketchParams.num_columns;
+    bkt_per_col = sketchParams.bkt_per_col;
+    num_buckets = sketchParams.num_buckets;
 
     batch_size = get_desired_updates_per_batch();
     std::cout << "Batch Size: " << batch_size << "\n";
@@ -102,7 +102,7 @@ public:
     }
 
     // Prefetch sketches to GPU
-    gpuErrchk(cudaMemPrefetchAsync(buckets, num_vertices * sketchParam.num_buckets * sizeof(Bucket), device_id));
+    gpuErrchk(cudaMemPrefetchAsync(buckets, num_vertices * sketchParams.num_buckets * sizeof(Bucket), device_id));
 
     std::cout << "Finished CCGPUSketchAlg's Initialization\n";
     std::chrono::duration<double> init_time = std::chrono::steady_clock::now() - init_start;

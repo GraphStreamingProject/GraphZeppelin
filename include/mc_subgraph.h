@@ -49,6 +49,7 @@ class MCSubgraph {
       return num_adj_edges;
     }
   }
+  size_t get_num_adj_edges() { return num_adj_edges; }
   const std::vector<std::set<node_id_t>>& get_adjlist() { return adjlist; }
   const std::set<node_id_t>& get_neighbor_nodes(node_id_t src) { return adjlist[src]; }
 
