@@ -217,9 +217,17 @@ class CCSketchAlg {
    * Return a spanning forest of the graph utilizing Boruvka and L_0 sampling
    * IMPORTANT: The updates to this algorithm MUST NOT be a function of the output of this query
    * that is, unless you really know what you're doing.
-   * @return an adjacency list representation of the spanning forest of the graph
+   * @return vector of edges and adjacency list representation of the spanning forest of the graph
    */
   SpanningForest calc_spanning_forest();
+
+  /**
+   * Returns edges that form k edge-disjoint spanning forests of the graph
+   * IMPORTANT: The updates to this algorithm MUST NOT be a function of the output of this query
+   * that is, unless you really know what you're doing.
+   * @return vector of edges that together form the spanning forests of the graph
+   */
+  std::vector<Edge> calc_disjoint_spanning_forests(size_t k);
 
 #ifdef VERIFY_SAMPLES_F
   std::unique_ptr<GraphVerifier> verifier;
