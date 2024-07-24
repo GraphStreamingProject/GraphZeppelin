@@ -14,7 +14,8 @@ CCSketchAlg::CCSketchAlg(node_id_t num_vertices, size_t seed, CCAlgConfiguration
   sketches = new Sketch *[num_vertices];
 
   vec_t sketch_vec_len = Sketch::calc_vector_length(num_vertices);
-  size_t sketch_num_samples = Sketch::calc_cc_samples(num_vertices);
+  size_t sketch_num_samples = Sketch::calc_cc_samples(num_vertices, config.get_sketches_factor());
+
   for (node_id_t i = 0; i < num_vertices; ++i) {
     representatives->insert(i);
     sketches[i] = new Sketch(sketch_vec_len, seed, sketch_num_samples);
@@ -48,7 +49,8 @@ CCSketchAlg::CCSketchAlg(node_id_t num_vertices, size_t seed, std::ifstream &bin
   sketches = new Sketch *[num_vertices];
 
   vec_t sketch_vec_len = Sketch::calc_vector_length(num_vertices);
-  size_t sketch_num_samples = Sketch::calc_cc_samples(num_vertices);
+  size_t sketch_num_samples = Sketch::calc_cc_samples(num_vertices, config.get_sketches_factor());
+
   for (node_id_t i = 0; i < num_vertices; ++i) {
     representatives->insert(i);
     sketches[i] = new Sketch(sketch_vec_len, seed, binary_stream, sketch_num_samples);
@@ -88,12 +90,14 @@ void CCSketchAlg::pre_insert(GraphUpdate upd, int /* thr_id */) {
     auto src = std::min(edge.src, edge.dst);
     auto dst = std::max(edge.src, edge.dst);
     std::lock_guard<std::mutex> sflock(spanning_forest_mtx[src]);
-    if (spanning_forest[src].find(dst) != spanning_forest[src].end()) {
+    if (dsu.merge(src, dst).merged) {
+      // this edge adds new connectivity information so add to spanning forest
+      spanning_forest[src].insert(dst);
+    }
+    else if (spanning_forest[src].find(dst) != spanning_forest[src].end()) {
+      // this update deletes one of our spanning forest edges so mark dsu invalid
       dsu_valid = false;
       shared_dsu_valid = false;
-    } else {
-      spanning_forest[src].insert(dst);
-      dsu.merge(src, dst);
     }
   }
 #endif  // NO_EAGER_DSU
@@ -227,6 +231,7 @@ inline bool CCSketchAlg::run_round_zero() {
       if (sample_supernode(*sketches[i]) && !modified) modified = true;
     } catch (...) {
       except = true;
+#pragma omp critical
       err = std::current_exception();
     }
   }
@@ -258,7 +263,7 @@ bool CCSketchAlg::perform_boruvka_round(const size_t cur_round,
   {
     // some thread local variables
     Sketch local_sketch(Sketch::calc_vector_length(num_vertices), seed,
-                        Sketch::calc_cc_samples(num_vertices));
+                        Sketch::calc_cc_samples(num_vertices, config.get_sketches_factor()));
 
     size_t thr_id = omp_get_thread_num();
     size_t num_threads = omp_get_num_threads();
@@ -266,9 +271,8 @@ bool CCSketchAlg::perform_boruvka_round(const size_t cur_round,
     node_id_t start = partition.first;
     node_id_t end = partition.second;
     assert(start <= end);
-
-    // node_id_t left_root = merge_instr[start].root;
-    // node_id_t right_root = merge_instr[end - 1].root;
+    bool local_except = false;
+    std::exception_ptr local_err;
 
     bool root_from_left = false;
     if (start > 0) {
@@ -298,8 +302,8 @@ bool CCSketchAlg::perform_boruvka_round(const size_t cur_round,
               // num_query += 1;
               if (sample_supernode(global_merges[thr_id].sketch) && !modified) modified = true;
             } catch (...) {
-              except = true;
-              err = std::current_exception();
+              local_except = true;
+              local_err = std::current_exception();
             }
           }
 
@@ -312,8 +316,8 @@ bool CCSketchAlg::perform_boruvka_round(const size_t cur_round,
             // num_query += 1;
             if (sample_supernode(local_sketch) && !modified) modified = true;
           } catch (...) {
-            except = true;
-            err = std::current_exception();
+            local_except = true;
+            local_err = std::current_exception();
           }
         }
 
@@ -343,8 +347,8 @@ bool CCSketchAlg::perform_boruvka_round(const size_t cur_round,
           // num_query += 1;
           if (sample_supernode(global_merges[global_id].sketch) && !modified) modified = true;
         } catch (...) {
-          except = true;
-          err = std::current_exception();
+          local_except = true;
+          local_err = std::current_exception();
         }
       }
     } else {
@@ -354,9 +358,14 @@ bool CCSketchAlg::perform_boruvka_round(const size_t cur_round,
         // num_query += 1;
         if (sample_supernode(local_sketch) && !modified) modified = true;
       } catch (...) {
-        except = true;
-        err = std::current_exception();
+        local_except = true;
+        local_err = std::current_exception();
       }
+    }
+    if (local_except) {
+#pragma omp critical
+      err = local_err;
+      except = true;
     }
   }
 
@@ -463,7 +472,7 @@ void CCSketchAlg::boruvka_emulation() {
   std::vector<GlobalMergeData> global_merges;
   global_merges.reserve(num_threads);
   for (size_t i = 0; i < num_threads; i++) {
-    global_merges.emplace_back(num_vertices, seed);
+    global_merges.emplace_back(num_vertices, seed, config.get_sketches_factor());
   }
 
   dsu.reset();
@@ -541,8 +550,7 @@ ConnectedComponents CCSketchAlg::connected_components() {
 
   ConnectedComponents cc(num_vertices, dsu);
 #ifdef VERIFY_SAMPLES_F
-  auto cc_sets = cc.get_component_sets();
-  verifier->verify_soln(cc_sets);
+  verifier->verify_connected_components(cc);
 #endif
   cc_alg_end = std::chrono::steady_clock::now();
   return cc;
@@ -552,7 +560,11 @@ SpanningForest CCSketchAlg::calc_spanning_forest() {
   // TODO: Could probably optimize this a bit by writing new code
   connected_components();
 
-  return SpanningForest(num_vertices, spanning_forest);
+  SpanningForest ret(num_vertices, spanning_forest);
+#ifdef VERIFY_SAMPLES_F
+  verifier->verify_spanning_forests(std::vector<SpanningForest>{ret});
+#endif
+  return ret;
 }
 
 bool CCSketchAlg::point_query(node_id_t a, node_id_t b) {
@@ -572,7 +584,6 @@ bool CCSketchAlg::point_query(node_id_t a, node_id_t b) {
   else {
     bool except = false;
     std::exception_ptr err;
-    bool ret;
     try {
       boruvka_emulation();
     } catch (...) {
@@ -592,8 +603,7 @@ bool CCSketchAlg::point_query(node_id_t a, node_id_t b) {
 
 #ifdef VERIFY_SAMPLES_F
   ConnectedComponents cc(num_vertices, dsu);
-  auto cc_sets = cc.get_component_sets();
-  verifier->verify_soln(cc_sets);
+  verifier->verify_connected_components(cc);
 #endif
 
   bool retval = (dsu.find_root(a) == dsu.find_root(b));

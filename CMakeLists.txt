@@ -107,8 +107,7 @@ add_library(GraphZeppelinVerifyCC
   src/cc_alg_configuration.cpp
   src/sketch.cpp
   src/util.cpp
-  test/util/file_graph_verifier.cpp
-  test/util/mat_graph_verifier.cpp)
+  test/util/graph_verifier.cpp)
 add_dependencies(GraphZeppelinVerifyCC GutterTree StreamingUtilities)
 target_link_libraries(GraphZeppelinVerifyCC PUBLIC xxhash GutterTree StreamingUtilities)
 target_include_directories(GraphZeppelinVerifyCC PUBLIC include/ include/test/)
@@ -123,10 +122,15 @@ if (BUILD_EXE)
     test/sketch_test.cpp
     test/dsu_test.cpp
     test/util_test.cpp
-    test/util/file_graph_verifier.cpp
     test/util/graph_verifier_test.cpp)
   add_dependencies(tests GraphZeppelinVerifyCC)
   target_link_libraries(tests PRIVATE GraphZeppelinVerifyCC)
+
+  add_executable(statistical_sketch_test
+    tools/sketch_testing.cpp)
+  add_dependencies(statistical_sketch_test GraphZeppelinVerifyCC)
+  target_link_libraries(statistical_sketch_test PRIVATE GraphZeppelinVerifyCC)
+ 
 
   # executable for processing a binary graph stream
   add_executable(process_stream
