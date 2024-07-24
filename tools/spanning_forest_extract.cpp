@@ -87,7 +87,7 @@ int main(int argc, char **argv) {
     for (size_t s = 0; s < vertex_power; s++) {
       auto start = std::chrono::steady_clock::now();
       try {
-        driver.prep_query();
+        driver.prep_query(KSPANNINGFORESTS);
         SpanningForest forest = cc_alg.calc_spanning_forest();
         std::cout << "sf: " << s + 1 << ", rounds: " << cc_alg.last_query_rounds
                   << "/" << cc_alg.max_rounds() << "               \r";
