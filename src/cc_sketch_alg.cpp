@@ -91,11 +91,11 @@ void CCSketchAlg::pre_insert(GraphUpdate upd, int /* thr_id */) {
     auto dst = std::max(edge.src, edge.dst);
     std::lock_guard<std::mutex> sflock(spanning_forest_mtx[src]);
     if (dsu.merge(src, dst).merged) {
-      // edge is new connectivity info. Add to spanning forest.
+      // this edge adds new connectivity information so add to spanning forest
       spanning_forest[src].insert(dst);
-    } 
+    }
     else if (spanning_forest[src].find(dst) != spanning_forest[src].end()) {
-      // edge is not new connectivity info and is deletion of spanning forest edge. dsu invalid.
+      // this update deletes one of our spanning forest edges so mark dsu invalid
       dsu_valid = false;
       shared_dsu_valid = false;
     }

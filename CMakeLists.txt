@@ -128,6 +128,11 @@ if (BUILD_EXE)
   add_dependencies(tests GraphZeppelinVerifyCC)
   target_link_libraries(tests PRIVATE GraphZeppelinVerifyCC)
 
+  add_executable(statistical_sketch_test
+    tools/sketch_testing.cpp)
+  add_dependencies(statistical_sketch_test GraphZeppelinVerifyCC)
+  target_link_libraries(statistical_sketch_test PRIVATE GraphZeppelinVerifyCC)
+
   # executable for processing a binary graph stream
   add_executable(process_stream
     tools/process_stream.cpp)

@@ -14,11 +14,6 @@ CCAlgConfiguration& CCAlgConfiguration::sketches_factor(double factor) {
               << "Defaulting to 1." << std::endl;
     _sketches_factor = 1;
   }
-  if (_sketches_factor != 1) {
-    std::cerr << "WARNING: Your graph configuration specifies using a factor " << _sketches_factor 
-              << " of the normal quantity of sketches." << std::endl;
-    std::cerr << "         Is this intentional? If not, set sketches_factor to one!" << std::endl;
-  }
   return *this;
 }
 
