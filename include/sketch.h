@@ -136,9 +136,8 @@ class Sketch {
    * the compressed version.
    * @param binary_in   Stream holding serialized/compressed sketch object.
    */
-  void compressed_deserialize(std::istream& binary_in) {
+  void compressed_deserialize(std::istream& binary_in);
 
-  }
 
   /**
    * Update a sketch based on information about one of its indices.

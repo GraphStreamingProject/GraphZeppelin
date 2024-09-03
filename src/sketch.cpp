@@ -55,29 +55,38 @@ Sketch::Sketch(vec_t vector_len, uint64_t seed, bool compressed, std::istream &b
   nonempty_buckets = (vec_t*) (buckets + num_buckets);
 #endif
   if (compressed) {
-    uint8_t sizes[num_columns];
-    // Read the serialized Sketch contents
-    // first, read in the siozes
-    binary_in.read((char *) sizes, sizeof(uint8_t) * num_columns);
-#ifdef EAGER_BUCKET_CHECK
-    binary_in.read((char *) nonempty_buckets, sizeof(vec_t) * num_columns);  
-#endif
-    // grab the deterministic bucket:
-    binary_in.read((char *) (buckets + num_buckets -1), sizeof(Bucket));
-    for (size_t col_idx=0; col_idx < num_columns; col_idx++) {
-      Bucket *current_column = buckets + (col_idx * bkt_per_col);
-      binary_in.read((char *) current_column, sizeof(Bucket) * sizes[col_idx]);
-    }
+    compressed_deserialize(binary_in);
   }
   else {
     binary_in.read((char *)buckets, bucket_array_bytes());
   }
 }
 
+
+  /**
+   * Occupies the contents of an empty sketch with input from a stream that contains
+   * the compressed version.
+   * @param binary_in   Stream holding serialized/compressed sketch object.
+   */
+void Sketch::compressed_deserialize(std::istream& binary_in) {
+  uint8_t sizes[num_columns];
+  // Read the serialized Sketch contents
+  // first, read in the sizes
+  binary_in.read((char *) sizes, sizeof(uint8_t) * num_columns);
+#ifdef EAGER_BUCKET_CHECK
+  binary_in.read((char *) nonempty_buckets, sizeof(vec_t) * num_columns);  
+#endif
+  // grab the deterministic bucket:
+  binary_in.read((char *) (buckets + num_buckets -1), sizeof(Bucket));
+  for (size_t col_idx=0; col_idx < num_columns; col_idx++) {
+    Bucket *current_column = buckets + (col_idx * bkt_per_col);
+    binary_in.read((char *) current_column, sizeof(Bucket) * sizes[col_idx]);
+  }
+}
+
 Sketch::Sketch(vec_t vector_len, uint64_t seed, std::istream &binary_in, size_t _samples,
                size_t _cols):
     seed(seed) {
-  std::cout << "ayo";
   num_samples = _samples;
   cols_per_sample = _cols;
   num_columns = num_samples * cols_per_sample;
@@ -218,7 +227,6 @@ ExhaustiveSketchSample Sketch::exhaustive_sample() {
     int stop = std::max(row - window_size, 0);
     for (; row >= stop; row--) {
       if (Bucket_Boruvka::is_good(buckets[col * bkt_per_col + row], checksum_seed()))
-        // return {buckets[col * bkt_per_col + row].alpha, GOOD};
         ret.insert(buckets[col * bkt_per_col + row].alpha);
     }
   }
@@ -322,10 +330,10 @@ uint8_t Sketch::effective_size(size_t col_idx) const
   {
     return 0;
   }
-#ifdef EAGER_BUCKET_CHECK
-  unlikely_if(nonempty_buckets[col_idx] == 0) return 0;
-  return (uint8_t)((sizeof(unsigned long long) * 8) - __builtin_clzll(nonempty_buckets[col_idx]));
-#else
+// #ifdef EAGER_BUCKET_CHECK
+//   unlikely_if(nonempty_buckets[col_idx] == 0) return 0;
+//   return (uint8_t)((sizeof(unsigned long long) * 8) - __builtin_clzll(nonempty_buckets[col_idx]));
+// #else
   uint8_t idx = bkt_per_col - 1;
   while (idx != 0 && Bucket_Boruvka::is_empty(current_row[idx]))
   {
@@ -333,7 +341,7 @@ uint8_t Sketch::effective_size(size_t col_idx) const
   }
   unlikely_if(idx == 0 && Bucket_Boruvka::is_empty(current_row[idx])) return 0;
   else return idx + 1;
-#endif
+// #endif
 }
 
 void Sketch::compressed_serialize(std::ostream &binary_out) const {
