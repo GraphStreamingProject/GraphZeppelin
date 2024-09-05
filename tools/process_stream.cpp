@@ -96,6 +96,18 @@ int main(int argc, char **argv) {
 
   auto cc_start = std::chrono::steady_clock::now();
   driver.prep_query(CONNECTIVITY);
+  size_t total_size = 0;
+  size_t full_size= 0;
+  
+  for (size_t i=0; i < num_nodes; i++) {
+    auto sketch = *cc_alg.sketches[i];
+    for (size_t j=0; j < sketch.num_columns; j++) {
+      total_size += sketch.effective_size(j);
+      full_size += sketch.bkt_per_col;
+    }
+  }
+  std::cout << "Effective Storage Used (in number of buckets): " << total_size << "/" << full_size << std::endl;
+
   auto CC_num = cc_alg.connected_components().size();
   std::chrono::duration<double> cc_time = std::chrono::steady_clock::now() - cc_start;
   std::chrono::duration<double> insert_time = driver.flush_end - ins_start;
