@@ -141,11 +141,13 @@ class Sketch {
    * Get the bucket at a specific column and depth
    */
   inline Bucket& get_bucket(size_t col_idx, size_t depth) const {
+#ifdef ROW_MAJOR_SKETCHES
+    // contiguous by bucket depth
+    return buckets[depth * num_columns + col_idx];
+#else 
     // contiguous by column
     return buckets[col_idx * bkt_per_col + depth];
-
-    // contiguous by bucket depth
-    // return buckets[depth * num_columns + col_idx];
+#endif
   }
 
   /**
@@ -199,7 +201,7 @@ class Sketch {
    * Gives the cutoff index such that all non-empty buckets are strictly above for ALL columns
    * @return Depth of the deepest non-zero'th bucket + 1. 0 if all buckets are empty.
    */
-  uint8_t effective_size() const;
+  uint8_t effective_depth() const;
 
   /**
    * In-place merge function.
