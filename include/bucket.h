@@ -40,6 +40,7 @@ namespace Bucket_Boruvka {
    */
   inline static vec_hash_t get_index_hash(const vec_t index, const long sketch_seed);
 
+
   /**
    * Checks whether a Bucket is good, assuming the Bucket contains all elements.
    * @param bucket       The bucket to check
@@ -64,14 +65,15 @@ inline bool Bucket_Boruvka::is_empty(const Bucket &bucket) {
 
 inline col_hash_t Bucket_Boruvka::get_index_depth(const vec_t update_idx, const long seed_and_col,
                                                   const vec_hash_t max_depth) {
-  col_hash_t depth_hash = col_hash(&update_idx, sizeof(vec_t), seed_and_col);
+  col_hash_t depth_hash = XXH3_128bits_withSeed(&update_idx, sizeof(vec_t), seed_and_col).high64;
   depth_hash |= (1ull << max_depth); // assert not > max_depth by ORing
   return __builtin_ctzll(depth_hash);
 }
 
 inline vec_hash_t Bucket_Boruvka::get_index_hash(const vec_t update_idx, const long sketch_seed) {
-  return vec_hash(&update_idx, sizeof(vec_t), sketch_seed);
+  return (XXH3_128bits_withSeed (&update_idx, sizeof(vec_t), sketch_seed)).low64;
 }
+
 
 inline bool Bucket_Boruvka::is_good(const Bucket &bucket, const long sketch_seed) {
   return !Bucket_Boruvka::is_empty(bucket) && bucket.gamma == get_index_hash(bucket.alpha, sketch_seed);

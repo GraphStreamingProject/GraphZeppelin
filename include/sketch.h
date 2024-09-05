@@ -38,12 +38,15 @@ struct ExhaustiveSketchSample {
  * Sub-linear representation of a vector.
  */
 class Sketch {
+ public:
+  size_t num_columns;      // Total number of columns. (product of above 2)
+  size_t bkt_per_col;      // number of buckets per column
  private:
   const uint64_t seed;     // seed for hash functions
   size_t num_samples;      // number of samples we can perform
   size_t cols_per_sample;  // number of columns to use on each sample
-  size_t num_columns;      // Total number of columns. (product of above 2)
-  size_t bkt_per_col;      // number of buckets per column
+  // size_t num_columns;      // Total number of columns. (product of above 2)
+  // size_t bkt_per_col;      // number of buckets per column
   size_t num_buckets;      // number of total buckets (product of above 2)
 
   size_t sample_idx = 0;   // number of samples performed so far
@@ -63,6 +66,10 @@ class Sketch {
     */
   void recalculate_flags(size_t col_idx, size_t start_row, size_t end_row);
 #endif
+ private:
+  inline Bucket& get_deterministic_bucket() const {
+    return buckets[num_buckets - 1];
+  }
 
  public:
   /**
@@ -130,6 +137,16 @@ class Sketch {
 
   ~Sketch();
 
+  /**
+   * Get the bucket at a specific column and depth
+   */
+  inline Bucket& get_bucket(size_t col_idx, size_t depth) const {
+    // contiguous by column
+    return buckets[col_idx * bkt_per_col + depth];
+
+    // contiguous by bucket depth
+    // return buckets[depth * num_columns + col_idx];
+  }
 
   /**
    * Occupies the contents of an empty sketch with input from a stream that contains
@@ -144,6 +161,15 @@ class Sketch {
    * @param update   the point update.
    */
   void update(const vec_t update);
+
+
+#ifdef EAGER_BUCKET_CHECK
+  /**
+   * TODO - make this less silly
+   */
+
+  void unsafe_update();
+#endif
 
   /**
    * Function to sample from the sketch.
@@ -167,6 +193,13 @@ class Sketch {
    * @return  The depth of the non-zero'th bucket + 1. If the bucket is entirely empty, returns 0
    */
   uint8_t effective_size(size_t col_idx) const;
+
+
+  /**
+   * Gives the cutoff index such that all non-empty buckets are strictly above for ALL columns
+   * @return Depth of the deepest non-zero'th bucket + 1. 0 if all buckets are empty.
+   */
+  uint8_t effective_size() const;
 
   /**
    * In-place merge function.

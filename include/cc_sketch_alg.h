@@ -67,13 +67,16 @@ enum QueryCode {
  * (no self-edges or multi-edges)
  */
 class CCSketchAlg {
+ public:
+  Sketch **sketches;
+
  private:
   node_id_t num_vertices;
   size_t seed;
   bool update_locked = false;
   // a set containing one "representative" from each supernode
   std::set<node_id_t> *representatives;
-  Sketch **sketches;
+  // Sketch **sketches;
   // DSU representation of supernode relationship
   DisjointSetUnion_MT<node_id_t> dsu;
 

@@ -69,6 +69,12 @@ Sketch::Sketch(vec_t vector_len, uint64_t seed, bool compressed, std::istream &b
    * @param binary_in   Stream holding serialized/compressed sketch object.
    */
 void Sketch::compressed_deserialize(std::istream& binary_in) {
+  //zero out the sketch:
+  for (size_t i = 0; i < num_buckets; i++) {
+    buckets[i].alpha = 0;
+    buckets[i].gamma = 0;
+  }
+
   uint8_t sizes[num_columns];
   // Read the serialized Sketch contents
   // first, read in the sizes
@@ -148,16 +154,21 @@ void Sketch::update(const vec_t update_idx) {
   vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update_idx, checksum_seed());
 
   // Update depth 0 bucket
-  Bucket_Boruvka::update(buckets[num_buckets - 1], update_idx, checksum);
+  Bucket_Boruvka::update(get_deterministic_bucket(), update_idx, checksum);
 
   // Update higher depth buckets
   for (unsigned i = 0; i < num_columns; ++i) {
     col_hash_t depth = Bucket_Boruvka::get_index_depth(update_idx, column_seed(i), bkt_per_col);
-    size_t bucket_id = i * bkt_per_col + depth;
+
+  /**
+   * TODO - write comment. calculates the hash and depth together.
+   */
+    // size_t bucket_id = i * bkt_per_col + depth;
+    Bucket &bucket = get_bucket(i, depth);
     likely_if(depth < bkt_per_col) {
-      Bucket_Boruvka::update(buckets[bucket_id], update_idx, checksum);
+      Bucket_Boruvka::update(bucket, update_idx, checksum);
       #ifdef EAGER_BUCKET_CHECK
-      likely_if(!Bucket_Boruvka::is_empty(buckets[bucket_id])) {
+      likely_if(!Bucket_Boruvka::is_empty(bucket)) {
         set_bit(nonempty_buckets[i], depth);
       } else {
         clear_bit(nonempty_buckets[i], depth);
@@ -184,11 +195,11 @@ SketchSample Sketch::sample() {
   size_t idx = sample_idx++;
   size_t first_column = idx * cols_per_sample;
 
-  if (Bucket_Boruvka::is_empty(buckets[num_buckets - 1]))
+  if (Bucket_Boruvka::is_empty(get_deterministic_bucket()))
     return {0, ZERO};  // the "first" bucket is deterministic so if all zero then no edges to return
 
-  if (Bucket_Boruvka::is_good(buckets[num_buckets - 1], checksum_seed()))
-    return {buckets[num_buckets - 1].alpha, GOOD};
+  if (Bucket_Boruvka::is_good(get_deterministic_bucket(), checksum_seed()))
+    return {get_deterministic_bucket().alpha, GOOD};
 
 
   for (size_t col = first_column; col < first_column + cols_per_sample; ++col) {
@@ -197,8 +208,9 @@ SketchSample Sketch::sample() {
     // now that we've found a non-zero bucket check next if next 6 buckets good
     int stop = std::max(row - window_size, 0);
     for (; row >= stop; row--) {
-      if (Bucket_Boruvka::is_good(buckets[col * bkt_per_col + row], checksum_seed()))
-        return {buckets[col * bkt_per_col + row].alpha, GOOD};
+      Bucket &bucket = get_bucket(col, row);
+      if (Bucket_Boruvka::is_good(bucket, checksum_seed()))
+        return {bucket.alpha, GOOD};
     }
   }
   return {0, FAIL};
@@ -213,11 +225,13 @@ ExhaustiveSketchSample Sketch::exhaustive_sample() {
   size_t idx = sample_idx++;
   size_t first_column = idx * cols_per_sample;
 
-  unlikely_if (Bucket_Boruvka::is_empty(buckets[num_buckets -1]))
+
+  Bucket &deterministic_bucket = get_deterministic_bucket();
+  unlikely_if (Bucket_Boruvka::is_empty(deterministic_bucket))
     return {ret, ZERO}; // the "first" bucket is deterministic so if zero then no edges to return
 
-  unlikely_if (Bucket_Boruvka::is_good(buckets[num_buckets - 1], checksum_seed())) {
-    ret.insert(buckets[num_buckets - 1].alpha);
+  unlikely_if (Bucket_Boruvka::is_good(deterministic_bucket, checksum_seed())) {
+    ret.insert(deterministic_bucket.alpha);
     return {ret, GOOD};
   }
 
@@ -226,8 +240,9 @@ ExhaustiveSketchSample Sketch::exhaustive_sample() {
     int window_size = 6;
     int stop = std::max(row - window_size, 0);
     for (; row >= stop; row--) {
-      if (Bucket_Boruvka::is_good(buckets[col * bkt_per_col + row], checksum_seed()))
-        ret.insert(buckets[col * bkt_per_col + row].alpha);
+      Bucket &bucket = get_bucket(col, row);
+      if (Bucket_Boruvka::is_good(bucket, checksum_seed()))
+        ret.insert(bucket.alpha);
     }
   }
 
@@ -238,6 +253,7 @@ ExhaustiveSketchSample Sketch::exhaustive_sample() {
 
 
 void Sketch::merge(const Sketch &other) {
+  Bucket &deterministic_bucket = get_deterministic_bucket();
   for (size_t i=0; i < num_columns; ++i) {
     Bucket *current_col = buckets + (i* bkt_per_col);
     Bucket *other_col = other.buckets + (i * bkt_per_col);
@@ -247,6 +263,8 @@ void Sketch::merge(const Sketch &other) {
     for (size_t bucket_id=0; bucket_id < other_effective_size; bucket_id++) {
       current_col[bucket_id].alpha ^= other_col[bucket_id].alpha;
       current_col[bucket_id].gamma ^= other_col[bucket_id].gamma;
+      // get_bucket(i, bucket_id).alpha ^= other.get_bucket(i, bucket_id).alpha;
+      // get_bucket(i, bucket_id).gamma ^= other.get_bucket(i, bucket_id).gamma;
     }
 #ifdef EAGER_BUCKET_CHECK
     recalculate_flags(i, 0, other_effective_size);
@@ -254,14 +272,32 @@ void Sketch::merge(const Sketch &other) {
   }
 
   // seperately update the deterministic bucket
-  buckets[num_buckets-1].alpha ^= other.buckets[num_buckets-1].alpha;
-  buckets[num_buckets-1].gamma ^= other.buckets[num_buckets-1].gamma;
+  deterministic_bucket.alpha ^= other.get_deterministic_bucket().alpha;
+  deterministic_bucket.gamma ^= other.get_deterministic_bucket().gamma;
 }
 
+#ifdef EAGER_BUCKET_CHECK
+void Sketch::unsafe_update() {
+  vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update_idx, checksum_seed());
+
+  // Update depth 0 bucket
+  Bucket_Boruvka::update(buckets[num_buckets - 1], update_idx, checksum);
+
+  // Update higher depth buckets
+  for (unsigned i = 0; i < num_columns; ++i) {
+    col_hash_t depth = Bucket_Boruvka::get_index_depth(update_idx, column_seed(i), bkt_per_col);
+    Bucket &bucket = get_bucket(i, depth);
+    likely_if(depth < bkt_per_col) {
+      Bucket_Boruvka::update(bucket, update_idx, checksum);
+    }
+  }
+}
+
+#endif
 
 #ifdef EAGER_BUCKET_CHECK
 void Sketch::recalculate_flags(size_t col_idx, size_t start_idx, size_t end_idx) {
-  Bucket *current_col = buckets + (col_idx * bkt_per_col);
+  // Bucket *current_col = buckets + (col_idx * bkt_per_col);
   assert(end_idx >= start_idx);
   vec_t clear_mask = (~0) >> (8*sizeof(vec_t) - (end_idx - start_idx));
   clear_mask = ~(clear_mask << start_idx);
@@ -269,7 +305,8 @@ void Sketch::recalculate_flags(size_t col_idx, size_t start_idx, size_t end_idx)
   // vec_t col_nonempty_buckets = ~0;
   #pragma omp simd
   for (size_t bucket_id=start_idx; bucket_id < end_idx; bucket_id++) {
-    likely_if(!Bucket_Boruvka::is_empty(current_col[bucket_id])) set_bit(col_nonempty_buckets, bucket_id);
+    // likely_if(!Bucket_Boruvka::is_empty(current_col[bucket_id])) set_bit(col_nonempty_buckets, bucket_id);
+    likely_if(!Bucket_Boruvka::is_empty(get_bucket(col_idx, bucket_id))) set_bit(col_nonempty_buckets, bucket_id);
     // unlikely_if(Bucket_Boruvka::is_empty(current_col[bucket_id])) clear_bit(col_nonempty_buckets,bucket_id);
   }
   nonempty_buckets[col_idx] = (nonempty_buckets[col_idx] & clear_mask) | (col_nonempty_buckets & ~clear_mask);
@@ -289,8 +326,8 @@ void Sketch::range_merge(const Sketch &other, size_t start_sample, size_t n_samp
   sample_idx = std::max(sample_idx, start_sample);
 
   // merge deterministic buffer
-  buckets[num_buckets - 1].alpha ^= other.buckets[num_buckets - 1].alpha;
-  buckets[num_buckets - 1].gamma ^= other.buckets[num_buckets - 1].gamma;
+  get_deterministic_bucket().alpha ^= get_deterministic_bucket().alpha;
+  get_deterministic_bucket().gamma ^= get_deterministic_bucket().gamma;
 
   // merge other buckets
   size_t start_bucket_id = start_sample * cols_per_sample * bkt_per_col;
@@ -324,24 +361,45 @@ void Sketch::merge_raw_bucket_buffer(const Bucket *raw_buckets) {
 
 uint8_t Sketch::effective_size(size_t col_idx) const
 {
-  // first, check for emptyness
-  Bucket *current_row = buckets + (col_idx * bkt_per_col);
-  if (Bucket_Boruvka::is_empty(buckets[num_buckets - 1]))
-  {
-    return 0;
-  }
+  return bkt_per_col;
+//   // first, check for emptyness
+//   if (Bucket_Boruvka::is_empty(get_deterministic_bucket()))
+//   {
+//     return 0;
+//   }
 // #ifdef EAGER_BUCKET_CHECK
 //   unlikely_if(nonempty_buckets[col_idx] == 0) return 0;
 //   return (uint8_t)((sizeof(unsigned long long) * 8) - __builtin_clzll(nonempty_buckets[col_idx]));
 // #else
-  uint8_t idx = bkt_per_col - 1;
-  while (idx != 0 && Bucket_Boruvka::is_empty(current_row[idx]))
-  {
-    idx--;
-  }
-  unlikely_if(idx == 0 && Bucket_Boruvka::is_empty(current_row[idx])) return 0;
-  else return idx + 1;
+//   uint8_t idx = bkt_per_col - 1;
+//   // while (idx != 0 && Bucket_Boruvka::is_empty(current_row[idx]))
+//   while (idx != 0 && Bucket_Boruvka::is_empty(get_bucket(col_idx, idx)))
+//   {
+//     idx--;
+//   }
+//   unlikely_if(idx == 0 && Bucket_Boruvka::is_empty(get_bucket(col_idx, idx))) return 0;
+//   // unlikely_if(idx == 0 && Bucket_Boruvka::is_empty(current_row[idx])) return 0;
+//   else return idx + 1;
 // #endif
+}
+
+uint8_t Sketch::effective_size() const
+{
+  unlikely_if(Bucket_Boruvka::is_empty(get_deterministic_bucket())) return 0;
+  #ifdef EAGER_BUCKET_CHECK
+  vec_t nonempty = 0;
+  for (size_t i = 0; i < num_columns; i++) {
+    nonempty |= nonempty_buckets[i];
+  }
+  unlikely_if(nonempty == 0) return 0;
+  return (uint8_t)((sizeof(unsigned long long) * 8) - __builtin_clzll(nonempty));
+  #else
+  uint8_t max_size = 0;
+  for (size_t i = 0; i < num_columns; i++) {
+    max_size = std::max(max_size, effective_size(i));
+  }
+  return max_size;
+  #endif
 }
 
 void Sketch::compressed_serialize(std::ostream &binary_out) const {
@@ -389,8 +447,7 @@ std::ostream &operator<<(std::ostream &os, const Sketch &sketch) {
 
   for (unsigned i = 0; i < sketch.num_columns; ++i) {
     for (unsigned j = 0; j < sketch.bkt_per_col; ++j) {
-      unsigned bucket_id = i * sketch.bkt_per_col + j;
-      Bucket bkt = sketch.buckets[bucket_id];
+      Bucket bkt = sketch.get_bucket(i, j);
       vec_t a = bkt.alpha;
       vec_hash_t c = bkt.gamma;
       bool good = Bucket_Boruvka::is_good(bkt, sketch.checksum_seed());
