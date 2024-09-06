@@ -14,6 +14,7 @@ CCSketchAlg::CCSketchAlg(node_id_t num_vertices, size_t seed, CCAlgConfiguration
   sketches = new Sketch *[num_vertices];
 
   vec_t sketch_vec_len = Sketch::calc_vector_length(num_vertices);
+  // vec_t sketch_vec_len = 2 * num_vertices; // smaller sketches
   size_t sketch_num_samples = Sketch::calc_cc_samples(num_vertices, config.get_sketches_factor());
 
   for (node_id_t i = 0; i < num_vertices; ++i) {
@@ -49,6 +50,7 @@ CCSketchAlg::CCSketchAlg(node_id_t num_vertices, size_t seed, std::ifstream &bin
   sketches = new Sketch *[num_vertices];
 
   vec_t sketch_vec_len = Sketch::calc_vector_length(num_vertices);
+  // vec_t sketch_vec_len = 2 * num_vertices; // smaller sketches
   size_t sketch_num_samples = Sketch::calc_cc_samples(num_vertices, config.get_sketches_factor());
 
   for (node_id_t i = 0; i < num_vertices; ++i) {
@@ -111,15 +113,16 @@ void CCSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
 
   for (const auto &dst : dst_vertices) {
     delta_sketch.update(static_cast<vec_t>(concat_pairing_fn(src_vertex, dst)));
-#ifdef EAGER_BUCKET_CHECK
-    delta_sketch.unsafe_update(static_cast<vec_t>(concat_pairing_fn(src_vertex, dst)));
+// #ifdef EAGER_BUCKET_CHECK
+//     delta_sketch.unsafe_update(static_cast<vec_t>(concat_pairing_fn(src_vertex, dst)));
+//   }
+//   for (size_t i = 0; i < delta_sketch.num_columns; i++) {
+//     delta_sketch.recalculate_flags(i, 0, delta_sketch.bkt_per_col);
+// //   }
+// // #else // EAGER_BUCKET_CHECK
+//   }
+// #endif
   }
-  for (size_t i = 0; i < delta_sketch.num_columns; i++) {
-    delta_sketch.recalculate_flags(i, 0, delta_sketch.bkt_per_col);
-  }
-#else // EAGER_BUCKET_CHECK
-  }
-#endif
 
   std::lock_guard<std::mutex> lk(sketches[src_vertex]->mutex);
   sketches[src_vertex]->merge(delta_sketch);

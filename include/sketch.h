@@ -11,6 +11,8 @@
 #include "util.h"
 #include "bucket.h"
 
+#include "cuckoohash_map.hh"
+
 // enum SerialType {
 //   FULL,
 //   RANGE,
@@ -42,6 +44,12 @@ class Sketch {
   size_t num_columns;      // Total number of columns. (product of above 2)
   size_t bkt_per_col;      // number of buckets per column
  private:
+
+  // TODO - decringe this
+  // should be 4 * 32 = 128 minimum
+  // should be one-per-thread
+  // TODO - also figure out why 128 bits isnt enough
+  uint32_t depth_buffer[256];
   const uint64_t seed;     // seed for hash functions
   size_t num_samples;      // number of samples we can perform
   size_t cols_per_sample;  // number of columns to use on each sample
@@ -53,6 +61,31 @@ class Sketch {
 
   // bucket data
   Bucket* buckets;
+  // TEMPORARY
+  // libcuckoo::cuckoohash_map<vec_t, size_t, std::hash<vec_t>, std::equal_to<vec_t>, std::allocator<std::pair<const vec_t, size_t>>>
+  // libcuckoo::cuckoohash_map<vec_t, size_t>
+  //  bucket_map(
+  //   // n=32, // initial number of buckets
+  //   // std::hash<vec_t>(), // hash function for keys
+  //   // std::equal_to<vec_t>(), // equal function for keys
+  //   // std::allocator<std::pair<const vec_t, size_t>>(), // allocator for the map
+  // );
+  std::unordered_map<vec_t, bool> bucket_map;
+  // PER BUCKET 
+  std::function<void(vec_t)> evict_fn = [this](vec_t update){
+    // interface: update is the index that's being pushed,
+    bucket_map.emplace(update, 0);
+    bucket_map[update] ^= 1;
+  };
+  std::function<std::vector<vec_t>()> get_evicted_fn = [this](){
+    std::vector<vec_t> ret;
+    for (auto it = bucket_map.begin(); it != bucket_map.end(); it++) {
+      if (it->second == 1) {
+        ret.push_back(it->first);
+      }
+    }
+    return ret;
+  };
 
   // flags
 
@@ -269,7 +302,7 @@ class Sketch {
   inline size_t get_buckets() const { return num_buckets; }
   inline size_t get_num_samples() const { return num_samples; }
 
-  static size_t calc_bkt_per_col(size_t n) { return ceil(log2(n)) + 1; }
+  static size_t calc_bkt_per_col(size_t n) { return ceil(log2(n)) + 4;}
 
 #ifdef L0_SAMPLING
   static constexpr size_t default_cols_per_sample = 7;

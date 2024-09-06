@@ -150,7 +150,7 @@ void Sketch::update(const vec_t update_idx) {
 
   // Update higher depth buckets
   for (unsigned i = 0; i < num_columns; ++i) {
-    col_hash_t depth = Bucket_Boruvka::get_index_depth(update_idx, column_seed(i), bkt_per_col);
+    col_hash_t depth = Bucket_Boruvka::get_index_depth(update_idx, get_seed(), i, bkt_per_col);
     likely_if(depth < bkt_per_col) {
       for (col_hash_t j = 0; j <= depth; ++j) {
         size_t bucket_id = i * bkt_per_col + j;
@@ -169,14 +169,24 @@ void Sketch::update(const vec_t update_idx) {
   // Update depth 0 bucket
   Bucket_Boruvka::update(get_deterministic_bucket(), update_idx, checksum);
 
-  // Update higher depth buckets
+  // calculate all depths:
+  Bucket_Boruvka::get_all_index_depths(
+    update_idx, depth_buffer, get_seed(), num_columns, bkt_per_col + 1
+  );
+  uint32_t max_depth = 0;
+  for (size_t i = 0; i < num_columns; i++) {
+    max_depth = std::max(max_depth, depth_buffer[i]);
+  }
+  unlikely_if (max_depth >= bkt_per_col) {
+    // std::cout << "evicting " << update_idx << " with depth " << max_depth << "/ " << bkt_per_col << std::endl;
+    // evict_fn(update_idx);
+    // return;
+  }
   for (unsigned i = 0; i < num_columns; ++i) {
-    col_hash_t depth = Bucket_Boruvka::get_index_depth(update_idx, column_seed(i), bkt_per_col);
-
-  /**
-   * TODO - write comment. calculates the hash and depth together.
-   */
-    // size_t bucket_id = i * bkt_per_col + depth;
+    col_hash_t depth = depth_buffer[i];
+    // col_hash_t depth = Bucket_Boruvka::get_index_depth(
+    //   update_idx, get_seed(), i, bkt_per_col
+    // );
     Bucket &bucket = get_bucket(i, depth);
     likely_if(depth < bkt_per_col) {
       Bucket_Boruvka::update(bucket, update_idx, checksum);
@@ -201,6 +211,15 @@ void Sketch::zero_contents() {
 }
 
 SketchSample Sketch::sample() {
+  // first, try to sample from the table:
+
+  // std::vector<vec_t> full_samples = get_evicted_fn();
+  // if (full_samples.size() > 0) {
+  //   std::cout << "Found " << full_samples.size() << " samples" << std::endl;
+  //   evict_fn(full_samples[0]);
+  //   return {full_samples[0], GOOD};
+  // }
+
   if (sample_idx >= num_samples) {
     throw OutOfSamplesException(seed, num_samples, sample_idx);
   }
@@ -287,6 +306,11 @@ void Sketch::merge(const Sketch &other) {
   // seperately update the deterministic bucket
   deterministic_bucket.alpha ^= other.get_deterministic_bucket().alpha;
   deterministic_bucket.gamma ^= other.get_deterministic_bucket().gamma;
+
+  for (auto it = other.bucket_map.begin(); it != other.bucket_map.end(); it++) {
+    bucket_map.emplace(it->first, 0);
+    bucket_map[it->first] ^= it->second;
+  }
 }
 
 #ifdef EAGER_BUCKET_CHECK
@@ -298,7 +322,7 @@ void Sketch::unsafe_update() {
 
   // Update higher depth buckets
   for (unsigned i = 0; i < num_columns; ++i) {
-    col_hash_t depth = Bucket_Boruvka::get_index_depth(update_idx, column_seed(i), bkt_per_col);
+    col_hash_t depth = Bucket_Boruvka::get_index_depth(update_idx, get_seed(), i, bkt_per_col);
     Bucket &bucket = get_bucket(i, depth);
     likely_if(depth < bkt_per_col) {
       Bucket_Boruvka::update(bucket, update_idx, checksum);
@@ -329,6 +353,13 @@ void Sketch::recalculate_flags(size_t col_idx, size_t start_idx, size_t end_idx)
 
 
 void Sketch::range_merge(const Sketch &other, size_t start_sample, size_t n_samples) {
+  for (auto it = other.bucket_map.begin(); it != other.bucket_map.end(); it++) {
+    // if (it->second) {
+    //   evict_fn(it->first);
+    // }
+    bucket_map.emplace(it->first, 0);
+    bucket_map[it->first] ^= it->second;
+  }
   if (start_sample + n_samples > num_samples) {
     assert(false);
     sample_idx = num_samples; // sketch is in a fail state!
@@ -353,16 +384,6 @@ void Sketch::range_merge(const Sketch &other, size_t start_sample, size_t n_samp
         get_bucket(col, row) ^= other.get_bucket(col, row);
       }
     }
-  // merge other buckets
-
-  // size_t start_bucket_id = start_sample * cols_per_sample * bkt_per_col;
-  // size_t n_buckets = n_samples * cols_per_sample * bkt_per_col;
-
-  // for (size_t i = 0; i < n_buckets; i++) {
-  //   size_t bucket_id = start_bucket_id + i;
-  //   buckets[bucket_id] ^= other.buckets[bucket_id];
-  // }
-
 
 #ifdef EAGER_BUCKET_CHECK
   size_t start_col_id = start_sample * cols_per_sample;

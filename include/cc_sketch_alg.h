@@ -17,6 +17,8 @@
 #include "sketch.h"
 #include "dsu.h"
 
+#include "cuckoohash_map.hh"
+
 #ifdef VERIFY_SAMPLES_F
 #include "test/graph_verifier.h"
 #endif

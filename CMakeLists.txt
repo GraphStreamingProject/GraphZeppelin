@@ -80,7 +80,16 @@ if (BUILD_BENCH)
   FetchContent_MakeAvailable(benchmark)
 endif()
 
-FetchContent_MakeAvailable(GutterTree StreamingUtilities)
+# Get libcuckoo (concurrent hash table)
+
+FetchContent_Declare(
+  libcuckoo
+
+  GIT_REPOSITORY  https://github.com/efficient/libcuckoo
+  GIT_TAG         master
+)
+
+FetchContent_MakeAvailable(GutterTree StreamingUtilities libcuckoo )
 
 # AVAILABLE COMPILATION DEFINITIONS:
 # VERIFY_SAMPLES_F   Use a deterministic connected-components
@@ -101,9 +110,9 @@ add_library(GraphZeppelin
   src/cc_alg_configuration.cpp
   src/sketch.cpp
   src/util.cpp)
-add_dependencies(GraphZeppelin GutterTree StreamingUtilities)
-target_link_libraries(GraphZeppelin PUBLIC xxhash GutterTree StreamingUtilities)
-target_include_directories(GraphZeppelin PUBLIC include/)
+add_dependencies(GraphZeppelin GutterTree StreamingUtilities libcuckoo)
+target_link_libraries(GraphZeppelin PUBLIC xxhash GutterTree StreamingUtilities libcuckoo)
+target_include_directories(GraphZeppelin PUBLIC include/ include/libcuckoo/)
 target_compile_options(GraphZeppelin PUBLIC -fopenmp)
 target_link_options(GraphZeppelin PUBLIC -fopenmp)
 target_compile_definitions(GraphZeppelin PUBLIC XXH_INLINE_ALL)
@@ -116,9 +125,9 @@ add_library(GraphZeppelinVerifyCC
   src/sketch.cpp
   src/util.cpp
   test/util/graph_verifier.cpp)
-add_dependencies(GraphZeppelinVerifyCC GutterTree StreamingUtilities)
-target_link_libraries(GraphZeppelinVerifyCC PUBLIC xxhash GutterTree StreamingUtilities)
-target_include_directories(GraphZeppelinVerifyCC PUBLIC include/ include/test/)
+add_dependencies(GraphZeppelinVerifyCC GutterTree StreamingUtilities libcuckoo)
+target_link_libraries(GraphZeppelinVerifyCC PUBLIC xxhash GutterTree StreamingUtilities libcuckoo)
+target_include_directories(GraphZeppelinVerifyCC PUBLIC include/ include/libcuckoo/ include/test/)
 target_compile_options(GraphZeppelinVerifyCC PUBLIC -fopenmp)
 target_link_options(GraphZeppelinVerifyCC PUBLIC -fopenmp)
 target_compile_definitions(GraphZeppelinVerifyCC PUBLIC XXH_INLINE_ALL VERIFY_SAMPLES_F)

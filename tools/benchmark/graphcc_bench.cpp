@@ -199,7 +199,7 @@ static void BM_index_depth_hash(benchmark::State& state) {
   size_t seed = get_seed();
   for (auto _ : state) {
     ++input;
-    benchmark::DoNotOptimize(Bucket_Boruvka::get_index_depth(input, seed, 20));
+    benchmark::DoNotOptimize(Bucket_Boruvka::get_index_depth(input, seed, 0, 20));
   }
   state.counters["Hashes"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
 }

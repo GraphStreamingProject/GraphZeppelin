@@ -35,7 +35,7 @@ TEST(SketchTestSuite, TestSampleResults) {
         continue;
       }
 
-      col_hash_t depth = Bucket_Boruvka::get_index_depth(k, sketch2.column_seed(i), guesses);
+      col_hash_t depth = Bucket_Boruvka::get_index_depth(k, sketch2.get_seed(), i, guesses);
       if (depth >= 2) {
         vec_idx[k] = false; // force all updates to only touch depths <= 1
         i = 0;
