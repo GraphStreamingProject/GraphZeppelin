@@ -125,6 +125,7 @@ Sketch::Sketch(const Sketch &s) : seed(s.seed) {
   num_columns = s.num_columns;
   bkt_per_col = s.bkt_per_col;
   num_buckets = s.num_buckets;
+  bucket_map = s.bucket_map;
   buckets = (Bucket*) new char[bucket_array_bytes()];
   // buckets = new Bucket[num_buckets];
 
@@ -166,27 +167,26 @@ void Sketch::update(const vec_t update_idx) {
 void Sketch::update(const vec_t update_idx) {
   vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update_idx, checksum_seed());
 
-  // Update depth 0 bucket
-  Bucket_Boruvka::update(get_deterministic_bucket(), update_idx, checksum);
 
   // calculate all depths:
   Bucket_Boruvka::get_all_index_depths(
     update_idx, depth_buffer, get_seed(), num_columns, bkt_per_col + 1
   );
   uint32_t max_depth = 0;
-  for (size_t i = 0; i < num_columns; i++) {
+  for (size_t i = 0; i < num_columns; ++i) {
     max_depth = std::max(max_depth, depth_buffer[i]);
+    // std::cout << "depth " << i << ": " << depth_buffer[i] << std::endl;
   }
   unlikely_if (max_depth >= bkt_per_col) {
+  // likely_if (1) {
     // std::cout << "evicting " << update_idx << " with depth " << max_depth << "/ " << bkt_per_col << std::endl;
-    // evict_fn(update_idx);
-    // return;
+    evict_fn(update_idx);
+    return;
   }
+  // Update depth 0 bucket
+  Bucket_Boruvka::update(get_deterministic_bucket(), update_idx, checksum);
   for (unsigned i = 0; i < num_columns; ++i) {
     col_hash_t depth = depth_buffer[i];
-    // col_hash_t depth = Bucket_Boruvka::get_index_depth(
-    //   update_idx, get_seed(), i, bkt_per_col
-    // );
     Bucket &bucket = get_bucket(i, depth);
     likely_if(depth < bkt_per_col) {
       Bucket_Boruvka::update(bucket, update_idx, checksum);
@@ -208,17 +208,10 @@ void Sketch::zero_contents() {
     buckets[i].gamma = 0;
   }
   reset_sample_state();
+  bucket_map.clear();
 }
 
 SketchSample Sketch::sample() {
-  // first, try to sample from the table:
-
-  // std::vector<vec_t> full_samples = get_evicted_fn();
-  // if (full_samples.size() > 0) {
-  //   std::cout << "Found " << full_samples.size() << " samples" << std::endl;
-  //   evict_fn(full_samples[0]);
-  //   return {full_samples[0], GOOD};
-  // }
 
   if (sample_idx >= num_samples) {
     throw OutOfSamplesException(seed, num_samples, sample_idx);
@@ -227,8 +220,20 @@ SketchSample Sketch::sample() {
   size_t idx = sample_idx++;
   size_t first_column = idx * cols_per_sample;
 
-  if (Bucket_Boruvka::is_empty(get_deterministic_bucket()))
+  if (Bucket_Boruvka::is_empty(get_deterministic_bucket())) {
+    // ONLY if we're out of our own samples, do we try the evicted
+    // std::vector<vec_t> full_samples = get_evicted_fn();
+    // if (full_samples.size() > 0)
+    // {
+    //   std::cout << "Found " << full_samples.size() << " samples during round " << sample_idx << std::endl;
+    //   evict_fn(full_samples[0]);
+    //   SketchSample sample = {full_samples[0], GOOD};
+    //   return sample;
+    //   // full_samples = get_evicted_fn();
+    //   // std::cout << "Now has" << full_samples.size() << " samples" << std::endl;
+    // }
     return {0, ZERO};  // the "first" bucket is deterministic so if all zero then no edges to return
+  }
 
   if (Bucket_Boruvka::is_good(get_deterministic_bucket(), checksum_seed()))
     return {get_deterministic_bucket().alpha, GOOD};
@@ -245,6 +250,17 @@ SketchSample Sketch::sample() {
         return {bucket.alpha, GOOD};
     }
   }
+  // no success? nows a good time to also try getting an eviction sample
+  // std::vector<vec_t> full_samples = get_evicted_fn();
+  // if (full_samples.size() > 0)
+  // {
+  //   std::cout << "Found " << full_samples.size() << " samples during round " << sample_idx << std::endl;
+  //   evict_fn(full_samples[0]);
+  //   SketchSample sample = {full_samples[0], GOOD};
+  //   return sample;
+  //   // full_samples = get_evicted_fn();
+  //   // std::cout << "Now has" << full_samples.size() << " samples" << std::endl;
+  // }
   return {0, FAIL};
 }
 
@@ -308,8 +324,11 @@ void Sketch::merge(const Sketch &other) {
   deterministic_bucket.gamma ^= other.get_deterministic_bucket().gamma;
 
   for (auto it = other.bucket_map.begin(); it != other.bucket_map.end(); it++) {
-    bucket_map.emplace(it->first, 0);
-    bucket_map[it->first] ^= it->second;
+    evict_fn(it->first);
+    // std::cout << bucket_map.size() << std::endl;
+    // for (auto &it : bucket_map) {
+    //   // std::cout << it.first << " " << it.second << std::endl;
+    // }
   }
 }
 
@@ -353,13 +372,15 @@ void Sketch::recalculate_flags(size_t col_idx, size_t start_idx, size_t end_idx)
 
 
 void Sketch::range_merge(const Sketch &other, size_t start_sample, size_t n_samples) {
-  for (auto it = other.bucket_map.begin(); it != other.bucket_map.end(); it++) {
-    // if (it->second) {
-    //   evict_fn(it->first);
-    // }
-    bucket_map.emplace(it->first, 0);
-    bucket_map[it->first] ^= it->second;
-  }
+  // WE CANNOT RANGE MERGE THESE! ! ! !  ! ! ! ! ! ! 
+  // the eviction pool should be immutable
+  // for (auto it = other.bucket_map.begin(); it != other.bucket_map.end(); it++) {
+  //   // if (it->second) {
+  //   //   evict_fn(it->first);
+  //   // }
+  //   bucket_map.emplace(it->first, 0);
+  //   bucket_map[it->first] ^= it->second;
+  // }
   if (start_sample + n_samples > num_samples) {
     assert(false);
     sample_idx = num_samples; // sketch is in a fail state!

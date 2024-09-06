@@ -43,6 +43,22 @@ class Sketch {
  public:
   size_t num_columns;      // Total number of columns. (product of above 2)
   size_t bkt_per_col;      // number of buckets per column
+  std::function<std::vector<vec_t>()> get_evicted_fn = [this](){
+    std::vector<vec_t> ret;
+    for (auto it = bucket_map.begin(); it != bucket_map.end(); it++) {
+      if (it->second % 2 == 1) {
+        ret.push_back(it->first);
+      }
+    }
+    return ret;
+  };
+  // PER BUCKET 
+  std::function<void(vec_t)> evict_fn = [this](vec_t update){
+    // interface: update is the index that's being pushed,
+    bucket_map.emplace(update, 0);
+    // std::cout << "POST EMPLACE VALUE" << bucket_map[update] << std::endl;
+    bucket_map[update] += 1;
+  };
  private:
 
   // TODO - decringe this
@@ -70,22 +86,7 @@ class Sketch {
   //   // std::equal_to<vec_t>(), // equal function for keys
   //   // std::allocator<std::pair<const vec_t, size_t>>(), // allocator for the map
   // );
-  std::unordered_map<vec_t, bool> bucket_map;
-  // PER BUCKET 
-  std::function<void(vec_t)> evict_fn = [this](vec_t update){
-    // interface: update is the index that's being pushed,
-    bucket_map.emplace(update, 0);
-    bucket_map[update] ^= 1;
-  };
-  std::function<std::vector<vec_t>()> get_evicted_fn = [this](){
-    std::vector<vec_t> ret;
-    for (auto it = bucket_map.begin(); it != bucket_map.end(); it++) {
-      if (it->second == 1) {
-        ret.push_back(it->first);
-      }
-    }
-    return ret;
-  };
+  std::unordered_map<vec_t, int> bucket_map;
 
   // flags
 
@@ -113,7 +114,9 @@ class Sketch {
    * @return              The length of the vector to sketch
    */
   static vec_t calc_vector_length(node_id_t num_vertices) {
-    return ceil(double(num_vertices) * (num_vertices - 1) / 2);
+    // return ceil(double(num_vertices) * (num_vertices - 1) / 2);
+    // return num_vertices * 2;
+    return num_vertices / 2;
   }
 
   /**

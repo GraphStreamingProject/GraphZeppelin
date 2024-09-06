@@ -239,7 +239,32 @@ inline bool CCSketchAlg::run_round_zero() {
   for (node_id_t i = 0; i < num_vertices; i++) {
     try {
       // num_query += 1;
-      if (sample_supernode(*sketches[i]) && !modified) modified = true;
+    // first, sample the merge pool.
+    auto skt = *sketches[i];
+    std::vector<vec_t> evicted = skt.get_evicted_fn();
+    if (evicted.size() != 0) {
+      std::cout << "THI IS AN EVICTION NOTICE " << evicted.size() << std::endl;
+      for (auto ev : evicted) {
+        Edge e = inv_concat_pairing_fn(ev);
+        auto src = std::min(e.src, e.dst);
+        auto dst = std::max(e.src, e.dst);
+        DSUMergeRet<node_id_t> m_ret = dsu.merge(src, dst);
+        if (m_ret.merged) {
+        std::cout <<"GANG";
+#ifdef VERIFY_SAMPLES_F
+          verifier->verify_edge(e);
+#endif
+          modified = true;
+          // Update spanning forest
+          {
+            std::lock_guard<std::mutex> lk(spanning_forest_mtx[src]);
+            spanning_forest[src].insert(dst);
+          }
+        }
+      }
+    }
+    if (sample_supernode(*sketches[i]) && !modified)
+      modified = true;
     } catch (...) {
       except = true;
 #pragma omp critical

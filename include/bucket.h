@@ -2,6 +2,7 @@
 #include <vector>
 #include <xxhash.h>
 #include <iostream>
+#include <bitset>
 #include "types.h"
 
 #pragma pack(push,1)
@@ -46,26 +47,28 @@ namespace Bucket_Boruvka {
     const long num_columns,
     const vec_hash_t max_depth
     ) {
+    if (num_columns == 0) return;
     XXH128_hash_t *hashes = (XXH128_hash_t*) depths_buffer;
     #pragma omp simd
-    for (int col = 0; col < num_columns -4; col+=4) {
+    for (int col = 0; col <= num_columns -4; col+=4) {
       auto hash = XXH3_128bits_withSeed(&update_idx, sizeof(vec_t), seed + 5 * (col / 4) );
       hashes[col / 4] = hash;
     }
-    for (int col = 0; col< num_columns - 4; col+=4) {
+    for (int col = 0;  col < num_columns - 4; col+=4) {
       auto hash = hashes[col / 4];
-      // auto hash = XXH3_128bits_withSeed(&update_idx, sizeof(vec_t), seed + 5 * (col / 4) );
       depths_buffer[col] = (uint32_t) (hash.low64 >> 32);
       depths_buffer[col+1] = (uint32_t) (hash.low64 & 0xFFFFFFFF);
       depths_buffer[col+2] = (uint32_t) (hash.high64 >> 32);
       depths_buffer[col+3] = (uint32_t) (hash.high64 & 0xFFFFFFFF);
     }
-    for (int col = num_columns - (num_columns % 4); col < num_columns; col++) {
-      depths_buffer[col] = get_index_depth(update_idx, seed, col, max_depth);
+    int col=0;
+    for (; col < num_columns -4; col++) {
+      depths_buffer[col] |= (uint32_t) (1ull << max_depth); // assert not > max_depth by ORing
+      depths_buffer[col] = (uint32_t) (__builtin_ctzll(depths_buffer[col]));
     }
-    for (int col = 0; col < num_columns; col++) {
-      depths_buffer[col] |= (1ull << max_depth); // assert not > max_depth by ORing
-      depths_buffer[col] = __builtin_ctzll(depths_buffer[col]);
+    col-= 1;
+    for (; col< num_columns; col++) {
+      depths_buffer[col] = (uint32_t) get_index_depth(update_idx, seed, col, max_depth);
     }
   }
 
@@ -107,22 +110,17 @@ inline col_hash_t Bucket_Boruvka::get_index_depth(const vec_t update_idx, const 
   // auto hash = XXH3_128bits_withSeed(&update_idx, sizeof(vec_t), seed + 5 * (col) );
   col_hash_t depth_hash = 0;
   int offset = col % 4;
-  switch (offset) {
-    case 0:
-      depth_hash = (uint32_t) (hash.low64 >> 32);
-      break;
-    case 1:
-      depth_hash = (uint32_t) (hash.low64 & 0xFFFFFFFF);
-      break;
-    case 2:
-      depth_hash = (uint32_t) (hash.high64 >> 32);
-      break;
-    case 3:
-      depth_hash = (uint32_t) (hash.high64 & 0xFFFFFFFF);
-      break;
+  if (offset == 0) {
+    depth_hash = (uint32_t) (hash.low64 >> 32);
+  } else if (offset == 1) {
+    depth_hash = (uint32_t) (hash.low64 & 0xFFFFFFFF);
+  } else if (offset == 2) {
+    depth_hash = (uint32_t) (hash.high64 >> 32);
+  } else if (offset == 3) {
+    depth_hash = (uint32_t) (hash.high64 & 0xFFFFFFFF);
   }
-  // std::cout << "hash " << hash.low64 << " " << hash.high64 << " " << depth_hash <<  std::endl; 
   // col_hash_t depth_hash = hash.low64;
+  // std::cout << "depth_hash: " << std::bitset<32>(depth_hash) << std::endl;
   depth_hash |= (1ull << max_depth); // assert not > max_depth by ORing
   return __builtin_ctzll(depth_hash);
 }
