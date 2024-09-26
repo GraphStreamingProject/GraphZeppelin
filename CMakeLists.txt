@@ -3,11 +3,12 @@ project(GraphZeppelin)
 
 include (FetchContent)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+set(BUILD_BENCH TRUE)
 
 # Make the default build type Release. If user or another
 # project sets a different value than use that
@@ -32,6 +33,10 @@ endif()
 #add_link_options(-fsanitize=address)
 #add_compile_options(-fsanitize=undefined)
 #add_link_options(-fsanitize=undefined)
+# add_compile_options(-save-temps)
+# add_compile_options(-ftree-vectorize)
+# add_compile_options(-fno-tree-vectorize)
+# add_compile_options(o3)
 
 # Check if this project is the top directory or build type is Debug
 # If so, build executables, otherwise, only build libraries
@@ -82,7 +87,7 @@ FetchContent_MakeAvailable(GutterTree StreamingUtilities)
 # L0_SAMPLING        Run the CubeSketch l0 sampling algorithm
 #                    to ensure that we sample uniformly.
 #                    Otherwise, run a support finding algorithm.
-#
+# EAGER_BUCKET_CHECK Eagerly compute whether a bucket is valid or noti
 # Example:
 # cmake -DCMAKE_CXX_FLAGS="-DL0_SAMPLING" ..
 

@@ -167,7 +167,9 @@ void test_sketch_merge(unsigned long num_sketches,
       sketch1.update(test_vec1.get_update(j));
       sketch2.update(test_vec2.get_update(j));
     }
-    sketch1.merge(sketch2);
+    for (size_t i=0; i < (1 << 3) + 1; i++) {
+      sketch1.merge(sketch2);
+    }
     try {
       SketchSample query_ret = sketch1.sample();
       vec_t res_idx = query_ret.idx;
