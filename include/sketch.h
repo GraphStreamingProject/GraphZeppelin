@@ -11,7 +11,7 @@
 #include "util.h"
 #include "bucket.h"
 
-#include "cuckoohash_map.hh"
+#include "bucket_buffer.h"
 
 // enum SerialType {
 //   FULL,
@@ -43,22 +43,6 @@ class Sketch {
  public:
   size_t num_columns;      // Total number of columns. (product of above 2)
   size_t bkt_per_col;      // number of buckets per column
-  std::function<std::vector<vec_t>()> get_evicted_fn = [this](){
-    std::vector<vec_t> ret;
-    for (auto it = bucket_map.begin(); it != bucket_map.end(); it++) {
-      if (it->second % 2 == 1) {
-        ret.push_back(it->first);
-      }
-    }
-    return ret;
-  };
-  // PER BUCKET 
-  std::function<void(vec_t)> evict_fn = [this](vec_t update){
-    // interface: update is the index that's being pushed,
-    bucket_map.emplace(update, 0);
-    // std::cout << "POST EMPLACE VALUE" << bucket_map[update] << std::endl;
-    bucket_map[update] += 1;
-  };
  private:
 
   // TODO - decringe this
@@ -77,16 +61,8 @@ class Sketch {
 
   // bucket data
   Bucket* buckets;
-  // TEMPORARY
-  // libcuckoo::cuckoohash_map<vec_t, size_t, std::hash<vec_t>, std::equal_to<vec_t>, std::allocator<std::pair<const vec_t, size_t>>>
-  // libcuckoo::cuckoohash_map<vec_t, size_t>
-  //  bucket_map(
-  //   // n=32, // initial number of buckets
-  //   // std::hash<vec_t>(), // hash function for keys
-  //   // std::equal_to<vec_t>(), // equal function for keys
-  //   // std::allocator<std::pair<const vec_t, size_t>>(), // allocator for the map
-  // );
-  std::unordered_map<vec_t, int> bucket_map;
+  // bucket coo buffer
+  BucketBuffer bucket_buffer;
 
   // flags
 
@@ -115,8 +91,8 @@ class Sketch {
    */
   static vec_t calc_vector_length(node_id_t num_vertices) {
     // return ceil(double(num_vertices) * (num_vertices - 1) / 2);
-    // return num_vertices * 2;
-    return num_vertices / 2;
+    return num_vertices * 4;
+    // return num_vertices / 2;
   }
 
   /**
@@ -232,6 +208,18 @@ class Sketch {
    */
   uint8_t effective_size(size_t col_idx) const;
 
+  /**
+   * Reallocates the sketch to have a deeper number of columns.
+   * TODO - is this the right place for this functionality?
+   */
+  void reallocate(size_t new_num_rows);
+
+
+  /**
+   * If the sketch was recently expanded, we need a way to inject the buckets
+   * stored in the buffer.
+   */
+  void inject_buffer_buckets();
 
   /**
    * Gives the cutoff index such that all non-empty buckets are strictly above for ALL columns

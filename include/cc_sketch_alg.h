@@ -17,7 +17,6 @@
 #include "sketch.h"
 #include "dsu.h"
 
-#include "cuckoohash_map.hh"
 
 #ifdef VERIFY_SAMPLES_F
 #include "test/graph_verifier.h"
@@ -42,10 +41,10 @@ struct MergeInstr {
 };
 
 struct alignas(64) GlobalMergeData {
-  Sketch sketch;
   std::mutex mtx;
   size_t num_merge_needed = -1;
   size_t num_merge_done = 0;
+  Sketch sketch;
 
   GlobalMergeData(node_id_t num_vertices, size_t seed, double sketches_factor)
       : sketch(Sketch::calc_vector_length(num_vertices), seed,

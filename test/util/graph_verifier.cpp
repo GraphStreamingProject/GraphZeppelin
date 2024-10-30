@@ -1,5 +1,6 @@
 #include "graph_verifier.h"
 #include <ascii_file_stream.h>
+#include "util.h"
 
 #include <map>
 #include <iostream>
@@ -83,6 +84,7 @@ void GraphVerifier::verify_edge(Edge edge) {
   if (edge.src > edge.dst) std::swap(edge.src, edge.dst);
   if (!adj_matrix[edge.src][edge.dst - edge.src]) {
     printf("Got an error on edge (%u, %u): edge is not in adj_matrix\n", edge.src, edge.dst);
+    printf("The update edge is %llu\n", concat_pairing_fn(edge.src, edge.dst));
     throw BadEdgeException("The edge is not in the cut of the sample!");
   }
 }

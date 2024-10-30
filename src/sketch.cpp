@@ -20,6 +20,8 @@ Sketch::Sketch(vec_t vector_len, uint64_t seed, size_t _samples, size_t _cols) :
   num_columns = num_samples * cols_per_sample;
   bkt_per_col = calc_bkt_per_col(vector_len);
   num_buckets = num_columns * bkt_per_col + 1; // plus 1 for deterministic bucket
+  // bucket_buffer = BucketBuffer(new BufferEntry[_cols * 2], _cols * 2);
+  bucket_buffer = BucketBuffer();
 #ifdef EAGER_BUCKET_CHECK
   buckets = (Bucket*) (new char[bucket_array_bytes()]);
   nonempty_buckets = (vec_t*) (buckets + num_buckets);
@@ -50,6 +52,8 @@ Sketch::Sketch(vec_t vector_len, uint64_t seed, bool compressed, std::istream &b
   num_columns = num_samples * cols_per_sample;
   bkt_per_col = calc_bkt_per_col(vector_len);
   num_buckets = num_columns * bkt_per_col + 1; // plus 1 for deterministic bucket
+  // bucket_buffer = BucketBuffer(new BufferEntry[_cols * 2], _cols * 2);
+  bucket_buffer = BucketBuffer();
   buckets = (Bucket*) new char[bucket_array_bytes()];
 #ifdef EAGER_BUCKET_CHECK
   nonempty_buckets = (vec_t*) (buckets + num_buckets);
@@ -111,6 +115,7 @@ Sketch::Sketch(vec_t vector_len, uint64_t seed, std::istream &binary_in, size_t 
   num_columns = num_samples * cols_per_sample;
   bkt_per_col = calc_bkt_per_col(vector_len);
   num_buckets = num_columns * bkt_per_col + 1; // plus 1 for deterministic bucket
+  bucket_buffer = BucketBuffer(new BufferEntry[_cols * 2], _cols * 2);
   buckets = (Bucket*) new char[bucket_array_bytes()];
 #ifdef EAGER_BUCKET_CHECK
   nonempty_buckets = (vec_t*) (buckets + num_buckets);
@@ -125,7 +130,8 @@ Sketch::Sketch(const Sketch &s) : seed(s.seed) {
   num_columns = s.num_columns;
   bkt_per_col = s.bkt_per_col;
   num_buckets = s.num_buckets;
-  bucket_map = s.bucket_map;
+  // TODO - do this correctly in other places. Otherwise serialization is broken
+  bucket_buffer = BucketBuffer(new BufferEntry[num_columns * 2], num_columns * 2);
   buckets = (Bucket*) new char[bucket_array_bytes()];
   // buckets = new Bucket[num_buckets];
 
@@ -138,6 +144,56 @@ Sketch::Sketch(const Sketch &s) : seed(s.seed) {
 
 Sketch::~Sketch() { 
   delete[] buckets;
+ }
+
+ void Sketch::reallocate(size_t new_num_rows) {
+  // size_t old_bucket_array_bytes = bucket_array_bytes();
+//   size_t old_buckets_main = num_buckets - 1;
+//   bkt_per_col = new_num_rows;
+//   num_buckets = num_columns * bkt_per_col + 1; // plus 1 for deterministic bucket
+//   mutex.lock();
+
+//   // Bucket *new_buckets = (Bucket*) malloc(bucket_array_bytes());
+//   Bucket *new_buckets = (Bucket*) new char[bucket_array_bytes()];
+//   std::cout << "yaur" << std::endl;
+
+
+
+//   // initialize bucket values
+//   for (size_t i = 0; i < num_buckets; ++i) {
+//     new_buckets[i].alpha = 0;
+//     new_buckets[i].gamma = 0;
+//   }
+//   std::cout << "yaur2" << std::endl;
+//   std::memcpy(new_buckets, buckets, old_buckets_main * sizeof(Bucket));
+//   get_deterministic_bucket() = buckets[old_buckets_main];
+//   std::cout << "yaur3" << std::endl;
+
+// #ifdef EAGER_BUCKET_CHECK
+//   nonempty_buckets = (vec_t*) (new_buckets + num_buckets);
+//   std::memcpy(nonempty_buckets, buckets + num_buckets, num_columns * sizeof(vec_t));
+//   #endif
+//   std::cout << "yaur4" << std::endl;
+//   delete[] buckets;
+//   buckets = new_buckets;
+//   mutex.unlock();
+ }
+
+ void Sketch::inject_buffer_buckets() {
+  /**
+   * Inject buffer buckets into the sketch, if the buffer is large enough.
+   * This is done by sorting the buffer and compacting it, then iterating
+   * backwards until we reach the point where the columns are once again not
+   * being stored
+   */
+  bucket_buffer.sort_and_compact();
+  int i = bucket_buffer.size()-1;
+  while (i >= 0 && bucket_buffer[i].col_idx < num_columns) {
+    // update the bucket
+    get_bucket(bucket_buffer[i].col_idx, bucket_buffer[i].row_idx) ^= bucket_buffer[i].value;
+    i--;
+  }
+  bucket_buffer._size = i+1;
  }
 
 
@@ -167,7 +223,6 @@ void Sketch::update(const vec_t update_idx) {
 void Sketch::update(const vec_t update_idx) {
   vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update_idx, checksum_seed());
 
-
   // calculate all depths:
   Bucket_Boruvka::get_all_index_depths(
     update_idx, depth_buffer, get_seed(), num_columns, bkt_per_col + 1
@@ -177,19 +232,15 @@ void Sketch::update(const vec_t update_idx) {
     max_depth = std::max(max_depth, depth_buffer[i]);
     // std::cout << "depth " << i << ": " << depth_buffer[i] << std::endl;
   }
-  unlikely_if (max_depth >= bkt_per_col) {
-  // likely_if (1) {
-    // std::cout << "evicting " << update_idx << " with depth " << max_depth << "/ " << bkt_per_col << std::endl;
-    evict_fn(update_idx);
-    return;
-  }
   // Update depth 0 bucket
   Bucket_Boruvka::update(get_deterministic_bucket(), update_idx, checksum);
+
   for (unsigned i = 0; i < num_columns; ++i) {
     col_hash_t depth = depth_buffer[i];
     Bucket &bucket = get_bucket(i, depth);
     likely_if(depth < bkt_per_col) {
       Bucket_Boruvka::update(bucket, update_idx, checksum);
+      // TODO - see if we want to update the flags always.
       #ifdef EAGER_BUCKET_CHECK
       likely_if(!Bucket_Boruvka::is_empty(bucket)) {
         set_bit(nonempty_buckets[i], depth);
@@ -197,6 +248,17 @@ void Sketch::update(const vec_t update_idx) {
         clear_bit(nonempty_buckets[i], depth);
       }
       #endif
+    }
+    else {
+      bool successful_insert = bucket_buffer.insert(i, depth, {update_idx, checksum});
+      // std::cout << "Deep bucket, into buffer" << std::endl;
+      if (!successful_insert) {
+        // TODO - magical number
+        std::cout << "Buffer full, reallocating" << std::endl;
+        reallocate((bkt_per_col * 8) / 5);
+        std::cout << "and now injecting" << std::endl;
+        inject_buffer_buckets();
+      }
     }
   }
 }
@@ -208,7 +270,7 @@ void Sketch::zero_contents() {
     buckets[i].gamma = 0;
   }
   reset_sample_state();
-  bucket_map.clear();
+  bucket_buffer.clear();
 }
 
 SketchSample Sketch::sample() {
@@ -216,22 +278,14 @@ SketchSample Sketch::sample() {
   if (sample_idx >= num_samples) {
     throw OutOfSamplesException(seed, num_samples, sample_idx);
   }
+  // TODO - fix this so this isnt required
+  inject_buffer_buckets();
+
 
   size_t idx = sample_idx++;
   size_t first_column = idx * cols_per_sample;
 
   if (Bucket_Boruvka::is_empty(get_deterministic_bucket())) {
-    // ONLY if we're out of our own samples, do we try the evicted
-    // std::vector<vec_t> full_samples = get_evicted_fn();
-    // if (full_samples.size() > 0)
-    // {
-    //   std::cout << "Found " << full_samples.size() << " samples during round " << sample_idx << std::endl;
-    //   evict_fn(full_samples[0]);
-    //   SketchSample sample = {full_samples[0], GOOD};
-    //   return sample;
-    //   // full_samples = get_evicted_fn();
-    //   // std::cout << "Now has" << full_samples.size() << " samples" << std::endl;
-    // }
     return {0, ZERO};  // the "first" bucket is deterministic so if all zero then no edges to return
   }
 
@@ -250,17 +304,18 @@ SketchSample Sketch::sample() {
         return {bucket.alpha, GOOD};
     }
   }
-  // no success? nows a good time to also try getting an eviction sample
-  // std::vector<vec_t> full_samples = get_evicted_fn();
-  // if (full_samples.size() > 0)
-  // {
-  //   std::cout << "Found " << full_samples.size() << " samples during round " << sample_idx << std::endl;
-  //   evict_fn(full_samples[0]);
-  //   SketchSample sample = {full_samples[0], GOOD};
-  //   return sample;
-  //   // full_samples = get_evicted_fn();
-  //   // std::cout << "Now has" << full_samples.size() << " samples" << std::endl;
-  // }
+  // finally, check the deep buffer
+  for (size_t i = 0; i < bucket_buffer.size(); i++) {
+    const BufferEntry &entry = bucket_buffer[i];
+    // TODO - optimize this check. THIS IS GONNA CAUSE REALLY POOR
+    // PERFORMANCE UNTIL WE DO SOMETHING ABOUT IT
+    if (entry.col_idx >= first_column && entry.col_idx < first_column + cols_per_sample) {
+      if (Bucket_Boruvka::is_good(entry.value, checksum_seed())) {
+        std::cout << "Found a bucket in the buffer" << std::endl;
+        return {entry.value.alpha, GOOD};
+      }
+    }
+  }
   return {0, FAIL};
 }
 
@@ -323,13 +378,19 @@ void Sketch::merge(const Sketch &other) {
   deterministic_bucket.alpha ^= other.get_deterministic_bucket().alpha;
   deterministic_bucket.gamma ^= other.get_deterministic_bucket().gamma;
 
-  for (auto it = other.bucket_map.begin(); it != other.bucket_map.end(); it++) {
-    evict_fn(it->first);
-    // std::cout << bucket_map.size() << std::endl;
-    // for (auto &it : bucket_map) {
-    //   // std::cout << it.first << " " << it.second << std::endl;
-    // }
+  // merge the deep buffers
+  // TODO - when sketches have dynamic sizes, this will require more work
+  bool merge_succeeded = bucket_buffer.merge(other.bucket_buffer);
+  if (!merge_succeeded) {
+    std::cout << "Merge: Buffer full, reallocating" << std::endl;
+    reallocate((bkt_per_col * 8) / 5);
   }
+  else {
+    // TODO - be more intelligent about this. 
+    // If one sketch is smaller than the other, this must be done.
+    inject_buffer_buckets();
+  }
+
 }
 
 #ifdef EAGER_BUCKET_CHECK
@@ -373,14 +434,10 @@ void Sketch::recalculate_flags(size_t col_idx, size_t start_idx, size_t end_idx)
 
 void Sketch::range_merge(const Sketch &other, size_t start_sample, size_t n_samples) {
   // WE CANNOT RANGE MERGE THESE! ! ! !  ! ! ! ! ! ! 
-  // the eviction pool should be immutable
-  // for (auto it = other.bucket_map.begin(); it != other.bucket_map.end(); it++) {
-  //   // if (it->second) {
-  //   //   evict_fn(it->first);
-  //   // }
-  //   bucket_map.emplace(it->first, 0);
-  //   bucket_map[it->first] ^= it->second;
-  // }
+
+  // TODO - implement range merge directly in the interface for bucket buffer merging?
+  bucket_buffer.merge(other.bucket_buffer);
+
   if (start_sample + n_samples > num_samples) {
     assert(false);
     sample_idx = num_samples; // sketch is in a fail state!
