@@ -1,16 +1,16 @@
 #include "sketch.h"
 #include <algorithm>
 #include <cassert>
-
+#include <array>
 
 /**
  * A coo-matrix-style representation of a sketch. 
  * Note that we sort them by the row index (depth) and then by column indices.
  */
 struct BufferEntry {
+    Bucket value;
     int col_idx;
     int row_idx;
-    Bucket value;
     bool operator==(const BufferEntry &rhs) const {
         return std::tie(row_idx, col_idx) == std::tie(rhs.row_idx, rhs.col_idx);
     }
@@ -31,48 +31,96 @@ struct BufferEntry {
     }
 };
 
+// class BucketBufferHashMap {
+//     public:
+//     // std::unordered_map<int, std::unordered_map<int, Bucket>> entries;
+//     std::unordered_map<std::pair<int, int>, Bucket> entries;
+//     size_t _capacity;
+//     BucketBufferHashMap(size_t capacity): _capacity(capacity) {};
 
+//     bool insert(int col_idx, int row_idx, Bucket value) {
+//         if (entries.size() >= _capacity) {
+//             return false;
+//         }
+//         static constexpr Bucket zero_bucket = {0, 0};
+//         entries.emplace(std::make_pair(col_idx, row_idx), zero_bucket);
+//         entries[{col_idx, row_idx}] ^= value;
+//         if (Bucket_Boruvka::is_empty(entries[{col_idx, row_idx}])) {
+//             entries.erase({col_idx, row_idx});
+//         }
+//         return true;
+//     }
+//     bool merge(const BucketBufferHashMap &other) {
+//         for (const auto &idx : other.entries) {
+//             static constexpr Bucket zero_bucket = {0, 0};
+//             entries.emplace(idx.first, zero_bucket);
+//             entries[idx.first] ^= idx.second;
+//             if (Bucket_Boruvka::is_empty(entries[idx.first])) {
+//                 entries.erase(idx.first);
+//             }
+//         }
+//         // TODO - make this less gross
+//         unlikely_if (entries.size() >= _capacity) {
+//             // UNDO THE MERGE
+//             for (const auto &idx : other.entries) {
+//                 static constexpr Bucket zero_bucket = {0, 0};
+//                 entries.emplace(idx.first, zero_bucket);
+//                 entries[idx.first] ^= idx.second;
+//                 if (Bucket_Boruvka::is_empty(entries[idx.first])) {
+//                     entries.erase(idx.first);
+//                 }
+//             }
+//             return false;
+//         }
+//         else
+//             return true;
+//     }
+// };
+
+
+// note that we consider these to be 
 class BucketBuffer {
     friend class Sketch;
     public:
-    BufferEntry *entries;
+    std::vector<BufferEntry> entries;
 
     private:
     size_t _capacity;
-    size_t _size = 0;
 
     bool _compacted=false;
 
     // should be about the largest expected buffer size.
     // TODO - change this design to be more flexible?
-    static constexpr size_t BUFFER_CAPACITY = 256;
-    BufferEntry thread_local_buffer[BUFFER_CAPACITY];
-    BufferEntry thread_local_otherbuffer[BUFFER_CAPACITY];
+    // static constexpr size_t BUFFER_CAPACITY = 256;
+    // std::array<BufferEntry, BUFFER_CAPACITY> thread_local_buffer {};
+    // std::array<BufferEntry, BUFFER_CAPACITY> thread_local_otherbuffer {};
 
     public:
-    BucketBuffer() : entries(new BufferEntry[32]), _capacity(32) {}
-    BucketBuffer(
-        BufferEntry *entries, size_t _capacity) :
-        entries(entries),
-         _capacity(_capacity) {}
+    BucketBuffer(): _capacity(64) {
+        entries = std::vector<BufferEntry>(_capacity);
+    }
     ~BucketBuffer() {
-        // delete[] entries;
+    }
+
+    bool over_capacity() const {
+        return entries.size() >= _capacity / 2;
     }
     
     size_t size() const {
-        return _size;
+        return entries.size();
     }
 
+    /*
+        * Insert a value into the buffer. 
+        * If the buffer is full, it will compact itself.
+        * If the buffer is still full after compaction, it will return false.
+    */
     bool insert(int col_idx, int row_idx, Bucket value) {
-        // note: if this ever returns false, it's time for you to grow your 
-        // sketch size.
-        if (_size >= _capacity) {
+        entries.emplace_back(BufferEntry({value, col_idx, row_idx}));
+        if (over_capacity()) {
             sort_and_compact();
-            if (_size >= _capacity) {
-                return false;
-            }
+            return over_capacity();
         }
-        entries[_size++] = {col_idx, row_idx, value};
         return true;
     }
 
@@ -81,13 +129,13 @@ class BucketBuffer {
     }
 
     void sort_and_compact() {
-        return;
         // The goal of this operation is primarily to combine entries in the
         // buffer that have the same col_idx and row_idx. 
         if (_compacted) {
             return;
         }
-        std::sort(entries, entries + _size, std::greater<BufferEntry>());
+        std::sort(entries.begin(), entries.end(), std::greater<BufferEntry>());
+        size_t _size = entries.size();
 
         size_t write_idx = 0;
         for (size_t read_idx = 1; read_idx < _size; ++read_idx) {
@@ -109,93 +157,102 @@ class BucketBuffer {
             }
         }
         _size = write_idx;
+        entries.resize(_size);
 
         _compacted = true;
     }
 
+    bool merge(const BucketBuffer &other) {
+        // YOU SHOULD ONLY MERGE WITH AN UNDER CAPACITY BUFFER
+        // TODO - for now, that is the responsibility of the caller.
+        assert(size() + other.size() <= _capacity);
+        entries.insert(entries.end(), other.entries.begin(), other.entries.end());
+        if (over_capacity()) {
+            sort_and_compact();
+        }
+        return over_capacity();
+    }
 
     // merge another buffer into this one
     // returns false if the merge would exceed the capacity of the buffer, does not perform the merge
     // returns true otherwise
-    bool merge(const BucketBuffer &other) {
-        // easy case - can just copy one buffer into the other
-        likely_if (_size + other._size <= _capacity)  {
-            std::copy(other.entries, other.entries + other._size, entries + _size);
-            _size += other._size;
-            return true;
-        }
-        // otherwise, see if we can merge the two buffers
-        assert(_size + other._size <= BUFFER_CAPACITY);
-        size_t buffer_size = 0;
+    // bool merge(const BucketBuffer &other) {
+    //TODO - go look at commit if you want to restore this version
+        // assert(size() + other.size() <= _capacity);
+        // entries.insert(entries.end(), other.entries.begin(), other.entries.end());
+        // // otherwise, see if we can merge the two buffers
+        // assert(size() + other.size() <= BUFFER_CAPACITY);
+        // size_t buffer_size = 0;
 
-        std::copy(other.entries, other.entries + other._size, thread_local_otherbuffer);
-        // sort both yourself and the other buffer
-        if (!_compacted)
-            std::sort(entries, entries + _size, std::greater<BufferEntry>());
-        if (!other._compacted) 
-            std::sort(
-                thread_local_otherbuffer, 
-                thread_local_otherbuffer + other._size,
-                std::greater<BufferEntry>()
-            );
+        // // std::copy(other.entries, other.entries + other._size, thread_local_otherbuffer);
+        // std::copy(other.entries.begin(), other.entries.end(), thread_local_otherbuffer.begin());
+        // // sort both yourself and the other buffer
+        // if (!_compacted)
+        //     std::sort(entries.begin(), entries.end(), std::greater<BufferEntry>());
+        // if (!other._compacted) 
+        //     std::sort(
+        //         thread_local_otherbuffer.begin(), 
+        //         thread_local_otherbuffer.begin() + other.size(),
+        //         std::greater<BufferEntry>()
+        //     );
 
-        // standard sorted-merge on the two buffers
-        // except we XOR the values if the col_idx and row_idx are the same
-        // NOTE WE WANT TO SORT DESCENDING
-        size_t i = 0, j = 0;
-        BufferEntry to_append = {0, 0, {0, 0}};        
-        while (i < _size && j < other._size) {
-            // ascending sort!!!
-            if (entries[i] >= thread_local_otherbuffer[j]) {
-                to_append = entries[i++];
-            } else {
-                to_append = thread_local_otherbuffer[j++];
-            }
-            if (buffer_size == 0 || to_append != thread_local_buffer[buffer_size - 1]) {
-                thread_local_buffer[buffer_size++] = to_append;
-            } else {
-                thread_local_buffer[buffer_size - 1].value ^= to_append.value;
-            }
-        }
+        // // standard sorted-merge on the two buffers
+        // // except we XOR the values if the col_idx and row_idx are the same
+        // // NOTE WE WANT TO SORT DESCENDING
+        // size_t i = 0, j = 0;
+        // BufferEntry to_append = {{0, 0}, 0, 0};        
+        // while (i < size() && j < other.size()) {
+        //     // ascending sort!!!
+        //     if (entries[i] >= thread_local_otherbuffer[j]) {
+        //         to_append = entries[i++];
+        //     } else {
+        //         to_append = thread_local_otherbuffer[j++];
+        //     }
+        //     if (buffer_size == 0 || to_append != thread_local_buffer[buffer_size - 1]) {
+        //         thread_local_buffer[buffer_size++] = to_append;
+        //     } else {
+        //         thread_local_buffer[buffer_size - 1].value ^= to_append.value;
+        //     }
+        // }
 
-        // copy over the remaining entries with the compaction scheme
-        while (i < _size) {
-            if (buffer_size == 0 || entries[i] != thread_local_buffer[buffer_size - 1]) {
-                thread_local_buffer[buffer_size++] = entries[i++];
-            } else {
-                thread_local_buffer[buffer_size - 1].value ^= entries[i++].value;
-            }
-        }
-        while (j < other._size) {
-            if (buffer_size == 0 || thread_local_otherbuffer[j] != thread_local_buffer[buffer_size - 1]) {
-                thread_local_buffer[buffer_size++] = thread_local_otherbuffer[j++];
-            } else {
-                thread_local_buffer[buffer_size - 1].value ^= thread_local_otherbuffer[j++].value;
-            }
-        }
+        // // copy over the remaining entries with the compaction scheme
+        // while (i < size()) {
+        //     if (buffer_size == 0 || entries[i] != thread_local_buffer[buffer_size - 1]) {
+        //         thread_local_buffer[buffer_size++] = entries[i++];
+        //     } else {
+        //         thread_local_buffer[buffer_size - 1].value ^= entries[i++].value;
+        //     }
+        // }
+        // while (j < other.size()) {
+        //     if (buffer_size == 0 || thread_local_otherbuffer[j] != thread_local_buffer[buffer_size - 1]) {
+        //         thread_local_buffer[buffer_size++] = thread_local_otherbuffer[j++];
+        //     } else {
+        //         thread_local_buffer[buffer_size - 1].value ^= thread_local_otherbuffer[j++].value;
+        //     }
+        // }
 
-        //now remove entries that are 0'd out
-        size_t write_idx = 0;
-        for (size_t read_idx = 0; read_idx < buffer_size; ++read_idx) {
-            if (!Bucket_Boruvka::is_empty(thread_local_buffer[read_idx].value)) {
-                thread_local_buffer[write_idx++] = thread_local_buffer[read_idx];
-            }
-        }
-        buffer_size = write_idx;
+        // //now remove entries that are 0'd out
+        // size_t write_idx = 0;
+        // for (size_t read_idx = 0; read_idx < buffer_size; ++read_idx) {
+        //     if (!Bucket_Boruvka::is_empty(thread_local_buffer[read_idx].value)) {
+        //         thread_local_buffer[write_idx++] = thread_local_buffer[read_idx];
+        //     }
+        // }
+        // buffer_size = write_idx;
 
-        unlikely_if (buffer_size > _capacity) {
-            return false;
-        }
-        else {
-            std::copy(thread_local_buffer, thread_local_buffer + buffer_size, entries);
-            _size = buffer_size;
-            _compacted = true;
-            return true;
-        }
-    }
+        // unlikely_if (buffer_size > _capacity) {
+        //     return false;
+        // }
+        // else {
+        //     std::copy(thread_local_buffer.begin(), thread_local_buffer.begin() + buffer_size, entries.begin());
+        //     entries.resize(buffer_size);
+        //     _compacted = true;
+        //     return true;
+        // }
+    // }
 
     void clear() {
-        _size = 0;
+        entries.resize(0);
         _compacted = false;
     }
 };

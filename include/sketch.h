@@ -90,8 +90,8 @@ class Sketch {
    * @return              The length of the vector to sketch
    */
   static vec_t calc_vector_length(node_id_t num_vertices) {
-    // return ceil(double(num_vertices) * (num_vertices - 1) / 2);
-    return num_vertices * 4;
+    return ceil(double(num_vertices) * (num_vertices - 1) / 2);
+    // return num_vertices * 4;
     // return num_vertices / 2;
   }
 
