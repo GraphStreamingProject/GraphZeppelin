@@ -96,8 +96,9 @@ class BucketBuffer {
     // std::array<BufferEntry, BUFFER_CAPACITY> thread_local_otherbuffer {};
 
     public:
-    BucketBuffer(): _capacity(64) {
-        entries = std::vector<BufferEntry>(_capacity);
+    BucketBuffer(): _capacity(5000) {
+        entries = std::vector<BufferEntry>();
+        entries.reserve(_capacity);
     }
     ~BucketBuffer() {
     }
@@ -119,7 +120,7 @@ class BucketBuffer {
         entries.emplace_back(BufferEntry({value, col_idx, row_idx}));
         if (over_capacity()) {
             sort_and_compact();
-            return over_capacity();
+            return !over_capacity();
         }
         return true;
     }
@@ -160,17 +161,25 @@ class BucketBuffer {
         entries.resize(_size);
 
         _compacted = true;
+        if (size() > 5) {
+            for (size_t i = 0; i < _size; ++i) {
+                std::cout << "(" << entries[i].col_idx << ", " << entries[i].row_idx << ") ";
+            }
+            std::cout << std::endl;
+        }
     }
 
     bool merge(const BucketBuffer &other) {
         // YOU SHOULD ONLY MERGE WITH AN UNDER CAPACITY BUFFER
         // TODO - for now, that is the responsibility of the caller.
+        // std::cout << "Merging buffers of size " << size() << " and " << other.size() << std::endl;
         assert(size() + other.size() <= _capacity);
         entries.insert(entries.end(), other.entries.begin(), other.entries.end());
+        // TODO - use a more efficient sorting procedure
         if (over_capacity()) {
             sort_and_compact();
         }
-        return over_capacity();
+        return !over_capacity();
     }
 
     // merge another buffer into this one
