@@ -117,6 +117,7 @@ class BucketBuffer {
         * If the buffer is still full after compaction, it will return false.
     */
     bool insert(int col_idx, int row_idx, Bucket value) {
+        _compacted = false;
         entries.emplace_back(BufferEntry({value, col_idx, row_idx}));
         if (over_capacity()) {
             sort_and_compact();
@@ -175,6 +176,7 @@ class BucketBuffer {
         // std::cout << "Merging buffers of size " << size() << " and " << other.size() << std::endl;
         assert(size() + other.size() <= _capacity);
         entries.insert(entries.end(), other.entries.begin(), other.entries.end());
+        _compacted = false;
         // TODO - use a more efficient sorting procedure
         if (over_capacity()) {
             sort_and_compact();
