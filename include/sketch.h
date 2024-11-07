@@ -49,7 +49,7 @@ class Sketch {
   // should be 4 * 32 = 128 minimum
   // should be one-per-thread
   // TODO - also figure out why 128 bits isnt enough
-  uint32_t depth_buffer[256];
+  // thread_local static uint32_t depth_buffer[256];
   const uint64_t seed;     // seed for hash functions
   size_t num_samples;      // number of samples we can perform
   size_t cols_per_sample;  // number of columns to use on each sample
@@ -91,7 +91,8 @@ class Sketch {
    */
   static vec_t calc_vector_length(node_id_t num_vertices) {
     // return ceil(double(num_vertices) * (num_vertices - 1) / 2);
-    return num_vertices * 4;
+    // return num_vertices * 4;
+    return 50; // round to something thats approx 2^6
     // return 1 + num_vertices / 16 ;
   }
 

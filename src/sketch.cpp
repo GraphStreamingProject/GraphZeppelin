@@ -170,7 +170,6 @@ Sketch::~Sketch() {
   nonempty_buckets = (vec_t*) (new_buckets + num_buckets);
   std::memcpy(nonempty_buckets, buckets + num_buckets, num_columns * sizeof(vec_t));
 #else 
-  std::cout << "yeehaw" << std::endl;
 #endif
   delete[] (char*) buckets;
   buckets = new_buckets;
@@ -197,8 +196,8 @@ Sketch::~Sketch() {
     i--;
   }
   bucket_buffer.entries.resize(i+1);
-  if (buffer_size > 3)
-    std::cout << "Injected buffer buckets:" << buffer_size << " to " << i+1 << std::endl;
+  // if (buffer_size > 3)
+    // std::cout << "Injected buffer buckets:" << buffer_size << " to " << i+1 << std::endl;
  }
 
 
@@ -229,6 +228,7 @@ void Sketch::update(const vec_t update_idx) {
   vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update_idx, checksum_seed());
 
   // calculate all depths:
+  static thread_local uint32_t depth_buffer[256];
   Bucket_Boruvka::get_all_index_depths(
     update_idx, depth_buffer, get_seed(), num_columns, 32
   );
@@ -252,13 +252,14 @@ void Sketch::update(const vec_t update_idx) {
     else {
       bool sufficient_space = bucket_buffer.insert(i, depth, {update_idx, checksum});
       // std::cout << "Deep bucket, into buffer" << std::endl;
-      if (!sufficient_space) {
+      while (!sufficient_space) {
         // TODO - magical number
         // std::cout << "Buffer full, reallocating" << std::endl;
         reallocate((bkt_per_col * 8) / 5);
         // std::cout << "and now injecting" << std::endl;
         inject_buffer_buckets();
         // bucket_buffer.insert(i, depth, {update_idx, checksum});
+        sufficient_space = !bucket_buffer.over_capacity();
       }
     }
   }
@@ -312,7 +313,7 @@ SketchSample Sketch::sample() {
     // PERFORMANCE UNTIL WE DO SOMETHING ABOUT IT
     if (entry.col_idx >= first_column && entry.col_idx < first_column + cols_per_sample) {
       if (Bucket_Boruvka::is_good(entry.value, checksum_seed())) {
-        std::cout << "Found a bucket in the buffer" << std::endl;
+        // std::cout << "Found a bucket in the buffer" << std::endl;
         assert(entry.row_idx >= bkt_per_col);
         return {entry.value.alpha, GOOD};
       }
@@ -381,10 +382,11 @@ void Sketch::merge(const Sketch &other) {
   // TODO - when sketches have dynamic sizes, this will require more work
   // ie we would want to deal with some depths seperately.
   bool sufficient_space = bucket_buffer.merge(other.bucket_buffer);
-  if (!sufficient_space) {
+  while (!sufficient_space) {
     std::cout << "Merge: Buffer full, reallocating" << std::endl;
     reallocate((bkt_per_col * 8) / 5);
     inject_buffer_buckets();
+    sufficient_space = !bucket_buffer.over_capacity();
   }
 
 }
@@ -435,7 +437,7 @@ void Sketch::range_merge(const Sketch &other, size_t start_sample, size_t n_samp
   // bucket_buffer.merge(other.bucket_buffer);
 
   if (start_sample + n_samples > num_samples) {
-    assert(false);
+    // assert(false);
     sample_idx = num_samples; // sketch is in a fail state!
     return;
   }
@@ -472,10 +474,11 @@ void Sketch::range_merge(const Sketch &other, size_t start_sample, size_t n_samp
   }
 #endif
   bool sufficient_space = bucket_buffer.merge(other.bucket_buffer);
-  if (!sufficient_space) {
+  while (!sufficient_space) {
     // std::cout << "Merge: Buffer full, reallocating" << std::endl;
     reallocate((bkt_per_col * 8) / 5);
     inject_buffer_buckets();
+    sufficient_space = !bucket_buffer.over_capacity();
   }
 }
 

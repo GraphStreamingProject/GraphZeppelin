@@ -161,12 +161,12 @@ class BucketBuffer {
         entries.resize(_size);
 
         _compacted = true;
-        if (size() > 5) {
-            for (size_t i = 0; i < _size; ++i) {
-                std::cout << "(" << entries[i].col_idx << ", " << entries[i].row_idx << ") ";
-            }
-            std::cout << std::endl;
-        }
+        // if (size() > 5) {
+        //     for (size_t i = 0; i < _size; ++i) {
+        //         std::cout << "(" << entries[i].col_idx << ", " << entries[i].row_idx << ") ";
+        //     }
+        //     std::cout << std::endl;
+        // }
     }
 
     bool merge(const BucketBuffer &other) {
