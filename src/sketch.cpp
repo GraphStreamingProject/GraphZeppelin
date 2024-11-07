@@ -230,7 +230,7 @@ void Sketch::update(const vec_t update_idx) {
 
   // calculate all depths:
   Bucket_Boruvka::get_all_index_depths(
-    update_idx, depth_buffer, get_seed(), num_columns, bkt_per_col + 1
+    update_idx, depth_buffer, get_seed(), num_columns, 32
   );
   // Update depth 0 bucket
   Bucket_Boruvka::update(get_deterministic_bucket(), update_idx, checksum);

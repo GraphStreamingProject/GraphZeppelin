@@ -96,7 +96,7 @@ class BucketBuffer {
     // std::array<BufferEntry, BUFFER_CAPACITY> thread_local_otherbuffer {};
 
     public:
-    BucketBuffer(): _capacity(5000) {
+    BucketBuffer(): _capacity(20) {
         entries = std::vector<BufferEntry>();
         entries.reserve(_capacity);
     }
