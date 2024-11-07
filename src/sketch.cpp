@@ -262,7 +262,7 @@ void Sketch::update(const vec_t update_idx) {
         // TODO - magical number
         // std::cout << "Buffer full, reallocating" << std::endl;
         // reallocate((bkt_per_col * 8) / 5);
-        reallocate(bkt_per_col + 3);
+        reallocate(bkt_per_col + 1);
         // std::cout << "and now injecting" << std::endl;
         inject_buffer_buckets();
         // bucket_buffer.insert(i, depth, {update_idx, checksum});
@@ -394,7 +394,7 @@ void Sketch::merge(const Sketch &other) {
   while (!sufficient_space) {
     // std::cout << "Merge: Buffer full, reallocating" << std::endl;
     // reallocate((bkt_per_col * 8) / 5);
-    reallocate(bkt_per_col + 3);
+    reallocate(bkt_per_col + 1);
     inject_buffer_buckets();
     sufficient_space = !bucket_buffer.over_capacity();
   }
@@ -487,7 +487,7 @@ void Sketch::range_merge(const Sketch &other, size_t start_sample, size_t n_samp
   while (!sufficient_space) {
     // std::cout << "Merge: Buffer full, reallocating" << std::endl;
     // reallocate((bkt_per_col * 8) / 5);
-    reallocate(bkt_per_col + 3);
+    reallocate(bkt_per_col + 1);
     inject_buffer_buckets();
     sufficient_space = !bucket_buffer.over_capacity();
   }
