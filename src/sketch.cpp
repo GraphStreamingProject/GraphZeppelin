@@ -368,8 +368,8 @@ ExhaustiveSketchSample Sketch::exhaustive_sample() {
 
 
 void Sketch::merge(const Sketch &other) {
-  if (other.bkt_per_col > bkt_per_col) {
-    reallocate(other.bkt_per_col);
+  if (other.calc_deepest_depth() > bkt_per_col) {
+    reallocate(other.calc_deepest_depth());
     inject_buffer_buckets();
   }
   Bucket &deterministic_bucket = get_deterministic_bucket();
@@ -455,8 +455,8 @@ void Sketch::range_merge(const Sketch &other, size_t start_sample, size_t n_samp
   // update sample idx to point at beginning of this range if before it
   sample_idx = std::max(sample_idx, start_sample);
 
-  if (other.bkt_per_col > bkt_per_col) {
-    reallocate(other.bkt_per_col);
+  if (other.calc_deepest_depth() > bkt_per_col) {
+    reallocate(other.calc_deepest_depth());
     inject_buffer_buckets();
   }
 
@@ -466,11 +466,11 @@ void Sketch::range_merge(const Sketch &other, size_t start_sample, size_t n_samp
     size_t start_col_id = start_sample * cols_per_sample;
     size_t end_col_id = (start_sample + n_samples) * cols_per_sample;
     for (size_t col=start_col_id; col < end_col_id; col++ ) {
-#ifdef EAGER_BUCKET_CHECK
+// #ifdef EAGER_BUCKET_CHECK
       size_t effective_size = other.effective_size(col);
-#else
-      size_t effective_size = other.bkt_per_col;
-#endif
+// #else
+//       size_t effective_size = other.bkt_per_col;
+// #endif
       for (size_t row=0; row < effective_size; row++) {
         get_bucket(col, row) ^= other.get_bucket(col, row);
       }

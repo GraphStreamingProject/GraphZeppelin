@@ -92,8 +92,8 @@ class Sketch {
   static vec_t calc_vector_length(node_id_t num_vertices) {
     // return ceil(double(num_vertices) * (num_vertices - 1) / 2);
     // return num_vertices * 4;
-    // return 50; // round to something thats approx 2^6
-    return 15;
+    return 50; // round to something thats approx 2^6
+    // return 15;
     // return 1 + num_vertices / 16 ;
   }
 
@@ -107,6 +107,14 @@ class Sketch {
    */
   static size_t calc_cc_samples(node_id_t num_vertices, double f) {
     return std::max(size_t(18), (size_t) ceil(f * log2(num_vertices) / num_samples_div));
+  }
+
+  size_t calc_deepest_depth() const {
+    size_t max_depth = 0;
+    for (size_t i = 0; i < num_columns; i++) {
+      max_depth = std::max(max_depth, (size_t) effective_size(i));
+    }
+    return max_depth;
   }
 
   /**
