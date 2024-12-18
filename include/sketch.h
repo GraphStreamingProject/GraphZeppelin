@@ -304,7 +304,8 @@ class Sketch {
   inline size_t get_buckets() const { return num_buckets; }
   inline size_t get_num_samples() const { return num_samples; }
 
-  static size_t calc_bkt_per_col(size_t n) { return ceil(log2(n)) + 4;}
+  // static size_t calc_bkt_per_col(size_t n) { return ceil(log2(n)) + 4;}
+  static size_t calc_bkt_per_col(size_t n) { return 1;}
 
 #ifdef L0_SAMPLING
   static constexpr size_t default_cols_per_sample = 7;
