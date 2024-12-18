@@ -99,14 +99,22 @@ int main(int argc, char **argv) {
   size_t total_size = 0;
   size_t full_size= 0;
   
+  auto vec_len = ceil(double(num_nodes) * (num_nodes - 1) / 2);
+  auto cameo_len = ceil(log2(vec_len)) + 4;
+  size_t cameo_size = 0;
   for (size_t i=0; i < num_nodes; i++) {
     auto sketch = *cc_alg.sketches[i];
     for (size_t j=0; j < sketch.num_columns; j++) {
       total_size += sketch.effective_size(j);
       full_size += sketch.bkt_per_col;
+      cameo_size += cameo_len;
     }
   }
-  std::cout << "Effective Storage Used (in number of buckets): " << total_size << "/" << full_size << std::endl;
+  std::cout 
+    << "Effective Storage Used (in number of buckets): " 
+    << total_size << "/"
+     << full_size << "/" 
+     << cameo_size << std::endl;
 
   auto CC_num = cc_alg.connected_components().size();
   std::chrono::duration<double> cc_time = std::chrono::steady_clock::now() - cc_start;

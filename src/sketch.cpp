@@ -113,6 +113,7 @@ Sketch::Sketch(vec_t vector_len, uint64_t seed, std::istream &binary_in, size_t 
   cols_per_sample = _cols;
   num_columns = num_samples * cols_per_sample;
   bkt_per_col = calc_bkt_per_col(vector_len);
+  // bkt_per_col = 1;
   num_buckets = num_columns * bkt_per_col + 1; // plus 1 for deterministic bucket
   bucket_buffer = BucketBuffer();
   buckets = (Bucket*) new char[bucket_array_bytes()];
