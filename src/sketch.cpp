@@ -281,7 +281,7 @@ void Sketch::zero_contents() {
   }
   reset_sample_state();
   // TODO - dont do this. Or figure out a way to make it configurable
-  reallocate(5);
+  // reallocate(5);
   bucket_buffer.clear();
 }
 

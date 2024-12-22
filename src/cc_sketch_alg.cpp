@@ -113,6 +113,7 @@ void CCSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
 
   for (const auto &dst : dst_vertices) {
     delta_sketch.update(static_cast<vec_t>(concat_pairing_fn(src_vertex, dst)));
+    // std::cout << delta_sketch.bkt_per_col << std::endl;
 // #ifdef EAGER_BUCKET_CHECK
 //     delta_sketch.unsafe_update(static_cast<vec_t>(concat_pairing_fn(src_vertex, dst)));
 //   }

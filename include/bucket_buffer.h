@@ -103,6 +103,11 @@ class BucketBuffer {
     ~BucketBuffer() {
     }
 
+    BucketBuffer(size_t capacity): _capacity(capacity) {
+        entries = std::vector<BufferEntry>();
+        entries.reserve(_capacity);
+    }
+
     bool over_capacity() const {
         return entries.size() >= _capacity / 2;
     }

@@ -90,10 +90,10 @@ class Sketch {
    * @return              The length of the vector to sketch
    */
   static vec_t calc_vector_length(node_id_t num_vertices) {
-    // return ceil(double(num_vertices) * (num_vertices - 1) / 2);
+    return ceil(double(num_vertices) * (num_vertices - 1) / 2);
     // return num_vertices * 4;
     // return 50; // round to something thats approx 2^6
-    return 3;
+    // return 3;
     // return 15;
     // return 1 + num_vertices / 16 ;
   }
@@ -304,8 +304,8 @@ class Sketch {
   inline size_t get_buckets() const { return num_buckets; }
   inline size_t get_num_samples() const { return num_samples; }
 
-  // static size_t calc_bkt_per_col(size_t n) { return ceil(log2(n)) + 4;}
-  static size_t calc_bkt_per_col(size_t n) { return 1;}
+  static size_t calc_bkt_per_col(size_t n) { return ceil(log2(n)) + 4;}
+  // static size_t calc_bkt_per_col(size_t n) { return 1;}
 
 #ifdef L0_SAMPLING
   static constexpr size_t default_cols_per_sample = 7;

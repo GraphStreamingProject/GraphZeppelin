@@ -166,8 +166,11 @@ class CCSketchAlg {
     num_delta_sketches = num_workers;
     delta_sketches = new Sketch *[num_delta_sketches];
     for (size_t i = 0; i < num_delta_sketches; i++) {
+      // delta_sketches[i] =
+      //     new Sketch(Sketch::calc_vector_length(num_vertices), seed,
+      //                Sketch::calc_cc_samples(num_vertices, config.get_sketches_factor()));
       delta_sketches[i] =
-          new Sketch(Sketch::calc_vector_length(num_vertices), seed,
+          new Sketch(5, seed,
                      Sketch::calc_cc_samples(num_vertices, config.get_sketches_factor()));
     }
   }
