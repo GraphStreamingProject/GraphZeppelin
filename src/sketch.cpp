@@ -194,15 +194,19 @@ Sketch::~Sketch() {
    * backwards until we reach the point where the columns are once again not
    * being stored
    */
-  bucket_buffer.sort_and_compact();
+  // bucket_buffer.sort_and_compact();
   size_t buffer_size = bucket_buffer.size();
+  // ACTUALLY - we dont need to sort. just need to partition
+  size_t to_keep_sz = bucket_buffer.partition(bkt_per_col);
   int i = ((int) buffer_size)-1;
-  while (i >= 0 && bucket_buffer[i].row_idx < bkt_per_col) {
+  // while (i >= 0 && bucket_buffer[i].row_idx < bkt_per_col) {
+  while (i >= 0 && i >= to_keep_sz) {
     // update the bucket
     get_bucket(bucket_buffer[i].col_idx, bucket_buffer[i].row_idx) ^= bucket_buffer[i].value;
     i--;
   }
-  bucket_buffer.entries.resize(i+1);
+  bucket_buffer.entries.resize(to_keep_sz);
+  // bucket_buffer.entries.resize(i+1);
   // if (buffer_size > 3)
     // std::cout << "Injected buffer buckets:" << buffer_size << " to " << i+1 << std::endl;
  }
@@ -392,6 +396,11 @@ void Sketch::merge(const Sketch &other) {
   // TODO - when sketches have dynamic sizes, this will require more work
   // ie we would want to deal with some depths seperately.
   bool sufficient_space = bucket_buffer.merge(other.bucket_buffer);
+  // TODO - make this procedure better. this isnt a great implementation
+  if (!sufficient_space) {
+    inject_buffer_buckets();
+    sufficient_space = !bucket_buffer.over_capacity();   
+  }
   while (!sufficient_space) {
     // std::cout << "Merge: Buffer full, reallocating" << std::endl;
     // reallocate((bkt_per_col * 8) / 5);
@@ -485,6 +494,11 @@ void Sketch::range_merge(const Sketch &other, size_t start_sample, size_t n_samp
   }
 #endif
   bool sufficient_space = bucket_buffer.merge(other.bucket_buffer);
+  // TODO - make this procedure better. this isnt a great implementation
+  if (!sufficient_space) {
+    inject_buffer_buckets();
+    sufficient_space = !bucket_buffer.over_capacity();   
+  }
   while (!sufficient_space) {
     // std::cout << "Merge: Buffer full, reallocating" << std::endl;
     // reallocate((bkt_per_col * 8) / 5);

@@ -170,7 +170,7 @@ class CCSketchAlg {
       //     new Sketch(Sketch::calc_vector_length(num_vertices), seed,
       //                Sketch::calc_cc_samples(num_vertices, config.get_sketches_factor()));
       delta_sketches[i] =
-          new Sketch(5, seed,
+          new Sketch(6, seed,
                      Sketch::calc_cc_samples(num_vertices, config.get_sketches_factor()));
     }
   }

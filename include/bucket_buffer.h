@@ -174,6 +174,20 @@ class BucketBuffer {
         //     std::cout << std::endl;
         // }
     }
+    
+    size_t partition(size_t pivot_value) {
+        // used for the following: all updates with row index smaller than pivot
+        // thus, all values larger to the left of pivot
+        // go on the right side
+        size_t partition_size = 0;
+        for (size_t i = 0; i < size(); ++i) {
+            if (entries[i].row_idx >= pivot_value) {
+                std::swap(entries[i], entries[partition_size]);
+                partition_size++;
+            }
+        }
+        return partition_size;
+    }
 
     bool merge(const BucketBuffer &other) {
         // YOU SHOULD ONLY MERGE WITH AN UNDER CAPACITY BUFFER
