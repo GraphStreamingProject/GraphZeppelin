@@ -378,6 +378,18 @@ void Sketch::merge(const Sketch &other) {
     inject_buffer_buckets();
   }
   Bucket &deterministic_bucket = get_deterministic_bucket();
+#ifdef ROW_MAJOR_SKETCHES
+  size_t smaller_row = std::min(bkt_per_col, other.bkt_per_col);
+  size_t num_buck = num_columns * smaller_row;
+  #pragma omp simd
+  for (size_t i=0; i < num_buck; ++i) {
+    buckets[i] ^= other.buckets[i];
+  }
+  // for (size_t row=0; row < bkt_per_col; ++row) {
+  //   for (size_t col=0; col < num_columns; ++col) {
+  //     get_bucket(col, row) ^= other.get_bucket(col, row);
+  //   }
+#else
   for (size_t i=0; i < num_columns; ++i) {
     size_t other_effective_size = other.effective_size(i);
     #pragma omp simd
@@ -388,6 +400,7 @@ void Sketch::merge(const Sketch &other) {
     recalculate_flags(i, 0, other_effective_size);
 #endif
   }
+#endif
 
   // seperately update the deterministic bucket
   deterministic_bucket ^= other.get_deterministic_bucket();
