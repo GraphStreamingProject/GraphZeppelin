@@ -95,6 +95,25 @@ class BucketBuffer {
     // std::array<BufferEntry, BUFFER_CAPACITY> thread_local_buffer {};
     // std::array<BufferEntry, BUFFER_CAPACITY> thread_local_otherbuffer {};
 
+    void serialize(std::ostream& binary_out) const {
+        binary_out.write((char *) &_capacity, sizeof(size_t));
+        size_t _size = entries.size();
+        binary_out.write((char *) &_size, sizeof(size_t));
+        binary_out.write((char *) entries.data(), sizeof(BufferEntry) * _size);
+    }
+    void deserialize(std::istream& binary_in) {
+        binary_in.read((char *) &_capacity, sizeof(size_t));
+        entries.reserve(_capacity);
+        size_t _size;
+        binary_in.read((char *) &_size, sizeof(size_t));
+        entries.resize(_size);
+        // TODO - no me gusta
+        binary_in.read((char *) entries.data(), sizeof(BufferEntry) * _size);
+        // for (size_t i = 0; i < _size; ++i) {
+        //     binary_in.read((char *) &entries[i], sizeof(BufferEntry));
+        // }
+    }
+
     public:
     BucketBuffer(): _capacity(128) {
         entries = std::vector<BufferEntry>();

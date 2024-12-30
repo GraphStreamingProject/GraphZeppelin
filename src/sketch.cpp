@@ -49,7 +49,8 @@ Sketch::Sketch(vec_t vector_len, uint64_t seed, bool compressed, std::istream &b
   num_samples = _samples;
   cols_per_sample = _cols;
   num_columns = num_samples * cols_per_sample;
-  bkt_per_col = calc_bkt_per_col(vector_len);
+  binary_in.read((char *) &bkt_per_col, sizeof(size_t));
+  // bkt_per_col = calc_bkt_per_col(vector_len);
   num_buckets = num_columns * bkt_per_col + 1; // plus 1 for deterministic bucket
   // bucket_buffer = BucketBuffer(new BufferEntry[_cols * 2], _cols * 2);
   bucket_buffer = BucketBuffer();
@@ -373,7 +374,8 @@ ExhaustiveSketchSample Sketch::exhaustive_sample() {
 
 
 void Sketch::merge(const Sketch &other) {
-  if (other.calc_deepest_depth() > bkt_per_col) {
+  unlikely_if (other.bkt_per_col > bkt_per_col && other.calc_deepest_depth() > bkt_per_col)
+  {
     reallocate(other.calc_deepest_depth());
     inject_buffer_buckets();
   }
@@ -578,6 +580,7 @@ uint8_t Sketch::effective_depth() const
 }
 
 void Sketch::compressed_serialize(std::ostream &binary_out) const {
+  binary_out.write((char*) &bkt_per_col, sizeof(size_t));
 #ifdef ROW_MAJOR_SKETCHES
   // write out max depth, nonempty flags, determinstic bucket, everything else
   // then all other buckets
@@ -607,6 +610,7 @@ void Sketch::compressed_serialize(std::ostream &binary_out) const {
 }
 
 void Sketch::serialize(std::ostream &binary_out) const {
+  binary_out.write((char*) &bkt_per_col, sizeof(size_t));
   // note that these will include the flag bits, if used.
   binary_out.write((char*) buckets, bucket_array_bytes());
 }
