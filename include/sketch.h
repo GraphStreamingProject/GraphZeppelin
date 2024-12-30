@@ -62,7 +62,7 @@ class Sketch {
   // bucket data
   Bucket* buckets;
   // bucket coo buffer
-  BucketBuffer bucket_buffer;
+  BucketBufferHashMap bucket_buffer;
 
   // flags
 

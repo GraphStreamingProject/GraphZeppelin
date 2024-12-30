@@ -31,51 +31,77 @@ struct BufferEntry {
     }
 };
 
-// class BucketBufferHashMap {
-//     public:
-//     // std::unordered_map<int, std::unordered_map<int, Bucket>> entries;
-//     std::unordered_map<std::pair<int, int>, Bucket> entries;
-//     size_t _capacity;
-//     BucketBufferHashMap(size_t capacity): _capacity(capacity) {};
+class BucketBufferHashMap {
+    public:
+    // std::unordered_map<int, std::unordered_map<int, Bucket>> entries;
+    std::unordered_map<uint32_t, Bucket> entries;
+    size_t _capacity;
+    
+    uint32_t coords_to_key(int col_idx, int row_idx) {
+        return (uint32_t) col_idx << 16 | ((uint16_t) row_idx);
+    }
+    
+    int key_to_row(uint32_t key) {
+        return (int) key & 0xFFFF;
+    }
+    int key_to_col(uint32_t key) {
+        return (int) key >> 16;
+    }
 
-//     bool insert(int col_idx, int row_idx, Bucket value) {
-//         if (entries.size() >= _capacity) {
-//             return false;
-//         }
-//         static constexpr Bucket zero_bucket = {0, 0};
-//         entries.emplace(std::make_pair(col_idx, row_idx), zero_bucket);
-//         entries[{col_idx, row_idx}] ^= value;
-//         if (Bucket_Boruvka::is_empty(entries[{col_idx, row_idx}])) {
-//             entries.erase({col_idx, row_idx});
-//         }
-//         return true;
-//     }
-//     bool merge(const BucketBufferHashMap &other) {
-//         for (const auto &idx : other.entries) {
-//             static constexpr Bucket zero_bucket = {0, 0};
-//             entries.emplace(idx.first, zero_bucket);
-//             entries[idx.first] ^= idx.second;
-//             if (Bucket_Boruvka::is_empty(entries[idx.first])) {
-//                 entries.erase(idx.first);
-//             }
-//         }
-//         // TODO - make this less gross
-//         unlikely_if (entries.size() >= _capacity) {
-//             // UNDO THE MERGE
-//             for (const auto &idx : other.entries) {
-//                 static constexpr Bucket zero_bucket = {0, 0};
-//                 entries.emplace(idx.first, zero_bucket);
-//                 entries[idx.first] ^= idx.second;
-//                 if (Bucket_Boruvka::is_empty(entries[idx.first])) {
-//                     entries.erase(idx.first);
-//                 }
-//             }
-//             return false;
-//         }
-//         else
-//             return true;
-//     }
-// };
+    BucketBufferHashMap(size_t capacity): _capacity(capacity) {
+        entries = std::unordered_map<uint32_t, Bucket>();
+        entries.reserve(_capacity);
+    };
+    
+    BucketBufferHashMap(): _capacity(128) {
+        entries = std::unordered_map<uint32_t, Bucket>();
+        entries.reserve(_capacity);
+    }
+
+    
+    bool over_capacity() const {
+        return entries.size() >= _capacity / 2;
+    }
+    
+    size_t size() const {
+        return entries.size();
+    }
+
+    void clear() {
+        entries.clear();
+    }
+    
+
+    bool insert(int col_idx, int row_idx, Bucket value) {
+        static constexpr Bucket zero_bucket = {0, 0};
+        entries.emplace(std::make_pair(col_idx, row_idx), zero_bucket);
+        entries[coords_to_key(col_idx, row_idx)] ^= value;
+        if (Bucket_Boruvka::is_empty(entries[coords_to_key(col_idx, row_idx)])) {
+            entries.erase(coords_to_key(col_idx, row_idx));
+        }
+        return over_capacity();
+    }
+    bool merge(const BucketBufferHashMap &other) {
+        assert(size() + other.size() <= _capacity);
+        for (const auto &idx : other.entries) {
+            static constexpr Bucket zero_bucket = {0, 0};
+            entries.emplace(idx.first, zero_bucket);
+            entries[idx.first] ^= idx.second;
+            if (Bucket_Boruvka::is_empty(entries[idx.first])) {
+                entries.erase(idx.first);
+            }
+        }
+    }
+    
+    Bucket get_bucket(int col_idx, int row_idx) {
+        auto key = coords_to_key(col_idx, row_idx);
+        if (entries.find(key) == entries.end()) {
+            return {0, 0};
+        }
+        return entries[key];
+        // return entries[coords_to_key(col_idx, row_idx)];
+    }
+};
 
 
 // note that we consider these to be 

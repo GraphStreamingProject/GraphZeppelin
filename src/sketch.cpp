@@ -20,7 +20,8 @@ Sketch::Sketch(vec_t vector_len, uint64_t seed, size_t _samples, size_t _cols) :
   num_columns = num_samples * cols_per_sample;
   bkt_per_col = calc_bkt_per_col(vector_len);
   num_buckets = num_columns * bkt_per_col + 1; // plus 1 for deterministic bucket
-  bucket_buffer = BucketBuffer();
+  // bucket_buffer = BucketBuffer();
+  bucket_buffer = BucketBufferHashMap();
 #ifdef EAGER_BUCKET_CHECK
   buckets = (Bucket*) (new char[bucket_array_bytes()]);
   nonempty_buckets = (vec_t*) (buckets + num_buckets);
@@ -53,7 +54,7 @@ Sketch::Sketch(vec_t vector_len, uint64_t seed, bool compressed, std::istream &b
   // bkt_per_col = calc_bkt_per_col(vector_len);
   num_buckets = num_columns * bkt_per_col + 1; // plus 1 for deterministic bucket
   // bucket_buffer = BucketBuffer(new BufferEntry[_cols * 2], _cols * 2);
-  bucket_buffer = BucketBuffer();
+  bucket_buffer = BucketBufferHashMap();
   buckets = (Bucket*) new char[bucket_array_bytes()];
 #ifdef EAGER_BUCKET_CHECK
   nonempty_buckets = (vec_t*) (buckets + num_buckets);
@@ -116,7 +117,7 @@ Sketch::Sketch(vec_t vector_len, uint64_t seed, std::istream &binary_in, size_t 
   bkt_per_col = calc_bkt_per_col(vector_len);
   // bkt_per_col = 1;
   num_buckets = num_columns * bkt_per_col + 1; // plus 1 for deterministic bucket
-  bucket_buffer = BucketBuffer();
+  bucket_buffer = BucketBufferHashMap();
   buckets = (Bucket*) new char[bucket_array_bytes()];
 #ifdef EAGER_BUCKET_CHECK
   nonempty_buckets = (vec_t*) (buckets + num_buckets);
@@ -132,7 +133,7 @@ Sketch::Sketch(const Sketch &s) : seed(s.seed) {
   bkt_per_col = s.bkt_per_col;
   num_buckets = s.num_buckets;
   // TODO - do this correctly in other places. Otherwise serialization is broken
-  bucket_buffer = BucketBuffer();
+  bucket_buffer = BucketBufferHashMap();
   buckets = (Bucket*) new char[bucket_array_bytes()];
   // buckets = new Bucket[num_buckets];
 
@@ -195,21 +196,18 @@ Sketch::~Sketch() {
    * backwards until we reach the point where the columns are once again not
    * being stored
    */
-  // bucket_buffer.sort_and_compact();
-  size_t buffer_size = bucket_buffer.size();
-  // ACTUALLY - we dont need to sort. just need to partition
-  size_t to_keep_sz = bucket_buffer.partition(bkt_per_col);
-  int i = ((int) buffer_size)-1;
-  // while (i >= 0 && bucket_buffer[i].row_idx < bkt_per_col) {
-  while (i >= 0 && i >= to_keep_sz) {
-    // update the bucket
-    get_bucket(bucket_buffer[i].col_idx, bucket_buffer[i].row_idx) ^= bucket_buffer[i].value;
-    i--;
+  auto it = bucket_buffer.entries.begin();
+  while (it != bucket_buffer.entries.end()) {
+    if (bucket_buffer.key_to_row(it->first) >= bkt_per_col) {
+      get_bucket(
+        bucket_buffer.key_to_col(it->first), 
+        bucket_buffer.key_to_row(it->first)
+      ) ^= it->second;
+      it = bucket_buffer.entries.erase(it);
+    } else {
+      it++;
+    }
   }
-  bucket_buffer.entries.resize(to_keep_sz);
-  // bucket_buffer.entries.resize(i+1);
-  // if (buffer_size > 3)
-    // std::cout << "Injected buffer buckets:" << buffer_size << " to " << i+1 << std::endl;
  }
 
 
@@ -322,18 +320,15 @@ SketchSample Sketch::sample() {
     }
   }
   // finally, check the deep buffer
-  for (size_t i = 0; i < bucket_buffer.size(); i++) {
-    const BufferEntry &entry = bucket_buffer[i];
-    // TODO - optimize this check. THIS IS GONNA CAUSE REALLY POOR
-    // PERFORMANCE UNTIL WE DO SOMETHING ABOUT IT
-    if (entry.col_idx >= first_column && entry.col_idx < first_column + cols_per_sample) {
-      if (Bucket_Boruvka::is_good(entry.value, checksum_seed())) {
-        // std::cout << "Found a bucket in the buffer" << std::endl;
-        assert(entry.row_idx >= bkt_per_col);
-        return {entry.value.alpha, GOOD};
-      }
+  for (size_t col = first_column; col < first_column + cols_per_sample; ++col) {
+    for (size_t row = bkt_per_col; row < bkt_per_col + 6; ++row) {
+      Bucket bucket = bucket_buffer.get_bucket(col, row);
+      // Bucket &bucket = bucket_buffer.get_bucket(col, row);
+      if (Bucket_Boruvka::is_good(bucket, checksum_seed()))
+        return {bucket.alpha, GOOD};
     }
   }
+  
   return {0, FAIL};
 }
 
