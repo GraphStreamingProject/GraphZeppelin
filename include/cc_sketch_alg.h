@@ -128,6 +128,12 @@ class CCSketchAlg {
    */
   void boruvka_emulation();
 
+  /**
+   * Delete edges found in spanning forest from sketches
+   * Helper function for calc_disjoint_spanning_forests(k)
+   */
+  void filter_sf_edges(SpanningForest &sf);
+
   // constructor for use when reading from a serialized file
   CCSketchAlg(node_id_t num_vertices, size_t seed, std::ifstream &binary_stream,
               CCAlgConfiguration config);
@@ -257,6 +263,10 @@ class CCSketchAlg {
   // time hooks for experiments
   std::chrono::steady_clock::time_point cc_alg_start;
   std::chrono::steady_clock::time_point cc_alg_end;
+  std::chrono::steady_clock::time_point sf_query_start;
+  std::chrono::steady_clock::time_point sf_query_end;
+  std::chrono::duration<double> query_time;
+  std::chrono::duration<double> delete_time;
   size_t last_query_rounds = 0;
 
   // getters
