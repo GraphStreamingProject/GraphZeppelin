@@ -561,6 +561,7 @@ SpanningForest CCSketchAlg::calc_spanning_forest() {
   connected_components();
 
   SpanningForest ret(num_vertices, spanning_forest);
+
 #ifdef VERIFY_SAMPLES_F
   verifier->verify_spanning_forests(std::vector<SpanningForest>{ret});
 #endif
@@ -573,24 +574,7 @@ void CCSketchAlg::filter_sf_edges(SpanningForest &sf) {
   dsu_valid = false;
   shared_dsu_valid = false;
 
-  auto edges = sf.get_edges();
-  size_t num = edges.size();
-  edges.resize(2 * edges.size());
-
-#pragma omp parallel for
-  for (size_t i = 0; i < num; i++) {
-    edges[i + num] = edges[i];
-    std::swap(edges[i + num].src, edges[i + num].dst);
-  }
-
-  auto setup = std::chrono::steady_clock::now();
-  std::cout << "Setup time = " << std::chrono::duration<double>(setup - start).count() << std::endl;
-
-  // sort the edges
-  std::sort(edges.begin(), edges.end());
-
-  auto sort = std::chrono::steady_clock::now();
-  std::cout << "Sort time = " << std::chrono::duration<double>(sort - setup).count() << std::endl;
+  const std::vector<Edge> &edges = sf.get_sorted_adjacency();
 
 #pragma omp parallel
   {
@@ -632,8 +616,6 @@ void CCSketchAlg::filter_sf_edges(SpanningForest &sf) {
       sketches[edge.src]->update(static_cast<vec_t>(concat_pairing_fn(edge.src, edge.dst)));
     }
   }
-  auto del = std::chrono::steady_clock::now();
-  std::cout << "Delete time = " << std::chrono::duration<double>(del - sort).count() << std::endl;
 
   delete_time += std::chrono::steady_clock::now() - start;
 }
@@ -644,19 +626,16 @@ std::vector<SpanningForest> CCSketchAlg::calc_disjoint_spanning_forests(size_t k
 
   for (size_t i = 0; i < k; i++) {
     start = std::chrono::steady_clock::now();
-    SpanningForest sf = calc_spanning_forest();
-    SFs.push_back(sf);
+    SFs.push_back(calc_spanning_forest());
     query_time += std::chrono::steady_clock::now() - start;
 
-    filter_sf_edges(sf);
+    filter_sf_edges(SFs[SFs.size() - 1]);
   }
 
   // revert the state of the sketches to remove all deletions
   for (auto &sf : SFs) {
     filter_sf_edges(sf);
   }
-
-  std::cout << "Number of SFs: " << SFs.size() << std::endl;
 
 #ifdef VERIFY_SAMPLES_F
   verifier->verify_spanning_forests(SFs);
