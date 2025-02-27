@@ -156,10 +156,6 @@ class GraphSketchDriver {
         size_t updates = stream->get_update_buffer(update_array, update_array_size);
 
         if (update_array[updates - 1].type == BREAKPOINT) {
-#ifdef VERIFY_SAMPLES_F
-          std::lock_guard<std::mutex> lk(verifier_mtx);
-          verifier->combine(local_verifier);
-#endif
           --updates;
           got_breakpoint = true;
         }
@@ -173,7 +169,13 @@ class GraphSketchDriver {
 #endif
         }
 
-        if (got_breakpoint) return;
+        if (got_breakpoint) {
+#ifdef VERIFY_SAMPLES_F
+          std::lock_guard<std::mutex> lk(verifier_mtx);
+          verifier->combine(local_verifier);
+#endif
+          return;
+        }
       }
     };
 
@@ -204,6 +206,7 @@ class GraphSketchDriver {
   inline void batch_callback(int thr_id, node_id_t src_vertex,
                              const std::vector<node_id_t> &dst_vertices) {
     total_updates += dst_vertices.size();
+    return;
     sketching_alg->apply_update_batch(thr_id, src_vertex, dst_vertices);
   }
 

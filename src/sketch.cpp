@@ -11,6 +11,11 @@ Sketch::Sketch(vec_t vector_len, uint64_t seed, size_t _samples, size_t _cols) :
   num_columns = num_samples * cols_per_sample;
   bkt_per_col = calc_bkt_per_col(vector_len);
   num_buckets = num_columns * bkt_per_col + 1; // plus 1 for deterministic bucket
+
+#ifndef L0_FULLY_DENSE
+  buckets = new Bucket[num_columns * num_dense_rows];
+  // TODO: AHHHHHHHHH
+#else
   buckets = new Bucket[num_buckets];
 
   // initialize bucket values
@@ -18,6 +23,8 @@ Sketch::Sketch(vec_t vector_len, uint64_t seed, size_t _samples, size_t _cols) :
     buckets[i].alpha = 0;
     buckets[i].gamma = 0;
   }
+#endif
+
 }
 
 Sketch::Sketch(vec_t vector_len, uint64_t seed, std::istream &binary_in, size_t _samples,

@@ -11,6 +11,19 @@
 #include "util.h"
 #include "bucket.h"
 
+// TODO: Do we want to use row major or column major order?
+// TODO: How do we want to handle raw_bucket_merge() and get_readonly_bucket_ptr()?
+//       These functions are nice for performance because we can skip serialization but aren't
+//       strictly necessary.
+// TODO: It would be nice to preallocate the structure if we know how big its probably going to be.
+//       This would be helpful for delta sketches for example. 
+// TODO: What are we doing with the num_buckets variable? Could be nice to just be the size of 
+//       buckets array. Could also be upperbound on the size.
+
+// A strategy that could work well would be to allocate a chunk of memory some of which is given to
+// the dense region of the sketch and 3 * sizeof(uint64_t) are given to sparse region.
+// 3 -> position, alpha, gamma (could save a little more space by using 16 bits for position)
+
 // enum SerialType {
 //   FULL,
 //   RANGE,
@@ -43,13 +56,33 @@ class Sketch {
   size_t num_samples;      // number of samples we can perform
   size_t cols_per_sample;  // number of columns to use on each sample
   size_t num_columns;      // Total number of columns. (product of above 2)
-  size_t bkt_per_col;      // number of buckets per column
+  size_t bkt_per_col;      // maximum number of buckets per column (max number of rows)
   size_t num_buckets;      // number of total buckets (product of above 2)
 
   size_t sample_idx = 0;   // number of samples performed so far
 
-  // bucket data
+  // bucket data, stored densely
   Bucket* buckets;
+
+#ifndef L0_FULLY_DENSE
+  size_t num_dense_rows = 4;
+
+  // sparse representation of lower levels of Matrix
+  // TODO: Evaluate if this is shit. It probably is
+  std::vector<std::unordered_map<size_t, Bucket>> bucket_buffer;
+  size_t number_of_sparse_buckets = 0;
+  size_t sparse_capacity = 2 * num_columns; // TODO: evaluate implications of this constant
+
+  /**
+   * Reallocates the dense region of the sketch to have a different number of rows
+   * @param new_num_rows  the new number of rows to store densely
+   */
+  void reallocate_dense_region(size_t new_num_rows);
+#endif
+
+  inline Bucket& get_deterministic_bucket() {
+    // TODO: implement this
+  }
 
  public:
   /**
