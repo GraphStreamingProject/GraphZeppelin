@@ -215,20 +215,42 @@ TEST(SketchTestSuite, TestSketchMerge) {
 }
 
 TEST(SketchTestSuite, TestSketchRangeMerge) {
-  Sketch skt1(2048, get_seed(), 10, 3);
-  Sketch skt2(2048, get_seed(), 10, 3);
+  size_t seed = get_seed();
+  Sketch skt1(2048, seed, 10, 3);
+  Sketch skt2(2048, seed, 10, 3);
 
-  skt1.sample();
+  for (vec_t i = 0; i < 1024; i++) {
+    skt1.update(i);
+    skt2.update(i + 256);
+  }
+  // allowed return values after merging are [0, 255] and [1024, 1279]
+  vec_t good_1 = 255;
+  vec_t good_2 = 1024;
+  vec_t good_3 = good_2 + 255;
+
+  skt1.range_merge(skt2, 0, 1);
+  SketchSample sample = skt1.sample();
+  if (sample.result == GOOD) {
+    ASSERT_TRUE(sample.idx <= good_1 || (sample.idx >= good_2 && sample.idx <= good_3));
+  }
+  
   skt1.range_merge(skt2, 1, 1);
-
-  skt1.sample();
+  sample = skt1.sample();
+  if (sample.result == GOOD) {
+    ASSERT_TRUE(sample.idx <= good_1 || (sample.idx >= good_2 && sample.idx <= good_3));
+  }
+  
   skt1.range_merge(skt2, 2, 1);
-
-  skt1.sample();
+  sample = skt1.sample();
+  if (sample.result == GOOD) {
+    ASSERT_TRUE(sample.idx <= good_1 || (sample.idx >= good_2 && sample.idx <= good_3));
+  }
+  
   skt1.range_merge(skt2, 3, 1);
-
-  skt1.sample();
-  skt1.range_merge(skt2, 4, 1);
+  sample = skt1.sample();
+  if (sample.result == GOOD) {
+    ASSERT_TRUE(sample.idx <= good_1 || (sample.idx >= good_2 && sample.idx <= good_3));
+  }
 }
 
 /**
