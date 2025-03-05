@@ -88,8 +88,8 @@ class SparseSketch {
   // that will be using that space
   size_t sparse_data_size = ceil(double(sparse_capacity) * sizeof(SparseBucket) / sizeof(Bucket));
 
-  int update_sparse(uint16_t pos, vec_t update_idx, vec_hash_t checksum);
-  SketchSample sample_sparse(size_t column);
+  void update_sparse(uint16_t pos, vec_t update_idx, vec_hash_t checksum);
+  SketchSample sample_sparse(size_t first_col, size_t end_col);
 
   inline Bucket& deterministic_bucket() {
     return buckets[0];
@@ -98,14 +98,18 @@ class SparseSketch {
     return buckets[0];
   }
 
+  inline size_t position_func(size_t col, size_t row, size_t num_rows) const {
+    return col * num_rows + row + 1;
+  }
+
   // return the bucket at a particular index in bucket array
   inline Bucket& bucket(size_t col, size_t row) {
     assert(row < num_dense_rows);
-    return buckets[col * num_dense_rows + row + 1];
+    return buckets[position_func(col, row, num_dense_rows)];
   }
   inline const Bucket& bucket(size_t col, size_t row) const {
     assert(row < num_dense_rows);
-    return buckets[col * num_dense_rows + row + 1];
+    return buckets[position_func(col, row, num_dense_rows)];
   }
 
  public:

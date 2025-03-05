@@ -15,7 +15,7 @@ SparseSketch::SparseSketch(vec_t vector_len, uint64_t seed, size_t _samples, siz
   // plus 1, deterministic bucket
   num_buckets = num_columns * num_dense_rows + sparse_data_size + 1;
   buckets = new Bucket[num_buckets];
-  sparse_buckets = (SparseBucket *) &buckets[num_columns * num_dense_rows + 2];
+  sparse_buckets = (SparseBucket *) &buckets[num_columns * num_dense_rows + 1];
 
   // initialize bucket values
   for (size_t i = 0; i < num_buckets; ++i) {
@@ -57,71 +57,80 @@ SparseSketch::~SparseSketch() { delete[] buckets; }
 
 // Helper functions for interfacing with SparseBuckets
 void SparseSketch::reallocate_if_needed() {
+  if (num_dense_rows <= min_num_dense_rows) return; // do not reallocate
   if (number_of_sparse_buckets > num_columns && number_of_sparse_buckets < sparse_capacity)
     return; // do not reallocate
-  else {
-    const size_t old_buckets = num_buckets;
-    Bucket *new_buckets;
 
-    if (number_of_sparse_buckets < num_columns && num_dense_rows > min_num_dense_rows) {
-      // shrink dense region by 1 row
-      // 1. Scan over deepest row of dense region and add all those buckets to sparse
-      size_t depth = num_dense_rows - 1;
-      for (size_t c = 0; c < num_columns; c++) {
-        Bucket bkt = bucket(c, depth);
-        if (!Bucket_Boruvka::is_empty(bkt)) {
-          uint16_t sparse_position = (c << 8) + depth;
-          update_sparse(sparse_position, bkt.alpha, bkt.gamma);
-        }
-      }
+  // we are performing a reallocation
+  std::cout << "Reallocating!" << std::endl;
+  std::cout << "num_sparse: " << number_of_sparse_buckets << std::endl;
+  std::cout << "capacity:   " << sparse_capacity << std::endl;
+  const size_t old_buckets = num_buckets;
+  const size_t old_rows = num_dense_rows;
+  SparseBucket *old_sparse_pointer = sparse_buckets;
+  Bucket *new_buckets;
 
-      // 2. Allocate new memory
-      --num_dense_rows;
-      num_buckets = num_columns * num_dense_rows + sparse_data_size + 1;
-      new_buckets = new Bucket[num_buckets];
-    } else {
-      // grow dense region by 1 row
-      // 1. Allocate new memory
-      ++num_dense_rows;
-      num_buckets = num_columns * num_dense_rows + sparse_data_size + 1;
-      new_buckets = new Bucket[num_buckets];
-
-      // 2. Skip
-    }
-
-    // 3. Copy over content
-    size_t dense_buckets = num_columns * num_dense_rows + 1;
-    for (size_t i = 0; i < dense_buckets; i++) {
-      new_buckets[i] = buckets[i];
-    }
-    for (size_t i = 0; i < sparse_capacity; i++) {
-      new_buckets[num_buckets - i] = buckets[old_buckets - i];
-    }
-
-    if (num_buckets > old_buckets) {
-      // 3.5. Scan sparse buckets and move all updates of depth num_dense_rows-1
-      //      to the new dense row
-      uint16_t depth_mask = 0xFFFF;
-      for (size_t i = 0; i < sparse_capacity; i++) {
-        if ((sparse_buckets[i].position & depth_mask) == num_dense_rows - 1) {
-          size_t column = sparse_buckets[i].position >> 8;
-          bucket(column, num_dense_rows - 1) = sparse_buckets[i].bkt;
-          sparse_buckets[i].position = uint16_t(-1); // tombstone
-        }
+  if (number_of_sparse_buckets < num_columns) {
+    // shrink dense region by 1 row
+    // Scan over deepest row of dense region and add all those buckets to sparse
+    size_t depth = num_dense_rows - 1;
+    for (size_t c = 0; c < num_columns; c++) {
+      Bucket bkt = bucket(c, depth);
+      if (!Bucket_Boruvka::is_empty(bkt)) {
+        uint16_t sparse_position = (c << 8) + depth;
+        update_sparse(sparse_position, bkt.alpha, bkt.gamma);
       }
     }
 
-    // 4. Clean up
-    std::swap(buckets, new_buckets);
-    delete[] new_buckets;
+    // Allocate new memory
+    --num_dense_rows;
+    num_buckets = num_columns * num_dense_rows + sparse_data_size + 1;
+    new_buckets = new Bucket[num_buckets];
+  } else {
+    // grow dense region by 1 row
+    // Allocate new memory
+    ++num_dense_rows;
+    num_buckets = num_columns * num_dense_rows + sparse_data_size + 1;
+    new_buckets = new Bucket[num_buckets];
   }
+  sparse_buckets = (SparseBucket *) &new_buckets[num_columns * num_dense_rows + 1];
+
+  // Copy dense content
+  for (size_t c = 0; c < num_columns; c++) {
+    for (size_t r = 0; r < std::min(num_dense_rows, old_rows); r++) {
+      new_buckets[position_func(c, r, num_dense_rows)] = buckets[position_func(c, r, old_rows)];
+    }
+  }
+  // sparse contents
+  memcpy(sparse_buckets, old_sparse_pointer, sparse_capacity * sizeof(SparseBucket));
+
+
+  if (num_buckets > old_buckets) {
+    // We shrinking
+    // Scan sparse buckets and move all updates of depth num_dense_rows-1
+    // to the new dense row
+    uint16_t depth_mask = 0xFFFF;
+    for (size_t i = 0; i < sparse_capacity; i++) {
+      if ((sparse_buckets[i].position & depth_mask) == num_dense_rows - 1) {
+        size_t column = sparse_buckets[i].position >> 8;
+        bucket(column, num_dense_rows - 1) = sparse_buckets[i].bkt;
+        sparse_buckets[i].position = uint16_t(-1); // tombstone
+        number_of_sparse_buckets -= 1;
+      }
+    }
+  }
+
+  // 4. Clean up
+  std::swap(buckets, new_buckets);
+  delete[] new_buckets;
 }
 
 // Update a bucket value
-// Returns 1 if we added a new bucket value
-//         0 if the bucket was found and update (but not cleared)
-//         -1 if the bucket was found and cleared of all content
-int SparseSketch::update_sparse(uint16_t pos, vec_t update_idx, vec_hash_t checksum) {
+// Changes number_of_sparse_buckets as follows:
+//    +1 if we added a new bucket value
+//     0 if the bucket was found and update (but not cleared)
+//    -1 if the bucket was found and cleared of all content
+void SparseSketch::update_sparse(uint16_t pos, vec_t update_idx, vec_hash_t checksum) {
   SparseBucket *tombstone = nullptr;
   uint16_t tombstone_pos = uint16_t(-1);
   for (size_t i = 0; i < num_buckets; i++) {
@@ -135,8 +144,9 @@ int SparseSketch::update_sparse(uint16_t pos, vec_t update_idx, vec_hash_t check
         // did we clear it out?
         if (Bucket_Boruvka::is_empty(sparse_bucket.bkt)) {
           sparse_bucket.position = tombstone_pos; // mark it as tombstone
-          return -1;
+          number_of_sparse_buckets -= 1;
         }
+        return;
       } else {
         if (tombstone != nullptr) {
           // use the tombstone
@@ -148,22 +158,28 @@ int SparseSketch::update_sparse(uint16_t pos, vec_t update_idx, vec_hash_t check
         }
 
         // we created a new sparse bucket
-        return 1;
+        number_of_sparse_buckets += 1;
+        return;
       }
     } else if (sparse_bucket.position == tombstone_pos && tombstone == nullptr) {
       tombstone = &sparse_bucket;
+      number_of_sparse_buckets += 1;
+      return;
     }
   }
   // this is an error!
+  std::cout << "num_sparse: " << number_of_sparse_buckets << std::endl;
+  std::cout << "capacity:   " << sparse_capacity << std::endl;
   throw std::runtime_error("update_sparse(): Failed to find update location!");
 }
 
 // sample a good bucket from the sparse region if one exists. 
 // Additionally, specify the column to query from
 // TODO: Do we want to include this column thing?
-SketchSample SparseSketch::sample_sparse(size_t column) {
+SketchSample SparseSketch::sample_sparse(size_t first_col, size_t end_col) {
   for (size_t i = 0; i < sparse_capacity; i++) {
-    if (size_t(sparse_buckets[i].position >> 8) == column &&
+    if (size_t(sparse_buckets[i].position >> 8) >= first_col &&
+        size_t(sparse_buckets[i].position >> 8) < end_col &&
         Bucket_Boruvka::is_good(sparse_buckets[i].bkt, checksum_seed())) {
       return {sparse_buckets[i].bkt.alpha, GOOD};
     }
@@ -187,7 +203,7 @@ void SparseSketch::update(const vec_t update_idx) {
       likely_if(depth < num_dense_rows) {
         Bucket_Boruvka::update(bucket(i, depth), update_idx, checksum);
       } else {
-        number_of_sparse_buckets += update_sparse((i << 8) | depth, update_idx, checksum);
+        update_sparse((i << 8) | depth, update_idx, checksum);
 
         // based upon this update to sparse matrix, check if we need to reallocate dense region
         reallocate_if_needed();
@@ -229,8 +245,8 @@ SketchSample SparseSketch::sample() {
     }
   }
 
-  // TODO: Sample sparse region!
-  return {0, FAIL};
+  // Sample sparse region
+  return sample_sparse(first_column, first_column + cols_per_sample);
 }
 
 ExhaustiveSketchSample SparseSketch::exhaustive_sample() {
@@ -258,7 +274,11 @@ ExhaustiveSketchSample SparseSketch::exhaustive_sample() {
     }
   }
 
-  // TODO: Implement this with sparse!
+  // TODO: How do we do exhaustive sampling properly here?
+  SketchSample sample = sample_sparse(first_column, first_column + cols_per_sample);
+  if (sample.result == GOOD) {
+    ret.insert(sample.idx);
+  }
 
   unlikely_if (ret.size() == 0)
     return {ret, FAIL};
@@ -298,6 +318,8 @@ void SparseSketch::range_merge(const SparseSketch &other, size_t start_sample, s
       bucket(i, j).gamma ^= other.bucket(i, j).gamma;
     }
   }
+
+  // TODO: Handle sparse!
 }
 
 void SparseSketch::merge_raw_bucket_buffer(const Bucket *raw_buckets) {
