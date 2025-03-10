@@ -291,11 +291,14 @@ void Sketch::zero_contents() {
 }
 
 SketchSample Sketch::sample() {
+  // TODO - this is bugged
+  // inject buffer buckets no longer guarantees compactness
 
   if (sample_idx >= num_samples) {
     throw OutOfSamplesException(seed, num_samples, sample_idx);
   }
   // TODO - fix this so this isnt required
+  bucket_buffer.sort_and_compact();
   inject_buffer_buckets();
 
 
@@ -338,6 +341,9 @@ SketchSample Sketch::sample() {
 }
 
 ExhaustiveSketchSample Sketch::exhaustive_sample() {
+  // TODO - fix this so this isnt required
+  bucket_buffer.sort_and_compact();
+  inject_buffer_buckets();
   if (sample_idx >= num_samples) {
     throw OutOfSamplesException(seed, num_samples, sample_idx);
   }
@@ -367,6 +373,21 @@ ExhaustiveSketchSample Sketch::exhaustive_sample() {
     }
   }
 
+  // finally, check the deep buffer
+  for (size_t i = 0; i < bucket_buffer.size(); i++) {
+    const BufferEntry &entry = bucket_buffer[i];
+    // TODO - optimize this check. THIS IS GONNA CAUSE REALLY POOR
+    // PERFORMANCE UNTIL WE DO SOMETHING ABOUT IT
+    if (entry.col_idx >= first_column &&
+        entry.col_idx < first_column + cols_per_sample) {
+      if (Bucket_Boruvka::is_good(entry.value, checksum_seed())) {
+        // std::cout << "Found a bucket in the buffer" << std::endl;
+        assert(entry.row_idx >= bkt_per_col);
+        // return {entry.value.alpha, GOOD};
+        ret.insert(entry.value.alpha);
+      }
+    }
+  }
   unlikely_if (ret.size() == 0)
     return {ret, FAIL};
   return {ret, GOOD};

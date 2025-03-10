@@ -20,7 +20,7 @@ class SparseRecovery {
         size_t cleanup_sketch_support;
         // 1 - 1/2e. TODO - can do better. closer to 1-1/e. for the power-of-two-rounding, 
         // I'm gonna propose 0.69 (comfortably below sqrt(2) so we decrease the size every two levels)
-        static constexpr double reduction_factor = 0.82;
+        // static constexpr double reduction_factor = 0.82;
         static constexpr double reduction_factor = 0.69;
         uint64_t _checksum_seed;
         uint64_t seed;
@@ -30,10 +30,10 @@ class SparseRecovery {
         // should just be a single array, maybe with a lookup set of pointers for the start of each
         std::vector<Bucket> recovery_buckets;
         std::vector<size_t> starter_indices;        
-        Sketch cleanup_sketch;
         // TODO - see if we want to continue maintaining the deterministic bucket
         Bucket deterministic_bucket;
     public:
+        Sketch cleanup_sketch;
         SparseRecovery(size_t universe_size, size_t max_recovery_size, double cleanup_sketch_support_factor, uint64_t seed):
             // TODO - ugly constructor
         cleanup_sketch(universe_size, seed, ceil(cleanup_sketch_support_factor * log2(universe_size)) * 2, 1)
@@ -59,6 +59,7 @@ class SparseRecovery {
             auto full_storage_size = starter_indices.back();
             // starter_indices.pop_back();
             recovery_buckets.resize(full_storage_size);
+            reset();
         };
     private:
         size_t num_levels() const {
@@ -89,7 +90,6 @@ class SparseRecovery {
             vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update, checksum_seed());
             deterministic_bucket ^= {update, checksum};
             for (size_t cfr_idx=0; cfr_idx < num_levels(); cfr_idx++) {
-                auto cfr_size = get_cfr_size(cfr_idx);
                 size_t bucket_idx = get_level_placement(update, cfr_idx);
                 Bucket &bucket = get_cfr_bucket(cfr_idx, bucket_idx);
                 bucket ^= {update, checksum};
@@ -98,6 +98,7 @@ class SparseRecovery {
         }
         void reset() {
             // zero contents of the CFRs
+            deterministic_bucket = {0, 0};
             for (size_t i=0; i < recovery_buckets.size(); i++) {
                 recovery_buckets[i] = {0, 0};
             }
@@ -112,6 +113,7 @@ class SparseRecovery {
             Bucket working_det_bucket = {0, 0};
             for (size_t cfr_idx=0; cfr_idx < num_levels(); cfr_idx++) {
                 auto cfr_size = get_cfr_size(cfr_idx);
+                std::cout << "level " << cfr_idx << " size " << cfr_size << std::endl;
                 // temporarily zero out already recovvered things:
                 size_t previously_recovered = recovered_indices.size();
                 for (size_t i=0; i < previously_recovered; i++) {
@@ -152,16 +154,11 @@ class SparseRecovery {
                     return {SUCCESS, recovered_return_vals};
                 }
                 for (auto idx: sample.idxs) {
-                    // todo - checksum stuff. tihs is bad code writing but whatever, anything
-                    // to get out of writing psuedocode...
                     recovered_return_vals.push_back(idx);
-                    // todo - this is inefficient. we are recalculating the bucket hash
-                    // for literally no reason
-                    // but doing things this way is important for undoing our recovery!
-                    // otherwise, we're stuck with a bunch of extra bookkeeping 
                     this->update(idx);
                 }
             }
+            // undo the removals for everything
             for (auto idx: recovered_return_vals) {
                 this->update(idx);
             }
@@ -174,5 +171,7 @@ class SparseRecovery {
             }
             cleanup_sketch.merge(other.cleanup_sketch);
         };
-        ~SparseRecovery();
+        ~SparseRecovery() {
+
+        };
 };

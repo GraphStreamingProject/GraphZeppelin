@@ -131,6 +131,7 @@ if (BUILD_EXE)
     test/test_runner.cpp
     test/cc_alg_test.cpp
     test/sketch_test.cpp
+    test/recovery_test.cpp
     test/dsu_test.cpp
     test/util_test.cpp
     test/util/graph_verifier_test.cpp)
