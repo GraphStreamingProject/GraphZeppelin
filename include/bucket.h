@@ -17,6 +17,12 @@ struct Bucket {
     alpha ^= rhs.alpha;
     gamma ^= rhs.gamma;
   };
+  bool operator==(const Bucket &rhs) const {
+    return alpha == rhs.alpha && gamma == rhs.gamma;
+  };
+  bool operator!=(const Bucket &rhs) const {
+    return alpha != rhs.alpha || gamma != rhs.gamma;
+  };
 };
 #pragma pack(pop)
 

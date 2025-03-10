@@ -8,6 +8,7 @@ enum RecoveryResultTypes {
 };
 struct RecoveryResult {
     RecoveryResultTypes result;
+    // std::vector<Bucket> recovered_indices;
     std::vector<vec_t> recovered_indices;
 };
 
@@ -21,7 +22,7 @@ class SparseRecovery {
         // I'm gonna propose 0.69 (comfortably below sqrt(2) so we decrease the size every two levels)
         static constexpr double reduction_factor = 0.82;
         static constexpr double reduction_factor = 0.69;
-        uint64_t checksum_seed;
+        uint64_t _checksum_seed;
         uint64_t seed;
         // approx 1-1/2e. TODO - can do better. closer to 1-1/e with right
         // bounding parameters
@@ -38,7 +39,7 @@ class SparseRecovery {
         cleanup_sketch(universe_size, seed, ceil(cleanup_sketch_support_factor * log2(universe_size)) * 2, 1)
          {
             // TODO - define the seed better
-            checksum_seed = seed;
+            _checksum_seed = seed;
             seed = seed * seed + 13;
             universe_size = universe_size;
             max_recovery_size = max_recovery_size;
@@ -77,14 +78,23 @@ class SparseRecovery {
         inline uint64_t level_seed(size_t level) const {
           return seed * (2 + seed) + level * 30;
         }
-        inline size_t checksum_seed() const { return seed; }
+        inline size_t checksum_seed() const { return _checksum_seed; }
+        // where in the level this coordinate would go:
+        size_t get_level_placement(vec_t coordinate, size_t level) {
+            size_t level_size = get_cfr_size(level);
+            vec_hash_t hash = Bucket_Boruvka::get_index_hash(coordinate, level_seed(level));
+            return hash % level_size;
+        }
         void update(const vec_t update) {
-            for (size_t cfr_idx=0; cfr_idx < recovery_buckets.size(); cfr_idx++) {
-                size_t hash_index = Bucket_Boruvka::get_index_hash(update, cfr_idx * 1231) % get_cfr_size(cfr_idx);
-                Bucket_Boruvka::update(get_cfr_bucket(cfr_idx, hash_index), update, checksum_seed());
+            vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update, checksum_seed());
+            deterministic_bucket ^= {update, checksum};
+            for (size_t cfr_idx=0; cfr_idx < num_levels(); cfr_idx++) {
+                auto cfr_size = get_cfr_size(cfr_idx);
+                size_t bucket_idx = get_level_placement(update, cfr_idx);
+                Bucket &bucket = get_cfr_bucket(cfr_idx, bucket_idx);
+                bucket ^= {update, checksum};
             }
             cleanup_sketch.update(update);
-            Bucket_Boruvka::update(deterministic_bucket, update, checksum_seed());
         }
         void reset() {
             // zero contents of the CFRs
@@ -93,38 +103,58 @@ class SparseRecovery {
             }
             cleanup_sketch.zero_contents();
         };
-        // NOTE THAT THIS IS A DESTRUCTIVE OPERATION AT THE MOMENT.
+        
+
+        // THIS IS A NON_DESTRUCTIVE OPERATION
         RecoveryResult recover() {
-            std::vector<vec_t> recovered_indices;
+            std::vector<Bucket> recovered_indices;
+            std::vector<vec_t> recovered_return_vals;
+            Bucket working_det_bucket = {0, 0};
             for (size_t cfr_idx=0; cfr_idx < num_levels(); cfr_idx++) {
-                // go hunting for good buckets
                 auto cfr_size = get_cfr_size(cfr_idx);
+                // temporarily zero out already recovvered things:
+                size_t previously_recovered = recovered_indices.size();
+                for (size_t i=0; i < previously_recovered; i++) {
+                    auto location = get_level_placement(recovered_indices[i].alpha, cfr_idx);
+                    get_cfr_bucket(cfr_idx, location) ^= recovered_indices[i];
+                }
+                // go hunting for good buckets
                 for (size_t bucket_idx=0; bucket_idx < cfr_size; bucket_idx++) {
-                    // Bucket &bucket = recovery_buckets[cfr_idx][bucket_idx];
                     Bucket &bucket = get_cfr_bucket(cfr_idx, bucket_idx);
                     if (Bucket_Boruvka::is_good(bucket, checksum_seed())) {
-                        recovered_indices.push_back(bucket.alpha);
-                        // update it out of the sketch everywhere.
-                        this->update(bucket.alpha);
-
-                        // EARLY EXIT CONDITION: deterministic bucket empty
-                        if (Bucket_Boruvka::is_empty(deterministic_bucket)) {
-                            return {SUCCESS, recovered_indices};
-                        }
+                        recovered_indices.push_back(bucket);
+                        recovered_return_vals.push_back(bucket.alpha);
+                        working_det_bucket ^= bucket;
                     }
                 }
+                // unzero recovered things
+                for (size_t i=0; i < previously_recovered; i++) {
+                    auto location = get_level_placement(recovered_indices[i].alpha, cfr_idx);
+                    get_cfr_bucket(cfr_idx, location) ^= recovered_indices[i];                    
+                }
+                // EARLY EXIT CONDITION: we recovered everything according to deterministic bucket check
+                if (working_det_bucket == deterministic_bucket) {
+                    return {SUCCESS, recovered_return_vals};
+                }
                 // repeat until we cleared out all the sketches.
+            }
+            // update out of sketch
+            for (auto idx: recovered_return_vals) {
+                this->update(idx);
             }
             size_t i=0;
             for (; i < cleanup_sketch.get_num_samples(); i++) {
                 ExhaustiveSketchSample sample = cleanup_sketch.exhaustive_sample();
                 if (sample.result == ZERO) {
-                    return {SUCCESS, recovered_indices};
+                    for (auto idx: recovered_return_vals) {
+                        this->update(idx);
+                    }
+                    return {SUCCESS, recovered_return_vals};
                 }
                 for (auto idx: sample.idxs) {
                     // todo - checksum stuff. tihs is bad code writing but whatever, anything
                     // to get out of writing psuedocode...
-                    recovered_indices.push_back(idx);
+                    recovered_return_vals.push_back(idx);
                     // todo - this is inefficient. we are recalculating the bucket hash
                     // for literally no reason
                     // but doing things this way is important for undoing our recovery!
@@ -132,15 +162,10 @@ class SparseRecovery {
                     this->update(idx);
                 }
             }
-            if (i == cleanup_sketch.get_num_samples()) {
-                // we ran out of samples
-                // TODO - UNDO YOUR RECOVERY!!!
-                for (auto idx: recovered_indices) {
-                    this->update(idx);
-                }
-                recovered_indices.clear();
+            for (auto idx: recovered_return_vals) {
+                this->update(idx);
             }
-            return {FAILURE, recovered_indices};
+            return {FAILURE, recovered_return_vals};
         };
         void merge(const SparseRecovery &other) {
             assert(other.recovery_buckets.size() == recovery_buckets.size());

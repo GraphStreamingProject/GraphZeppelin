@@ -101,6 +101,7 @@ add_library(GraphZeppelin
   src/driver_configuration.cpp
   src/cc_alg_configuration.cpp
   src/sketch.cpp
+  src/recovery.cpp
   src/util.cpp)
 add_dependencies(GraphZeppelin GutterTree StreamingUtilities)
 target_link_libraries(GraphZeppelin PUBLIC xxhash GutterTree StreamingUtilities )
@@ -115,6 +116,7 @@ add_library(GraphZeppelinVerifyCC
   src/driver_configuration.cpp
   src/cc_alg_configuration.cpp
   src/sketch.cpp
+  src/recovery.cpp
   src/util.cpp
   test/util/graph_verifier.cpp)
 add_dependencies(GraphZeppelinVerifyCC GutterTree StreamingUtilities)
