@@ -102,7 +102,6 @@ void test_sketch_sample(unsigned long num_sketches,
       SampleResult ret_code = query_ret.result;
 
       if (ret_code == GOOD) {
-        //Multiple queries shouldn't happen, but if we do get here fail test
         ASSERT_LT(res_idx, vec_size) << "Sampled index out of bounds";
         if (!test_vec.get_entry(res_idx)) {
           //Undetected sample error
@@ -177,6 +176,7 @@ void test_sketch_merge(unsigned long num_sketches,
         ASSERT_LT(res_idx, vec_size) << "Sampled index out of bounds";
         if (test_vec1.get_entry(res_idx) == test_vec2.get_entry(res_idx)) {
           sample_incorrect_failures++;
+          exit(EXIT_FAILURE);
         }
       }
       else if (ret_code == ZERO) {
@@ -189,6 +189,8 @@ void test_sketch_merge(unsigned long num_sketches,
         }
         if (!vec_zero) {
           sample_incorrect_failures++;
+          std::cout << "GOT INCORRECT ZERO!" << std::endl;
+          exit(EXIT_FAILURE);
         }
       }
       else { // sketch failed
@@ -330,7 +332,7 @@ TEST(SketchTestSuite, TestSerialization) {
   file.close();
 
   auto in_file = std::fstream("./out_sketch.txt", std::ios::in | std::ios::binary);
-  Sketch reheated(vec_size, seed, in_file, 3, num_columns);
+  Sketch reheated(vec_size, seed, in_file, sketch.get_buckets(), 3, num_columns);
 
   ASSERT_EQ(sketch, reheated);
 }
@@ -455,7 +457,7 @@ TEST(SketchTestSuite, TestRawBucketUpdate) {
 
     const Bucket *data = sk1.get_readonly_bucket_ptr();
 
-    sk2.merge_raw_bucket_buffer(data);
+    sk2.merge_raw_bucket_buffer(data, sk1.get_buckets());
 
     SketchSample sample = sk2.sample();
 
@@ -468,7 +470,7 @@ TEST(SketchTestSuite, TestRawBucketUpdate) {
 
     Bucket *copy_data = new Bucket[sk1.get_buckets()];
     memcpy(copy_data, data, sk1.bucket_array_bytes());
-    sk2.merge_raw_bucket_buffer(copy_data);
+    sk2.merge_raw_bucket_buffer(copy_data, sk1.get_buckets());
 
     sk2.reset_sample_state();
     sample = sk2.sample();

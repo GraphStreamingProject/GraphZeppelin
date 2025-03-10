@@ -1,9 +1,10 @@
 #include "dense_sketch.h"
 
+#include <cassert>
 #include <cstring>
+#include <exception>
 #include <iostream>
 #include <vector>
-#include <cassert>
 
 DenseSketch::DenseSketch(vec_t vector_len, uint64_t seed, size_t _samples, size_t _cols)
     : seed(seed),
@@ -22,13 +23,17 @@ DenseSketch::DenseSketch(vec_t vector_len, uint64_t seed, size_t _samples, size_
   }
 }
 
-DenseSketch::DenseSketch(vec_t vector_len, uint64_t seed, std::istream &binary_in, size_t _samples,
-                         size_t _cols)
+DenseSketch::DenseSketch(vec_t vector_len, uint64_t seed, std::istream &binary_in,
+                         size_t num_buckets, size_t _samples, size_t _cols)
     : seed(seed),
       num_samples(_samples),
       cols_per_sample(_cols),
       num_columns(cols_per_sample * num_samples),
-      bkt_per_col(calc_bkt_per_col(vector_len)) {
+      bkt_per_col(calc_bkt_per_col(vector_len)),
+      num_buckets(num_buckets) {
+  if (num_buckets != num_columns * bkt_per_col + 1) {
+    throw std::invalid_argument("Serial Constructor: Number of buckets does not match expectation");
+  }
   num_buckets = num_columns * bkt_per_col + 1; // plus 1 for deterministic bucket
   buckets = new Bucket[num_buckets];
 
@@ -188,7 +193,11 @@ void DenseSketch::range_merge(const DenseSketch &other, size_t start_sample, siz
   // std::cout << *this << std::endl;
 }
 
-void DenseSketch::merge_raw_bucket_buffer(const Bucket *raw_buckets) {
+void DenseSketch::merge_raw_bucket_buffer(const Bucket *raw_buckets, size_t n_raw_buckets) {
+  if (n_raw_buckets != num_buckets) {
+    throw std::invalid_argument("Raw bucket buffer is not the same size as DenseSketch");
+  }
+
   for (size_t i = 0; i < num_buckets; i++) {
     buckets[i].alpha ^= raw_buckets[i].alpha;
     buckets[i].gamma ^= raw_buckets[i].gamma;

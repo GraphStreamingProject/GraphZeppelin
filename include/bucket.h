@@ -18,7 +18,7 @@ struct SparseBucket {
     return position >> 8;
   }
   inline uint16_t row() const {
-    return position & 0xFFFF;
+    return position & 0xFF;
   }
   inline void set_col(uint16_t col) {
     position = (col << 8) + row();

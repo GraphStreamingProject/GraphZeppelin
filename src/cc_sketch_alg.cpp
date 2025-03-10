@@ -53,7 +53,10 @@ CCSketchAlg::CCSketchAlg(node_id_t num_vertices, size_t seed, std::ifstream &bin
 
   for (node_id_t i = 0; i < num_vertices; ++i) {
     representatives->insert(i);
-    sketches[i] = new Sketch(sketch_vec_len, seed, binary_stream, sketch_num_samples);
+    size_t num_bkts_in_sketch;
+    binary_stream.read((char *) &num_bkts_in_sketch, sizeof(num_bkts_in_sketch));
+    sketches[i] =
+        new Sketch(sketch_vec_len, seed, binary_stream, num_bkts_in_sketch, sketch_num_samples);
   }
   binary_stream.close();
 
@@ -117,9 +120,10 @@ void CCSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
   sketches[src_vertex]->merge(delta_sketch);
 }
 
-void CCSketchAlg::apply_raw_buckets_update(node_id_t src_vertex, Bucket *raw_buckets) {
+void CCSketchAlg::apply_raw_buckets_update(node_id_t src_vertex, Bucket *raw_buckets,
+                                           size_t num_buckets) {
   std::lock_guard<std::mutex> lk(sketches[src_vertex]->mutex);
-  sketches[src_vertex]->merge_raw_bucket_buffer(raw_buckets);
+  sketches[src_vertex]->merge_raw_bucket_buffer(raw_buckets, num_buckets);
 }
 
 // Note: for performance reasons route updates through the driver instead of calling this function
@@ -617,6 +621,8 @@ void CCSketchAlg::write_binary(const std::string &filename) {
   binary_out.write((char *)&num_vertices, sizeof(num_vertices));
   binary_out.write((char *)&config._sketches_factor, sizeof(config._sketches_factor));
   for (node_id_t i = 0; i < num_vertices; ++i) {
+    size_t num_bkts_in_sketch = sketches[i]->get_buckets();
+    binary_out.write((char*) &num_bkts_in_sketch, sizeof(num_bkts_in_sketch));
     sketches[i]->serialize(binary_out);
   }
   binary_out.close();

@@ -201,8 +201,9 @@ class CCSketchAlg {
    * Specifically, the delta is in the form of a pointer to raw bucket data.
    * @param src_vertex   The vertex where the all edges originate.
    * @param raw_buckets  Pointer to the array of buckets from the delta sketch
+   * @param num_buckets  Size of raw_buckets array in number of buckets
    */
-  void apply_raw_buckets_update(node_id_t src_vertex, Bucket *raw_buckets);
+  void apply_raw_buckets_update(node_id_t src_vertex, Bucket *raw_buckets, size_t num_buckets);
 
   /**
    * The function performs a direct update to the associated sketch.

@@ -34,6 +34,11 @@ std::ostream& operator<< (std::ostream &out, const CCAlgConfiguration &conf) {
 #else
     out << " Sketching algorithm   = CameoSketch" << std::endl;
 #endif
+#ifdef L0_FULLY_DENSE
+    out << " Sketch storage        = Dense Matrix" << std::endl;
+#else
+    out << " Sketch storage        = Hybrid Matrix" << std::endl;
+#endif
 #ifdef NO_EAGER_DSU
     out << " Using Eager DSU       = False" << std::endl;
 #else

@@ -82,13 +82,14 @@ class SparseSketch {
   /**
    * Reallocates the bucket array if necessary to either grow or shrink the dense region
    */
-  void reallocate_if_needed();
+  void reallocate_if_needed(int delta);
+  void dense_realloc(size_t new_num_dense_rows);
 
   // This variable lets us know how many Buckets to allocate to make space for the SparseBuckets
   // that will be using that space
   size_t sparse_data_size = ceil(double(sparse_capacity) * sizeof(SparseBucket) / sizeof(Bucket));
 
-  void update_sparse(uint16_t pos, vec_t update_idx, vec_hash_t checksum);
+  void update_sparse(SparseBucket to_add, bool realloc_if_needed = true);
   SketchSample sample_sparse(size_t first_col, size_t end_col);
 
   inline Bucket& deterministic_bucket() {
@@ -151,11 +152,12 @@ class SparseSketch {
    * @param vector_len       Length of the vector we are sketching
    * @param seed             Random seed of the sketch
    * @param binary_in        Stream holding serialized sketch object
+   * @param num_buckets      Number of buckets in serialized sketch (dense + sparse_capacity)
    * @param num_samples      [Optional] Number of samples this sketch supports (default = 1)
    * @param cols_per_sample  [Optional] Number of sketch columns for each sample (default = 1)
    */
-  SparseSketch(vec_t vector_len, uint64_t seed, std::istream& binary_in, size_t num_samples = 1,
-         size_t cols_per_sample = default_cols_per_sample);
+  SparseSketch(vec_t vector_len, uint64_t seed, std::istream& binary_in, size_t num_buckets,
+               size_t num_samples = 1, size_t cols_per_sample = default_cols_per_sample);
 
   /**
    * SparseSketch copy constructor
@@ -206,9 +208,10 @@ class SparseSketch {
    * Perform an in-place merge function without another Sketch and instead
    * use a raw bucket memory.
    * We also allow for only a portion of the buckets to be merge at once
-   * @param raw_bucket    Raw bucket data to merge into this sketch
+   * @param raw_bucket     Raw bucket data to merge into this sketch
+   * @param n_raw_buckets  Size of raw_buckets in number of Bucket data-structures
    */
-  void merge_raw_bucket_buffer(const Bucket *raw_buckets);
+  void merge_raw_bucket_buffer(const Bucket *raw_buckets, size_t n_raw_buckets);
 
   /**
    * Zero out all the buckets of a sketch.
@@ -240,6 +243,7 @@ class SparseSketch {
   inline size_t get_columns() const { return num_columns; }
   inline size_t get_buckets() const { return num_buckets; }
   inline size_t get_num_samples() const { return num_samples; }
+  inline size_t get_num_dense_rows() const { return num_dense_rows; }
 
   static size_t calc_bkt_per_col(size_t n) { return ceil(log2(n)) + 1; }
 
