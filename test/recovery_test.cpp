@@ -66,7 +66,7 @@ TEST(RecoveryTestSuite, RecoveryFailureCondition) {
     // inserted.clear();
     // remove all but the final few elements
     // TODO - figure out the right place to put sketch clearing
-    recovery.cleanup_sketch.reset_sample_state();
+    recovery.cleanup_sketch->reset_sample_state();
     for (vec_t i = 0; i < (1 << 14) - 1027; i++) {
         recovery.update(i);
         inserted.erase(i);
@@ -76,4 +76,66 @@ TEST(RecoveryTestSuite, RecoveryFailureCondition) {
     std::unordered_set<vec_t> recovered3(result3.recovered_indices.begin(), result3.recovered_indices.end());
     ASSERT_EQ(result3.result, SUCCESS);
     ASSERT_EQ(recovered3, inserted);
+}
+
+TEST(RecoveryTestSuite, RecoveryForceSketchUse) {
+  // TODO - IRON THIS OUT
+    SparseRecovery recovery(1 << 20, 1 << 4, 1, get_seed());
+    std::unordered_set<vec_t> inserted;
+    for (vec_t i = 0; i < (1 << 4) * 2; i++) {
+        recovery.update(i);
+        inserted.insert(i);
+    }
+    auto result = recovery.recover();
+    ASSERT_EQ(result.result, SUCCESS);
+}
+
+TEST(RecoveryTestSuite, RecoveryMerge) {
+  // TODO - IRON THIS OUT
+    auto seed = get_seed();
+    SparseRecovery recovery1(1 << 20, 1 << 10, 1, seed);
+    SparseRecovery recovery2(1 << 20, 1 << 10, 1, seed);
+    for (vec_t i = 0; i < (1 << 10) * 2; i++) {
+        recovery1.update(i);
+    }
+    vec_t offset = 512;
+    for (vec_t i = 0; i < (1 << 10) * 2; i++) {
+        recovery1.update(i+512);
+    }
+    recovery1.merge(recovery2);
+    auto result = recovery1.recover();
+    ASSERT_EQ(result.result, SUCCESS);
+    ASSERT_EQ(result.recovered_indices.size(), 1 << 10);
+    for (auto idx: result.recovered_indices) {
+        ASSERT_TRUE(idx < 512 || idx >= 1024);
+    }
+}
+
+TEST(RecoveryTestSuite, RecoveryManyFailureProbability) {
+  // TODO - IRON THIS OUT
+    auto vector_size = 1 << 20;
+    auto recovery_size = 1 << 10;
+    auto num_sketches = 1 << 15;
+    double recovery_size_adjustment = 1;
+    auto seed = get_seed();
+    std::vector<SparseRecovery> recoveries;
+    for (vec_t i = 0; i < num_sketches; i++) {
+      recoveries.push_back(SparseRecovery(
+          vector_size, ceill(recovery_size * recovery_size_adjustment), 1,
+          seed));
+    }
+    for (size_t i = 0; i < num_sketches; i++) {
+        for (vec_t j = recovery_size * i; j < recovery_size * (i+1); j++) {
+            recoveries[i].update(j);
+        }
+    }
+    for (size_t i = 0; i < num_sketches; i++) {
+        auto result = recoveries[i].recover();
+        ASSERT_EQ(result.result, SUCCESS);
+        ASSERT_EQ(result.recovered_indices.size(), recovery_size);
+        for (auto idx: result.recovered_indices) {
+            ASSERT_TRUE(idx >= recovery_size * i && idx < recovery_size * (i+1));
+        }
+    }
+    
 }

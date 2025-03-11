@@ -33,11 +33,12 @@ class SparseRecovery {
         // TODO - see if we want to continue maintaining the deterministic bucket
         Bucket deterministic_bucket;
     public:
-        Sketch cleanup_sketch;
-        SparseRecovery(size_t universe_size, size_t max_recovery_size, double cleanup_sketch_support_factor, uint64_t seed):
+        Sketch *cleanup_sketch;
+        SparseRecovery(size_t universe_size, size_t max_recovery_size, double cleanup_sketch_support_factor, uint64_t seed)
             // TODO - ugly constructor
-        cleanup_sketch(universe_size, seed, ceil(cleanup_sketch_support_factor * log2(universe_size)) * 2, 1)
+        // cleanup_sketch(universe_size, seed, ceil(cleanup_sketch_support_factor * log2(universe_size)) * 2, 1)
          {
+             cleanup_sketch = new Sketch(universe_size, seed, ceil(cleanup_sketch_support_factor * log2(universe_size)) * 2, 1);
             // TODO - define the seed better
             _checksum_seed = seed;
             seed = seed * seed + 13;
@@ -94,7 +95,7 @@ class SparseRecovery {
                 Bucket &bucket = get_cfr_bucket(cfr_idx, bucket_idx);
                 bucket ^= {update, checksum};
             }
-            cleanup_sketch.update(update);
+            cleanup_sketch->update(update);
         }
         void reset() {
             // zero contents of the CFRs
@@ -102,18 +103,19 @@ class SparseRecovery {
             for (size_t i=0; i < recovery_buckets.size(); i++) {
                 recovery_buckets[i] = {0, 0};
             }
-            cleanup_sketch.zero_contents();
+            cleanup_sketch->zero_contents();
         };
         
 
         // THIS IS A NON_DESTRUCTIVE OPERATION
         RecoveryResult recover() {
+            // TODO - DYNAMIc allocation grossness
             std::vector<Bucket> recovered_indices;
             std::vector<vec_t> recovered_return_vals;
             Bucket working_det_bucket = {0, 0};
             for (size_t cfr_idx=0; cfr_idx < num_levels(); cfr_idx++) {
                 auto cfr_size = get_cfr_size(cfr_idx);
-                std::cout << "level " << cfr_idx << " size " << cfr_size << std::endl;
+                // std::cout << "level " << cfr_idx << " size " << cfr_size << std::endl;
                 // temporarily zero out already recovvered things:
                 size_t previously_recovered = recovered_indices.size();
                 for (size_t i=0; i < previously_recovered; i++) {
@@ -145,8 +147,8 @@ class SparseRecovery {
                 this->update(idx);
             }
             size_t i=0;
-            for (; i < cleanup_sketch.get_num_samples(); i++) {
-                ExhaustiveSketchSample sample = cleanup_sketch.exhaustive_sample();
+            for (; i < cleanup_sketch->get_num_samples(); i++) {
+                ExhaustiveSketchSample sample = cleanup_sketch->exhaustive_sample();
                 if (sample.result == ZERO) {
                     for (auto idx: recovered_return_vals) {
                         this->update(idx);
@@ -169,7 +171,7 @@ class SparseRecovery {
             for (size_t i=0; i < recovery_buckets.size(); i++) {
                 recovery_buckets[i] ^= other.recovery_buckets[i];
             }
-            cleanup_sketch.merge(other.cleanup_sketch);
+            cleanup_sketch->merge(*other.cleanup_sketch);
         };
         ~SparseRecovery() {
 
