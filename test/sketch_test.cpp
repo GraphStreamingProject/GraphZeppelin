@@ -220,6 +220,7 @@ TEST(SketchTestSuite, TestSketchRangeMerge) {
   size_t seed = get_seed();
   Sketch skt1(2048, seed, 10, 3);
   Sketch skt2(2048, seed, 10, 3);
+  Sketch temp_skt(2048, seed, 10, 3);
 
   for (vec_t i = 0; i < 1024; i++) {
     skt1.update(i);
@@ -230,23 +231,31 @@ TEST(SketchTestSuite, TestSketchRangeMerge) {
   vec_t good_2 = 1024;
   vec_t good_3 = good_2 + 255;
 
+  temp_skt.merge(skt1);
+
   skt1.range_merge(skt2, 0, 1);
   SketchSample sample = skt1.sample();
   if (sample.result == GOOD) {
     ASSERT_TRUE(sample.idx <= good_1 || (sample.idx >= good_2 && sample.idx <= good_3));
   }
+  skt1.zero_contents();
+  skt1.merge(temp_skt);
   
   skt1.range_merge(skt2, 1, 1);
   sample = skt1.sample();
   if (sample.result == GOOD) {
     ASSERT_TRUE(sample.idx <= good_1 || (sample.idx >= good_2 && sample.idx <= good_3));
   }
+  skt1.zero_contents();
+  skt1.merge(temp_skt);
   
   skt1.range_merge(skt2, 2, 1);
   sample = skt1.sample();
   if (sample.result == GOOD) {
     ASSERT_TRUE(sample.idx <= good_1 || (sample.idx >= good_2 && sample.idx <= good_3));
   }
+  skt1.zero_contents();
+  skt1.merge(temp_skt);
   
   skt1.range_merge(skt2, 3, 1);
   sample = skt1.sample();

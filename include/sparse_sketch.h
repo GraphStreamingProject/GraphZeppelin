@@ -13,6 +13,14 @@
 #include "bucket.h"
 #include "sketch_types.h"
 
+#pragma pack(push,1)
+struct SparseBucket {
+  uint8_t next; // index of next sparse bucket in this column
+  uint8_t row;  // row of sparse bucket
+  Bucket bkt;   // actual bucket content
+};
+#pragma pack(pop)
+
 // TODO: Do we want to use row major or column major order?
 //       So the advantage of row-major is that we can update faster. Most updates will only touch
 //       first few rows of data-structure. However, could slow down queries. (Although most query
@@ -20,51 +28,30 @@
 //       if column-major then the column we are merging is contig, if not, then not.
 // A: Keep column-major for the moment, performance evaluation later.
 
-
-// TODO: How do we want to handle raw_bucket_merge() and get_readonly_bucket_ptr()?
-//       These functions are nice for performance because we can skip serialization but aren't
-//       strictly necessary.
-// A: Make function to get size in bytes of bucket data and have the 'hash table' be contig with 
-//    the bucket data. This way we can still use these functions.
-
-
-// TODO: It would be nice to preallocate the structure if we know how big its probably going to be.
-//       This would be helpful for delta sketches for example. 
-// A: Yeah do this
-
-
-// TODO: What are we doing with the num_buckets variable? Could be nice to just be the size of 
-//       buckets array. Could also be upperbound on the size.
-// A: Need two variables. Both the current number of buckets (rows) allocated AND the maximum.
-
-// A strategy that could work well would be to allocate a chunk of memory some of which is given to
-// the dense region of the sketch and 3 * sizeof(uint64_t) are given to sparse region.
-// 3 -> position, alpha, gamma (could save a little more space by using 16 bits for position)
-
-/* Memory Allocation of a Sketch. Contiguous
- _________________________________________________________________________________________
-|    Dense                                                 |    Sparse                    |
-|    Sketch                                                |    Bucket                    |
-|    Buckets                                               |    Region (hash-table)       |
-|    log n * log z buckets                                 |    clog n buckets            |
-|__________________________________________________________|______________________________|
+/* Memory Allocation of a SparseSketch. Contiguous (only roughly to scale). 
+   Where z is number of non-zero elements in vector we are sketching.
+ _________________________________________________________________________________________________
+| Dense                                           | Sparse                     | Linked List      |
+| Bucket                                          | Bucket                     | Metadata         |
+| Region                                          | Region                     | for Sparse bkts  |
+| log n * log z buckets                           | clog n buckets             | clogn/16 buckets |
+|_________________________________________________|____________________________|__________________|
 */
 
 /**
- * Sketch for graph processing, either CubeSketch or CameoSketch.
+ * SparseSketch for graph processing
  * Sub-linear representation of a vector.
  */
 class SparseSketch {
  private:
-  const uint64_t seed;     // seed for hash functions
-  size_t num_samples;      // number of samples we can perform
-  size_t cols_per_sample;  // number of columns to use on each sample
-  size_t num_columns;      // Total number of columns. (product of above 2)
-  size_t bkt_per_col;      // maximum number of buckets per column (max number of rows)
-  size_t num_buckets;      // number of total buckets 
-                           // (either product of above two or col * dense_rows + sparse_capacity)
+  const uint64_t seed;           // seed for hash functions
+  const size_t num_samples;      // number of samples we can perform
+  const size_t cols_per_sample;  // number of columns to use on each sample
+  const size_t num_columns;      // Total number of columns. (product of above 2)
+  const size_t bkt_per_col;      // maximum number of buckets per column (max number of rows)
 
-  size_t sample_idx = 0;   // number of samples performed so far
+  size_t num_buckets;            // number of total buckets (col * dense_rows + sparse_capacity)
+  size_t sample_idx = 0;         // number of samples performed so far
 
   // Allocated buckets
   Bucket* buckets;
@@ -74,8 +61,9 @@ class SparseSketch {
 
   // Variables for sparse representation of lower levels of bucket Matrix
   // TODO: evaluate implications of this constant
-  static constexpr double sparse_bucket_constant = 3;            // constant factor c (see above)
+  static constexpr double sparse_bucket_constant = 3;            // constant factor c (see diagram)
   SparseBucket* sparse_buckets;                                  // a pointer into the buckets array
+  uint8_t *ll_metadata;                                          // pointer to heads of column LLs
   size_t number_of_sparse_buckets = 0;                           // cur number of sparse buckets
   size_t sparse_capacity = sparse_bucket_constant * num_columns; // max number of sparse buckets
 
@@ -85,11 +73,12 @@ class SparseSketch {
   void reallocate_if_needed(int delta);
   void dense_realloc(size_t new_num_dense_rows);
 
-  // This variable lets us know how many Buckets to allocate to make space for the SparseBuckets
-  // that will be using that space
+  // These variables let us know how many Buckets to allocate to make space for the SparseBuckets
+  // and the LL metadata that will use that space
   size_t sparse_data_size = ceil(double(sparse_capacity) * sizeof(SparseBucket) / sizeof(Bucket));
+  size_t ll_metadata_size = ceil((double(num_columns) + 1) * sizeof(uint8_t) / sizeof(Bucket));
 
-  void update_sparse(SparseBucket to_add, bool realloc_if_needed = true);
+  void update_sparse(uint8_t col, SparseBucket to_add, bool realloc_if_needed = true);
   SketchSample sample_sparse(size_t first_col, size_t end_col);
 
   inline Bucket& deterministic_bucket() {
@@ -111,6 +100,23 @@ class SparseSketch {
   inline const Bucket& bucket(size_t col, size_t row) const {
     assert(row < num_dense_rows);
     return buckets[position_func(col, row, num_dense_rows)];
+  }
+
+  size_t calc_num_buckets(size_t new_num_dense_rows) {
+    return num_columns * new_num_dense_rows + sparse_data_size + ll_metadata_size + 1;
+  }
+
+  size_t calc_sparse_index(size_t rows) {
+    return num_columns * rows + 1;
+  }
+  
+  size_t calc_metadata_index(size_t rows) {
+    return num_columns * rows + sparse_data_size + 1;
+  }
+
+  void upd_sparse_ptrs() {
+    sparse_buckets = (SparseBucket *) &buckets[calc_sparse_index(num_dense_rows)];
+    ll_metadata = (uint8_t *) &buckets[calc_metadata_index(num_dense_rows)];
   }
 
  public:

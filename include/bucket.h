@@ -9,24 +9,6 @@ struct Bucket {
   vec_t alpha;
   vec_hash_t gamma;
 };
-struct SparseBucket {
-  uint16_t position; // (col << 8) | row
-  Bucket bkt;
-
-  // TODO: Use these functions and also maybe optimize
-  inline uint16_t col() const {
-    return position >> 8;
-  }
-  inline uint16_t row() const {
-    return position & 0xFF;
-  }
-  inline void set_col(uint16_t col) {
-    position = (col << 8) + row();
-  }
-  inline void set_row(uint16_t row) {
-    position = (col() << 8) + row;
-  }
-};
 #pragma pack(pop)
 
 namespace Bucket_Boruvka {
