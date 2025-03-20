@@ -56,7 +56,7 @@ class SparseSketch {
   // Allocated buckets
   Bucket* buckets;
 
-  static constexpr size_t min_num_dense_rows = 4;
+  static constexpr size_t min_num_dense_rows = 5;
   size_t num_dense_rows = min_num_dense_rows;
 
   // Variables for sparse representation of lower levels of bucket Matrix
@@ -80,6 +80,47 @@ class SparseSketch {
 
   void update_sparse(uint8_t col, SparseBucket to_add, bool realloc_if_needed = true);
   SketchSample sample_sparse(size_t first_col, size_t end_col);
+
+  inline uint8_t remove_ll_head(size_t col) {
+    uint8_t temp = ll_metadata[col];
+    ll_metadata[col] = sparse_buckets[ll_metadata[col]].next;
+    return temp;
+  }
+  inline uint8_t claim_free_bucket() {
+    assert(ll_metadata[num_columns] != uint8_t(-1));
+    return remove_ll_head(num_columns);
+  }
+  inline void insert_to_ll_head(size_t col, uint8_t add_idx) {
+    sparse_buckets[add_idx].next = ll_metadata[col];
+    ll_metadata[col] = add_idx;
+  }
+  inline void free_bucket(uint8_t bkt_idx) {
+    sparse_buckets[bkt_idx].row = 0;
+    sparse_buckets[bkt_idx].bkt = {0, 0};
+    insert_to_ll_head(num_columns, bkt_idx);
+  }
+  inline void insert_to_ll(uint8_t add_idx, SparseBucket &prev) {
+    sparse_buckets[add_idx].next = prev.next;
+    prev.next = add_idx;
+  }
+  inline void remove_from_ll(SparseBucket& bkt_to_remove, SparseBucket &prev) {
+    prev.next = bkt_to_remove.next;
+  }
+  inline bool merge_sparse_bkt(uint8_t our_idx, SparseBucket& oth, uint8_t prev_idx, size_t col) {
+    SparseBucket &ours = sparse_buckets[our_idx];
+    ours.bkt.alpha ^= oth.bkt.alpha;
+    ours.bkt.gamma ^= oth.bkt.gamma;
+    if (Bucket_Boruvka::is_empty(ours.bkt)) {
+      if (prev_idx == uint8_t(-1)) 
+        remove_ll_head(col);
+      else 
+        remove_from_ll(ours, sparse_buckets[prev_idx]);
+      
+      free_bucket(our_idx);
+      return true;
+    }
+    return false;
+  }
 
   inline Bucket& deterministic_bucket() {
     return buckets[0];
@@ -118,6 +159,11 @@ class SparseSketch {
     sparse_buckets = (SparseBucket *) &buckets[calc_sparse_index(num_dense_rows)];
     ll_metadata = (uint8_t *) &buckets[calc_metadata_index(num_dense_rows)];
   }
+
+  // given another SparseSketch column, merge it into ours
+  void merge_sparse_column(SparseBucket *oth_sparse_buckets, uint8_t *oth_ll_metadata, size_t col);
+
+  void validate();
 
  public:
   /**

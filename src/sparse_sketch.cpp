@@ -84,6 +84,8 @@ void SparseSketch::dense_realloc(size_t new_num_dense_rows) {
     throw std::runtime_error("new_num_dense_rows too small!");
   }
 
+  // std::cerr << *this << std::endl;
+
   if (new_num_dense_rows < num_dense_rows) {
     // std::cerr << "Shrinking to " << new_num_dense_rows << " from " << old_rows << std::endl;
     // shrink dense region
@@ -92,10 +94,11 @@ void SparseSketch::dense_realloc(size_t new_num_dense_rows) {
       for (size_t r = new_num_dense_rows; r < old_rows; r++) {
         Bucket bkt = bucket(c, r);
         if (!Bucket_Boruvka::is_empty(bkt)) {
-          SparseBucket new_sparse;
-          new_sparse.row = r;
-          new_sparse.bkt = bkt;
-          update_sparse(c, new_sparse, false);
+          uint8_t free_idx = claim_free_bucket();
+          sparse_buckets[free_idx].row = r;
+          sparse_buckets[free_idx].bkt = bkt;
+          insert_to_ll_head(c, free_idx);
+          number_of_sparse_buckets += 1;
         }
       }
     }
@@ -139,21 +142,19 @@ void SparseSketch::dense_realloc(size_t new_num_dense_rows) {
     for (size_t c = 0; c < num_columns; c++) {
       while (ll_metadata[c] != uint8_t(-1) && sparse_buckets[ll_metadata[c]].row < num_dense_rows) {
         // remove this bucket from column ll
-        uint8_t idx = ll_metadata[c];
-        ll_metadata[c] = sparse_buckets[ll_metadata[c]].next;
+        uint8_t idx = remove_ll_head(c);
         number_of_sparse_buckets -= 1;
 
         // add this bucket to dense region
         bucket(c, sparse_buckets[idx].row) = sparse_buckets[idx].bkt;
 
         // add this sparse_bucket to free list
-        sparse_buckets[idx].bkt = {0, 0};
-        sparse_buckets[idx].row = 0;
-        sparse_buckets[idx].next = ll_metadata[num_columns];
-        ll_metadata[num_columns] = idx;
+        free_bucket(idx);
       }
     }
   }
+
+  // std::cerr << *this << std::endl;
 
   // 4. Clean up
   delete[] old_buckets;
@@ -187,24 +188,12 @@ void SparseSketch::update_sparse(uint8_t col, SparseBucket to_add, bool realloc_
   uint8_t prev = uint8_t(-1);
   while (next_ptr != uint8_t(-1)) {
     if (sparse_buckets[next_ptr].row == to_add.row) {
-      sparse_buckets[next_ptr].bkt.alpha ^= to_add.bkt.alpha;
-      sparse_buckets[next_ptr].bkt.gamma ^= to_add.bkt.gamma;
-      if (Bucket_Boruvka::is_empty(sparse_buckets[next_ptr].bkt)) {
-        // remove this bucket from column list
-        if (prev == uint8_t(-1)) {
-          ll_metadata[col] = sparse_buckets[next_ptr].next;
-        } else {
-          sparse_buckets[prev].next = sparse_buckets[next_ptr].next;
-        }
+      bool removed = merge_sparse_bkt(next_ptr, to_add, prev, col);
+      if (removed) {
         number_of_sparse_buckets -= 1;
-
-        // add this bucket to free list
-        sparse_buckets[next_ptr].next = ll_metadata[num_columns];
-        ll_metadata[num_columns] = next_ptr;
-
         if (realloc_if_needed) reallocate_if_needed(-1);
       }
-      return; // we've done it!
+      return;
     } else if (sparse_buckets[next_ptr].row > to_add.row) {
       break;
     }
@@ -213,27 +202,22 @@ void SparseSketch::update_sparse(uint8_t col, SparseBucket to_add, bool realloc_
   }
 
   // pull a bucket off the free list and set it equal to to_add
-  uint8_t free_bucket = ll_metadata[num_columns];
+  uint8_t free_bucket = claim_free_bucket();
   // std::cerr << "free bucket = " << size_t(free_bucket) << std::endl;
   // std::cerr << "next bucket = " << size_t(next_ptr) << std::endl;
-  if (free_bucket == uint8_t(-1)) {
-    throw std::runtime_error("Found invalid bucket index in LL");
-  }
-  ll_metadata[num_columns] = sparse_buckets[free_bucket].next;
   // std::cerr << "free head = " << size_t(ll_metadata[num_columns]) << std::endl;
 
-  // update buffer
+  // update bucket
   sparse_buckets[free_bucket] = to_add;
-  sparse_buckets[free_bucket].next = next_ptr;
   number_of_sparse_buckets += 1;
   // std::cerr << "new bucket " << size_t(sparse_buckets[free_bucket].row) << " n = " << size_t(sparse_buckets[free_bucket].next) << std::endl;
 
   // update column ll
   if (prev == uint8_t(-1)) {
-    ll_metadata[col] = free_bucket;
+    insert_to_ll_head(col, free_bucket);
     // std::cerr << "Set column head to new bucket " << size_t(ll_metadata[col]) << std::endl;
   } else {
-    sparse_buckets[prev].next = free_bucket;
+    insert_to_ll(free_bucket, sparse_buckets[prev]);
     // std::cerr << "Placed new bucket in column " << size_t(prev) << "->" << size_t(sparse_buckets[prev].next) << "->" << size_t(sparse_buckets[free_bucket].next) << std::endl;
   }
 
@@ -277,13 +261,14 @@ void SparseSketch::update(const vec_t update_idx) {
       }
     }
   }
+
+  validate();
 }
 
 // TODO: Switch the L0_SAMPLING flag to instead affect query procedure. 
 // (Only use deepest bucket. We don't need the alternate update procedure in the code anymore.)
 
 void SparseSketch::zero_contents() {
-  // TODO: Should we also set the size of this bucket back to an initial state?
   for (size_t i = 0; i < num_buckets; i++) {
     buckets[i].alpha = 0;
     buckets[i].gamma = 0;
@@ -304,6 +289,8 @@ void SparseSketch::zero_contents() {
   
   reset_sample_state();
   number_of_sparse_buckets = 0;
+  // if (num_dense_rows > min_num_dense_rows + 4)
+  //   dense_realloc(min_num_dense_rows);
 }
 
 SketchSample SparseSketch::sample() {
@@ -354,7 +341,7 @@ ExhaustiveSketchSample SparseSketch::exhaustive_sample() {
   if (sample_idx >= num_samples) {
     throw OutOfSamplesException(seed, num_samples, sample_idx);
   }
-  std::unordered_set<vec_t> ret;
+  std::vector<vec_t> ret;
 
   size_t idx = sample_idx++;
   size_t first_column = idx * cols_per_sample;
@@ -363,14 +350,14 @@ ExhaustiveSketchSample SparseSketch::exhaustive_sample() {
     return {ret, ZERO}; // the "first" bucket is deterministic so if zero then no edges to return
 
   unlikely_if (Bucket_Boruvka::is_good(deterministic_bucket(), checksum_seed())) {
-    ret.insert(deterministic_bucket().alpha);
+    ret.push_back(deterministic_bucket().alpha);
     return {ret, GOOD};
   }
 
   for (size_t c = 0; c < cols_per_sample; ++c) {
     for (size_t r = 0; r < num_dense_rows; ++r) {
       unlikely_if (Bucket_Boruvka::is_good(bucket(c + first_column, r), checksum_seed())) {
-        ret.insert(bucket(c + first_column, r).alpha);
+        ret.push_back(bucket(c + first_column, r).alpha);
       }
     }
   }
@@ -378,12 +365,150 @@ ExhaustiveSketchSample SparseSketch::exhaustive_sample() {
   // TODO: How do we do exhaustive sampling properly here?
   SketchSample sample = sample_sparse(first_column, first_column + cols_per_sample);
   if (sample.result == GOOD) {
-    ret.insert(sample.idx);
+    ret.push_back(sample.idx);
   }
 
   unlikely_if (ret.size() == 0)
     return {ret, FAIL};
   return {ret, GOOD};
+}
+
+void SparseSketch::merge_sparse_column(SparseBucket *oth_sparse_buckets, uint8_t *oth_ll_metadata,
+                                       size_t col) {
+  // std::cerr << "Merging sparse column: " << col << std::endl;
+
+  // std::cerr << "Our column" << std::endl;
+  // uint8_t idx = ll_metadata[col];
+  // while (idx != uint8_t(-1)) {
+  //   bool good = Bucket_Boruvka::is_good(sparse_buckets[idx].bkt, checksum_seed());
+  //   std::cerr << "i: " << size_t(idx) << " n: " << size_t(sparse_buckets[idx].next) << " r:"
+  //      << size_t(sparse_buckets[idx].row) << " := a:" << sparse_buckets[idx].bkt.alpha
+  //      << " c:" << sparse_buckets[idx].bkt.gamma << (good ? " good" : " bad") << std::endl;
+  //   idx = sparse_buckets[idx].next;
+  // }
+
+  // std::cerr << "Oth column" << std::endl;
+  // idx = oth_ll_metadata[col];
+  // while (idx != uint8_t(-1)) {
+  //   bool good = Bucket_Boruvka::is_good(oth_sparse_buckets[idx].bkt, checksum_seed());
+  //   std::cerr << "i: " << size_t(idx) << " n: " << size_t(oth_sparse_buckets[idx].next) << " r:"
+  //      << size_t(oth_sparse_buckets[idx].row) << " := a:" << oth_sparse_buckets[idx].bkt.alpha
+  //      << " c:" << oth_sparse_buckets[idx].bkt.gamma << (good ? " good" : " bad") << std::endl;
+  //   idx = oth_sparse_buckets[idx].next;
+  // }
+
+
+  uint8_t oth_idx = oth_ll_metadata[col];
+  uint8_t our_idx = ll_metadata[col];
+  uint8_t prev = uint8_t(-1);
+
+  // merge column until one runs out
+  while (oth_idx != uint8_t(-1) && our_idx != uint8_t(-1)) {
+    SparseBucket& oth_sparse = oth_sparse_buckets[oth_idx];
+    SparseBucket& our_sparse = sparse_buckets[our_idx];
+
+    if (oth_sparse.row < num_dense_rows) {
+      // just merge into dense!
+      bucket(col, oth_sparse.row).alpha ^= oth_sparse.bkt.alpha;
+      bucket(col, oth_sparse.row).gamma ^= oth_sparse.bkt.gamma;
+      oth_idx = oth_sparse.next;
+      continue;
+    }
+
+    if (oth_sparse.row > our_sparse.row) {
+      // skip our bucket, sparse doesn't have anything to match it
+      prev = our_idx;
+      our_idx = our_sparse.next;
+    } else if (oth_sparse.row < our_sparse.row) {
+      // oth has a bucket we don't have, insert it
+      uint8_t free_bucket = claim_free_bucket();
+      // std::cerr << "ours = " << size_t(our_idx) << " free = " << size_t(free_bucket) << std::endl;
+
+      sparse_buckets[free_bucket] = oth_sparse;
+      if (prev == uint8_t(-1)) {
+        insert_to_ll_head(col, free_bucket);
+      } else {
+        insert_to_ll(free_bucket, sparse_buckets[prev]);
+      }
+      number_of_sparse_buckets += 1;
+      reallocate_if_needed(1);
+      oth_idx = oth_sparse.next;
+      prev = free_bucket;
+      if (ll_metadata[col] == uint8_t(-1) || ll_metadata[col] == our_idx) prev = uint8_t(-1);
+    } else {
+      // they are equal, merge them!
+      uint8_t our_next = our_sparse.next;
+      uint8_t oth_next = oth_sparse.next;
+      bool removed = merge_sparse_bkt(our_idx, oth_sparse, prev, col);
+      if (removed) {
+        number_of_sparse_buckets -= 1;
+        reallocate_if_needed(-1);
+      } else {
+        prev = our_idx;
+      }
+      oth_idx = oth_next;
+      our_idx = our_next;
+    }
+  }
+
+  // if there's more in the other column, merge that stuff in
+  while (oth_idx != uint8_t(-1)) {
+    SparseBucket& oth_sparse = oth_sparse_buckets[oth_idx];
+    uint8_t free_bucket = claim_free_bucket();
+    sparse_buckets[free_bucket] = oth_sparse;
+    if (prev == uint8_t(-1)) {
+      insert_to_ll_head(col, free_bucket);
+    } else {
+      insert_to_ll(free_bucket, sparse_buckets[prev]);
+    }
+    number_of_sparse_buckets += 1;
+    reallocate_if_needed(1); // TODO: There could be an edge case where the sparse bucket we're looking at becomes dense
+    prev = free_bucket;
+    if (ll_metadata[col] == uint8_t(-1)) prev = uint8_t(-1);
+    oth_idx = oth_sparse.next;
+  }
+
+  validate();
+}
+
+void SparseSketch::validate() {
+  size_t num_alloced = 0;
+  for (size_t c = 0; c < num_columns; c++) {
+    uint8_t idx = ll_metadata[c];
+    while (idx != uint8_t(-1)) {
+      if (Bucket_Boruvka::is_empty(sparse_buckets[idx].bkt)) {
+        std::cerr << "ERROR: Empty bucket found in column " << c << std::endl;
+        std::cerr << *this << std::endl;
+        assert(false);
+      } else {
+        num_alloced += 1;
+      }
+      idx = sparse_buckets[idx].next;
+    }
+  }
+  size_t num_free = 0;
+  uint8_t idx = ll_metadata[num_columns];
+  while (idx != uint8_t(-1)) {
+    if (!Bucket_Boruvka::is_empty(sparse_buckets[idx].bkt)) {
+      std::cerr << "ERROR: Non-empty bucket found in free list!" << std::endl;
+      std::cerr << *this << std::endl;
+      assert(false);
+    } else {
+      num_free += 1;
+    }
+    idx = sparse_buckets[idx].next;
+  }
+
+  if (num_alloced != number_of_sparse_buckets) {
+    std::cerr << "ERROR: number of sparse buckets does not match expectation!" << std::endl;
+    std::cerr << *this << std::endl;
+    assert(false);
+  }
+  if (num_free != sparse_capacity - number_of_sparse_buckets) {
+    std::cerr << "ERROR; number of free buckets does not match expectation!" << std::endl;
+    std::cerr << *this << std::endl;
+    assert(num_free == sparse_capacity - number_of_sparse_buckets);
+  }
 }
 
 void SparseSketch::merge(const SparseSketch &other) {
@@ -407,6 +532,8 @@ void SparseSketch::merge(const SparseSketch &other) {
         SparseBucket sparse_bkt;
         sparse_bkt.row = r;
         sparse_bkt.bkt = other.bucket(c, r);
+
+        // TODO: This could be made a push-front
         update_sparse(c, sparse_bkt);
       }
     }
@@ -414,20 +541,7 @@ void SparseSketch::merge(const SparseSketch &other) {
 
   // Merge all sparse buckets from other sketch into this one
   for (size_t c = 0; c < num_columns; c++) {
-    uint8_t this_idx = ll_metadata[c];
-    uint8_t oth_idx = other.ll_metadata[c];
-
-    while (oth_idx != uint8_t(-1)) {
-      if (other.sparse_buckets[oth_idx].row < num_dense_rows) {
-        auto &bkt = bucket(c, other.sparse_buckets[oth_idx].row);
-        bkt.alpha ^= other.sparse_buckets[oth_idx].bkt.alpha;
-        bkt.gamma ^= other.sparse_buckets[oth_idx].bkt.gamma;
-      } else {
-        // TODO: This can be made faster by utilizing this_idx and performing a merge operation
-        update_sparse(c, other.sparse_buckets[oth_idx]);
-      }
-      oth_idx = other.sparse_buckets[oth_idx].next;
-    }
+    merge_sparse_column(other.sparse_buckets, other.ll_metadata, c);
   }
 }
 
@@ -580,6 +694,20 @@ std::ostream &operator<<(std::ostream &os, const SparseSketch &sketch) {
       idx = sketch.sparse_buckets[idx].next;
     }
   }
+  os << "Free Buckets" << std::endl;
+  uint8_t idx = sketch.ll_metadata[sketch.num_columns];
+  while (idx != uint8_t(-1)) {
+    bool good = Bucket_Boruvka::is_good(sparse_buckets[idx].bkt, sketch.checksum_seed());
+    os << "i: " << size_t(idx) << " n: " << size_t(sparse_buckets[idx].next) << " r:"
+       << size_t(sparse_buckets[idx].row) << " := a:" << sparse_buckets[idx].bkt.alpha
+       << " c:" << sparse_buckets[idx].bkt.gamma << (good ? " good" : " bad") << std::endl;
+    if (idx == sketch.sparse_buckets[idx].next) {
+      os << "LL error!" << std::endl;
+      return os;
+    }
+    idx = sketch.sparse_buckets[idx].next;
+  }
+
   os << std::endl;
   return os;
 }

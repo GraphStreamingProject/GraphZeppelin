@@ -1,4 +1,9 @@
 #pragma once
+
+#include <exception>
+#include <vector>
+
+#include "types.h"
 // enum SerialType {
 //   FULL,
 //   RANGE,
@@ -17,19 +22,18 @@ struct SketchSample {
 };
 
 struct ExhaustiveSketchSample {
-  std::unordered_set<vec_t> idxs;
+  std::vector<vec_t> idxs;
   SampleResult result;
 };
 
 class OutOfSamplesException : public std::exception {
  private:
   std::string err_msg;
+
  public:
   OutOfSamplesException(size_t seed, size_t num_samples, size_t sample_idx)
       : err_msg("This sketch (seed=" + std::to_string(seed) +
                 ", max samples=" + std::to_string(num_samples) +
                 ") cannot be sampled more times (cur idx=" + std::to_string(sample_idx) + ")!") {}
-  virtual const char* what() const throw() {
-    return err_msg.c_str();
-  }
+  virtual const char* what() const throw() { return err_msg.c_str(); }
 };

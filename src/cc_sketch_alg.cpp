@@ -466,7 +466,7 @@ inline void CCSketchAlg::create_merge_instructions(std::vector<MergeInstr> &merg
 }
 
 void CCSketchAlg::boruvka_emulation() {
-  // auto start = std::chrono::steady_clock::now();
+  auto start = std::chrono::steady_clock::now();
   update_locked = true;
 
   cc_alg_start = std::chrono::steady_clock::now();
@@ -486,27 +486,27 @@ void CCSketchAlg::boruvka_emulation() {
   }
   size_t round_num = 0;
   bool modified = true;
-  // std::cout << std::endl;
-  // std::cout << "  pre boruvka processing = "
-  //             << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
-  //             << std::endl;
+  std::cout << std::endl;
+  std::cout << "  pre boruvka processing = "
+              << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
+              << std::endl;
 
   while (true) {
-    // std::cout << "   Round: " << round_num << std::endl;
-    // start = std::chrono::steady_clock::now();
+    std::cout << "   Round: " << round_num << std::endl;
+    start = std::chrono::steady_clock::now();
     modified = perform_boruvka_round(round_num, merge_instr, global_merges);
-    // std::cout << "     perform_boruvka_round = "
-    //           << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
-    //           << std::endl;
+    std::cout << "     perform_boruvka_round = "
+              << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
+              << std::endl;
 
     if (!modified) break;
 
     // calculate updated merge instructions for next round
-    // start = std::chrono::steady_clock::now();
+    start = std::chrono::steady_clock::now();
     create_merge_instructions(merge_instr);
-    // std::cout << "     create_merge_instructions = "
-    //           << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
-    //           << std::endl;
+    std::cout << "     create_merge_instructions = "
+              << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
+              << std::endl;
     ++round_num;
   }
   last_query_rounds = round_num;
@@ -534,11 +534,11 @@ ConnectedComponents CCSketchAlg::connected_components() {
     bool except = false;
     std::exception_ptr err;
     try {
-      // auto start = std::chrono::steady_clock::now();
+      auto start = std::chrono::steady_clock::now();
       boruvka_emulation();
-      // std::cout << " boruvka's algorithm = "
-      //         << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
-      //         << std::endl;
+      std::cout << " boruvka's algorithm = "
+              << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
+              << std::endl;
     } catch (...) {
       except = true;
       err = std::current_exception();

@@ -124,7 +124,7 @@ ExhaustiveSketchSample DenseSketch::exhaustive_sample() {
   if (sample_idx >= num_samples) {
     throw OutOfSamplesException(seed, num_samples, sample_idx);
   }
-  std::unordered_set<vec_t> ret;
+  std::vector<vec_t> ret;
 
   size_t idx = sample_idx++;
   size_t first_column = idx * cols_per_sample;
@@ -133,14 +133,14 @@ ExhaustiveSketchSample DenseSketch::exhaustive_sample() {
     return {ret, ZERO}; // the "first" bucket is deterministic so if zero then no edges to return
 
   unlikely_if (Bucket_Boruvka::is_good(deterministic_bucket(), checksum_seed())) {
-    ret.insert(deterministic_bucket().alpha);
+    ret.push_back(deterministic_bucket().alpha);
     return {ret, GOOD};
   }
 
   for (size_t i = 0; i < cols_per_sample; ++i) {
     for (size_t j = 0; j < bkt_per_col; ++j) {
       unlikely_if (Bucket_Boruvka::is_good(bucket(i + first_column, j), checksum_seed())) {
-        ret.insert(bucket(i + first_column, j).alpha);
+        ret.push_back(bucket(i + first_column, j).alpha);
       }
     }
   }

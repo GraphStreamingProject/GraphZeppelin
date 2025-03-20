@@ -176,7 +176,7 @@ void test_sketch_merge(unsigned long num_sketches,
         ASSERT_LT(res_idx, vec_size) << "Sampled index out of bounds";
         if (test_vec1.get_entry(res_idx) == test_vec2.get_entry(res_idx)) {
           sample_incorrect_failures++;
-          exit(EXIT_FAILURE);
+          std::cerr << "GOT A SAMPLE INCORRECT ERROR!" << std::endl;
         }
       }
       else if (ret_code == ZERO) {
@@ -190,7 +190,6 @@ void test_sketch_merge(unsigned long num_sketches,
         if (!vec_zero) {
           sample_incorrect_failures++;
           std::cout << "GOT INCORRECT ZERO!" << std::endl;
-          exit(EXIT_FAILURE);
         }
       }
       else { // sketch failed
@@ -211,9 +210,9 @@ void test_sketch_merge(unsigned long num_sketches,
 }
 
 TEST(SketchTestSuite, TestSketchMerge) {
-  test_sketch_merge(10000, 1e2, 100, 0.001, 0.03);
-  test_sketch_merge(1000, 1e3, 1000, 0.001, 0.03);
-  test_sketch_merge(1000, 1e4, 10000, 0.001, 0.03);
+  test_sketch_merge(10000, 1e2, 100, 0, 0.03);
+  test_sketch_merge(1000, 1e3, 1000, 0, 0.03);
+  test_sketch_merge(1000, 1e4, 10000, 0, 0.03);
 }
 
 TEST(SketchTestSuite, TestSketchRangeMerge) {
@@ -381,16 +380,11 @@ TEST(SketchTestSuite, TestExhaustiveQuery) {
       ASSERT_EQ(query_ret.idxs.size(), 0) << query_ret.result;
     }
 
-    // assert everything returned is valid and <= 10 things
-    ASSERT_LE(query_ret.idxs.size(), 10);
+    // assert everything returned is valid
     for (vec_t non_zero : query_ret.idxs) {
       ASSERT_GT(non_zero, 0);
       ASSERT_LE(non_zero, 10);
     }
-
-    // assert everything returned is unique
-    std::set<vec_t> unique_elms(query_ret.idxs.begin(), query_ret.idxs.end());
-    ASSERT_EQ(unique_elms.size(), query_ret.idxs.size());
   }
 }
 
