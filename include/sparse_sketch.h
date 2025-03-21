@@ -78,7 +78,7 @@ class SparseSketch {
   size_t sparse_data_size = ceil(double(sparse_capacity) * sizeof(SparseBucket) / sizeof(Bucket));
   size_t ll_metadata_size = ceil((double(num_columns) + 1) * sizeof(uint8_t) / sizeof(Bucket));
 
-  void update_sparse(uint8_t col, SparseBucket to_add, bool realloc_if_needed = true);
+  void update_sparse(uint8_t col, const SparseBucket &to_add);
   SketchSample sample_sparse(size_t first_col, size_t end_col);
 
   inline uint8_t remove_ll_head(size_t col) {
@@ -106,7 +106,8 @@ class SparseSketch {
   inline void remove_from_ll(SparseBucket& bkt_to_remove, SparseBucket &prev) {
     prev.next = bkt_to_remove.next;
   }
-  inline bool merge_sparse_bkt(uint8_t our_idx, SparseBucket& oth, uint8_t prev_idx, size_t col) {
+  inline bool merge_sparse_bkt(uint8_t our_idx, const SparseBucket& oth, uint8_t prev_idx,
+                               size_t col) {
     SparseBucket &ours = sparse_buckets[our_idx];
     ours.bkt.alpha ^= oth.bkt.alpha;
     ours.bkt.gamma ^= oth.bkt.gamma;
@@ -161,10 +162,8 @@ class SparseSketch {
   }
 
   // given another SparseSketch column, merge it into ours
-  void merge_sparse_column(SparseBucket *oth_sparse_buckets, uint8_t *oth_ll_metadata, size_t col);
-
-  void validate();
-
+  void merge_sparse_column(const SparseBucket* oth_sparse_buckets, const uint8_t* oth_ll_metadata,
+                           size_t col);
  public:
   /**
    * The below constructors use vector length as their input. However, in graph sketching our input

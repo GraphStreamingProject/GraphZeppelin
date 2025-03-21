@@ -167,6 +167,7 @@ void test_sketch_merge(unsigned long num_sketches,
       sketch2.update(test_vec2.get_update(j));
     }
     sketch1.merge(sketch2);
+    Sketch backup(sketch1);
     try {
       SketchSample query_ret = sketch1.sample();
       vec_t res_idx = query_ret.idx;
@@ -177,6 +178,10 @@ void test_sketch_merge(unsigned long num_sketches,
         if (test_vec1.get_entry(res_idx) == test_vec2.get_entry(res_idx)) {
           sample_incorrect_failures++;
           std::cerr << "GOT A SAMPLE INCORRECT ERROR!" << std::endl;
+          std::cerr << "Got: " << res_idx << std::endl;
+          std::cerr << sketch1 << std::endl;
+          std::cerr << backup << std::endl;
+          std::cerr << sketch2 << std::endl;
         }
       }
       else if (ret_code == ZERO) {
