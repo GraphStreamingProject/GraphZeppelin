@@ -466,7 +466,7 @@ inline void CCSketchAlg::create_merge_instructions(std::vector<MergeInstr> &merg
 }
 
 void CCSketchAlg::boruvka_emulation() {
-  auto start = std::chrono::steady_clock::now();
+  // auto start = std::chrono::steady_clock::now();
   update_locked = true;
 
   cc_alg_start = std::chrono::steady_clock::now();
@@ -493,7 +493,7 @@ void CCSketchAlg::boruvka_emulation() {
 
   while (true) {
     // std::cout << "   Round: " << round_num << std::endl;
-    start = std::chrono::steady_clock::now();
+    // start = std::chrono::steady_clock::now();
     modified = perform_boruvka_round(round_num, merge_instr, global_merges);
     // std::cout << "     perform_boruvka_round = "
     //           << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
@@ -502,7 +502,7 @@ void CCSketchAlg::boruvka_emulation() {
     if (!modified) break;
 
     // calculate updated merge instructions for next round
-    start = std::chrono::steady_clock::now();
+    // start = std::chrono::steady_clock::now();
     create_merge_instructions(merge_instr);
     // std::cout << "     create_merge_instructions = "
     //           << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
