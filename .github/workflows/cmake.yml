@@ -11,7 +11,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, ubuntu-20.04]
+        os: [ubuntu-latest]
         flags: ['"-DL0_SAMPLING"', '"-DNO_EAGER_DSU"', '""']
 
     steps:
