@@ -93,6 +93,7 @@ void GraphVerifier::verify_connected_components(const ConnectedComponents &cc) {
 
   // first check that the number of components is the same for both
   if (kruskal_ccs != cc.size()) {
+    std::cout << "expect: " << kruskal_ccs << ", got = " << cc.size() << std::endl;
     throw IncorrectCCException("Incorrect number of components!");
   }
 

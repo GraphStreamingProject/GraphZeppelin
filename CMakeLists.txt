@@ -75,13 +75,16 @@ endif()
 FetchContent_MakeAvailable(GutterTree StreamingUtilities)
 
 # AVAILABLE COMPILATION DEFINITIONS:
-# VERIFY_SAMPLES_F   Use a deterministic connected-components
-#                    algorithm to verify post-processing.
 # NO_EAGER_DSU       Do not use the eager DSU query optimization
 #                    if this flag is present.
 # L0_SAMPLING        Run the CubeSketch l0 sampling algorithm
 #                    to ensure that we sample uniformly.
 #                    Otherwise, run a support finding algorithm.
+# L0_FULLY_DENSE     Fully allocate the sketch matrix at the beginning
+#                    of the program. If this flag is not used, sketches
+#                    are allocated dynamically.
+# VERIFY_SAMPLES_F   Use a deterministic connected-components
+#                    algorithm to verify post-processing.
 #
 # Example:
 # cmake -DCMAKE_CXX_FLAGS="-DL0_SAMPLING" ..
@@ -91,7 +94,8 @@ add_library(GraphZeppelin
   src/return_types.cpp
   src/driver_configuration.cpp
   src/cc_alg_configuration.cpp
-  src/sketch.cpp
+  src/sparse_sketch.cpp
+  src/dense_sketch.cpp
   src/util.cpp)
 add_dependencies(GraphZeppelin GutterTree StreamingUtilities)
 target_link_libraries(GraphZeppelin PUBLIC xxhash GutterTree StreamingUtilities)
@@ -105,7 +109,8 @@ add_library(GraphZeppelinVerifyCC
   src/return_types.cpp
   src/driver_configuration.cpp
   src/cc_alg_configuration.cpp
-  src/sketch.cpp
+  src/sparse_sketch.cpp
+  src/dense_sketch.cpp
   src/util.cpp
   test/util/graph_verifier.cpp)
 add_dependencies(GraphZeppelinVerifyCC GutterTree StreamingUtilities)

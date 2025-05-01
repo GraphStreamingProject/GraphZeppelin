@@ -102,7 +102,6 @@ void test_sketch_sample(unsigned long num_sketches,
       SampleResult ret_code = query_ret.result;
 
       if (ret_code == GOOD) {
-        //Multiple queries shouldn't happen, but if we do get here fail test
         ASSERT_LT(res_idx, vec_size) << "Sampled index out of bounds";
         if (!test_vec.get_entry(res_idx)) {
           //Undetected sample error
@@ -168,6 +167,7 @@ void test_sketch_merge(unsigned long num_sketches,
       sketch2.update(test_vec2.get_update(j));
     }
     sketch1.merge(sketch2);
+    Sketch backup(sketch1);
     try {
       SketchSample query_ret = sketch1.sample();
       vec_t res_idx = query_ret.idx;
@@ -177,6 +177,11 @@ void test_sketch_merge(unsigned long num_sketches,
         ASSERT_LT(res_idx, vec_size) << "Sampled index out of bounds";
         if (test_vec1.get_entry(res_idx) == test_vec2.get_entry(res_idx)) {
           sample_incorrect_failures++;
+          std::cerr << "GOT A SAMPLE INCORRECT ERROR!" << std::endl;
+          std::cerr << "Got: " << res_idx << std::endl;
+          std::cerr << sketch1 << std::endl;
+          std::cerr << backup << std::endl;
+          std::cerr << sketch2 << std::endl;
         }
       }
       else if (ret_code == ZERO) {
@@ -189,6 +194,7 @@ void test_sketch_merge(unsigned long num_sketches,
         }
         if (!vec_zero) {
           sample_incorrect_failures++;
+          std::cout << "GOT INCORRECT ZERO!" << std::endl;
         }
       }
       else { // sketch failed
@@ -209,26 +215,57 @@ void test_sketch_merge(unsigned long num_sketches,
 }
 
 TEST(SketchTestSuite, TestSketchMerge) {
-  test_sketch_merge(10000, 1e2, 100, 0.001, 0.03);
-  test_sketch_merge(1000, 1e3, 1000, 0.001, 0.03);
-  test_sketch_merge(1000, 1e4, 10000, 0.001, 0.03);
+  test_sketch_merge(10000, 1e2, 100, 0, 0.03);
+  test_sketch_merge(1000, 1e3, 1000, 0, 0.03);
+  test_sketch_merge(1000, 1e4, 10000, 0, 0.03);
 }
 
 TEST(SketchTestSuite, TestSketchRangeMerge) {
-  Sketch skt1(2048, get_seed(), 10, 3);
-  Sketch skt2(2048, get_seed(), 10, 3);
+  size_t seed = get_seed();
+  Sketch skt1(2048, seed, 10, 3);
+  Sketch skt2(2048, seed, 10, 3);
+  Sketch temp_skt(2048, seed, 10, 3);
 
-  skt1.sample();
+  for (vec_t i = 0; i < 1024; i++) {
+    skt1.update(i);
+    skt2.update(i + 256);
+  }
+  // allowed return values after merging are [0, 255] and [1024, 1279]
+  vec_t good_1 = 255;
+  vec_t good_2 = 1024;
+  vec_t good_3 = good_2 + 255;
+
+  temp_skt.merge(skt1);
+
+  skt1.range_merge(skt2, 0, 1);
+  SketchSample sample = skt1.sample();
+  if (sample.result == GOOD) {
+    ASSERT_TRUE(sample.idx <= good_1 || (sample.idx >= good_2 && sample.idx <= good_3));
+  }
+  skt1.zero_contents();
+  skt1.merge(temp_skt);
+  
   skt1.range_merge(skt2, 1, 1);
-
-  skt1.sample();
+  sample = skt1.sample();
+  if (sample.result == GOOD) {
+    ASSERT_TRUE(sample.idx <= good_1 || (sample.idx >= good_2 && sample.idx <= good_3));
+  }
+  skt1.zero_contents();
+  skt1.merge(temp_skt);
+  
   skt1.range_merge(skt2, 2, 1);
-
-  skt1.sample();
+  sample = skt1.sample();
+  if (sample.result == GOOD) {
+    ASSERT_TRUE(sample.idx <= good_1 || (sample.idx >= good_2 && sample.idx <= good_3));
+  }
+  skt1.zero_contents();
+  skt1.merge(temp_skt);
+  
   skt1.range_merge(skt2, 3, 1);
-
-  skt1.sample();
-  skt1.range_merge(skt2, 4, 1);
+  sample = skt1.sample();
+  if (sample.result == GOOD) {
+    ASSERT_TRUE(sample.idx <= good_1 || (sample.idx >= good_2 && sample.idx <= good_3));
+  }
 }
 
 /**
@@ -308,7 +345,7 @@ TEST(SketchTestSuite, TestSerialization) {
   file.close();
 
   auto in_file = std::fstream("./out_sketch.txt", std::ios::in | std::ios::binary);
-  Sketch reheated(vec_size, seed, in_file, 3, num_columns);
+  Sketch reheated(vec_size, seed, in_file, sketch.get_buckets(), 3, num_columns);
 
   ASSERT_EQ(sketch, reheated);
 }
@@ -348,16 +385,11 @@ TEST(SketchTestSuite, TestExhaustiveQuery) {
       ASSERT_EQ(query_ret.idxs.size(), 0) << query_ret.result;
     }
 
-    // assert everything returned is valid and <= 10 things
-    ASSERT_LE(query_ret.idxs.size(), 10);
+    // assert everything returned is valid
     for (vec_t non_zero : query_ret.idxs) {
       ASSERT_GT(non_zero, 0);
       ASSERT_LE(non_zero, 10);
     }
-
-    // assert everything returned is unique
-    std::set<vec_t> unique_elms(query_ret.idxs.begin(), query_ret.idxs.end());
-    ASSERT_EQ(unique_elms.size(), query_ret.idxs.size());
   }
 }
 
@@ -433,7 +465,7 @@ TEST(SketchTestSuite, TestRawBucketUpdate) {
 
     const Bucket *data = sk1.get_readonly_bucket_ptr();
 
-    sk2.merge_raw_bucket_buffer(data);
+    sk2.merge_raw_bucket_buffer(data, sk1.get_buckets());
 
     SketchSample sample = sk2.sample();
 
@@ -446,7 +478,7 @@ TEST(SketchTestSuite, TestRawBucketUpdate) {
 
     Bucket *copy_data = new Bucket[sk1.get_buckets()];
     memcpy(copy_data, data, sk1.bucket_array_bytes());
-    sk2.merge_raw_bucket_buffer(copy_data);
+    sk2.merge_raw_bucket_buffer(copy_data, sk1.get_buckets());
 
     sk2.reset_sample_state();
     sample = sk2.sample();

@@ -34,12 +34,18 @@ namespace Bucket_Boruvka {
   inline static vec_hash_t get_index_hash(const vec_t index, const long sketch_seed);
 
   /**
-   * Checks whether a Bucket is good, assuming the Bucket contains all elements.
+   * Checks whether a Bucket is good.
    * @param bucket       The bucket to check
    * @param sketch_seed  The seed of the Sketch this Bucket belongs to.
    * @return             true if this Bucket is good, else false.
    */
   inline static bool is_good(const Bucket &bucket, const long sketch_seed);
+
+  /**
+   * Checks whether a Bucket is empty.
+   * @return  true if this Bucket is empty (alpha and gamma == 0), else false.
+   */
+  inline static bool is_empty(const Bucket &bucket);
 
   /**
    * Updates a Bucket with the given update index
@@ -64,6 +70,10 @@ inline vec_hash_t Bucket_Boruvka::get_index_hash(const vec_t update_idx, const l
 
 inline bool Bucket_Boruvka::is_good(const Bucket &bucket, const long sketch_seed) {
   return bucket.gamma == get_index_hash(bucket.alpha, sketch_seed);
+}
+
+inline bool Bucket_Boruvka::is_empty(const Bucket &bucket) {
+  return bucket.alpha == 0 && bucket.gamma == 0;
 }
 
 inline void Bucket_Boruvka::update(Bucket& bucket, const vec_t update_idx,
