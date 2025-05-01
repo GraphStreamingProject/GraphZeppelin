@@ -534,11 +534,11 @@ ConnectedComponents CCSketchAlg::connected_components() {
     bool except = false;
     std::exception_ptr err;
     try {
-      auto start = std::chrono::steady_clock::now();
+      // auto start = std::chrono::steady_clock::now();
       boruvka_emulation();
-      std::cout << " boruvka's algorithm = "
-              << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
-              << std::endl;
+      // std::cout << " boruvka's algorithm = "
+      //         << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
+      //         << std::endl;
     } catch (...) {
       except = true;
       err = std::current_exception();

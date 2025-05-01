@@ -56,7 +56,7 @@ class SparseSketch {
   // Allocated buckets
   Bucket* buckets;
 
-  static constexpr size_t min_num_dense_rows = 5;
+  static constexpr size_t min_num_dense_rows = 6;
   size_t num_dense_rows = min_num_dense_rows;
 
   // Variables for sparse representation of lower levels of bucket Matrix
