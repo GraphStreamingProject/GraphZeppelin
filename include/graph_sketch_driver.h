@@ -152,29 +152,28 @@ class GraphSketchDriver {
 #endif
 
       while (true) {
-        bool got_breakpoint = false;
         size_t updates = stream->get_update_buffer(update_array, update_array_size);
-
-        if (update_array[updates - 1].type == BREAKPOINT) {
-          --updates;
-          got_breakpoint = true;
-        }
-        gts->process_stream_upd_batch(update_array, updates, thr_id);
-
         for (size_t i = 0; i < updates; i++) {
-          GraphUpdate upd = {update_array[i].edge, (UpdateType) update_array[i].type};
-          sketching_alg->pre_insert(upd, thr_id);
+          GraphUpdate upd;
+          upd.edge = update_array[i].edge;
+          upd.type = static_cast<UpdateType>(update_array[i].type);
+          if (upd.type == BREAKPOINT) {
+            // reached the breakpoint. Update verifier if applicable and return
 #ifdef VERIFY_SAMPLES_F
-          local_verifier.edge_update(upd.edge);
+            std::lock_guard<std::mutex> lk(verifier_mtx);
+            verifier->combine(local_verifier);
 #endif
-        }
-
-        if (got_breakpoint) {
+            return;
+          }
+          else {
+            sketching_alg->pre_insert(upd, thr_id);
+            Edge edge = upd.edge;
+            gts->insert({edge.src, edge.dst}, thr_id);
+            gts->insert({edge.dst, edge.src}, thr_id);
 #ifdef VERIFY_SAMPLES_F
-          std::lock_guard<std::mutex> lk(verifier_mtx);
-          verifier->combine(local_verifier);
+            local_verifier.edge_update(edge);
 #endif
-          return;
+          }
         }
       }
     };
