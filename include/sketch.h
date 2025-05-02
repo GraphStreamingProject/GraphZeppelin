@@ -8,10 +8,16 @@
 #include <cmath>
 #include <mutex>
 
+#include <hwy/highway.h>
+#include <hwy/aligned_allocator.h>
+
 #include "util.h"
 #include "bucket.h"
 
 #include "bucket_buffer.h"
+
+
+// FOR VECTORIZING CONTIGUOUS XOR
 
 // enum SerialType {
 //   FULL,

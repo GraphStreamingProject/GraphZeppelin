@@ -1,8 +1,40 @@
 #pragma once
 #include <string>
 #include <tuple>
+#include <iostream>
 
 #include "types.h"
+
+#include <hwy/highway.h>
+
+
+HWY_BEFORE_NAMESPACE();
+namespace hwy {
+namespace HWY_NAMESPACE {
+static inline void simd_xor(uint32_t* dst, const uint32_t* src, size_t count) {
+  using namespace hwy;
+  const ScalableTag<uint32_t> d;
+  for (size_t i = 0; i < count; i += Lanes(d)) {
+    auto v_dst = LoadU(d, dst + i);
+    auto v_src = LoadU(d, src + i);
+    auto v_xor = Xor(v_dst, v_src);
+    StoreU(v_xor, d, dst + i);
+  }
+}
+static inline void simd_xor_aligned(uint32_t* dst, const uint32_t* src, size_t count) {
+  using namespace hwy;
+  const ScalableTag<uint32_t> d;
+  for (size_t i = 0; i < count; i += Lanes(d)) {
+    auto v_dst = Load(d, dst + i);
+    auto v_src = Load(d, src + i);
+    auto v_xor = Xor(v_dst, v_src);
+    Store(v_xor, d, dst + i);
+  }
+}
+} // namespace HWY_NAMESPACE
+} // namespace hwy
+HWY_AFTER_NAMESPACE();
+
 
 /**
  * Cast a double to unsigned long long with epsilon adjustment.

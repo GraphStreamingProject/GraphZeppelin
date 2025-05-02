@@ -13,3 +13,15 @@ TEST(UtilTestSuite, TestConcatPairingFn) {
     }
   }
 }
+
+TEST(UtilTestSuite, TestSimdXor) {
+  uint32_t a[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+  uint32_t b[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+  uint32_t c[8] = {0};
+
+  hwy::HWY_NAMESPACE::simd_xor(a, b, 5);
+
+  for (size_t i = 0; i < 8; ++i) {
+    ASSERT_EQ(a[i], c[i]);
+  }
+}

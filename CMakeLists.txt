@@ -8,14 +8,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+set(CMAKE_COLOR_DIAGNOSTICS ON)
 
 
 
 # Make the default build type Release. If user or another
 # project sets a different value than use that
 if(NOT CMAKE_BUILD_TYPE)
-  message(STATUS "Setting build type to default -- Release")
-  set(CMAKE_BUILD_TYPE "Release" CACHE
+  message(STATUS "Setting build type to default -- Debug")
+  set(CMAKE_BUILD_TYPE "Debug" CACHE
       STRING "Choose the type of build." FORCE)
 endif()
 message(STATUS "GraphZeppelin Build Type: ${CMAKE_BUILD_TYPE}")
@@ -51,6 +52,7 @@ else()
   message (STATUS "GraphZeppelin building executables")
 endif()
 
+
 # Get GutterTree Project
 FetchContent_Declare(
   GutterTree
@@ -67,6 +69,22 @@ FetchContent_Declare(
   GIT_TAG         main
 )
 
+FetchContent_Declare(
+  highway
+
+  GIT_REPOSITORY https://github.com/google/highway.git
+  GIT_TAG        1.2.0
+)
+
+set(HWY_ENABLE_EXAMPLES OFF CACHE INTERNAL "Disable highway examples")
+set(HWY_ENABLE_TESTS OFF CACHE INTERNAL "Disable highway tests")
+
+# Get google highway
+FetchContent_MakeAvailable(highway)
+
+# Ensure highway target is explicitly added
+add_library(highway INTERFACE IMPORTED)
+
 if (BUILD_BENCH)
   # Get Google Benchmark
   FetchContent_Declare(
@@ -81,7 +99,7 @@ if (BUILD_BENCH)
 endif()
 
 
-FetchContent_MakeAvailable(GutterTree StreamingUtilities )
+FetchContent_MakeAvailable(GutterTree StreamingUtilities)
 
 # AVAILABLE COMPILATION DEFINITIONS:
 # VERIFY_SAMPLES_F   Use a deterministic connected-components
@@ -103,8 +121,8 @@ add_library(GraphZeppelin
   src/sketch.cpp
   src/recovery.cpp
   src/util.cpp)
-add_dependencies(GraphZeppelin GutterTree StreamingUtilities)
-target_link_libraries(GraphZeppelin PUBLIC xxhash GutterTree StreamingUtilities )
+add_dependencies(GraphZeppelin GutterTree StreamingUtilities highway)
+target_link_libraries(GraphZeppelin PUBLIC xxhash GutterTree StreamingUtilities highway)
 target_include_directories(GraphZeppelin PUBLIC include/)
 target_compile_options(GraphZeppelin PUBLIC -fopenmp)
 target_link_options(GraphZeppelin PUBLIC -fopenmp)
@@ -119,8 +137,8 @@ add_library(GraphZeppelinVerifyCC
   src/recovery.cpp
   src/util.cpp
   test/util/graph_verifier.cpp)
-add_dependencies(GraphZeppelinVerifyCC GutterTree StreamingUtilities)
-target_link_libraries(GraphZeppelinVerifyCC PUBLIC xxhash GutterTree StreamingUtilities )
+add_dependencies(GraphZeppelinVerifyCC GutterTree StreamingUtilities highway)
+target_link_libraries(GraphZeppelinVerifyCC PUBLIC xxhash GutterTree StreamingUtilities highway )
 target_include_directories(GraphZeppelinVerifyCC PUBLIC include/ include/test/)
 target_compile_options(GraphZeppelinVerifyCC PUBLIC -fopenmp)
 target_link_options(GraphZeppelinVerifyCC PUBLIC -fopenmp)

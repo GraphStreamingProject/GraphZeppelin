@@ -6,6 +6,26 @@
 #include <cassert>
 
 
+
+// TODO - look into how to do this with dynamic dispatch or some
+// selection process
+// HWY_BEFORE_NAMESPACE();
+// namespace hwy {
+// namespace HWY_NAMESPACE {
+// HWY_ATTR static inline void simd_xor(uint32_t *dst, const uint32_t *src,
+//                                      size_t count) {
+//   const ScalableTag<uint32_t> d;
+//   for (size_t i = 4; i < count; i += Lanes(d)) {
+//     auto v_dst = Load(d, dst + i);
+//     auto v_src = Load(d, src + i);
+//     // auto v_xor = Xor(v_dst, v_src);
+//     Store(v_src, d, dst + i);
+//   }
+// }
+// } // namespace HWY_NAMESPACE
+// } // namespace hwy
+// HWY_AFTER_NAMESPACE();
+
 inline static void set_bit(vec_t &t, int position) {
   t |= 1 << position;
 }
@@ -26,6 +46,7 @@ Sketch::Sketch(vec_t vector_len, uint64_t seed, size_t _samples, size_t _cols) :
   nonempty_buckets = (vec_t*) (buckets + num_buckets);
 #else
   buckets = new Bucket[num_buckets];
+    // buckets = hwy::AllocateAligned<Bucket>(num_buckets);
 #endif
 
   // initialize bucket values
@@ -415,10 +436,23 @@ void Sketch::merge(const Sketch &other) {
 #else
   for (size_t i=0; i < num_columns; ++i) {
     size_t other_effective_size = other.effective_size(i);
-    #pragma omp simd
-    for (size_t bucket_id=0; bucket_id < other_effective_size; bucket_id++) {
-      get_bucket(i, bucket_id) ^= other.get_bucket(i, bucket_id);
-    }
+    // NOTE THIS ONLY WORKS WHEN BUCKETS ARE MULTIPLE OF 64 BITS
+    static const size_t words_per_buck = (sizeof(Bucket) / sizeof(uint32_t));
+    size_t num_words = other_effective_size * words_per_buck;
+    size_t our_starting_bucket_idx = i * bkt_per_col;
+    size_t other_starting_bucket_idx = i * other.bkt_per_col;
+    uint32_t *our_starting_bucket = (uint32_t*) (buckets + our_starting_bucket_idx);
+    uint32_t *other_starting_bucket = (uint32_t*) (other.buckets + other_starting_bucket_idx);
+    
+    hwy::HWY_NAMESPACE::simd_xor(our_starting_bucket, other_starting_bucket,
+                                 num_words);
+    // for (size_t word=0; word < num_words; ++word) {
+    //   our_starting_bucket[word] ^= other_starting_bucket[word];
+    // }
+    // NO SIMD but more stable
+    // for (size_t bucket_id=0; bucket_id < other_effective_size; bucket_id++) {
+    //   get_bucket(i, bucket_id) ^= other.get_bucket(i, bucket_id);
+    // }
 #ifdef EAGER_BUCKET_CHECK
     recalculate_flags(i, 0, other_effective_size);
 #endif
