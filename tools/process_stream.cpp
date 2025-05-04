@@ -61,20 +61,28 @@ void track_insertions(uint64_t total, GraphSketchDriver<CCSketchAlg> *driver,
 }
 
 int main(int argc, char **argv) {
-  if (argc != 4) {
-    std::cout << "ERROR: Incorrect number of arguments!" << std::endl;
-    std::cout << "Arguments: stream_file, graph_workers, reader_threads" << std::endl;
+  if (argc != 5) {
+    std::cerr << "ERROR: Incorrect number of arguments!" << std::endl;
+    std::cerr << "Arguments: stream_file, num_queries, graph_workers, reader_threads" << std::endl;
     exit(EXIT_FAILURE);
   }
 
   shutdown = false;
   std::string stream_file = argv[1];
-  int num_threads = std::atoi(argv[2]);
-  if (num_threads < 1) {
-    std::cout << "ERROR: Invalid number of graph workers! Must be > 0." << std::endl;
+  int num_queries = std::atoi(argv[2]);
+  if (num_queries < 1 || num_queries > 1000) {
+    std::cerr << "ERROR: Invalid number of queries! Must be > 0 and <= 1000" << std::endl;
     exit(EXIT_FAILURE);
   }
-  size_t reader_threads = std::atol(argv[3]);
+  int num_threads = std::atoi(argv[3]);
+  if (num_threads < 1) {
+    std::cerr << "ERROR: Invalid number of graph workers! Must be > 0." << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  size_t reader_threads = std::atol(argv[4]);
+
+  double query_percent = 1.0 / num_queries;
+  size_t queries_in_stream = num_queries - 1;
 
   BinaryFileStream stream(stream_file);
   node_id_t num_nodes = stream.vertices();
@@ -85,23 +93,41 @@ int main(int argc, char **argv) {
   std::cout << std::endl;
 
   auto driver_config = DriverConfiguration().gutter_sys(CACHETREE).worker_threads(num_threads);
-  auto cc_config = CCAlgConfiguration().batch_factor(1);
+  auto cc_config = CCAlgConfiguration().batch_factor(1.0);
   CCSketchAlg cc_alg{num_nodes, get_seed(), cc_config};
   GraphSketchDriver<CCSketchAlg> driver{&cc_alg, &stream, driver_config, reader_threads};
 
   auto ins_start = std::chrono::steady_clock::now();
   std::thread querier(track_insertions, num_updates, &driver, ins_start);
 
+  for (size_t q = 0; q < queries_in_stream; q++) {
+    driver.process_stream_until((q+1) * query_percent * num_updates);
+    auto cc_start = std::chrono::steady_clock::now();
+    driver.prep_query(CONNECTIVITY);
+    auto CC_num = cc_alg.connected_components().size();
+    std::chrono::duration<double> cc_time = std::chrono::steady_clock::now() - cc_start;
+    std::chrono::duration<double> flush_time = driver.flush_end - driver.flush_start;
+    std::chrono::duration<double> cc_alg_time = cc_alg.cc_alg_end - cc_alg.cc_alg_start;
+
+    std::cout << "Query " << q + 1 << std::endl;
+    std::cout << "Total CC query latency:       " << cc_time.count() << std::endl;
+    std::cout << "  Flush Gutters(sec):           " << flush_time.count() << std::endl;
+    std::cout << "  Boruvka's Algorithm(sec):     " << cc_alg_time.count() << std::endl;
+    std::cout << "Connected Components:         " << CC_num << std::endl;
+  }
+
+  // finish the stream
   driver.process_stream_until(END_OF_STREAM);
 
   auto cc_start = std::chrono::steady_clock::now();
   driver.prep_query(CONNECTIVITY);
   auto CC_num = cc_alg.connected_components().size();
   std::chrono::duration<double> cc_time = std::chrono::steady_clock::now() - cc_start;
-  std::chrono::duration<double> insert_time = driver.flush_end - ins_start;
   std::chrono::duration<double> flush_time = driver.flush_end - driver.flush_start;
   std::chrono::duration<double> cc_alg_time = cc_alg.cc_alg_end - cc_alg.cc_alg_start;
 
+
+  std::chrono::duration<double> insert_time = driver.flush_end - ins_start;
   shutdown = true;
   querier.join();
 
@@ -113,21 +139,4 @@ int main(int argc, char **argv) {
   std::cout << "  Boruvka's Algorithm(sec):     " << cc_alg_time.count() << std::endl;
   std::cout << "Connected Components:         " << CC_num << std::endl;
   std::cout << "Maximum Memory Usage(MiB):    " << get_max_mem_used() << std::endl;
-
-
-  cc_start = std::chrono::steady_clock::now();
-  driver.prep_query(CONNECTIVITY);
-  CC_num = cc_alg.connected_components().size();
-  cc_time = std::chrono::steady_clock::now() - cc_start;
-  insert_time = driver.flush_end - ins_start;
-  flush_time = driver.flush_end - driver.flush_start;
-  cc_alg_time = cc_alg.cc_alg_end - cc_alg.cc_alg_start;
-
-  std::cout << "SECOND QUERY" << std::endl;
-  std::cout << "Total CC query latency:       " << cc_time.count() << std::endl;
-  std::cout << "  Flush Gutters(sec):           " << flush_time.count() << std::endl;
-  std::cout << "  Boruvka's Algorithm(sec):     " << cc_alg_time.count() << std::endl;
-  std::cout << "Connected Components:         " << CC_num << std::endl;
-  std::cout << "Maximum Memory Usage(MiB):    " << get_max_mem_used() << std::endl;
-
 }
