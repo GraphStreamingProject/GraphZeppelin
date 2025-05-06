@@ -70,7 +70,7 @@ FetchContent_Declare(
 )
 
 FetchContent_Declare(
-  highway
+  hwy
 
   GIT_REPOSITORY https://github.com/google/highway.git
   GIT_TAG        1.2.0
@@ -80,10 +80,10 @@ set(HWY_ENABLE_EXAMPLES OFF CACHE INTERNAL "Disable highway examples")
 set(HWY_ENABLE_TESTS OFF CACHE INTERNAL "Disable highway tests")
 
 # Get google highway
-FetchContent_MakeAvailable(highway)
+FetchContent_MakeAvailable(hwy)
 
 # Ensure highway target is explicitly added
-add_library(highway INTERFACE IMPORTED)
+#add_library(highway INTERFACE IMPORTED)
 
 if (BUILD_BENCH)
   # Get Google Benchmark
@@ -121,8 +121,8 @@ add_library(GraphZeppelin
   src/sketch.cpp
   src/recovery.cpp
   src/util.cpp)
-add_dependencies(GraphZeppelin GutterTree StreamingUtilities highway)
-target_link_libraries(GraphZeppelin PUBLIC xxhash GutterTree StreamingUtilities highway)
+add_dependencies(GraphZeppelin GutterTree StreamingUtilities hwy)
+target_link_libraries(GraphZeppelin PUBLIC xxhash GutterTree StreamingUtilities hwy)
 target_include_directories(GraphZeppelin PUBLIC include/)
 target_compile_options(GraphZeppelin PUBLIC -fopenmp)
 target_link_options(GraphZeppelin PUBLIC -fopenmp)
@@ -137,8 +137,8 @@ add_library(GraphZeppelinVerifyCC
   src/recovery.cpp
   src/util.cpp
   test/util/graph_verifier.cpp)
-add_dependencies(GraphZeppelinVerifyCC GutterTree StreamingUtilities highway)
-target_link_libraries(GraphZeppelinVerifyCC PUBLIC xxhash GutterTree StreamingUtilities highway )
+add_dependencies(GraphZeppelinVerifyCC GutterTree StreamingUtilities hwy)
+target_link_libraries(GraphZeppelinVerifyCC PUBLIC xxhash GutterTree StreamingUtilities hwy )
 target_include_directories(GraphZeppelinVerifyCC PUBLIC include/ include/test/)
 target_compile_options(GraphZeppelinVerifyCC PUBLIC -fopenmp)
 target_link_options(GraphZeppelinVerifyCC PUBLIC -fopenmp)

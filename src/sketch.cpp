@@ -444,11 +444,11 @@ void Sketch::merge(const Sketch &other) {
     uint32_t *our_starting_bucket = (uint32_t*) (buckets + our_starting_bucket_idx);
     uint32_t *other_starting_bucket = (uint32_t*) (other.buckets + other_starting_bucket_idx);
     
-    hwy::HWY_NAMESPACE::simd_xor(our_starting_bucket, other_starting_bucket,
-                                 num_words);
-    // for (size_t word=0; word < num_words; ++word) {
-    //   our_starting_bucket[word] ^= other_starting_bucket[word];
-    // }
+    // hwy::HWY_NAMESPACE::simd_xor(our_starting_bucket, other_starting_bucket,
+    //                              num_words);
+    for (size_t word=0; word < num_words; ++word) {
+      our_starting_bucket[word] ^= other_starting_bucket[word];
+    }
     // NO SIMD but more stable
     // for (size_t bucket_id=0; bucket_id < other_effective_size; bucket_id++) {
     //   get_bucket(i, bucket_id) ^= other.get_bucket(i, bucket_id);
