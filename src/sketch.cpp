@@ -85,6 +85,8 @@ Sketch::Sketch(vec_t vector_len, uint64_t seed, bool compressed, std::istream &b
   else {
     binary_in.read((char *)buckets, bucket_array_bytes());
   }
+  // in both cases, now deserialize the bucket buffer
+  bucket_buffer.deserialize(binary_in);
 }
 
 
@@ -131,11 +133,13 @@ void Sketch::compressed_deserialize(std::istream& binary_in) {
 Sketch::Sketch(vec_t vector_len, uint64_t seed, std::istream &binary_in, size_t _samples,
                size_t _cols):
     seed(seed) {
+  // TODO - do this properly
   num_samples = _samples;
   cols_per_sample = _cols;
   num_columns = num_samples * cols_per_sample;
-  bkt_per_col = calc_bkt_per_col(vector_len);
+  // bkt_per_col = calc_bkt_per_col(vector_len);
   // bkt_per_col = 1;
+  binary_in.read((char *) &bkt_per_col, sizeof(size_t));
   num_buckets = num_columns * bkt_per_col + 1; // plus 1 for deterministic bucket
   bucket_buffer = BucketBuffer();
   buckets = (Bucket*) new char[bucket_array_bytes()];
@@ -143,6 +147,7 @@ Sketch::Sketch(vec_t vector_len, uint64_t seed, std::istream &binary_in, size_t 
   nonempty_buckets = (vec_t*) (buckets + num_buckets);
 #endif
   binary_in.read((char *)buckets, bucket_array_bytes());
+  bucket_buffer.deserialize(binary_in);
 // 
     }
 
@@ -186,7 +191,7 @@ Sketch::~Sketch() {
 #ifdef ROW_MAJOR_SKETCHES
   // TODO - implement to allow shrinkage
   std::memcpy(new_buckets, buckets, old_bucket_array_bytes);
-  assert(false)
+  // assert(false)
 #else
   for (size_t i = 0; i < num_columns; ++i) {
     Bucket *old_column = buckets + (i * old_num_rows);
@@ -639,7 +644,7 @@ void Sketch::compressed_serialize(std::ostream &binary_out) const {
 #ifdef ROW_MAJOR_SKETCHES
   // write out max depth, nonempty flags, determinstic bucket, everything else
   // then all other buckets
-  uint8_t max_depth = effective_size();
+  uint8_t max_depth = effective_depth();
   binary_out.write((char*) &max_depth, sizeof(uint8_t));
   size_t number_of_buckets = num_columns * max_depth;
   binary_out.write((char *) &get_deterministic_bucket(), sizeof(Bucket));
@@ -662,12 +667,15 @@ void Sketch::compressed_serialize(std::ostream &binary_out) const {
     binary_out.write((char *) current_column, sizeof(Bucket) * sizes[i]);
   }
 #endif
+  // write out deep bucket buffer!
+  bucket_buffer.serialize(binary_out);
 }
 
 void Sketch::serialize(std::ostream &binary_out) const {
   binary_out.write((char*) &bkt_per_col, sizeof(size_t));
   // note that these will include the flag bits, if used.
   binary_out.write((char*) buckets, bucket_array_bytes());
+  bucket_buffer.serialize(binary_out);
 }
 
 bool operator==(const Sketch &sketch1, const Sketch &sketch2) {

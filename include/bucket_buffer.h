@@ -82,9 +82,9 @@ struct BufferEntry {
 class BucketBuffer {
     friend class Sketch;
     public:
-    std::vector<BufferEntry> entries;
 
     private:
+    std::vector<BufferEntry> entries;
     size_t _capacity;
 
     bool _compacted=false;
