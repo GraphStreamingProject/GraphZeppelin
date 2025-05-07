@@ -52,6 +52,12 @@ else()
   message (STATUS "GraphZeppelin building executables")
 endif()
 
+FetchContent_Declare(
+  hwy
+
+  GIT_REPOSITORY https://github.com/google/highway.git
+  GIT_TAG        1.2.0
+)
 
 # Get GutterTree Project
 FetchContent_Declare(
@@ -69,12 +75,6 @@ FetchContent_Declare(
   GIT_TAG         main
 )
 
-FetchContent_Declare(
-  hwy
-
-  GIT_REPOSITORY https://github.com/google/highway.git
-  GIT_TAG        1.2.0
-)
 
 set(HWY_ENABLE_EXAMPLES OFF CACHE INTERNAL "Disable highway examples")
 set(HWY_ENABLE_TESTS OFF CACHE INTERNAL "Disable highway tests")
@@ -179,4 +179,3 @@ if (BUILD_BENCH)
   add_dependencies(bench_cc GraphZeppelin benchmark)
   target_link_libraries(bench_cc GraphZeppelin benchmark::benchmark xxhash)
 endif()
-

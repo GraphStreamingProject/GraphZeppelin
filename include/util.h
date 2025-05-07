@@ -74,3 +74,11 @@ Edge inv_concat_pairing_fn(edge_id_t idx);
 
 #define likely_if(x) if(__builtin_expect((bool)(x), true))
 #define unlikely_if(x) if (__builtin_expect((bool)(x), false))
+
+inline static void set_bit(vec_t &t, int position) {
+  t |= 1 << position;
+}
+
+inline static void clear_bit(vec_t &t, int position) {
+  t &= ~(1 << position);
+}

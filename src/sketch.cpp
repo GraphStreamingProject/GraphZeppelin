@@ -1,4 +1,7 @@
 #include "sketch.h"
+#include "sketch/sketch_concept.h"
+
+#include "util.h"
 
 #include <cstring>
 #include <iostream>
@@ -26,13 +29,13 @@
 // } // namespace hwy
 // HWY_AFTER_NAMESPACE();
 
-inline static void set_bit(vec_t &t, int position) {
-  t |= 1 << position;
-}
+// inline static void set_bit(vec_t &t, int position) {
+//   t |= 1 << position;
+// }
 
-inline static void clear_bit(vec_t &t, int position) {
-  t &= ~(1 << position);
-}
+// inline static void clear_bit(vec_t &t, int position) {
+//   t &= ~(1 << position);
+// }
 
 Sketch::Sketch(vec_t vector_len, uint64_t seed, size_t _samples, size_t _cols) : seed(seed) {
   num_samples = _samples;
@@ -316,7 +319,7 @@ void Sketch::zero_contents() {
   bucket_buffer.clear();
 }
 
-SketchSample Sketch::sample() {
+SketchSample<vec_t> Sketch::sample() {
   // TODO - this is bugged
   // inject buffer buckets no longer guarantees compactness
 
@@ -366,7 +369,7 @@ SketchSample Sketch::sample() {
   return {0, FAIL};
 }
 
-ExhaustiveSketchSample Sketch::exhaustive_sample() {
+ExhaustiveSketchSample<vec_t> Sketch::exhaustive_sample() {
   // TODO - fix this so this isnt required
   bucket_buffer.sort_and_compact();
   inject_buffer_buckets();

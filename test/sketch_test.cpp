@@ -1,4 +1,6 @@
 #include "sketch.h"
+// #include "sketch/sketch_concept.h"
+#include "sketch/sketch_columns.h"
 #include "bucket.h"
 #include <chrono>
 #include <gtest/gtest.h>
@@ -362,7 +364,7 @@ TEST(SketchTestSuite, TestExhaustiveQuery) {
     sketch.update(9);
     sketch.update(10);
 
-    ExhaustiveSketchSample query_ret = sketch.exhaustive_sample();
+    ExhaustiveSketchSample<> query_ret = sketch.exhaustive_sample();
     if (query_ret.result != GOOD) {
       ASSERT_EQ(query_ret.idxs.size(), 0) << query_ret.result;
     }
@@ -475,3 +477,9 @@ TEST(SketchTestSuite, TestRawBucketUpdate) {
   }
   ASSERT_GT(successes, 0);
 }
+
+
+// TEST(SketchColumnTestSuite, TestSketchColumnZero) {
+//   ResizeableSketchColumn::set_seed(get_seed());
+//   ResizeableSketchColumn column(4, 0);
+// }
