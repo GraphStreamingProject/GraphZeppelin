@@ -69,6 +69,7 @@ uint8_t FixedSizeSketchColumn::get_depth() const {
       return i - 1;
     }
   }
+  return 0;
 }
 
 // TODO - implement actual deserialization
@@ -230,6 +231,7 @@ uint8_t ResizeableSketchColumn::get_depth() const {
       return i - 1;
     }
   }
+  return 0;
 }
 
 
