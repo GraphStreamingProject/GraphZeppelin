@@ -106,6 +106,26 @@ void GraphVerifier::verify_connected_components(const ConnectedComponents &cc) {
   }
 }
 
+void GraphVerifier::verify_cc_from_component_set(std::vector<std::set<node_id_t>> component_set) {
+  // compute the connected components for the verifier
+  kruskal();
+
+  // first check that the number of components is the same for both
+  if (kruskal_ccs != component_set.size()) {
+    throw IncorrectCCException("Incorrect number of components!");
+  }
+  // then check that we agree on where all the vertices belong
+  for (auto &component : component_set) {
+    node_id_t first = *component.begin();
+    node_id_t root = kruskal_dsu.find_root(first);
+    for (auto &node : component) {
+      if (kruskal_dsu.find_root(node) != root) {
+        throw IncorrectCCException("Incorrect Connectivity!");
+      }
+    }
+  }
+}
+
 void GraphVerifier::verify_spanning_forests(std::vector<SpanningForest> SFs) {
   // backup the adjacency matrix
   std::vector<std::vector<bool>> backup(adj_matrix);

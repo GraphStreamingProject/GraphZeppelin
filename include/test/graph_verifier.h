@@ -62,6 +62,13 @@ public:
   void verify_connected_components(const ConnectedComponents &cc);
 
   /**
+   * Verifies the connected components solution is correct. Compares
+   * retval against kruskal_ref.
+   * @throws IncorrectCCException if the solution cannot be verified
+   */
+  void verify_cc_from_component_set(std::vector<std::set<node_id_t>> component_set);
+
+  /**
    * Verifies that one or more spanning forests are valid
    * Additionally, enforces that spanning forests must be edge disjoint.
    * @param SFs    the spanning forests to check
