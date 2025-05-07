@@ -23,6 +23,10 @@ struct Bucket {
   bool operator!=(const Bucket &rhs) const {
     return alpha != rhs.alpha || gamma != rhs.gamma;
   };
+  friend std::ostream &operator<<(std::ostream &os, const Bucket &b) {
+    os << "(a: " << b.alpha << " g: " << b.gamma << ")";
+    return os;
+  }
 };
 #pragma pack(pop)
 

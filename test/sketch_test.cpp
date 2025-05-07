@@ -479,7 +479,62 @@ TEST(SketchTestSuite, TestRawBucketUpdate) {
 }
 
 
-// TEST(SketchColumnTestSuite, TestSketchColumnZero) {
-//   ResizeableSketchColumn::set_seed(get_seed());
-//   ResizeableSketchColumn column(4, 0);
-// }
+TEST(SketchColumnTestSuite, TestSketchColumnSampling) {
+  ResizeableSketchColumn::set_seed(get_seed());
+  // ResizeableSketchColumn::seed = get_seed();
+  ResizeableSketchColumn column(18, 0);
+  column.update(10);
+  auto sample = column.sample();
+  ASSERT_EQ(sample.result, GOOD);
+  ASSERT_EQ(sample.idx, 10);
+  column.update(20);
+  sample = column.sample();
+  ASSERT_NE(sample.result, ZERO);
+  column.update(10);
+  sample = column.sample();
+  ASSERT_EQ(sample.result, GOOD);
+  ASSERT_EQ(sample.idx, 20);
+  column.update(20);
+  sample = column.sample();
+  ASSERT_EQ(sample.result, ZERO);
+}
+
+TEST(SketchColumnTestSuite, TestSketchColumnMerging) {
+  ResizeableSketchColumn::set_seed(get_seed());
+  for (size_t col_idx =0; col_idx < 16; col_idx++) {
+    ResizeableSketchColumn column1(18, col_idx);
+    ResizeableSketchColumn column2(18, col_idx);
+    for (vec_t i = 0; i < (1 << 11); i++) {
+      column1.update(i);
+      column2.update(i + 128);
+    }
+    column1.merge(column2);
+    // at this point, the value should be [0,127] or [1 << 11]
+    auto sample = column1.sample();
+    if (sample.result == GOOD) {
+      // std::cout << "sample.idx: " << sample.idx << std::endl;
+      ASSERT_TRUE(
+        sample.idx < 128 || (
+          sample.idx >= (1 << 11) && sample.idx < (1 << 11) + 128
+        )
+      );
+    }
+  }
+}
+
+TEST(SketchColumnTestSuite, TestSketchColumnMergeMany) {
+  ResizeableSketchColumn::set_seed(get_seed());
+  std::vector<ResizeableSketchColumn> columns(1 << 13, ResizeableSketchColumn(4, 0));
+  for (size_t i = 0; i < columns.size(); i++) {
+    columns[i].update(i);
+  }
+  for (size_t i = 1; i < columns.size(); i++) {
+    columns[0].merge(columns[i]);
+  }
+  for (size_t i = 1; i < columns.size(); i++) {
+    columns[0].update(i);
+  }
+  auto sample = columns[0].sample();
+  ASSERT_EQ(sample.result, GOOD);
+  ASSERT_EQ(sample.idx, 0);
+}
