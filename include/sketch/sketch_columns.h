@@ -66,7 +66,7 @@ FixedSizeSketchColumn::~FixedSizeSketchColumn() {
 uint8_t FixedSizeSketchColumn::get_depth() const {
   for (size_t i = capacity; i > 0; --i) {
     if (!Bucket_Boruvka::is_empty(buckets[i - 1])) {
-      return i - 1;
+      return i;
     }
   }
   return 0;
@@ -228,7 +228,7 @@ uint8_t ResizeableSketchColumn::get_depth() const {
   // TODO - maybe rely on flag vectors
   for (size_t i = capacity; i > 0; --i) {
     if (!Bucket_Boruvka::is_empty(aligned_buckets[i - 1])) {
-      return i - 1;
+      return i;
     }
   }
   return 0;
