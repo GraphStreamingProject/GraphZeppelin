@@ -38,6 +38,14 @@ public:
   void reset_sample_state() {
     //no-op
   };
+  bool operator==(const FixedSizeSketchColumn &other) const {
+    for (size_t i = 0; i < capacity; ++i) {
+      if (buckets[i] != other.buckets[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
   friend std::ostream& operator<<(std::ostream &os, const FixedSizeSketchColumn &sketch) {
     os << "FixedSizeSketchColumn: " << std::endl;
     os << "Capacity: " << (int)sketch.capacity << std::endl;
@@ -140,6 +148,14 @@ public:
     //no-op
   };
   void serialize(std::ostream &binary_out) const;
+  bool operator==(const ResizeableSketchColumn &other) const {
+    for (size_t i = 0; i < capacity; ++i) {
+      if (aligned_buckets[i] != other.aligned_buckets[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
 private:
   void reallocate(uint8_t new_capacity);
 };
