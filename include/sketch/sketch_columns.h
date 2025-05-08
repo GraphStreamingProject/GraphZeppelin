@@ -35,6 +35,9 @@ public:
   void merge(FixedSizeSketchColumn &other);
   uint8_t get_depth() const;
   void serialize(std::ostream &binary_out) const;
+  void reset_sample_state() {
+    //no-op
+  };
   friend std::ostream& operator<<(std::ostream &os, const FixedSizeSketchColumn &sketch) {
     os << "FixedSizeSketchColumn: " << std::endl;
     os << "Capacity: " << (int)sketch.capacity << std::endl;
@@ -133,6 +136,9 @@ public:
   void update(const vec_t update);
   void merge(ResizeableSketchColumn &other);
   uint8_t get_depth() const;
+  void reset_sample_state() {
+    //no-op
+  };
   void serialize(std::ostream &binary_out) const;
 private:
   void reallocate(uint8_t new_capacity);

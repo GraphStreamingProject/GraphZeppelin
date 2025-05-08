@@ -42,6 +42,7 @@ concept SketchColumnConcept = requires(T t, T other) {
   { t.get_seed() } -> std::same_as<uint64_t>;
   
   { t.serialize(std::declval<std::ostream&>()) };
+  { t.reset_sample_state()} -> std::same_as<void>;
 };
 
 /*
