@@ -109,6 +109,18 @@ public:
   }
   
   void serialize(std::ostream &binary_out) const;
+  
+  friend std::ostream& operator<<(std::ostream &os, const ResizeableSketchColumn&sketch) {
+    os << "ResizeableSketchColumn: " << std::endl;
+    os << "Capacity: " << (int)sketch.capacity << std::endl;
+    os << "Column Index: " << (int)sketch.col_idx << std::endl;
+    os << "Deterministic Bucket: " << sketch.deterministic_bucket << std::endl;
+    for (size_t i = 0; i < sketch.capacity; ++i) {
+      os << "Bucket[" << i << "]: " << sketch.aligned_buckets[i] << std::endl;
+    }
+    return os;
+  }
+  
   bool operator==(const ResizeableSketchColumn &other) const {
     for (size_t i = 0; i < capacity; ++i) {
       if (aligned_buckets[i] != other.aligned_buckets[i]) {
