@@ -122,7 +122,11 @@ public:
   }
   
   bool operator==(const ResizeableSketchColumn &other) const {
-    for (size_t i = 0; i < capacity; ++i) {
+    size_t other_depth = other.get_depth();
+    if (get_depth() != other_depth) {
+      return false;
+    }
+    for (size_t i = 0; i < other_depth; ++i) {
       if (aligned_buckets[i] != other.aligned_buckets[i]) {
         return false;
       }
