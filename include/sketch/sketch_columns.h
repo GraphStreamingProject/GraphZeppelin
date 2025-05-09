@@ -44,8 +44,6 @@ public:
     return static_cast<uint8_t>(1 + ceil(log2(num_edges)));
   }
 
-  [[deprecated]]
-
   void reset_sample_state() {
     //no-op
   };

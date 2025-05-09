@@ -59,7 +59,7 @@ void FixedSizeSketchColumn::merge(FixedSizeSketchColumn &other) {
 
 void FixedSizeSketchColumn::update(const vec_t update) {
   vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update, seed);
-  col_hash_t depth = Bucket_Boruvka::get_index_depth(update, seed, col_idx, capacity);
+  col_hash_t depth = Bucket_Boruvka::get_index_depth(update, seed, col_idx, capacity-1);
   assert(depth < capacity);
   buckets[depth] ^= {update, checksum};
   deterministic_bucket ^= {update, checksum};
@@ -126,7 +126,7 @@ void ResizeableSketchColumn::update(const vec_t update) {
   // TODO - remove magic number
   // TODO - get_index_depth needs to be fixed. hashes need to be longer
   // than 32 bits if we're not using the deep bucket buffer idea.
-  col_hash_t depth = Bucket_Boruvka::get_index_depth(update, seed, col_idx, 32);
+  col_hash_t depth = Bucket_Boruvka::get_index_depth(update, seed, col_idx, 60);
   deterministic_bucket ^= {update, checksum};
 
   while (depth >= capacity) {
