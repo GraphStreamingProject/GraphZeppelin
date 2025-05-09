@@ -91,8 +91,9 @@ void ResizeableSketchColumn::reallocate(uint8_t new_capacity) {
   auto new_buckets = hwy::AllocateAligned<Bucket>(new_capacity);
   std::memset(new_buckets.get() + capacity, 0,
               (resize_capacity - capacity) * sizeof(Bucket));
+  // old capacity:
   std::memcpy(new_buckets.get(), aligned_buckets.get(),
-              resize_capacity * sizeof(Bucket));
+              capacity * sizeof(Bucket));
   aligned_buckets = std::move(new_buckets);
   capacity = new_capacity;
 }
