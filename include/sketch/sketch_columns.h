@@ -2,6 +2,8 @@
 #include "bucket.h"
 #include "sketch_concept.h"
 
+#include <cmath>
+
 #include "util.h"
 
 #include <hwy/highway.h>
@@ -31,13 +33,28 @@ public:
   ~FixedSizeSketchColumn();
   SketchSample<vec_t> sample() const;
   void clear();
+  
   void update(const vec_t update);
   void merge(FixedSizeSketchColumn &other);
   uint8_t get_depth() const;
   void serialize(std::ostream &binary_out) const;
+  
+  static uint8_t suggest_capacity(size_t num_vertices) {
+    size_t num_edges = num_vertices * (num_vertices - 1) / 2;
+    return static_cast<uint8_t>(1 + ceil(log2(num_edges)));
+  }
+
+  [[deprecated]]
+
   void reset_sample_state() {
     //no-op
   };
+
+  [[deprecated]]
+  void zero_contents() {
+    clear();
+  }
+
   bool operator==(const FixedSizeSketchColumn &other) const {
     for (size_t i = 0; i < capacity; ++i) {
       if (buckets[i] != other.buckets[i]) {
@@ -56,6 +73,7 @@ public:
     }
     return os;
   }
+
 };
 
 
@@ -78,9 +96,20 @@ public:
   void update(const vec_t update);
   void merge(ResizeableSketchColumn &other);
   uint8_t get_depth() const;
+
+  [[deprecated]]
+  void zero_contents() {
+    clear();
+  }
+
   void reset_sample_state() {
     //no-op
   };
+
+  static uint8_t suggest_capacity(size_t num_vertices) {
+    return 4;
+  }
+  
   void serialize(std::ostream &binary_out) const;
   bool operator==(const ResizeableSketchColumn &other) const {
     for (size_t i = 0; i < capacity; ++i) {

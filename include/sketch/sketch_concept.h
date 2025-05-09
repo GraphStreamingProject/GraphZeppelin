@@ -42,6 +42,9 @@ concept SketchColumnConcept = requires(T t, T other) {
   { t.update(std::declval<V>()) } -> std::same_as<void>;
   { t.merge(other) } -> std::same_as<void>;
 
+  { t.clear()} -> std::same_as<void>;
+  { t.zero_contents()} -> std::same_as<void>;
+
   { t.get_depth() } -> std::same_as<uint8_t>;
   { t.get_seed() } -> std::same_as<uint64_t>;
   
@@ -52,6 +55,7 @@ concept SketchColumnConcept = requires(T t, T other) {
   requires std::constructible_from<T, const T&>;
   // constructor with capacity hint, column index for seeding
   requires std::constructible_from<T, uint8_t, uint16_t>;
+  { T::suggest_capacity(std::declval<size_t>()) } -> std::same_as<uint8_t>;
 };
 
 /*
