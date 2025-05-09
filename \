@@ -135,7 +135,6 @@ add_library(GraphZeppelinVerifyCC
   src/driver_configuration.cpp
   src/cc_alg_configuration.cpp
   src/sketch.cpp
-  src/sketch_columns.cpp
   src/recovery.cpp
   src/util.cpp
   test/util/graph_verifier.cpp)

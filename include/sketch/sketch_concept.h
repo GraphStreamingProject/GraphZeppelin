@@ -2,6 +2,7 @@
 #include <format>
 #include <concepts>
 #include "bucket.h"
+#include <unordered_set>
 
 enum SampleResult {
   GOOD,  // sampling this sketch returned a single non-zero value
