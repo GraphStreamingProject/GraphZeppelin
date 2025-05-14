@@ -14,8 +14,7 @@
 */
 class FixedSizeSketchColumn {
 private:
-
-  std::unique_ptr<Bucket[]> buckets;
+  Bucket *buckets;
   Bucket deterministic_bucket = {0, 0};
   uint16_t col_idx; // determines column seeding
   uint8_t capacity;
@@ -78,7 +77,7 @@ public:
 class ResizeableSketchColumn {
 private:
   static uint64_t seed;
-  hwy::AlignedFreeUniquePtr<Bucket[]> aligned_buckets;
+  Bucket *aligned_buckets;
   Bucket deterministic_bucket = {0, 0};
   uint16_t col_idx; // determines column seeding
   uint8_t capacity;
@@ -122,6 +121,69 @@ public:
   }
   
   bool operator==(const ResizeableSketchColumn &other) const {
+    size_t other_depth = other.get_depth();
+    if (get_depth() != other_depth) {
+      return false;
+    }
+    for (size_t i = 0; i < other_depth; ++i) {
+      if (aligned_buckets[i] != other.aligned_buckets[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+private:
+  void reallocate(uint8_t new_capacity);
+};
+
+
+class ResizeableAlignedSketchColumn {
+private:
+  static uint64_t seed;
+  hwy::AlignedFreeUniquePtr<Bucket[]> aligned_buckets;
+  Bucket deterministic_bucket = {0, 0};
+  uint16_t col_idx; // determines column seeding
+  uint8_t capacity;
+public:
+  static void set_seed(uint64_t new_seed) { seed = new_seed; };
+  static const uint64_t get_seed() { return seed; };
+
+  ResizeableAlignedSketchColumn(uint8_t start_capacity, uint16_t col_idx);
+  ResizeableAlignedSketchColumn(const ResizeableAlignedSketchColumn &other);
+  ~ResizeableAlignedSketchColumn();
+  SketchSample<vec_t> sample() const;
+  void clear();
+  void update(const vec_t update);
+  void merge(ResizeableAlignedSketchColumn &other);
+  uint8_t get_depth() const;
+
+  [[deprecated]]
+  void zero_contents() {
+    clear();
+  }
+
+  void reset_sample_state() {
+    //no-op
+  };
+
+  static uint8_t suggest_capacity(size_t num_vertices) {
+    return 4;
+  }
+  
+  void serialize(std::ostream &binary_out) const;
+  
+  friend std::ostream& operator<<(std::ostream &os, const ResizeableAlignedSketchColumn&sketch) {
+    os << "ResizeableSketchColumn: " << std::endl;
+    os << "Capacity: " << (int)sketch.capacity << std::endl;
+    os << "Column Index: " << (int)sketch.col_idx << std::endl;
+    os << "Deterministic Bucket: " << sketch.deterministic_bucket << std::endl;
+    for (size_t i = 0; i < sketch.capacity; ++i) {
+      os << "Bucket[" << i << "]: " << sketch.aligned_buckets[i] << std::endl;
+    }
+    return os;
+  }
+  
+  bool operator==(const ResizeableAlignedSketchColumn &other) const {
     size_t other_depth = other.get_depth();
     if (get_depth() != other_depth) {
       return false;

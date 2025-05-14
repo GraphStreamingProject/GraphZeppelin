@@ -478,11 +478,13 @@ TEST(SketchTestSuite, TestRawBucketUpdate) {
   ASSERT_GT(successes, 0);
 }
 
+// using TestDefaultSketchColumn = FixedSizeSketchColumn;
+using TestDefaultSketchColumn = ResizeableSketchColumn;
 
 TEST(SketchColumnTestSuite, TestSketchColumnSampling) {
-  ResizeableSketchColumn::set_seed(get_seed());
+  TestDefaultSketchColumn::set_seed(get_seed());
   // ResizeableSketchColumn::seed = get_seed();
-  ResizeableSketchColumn column(18, 0);
+  TestDefaultSketchColumn column(18, 0);
   column.update(10);
   auto sample = column.sample();
   ASSERT_EQ(sample.result, GOOD);
@@ -500,10 +502,11 @@ TEST(SketchColumnTestSuite, TestSketchColumnSampling) {
 }
 
 TEST(SketchColumnTestSuite, TestSketchColumnMerging) {
-  ResizeableSketchColumn::set_seed(get_seed());
+  size_t num_nodes = 1 << 12;
+  TestDefaultSketchColumn::set_seed(get_seed());
   for (size_t col_idx =0; col_idx < 16; col_idx++) {
-    ResizeableSketchColumn column1(18, col_idx);
-    ResizeableSketchColumn column2(18, col_idx);
+    TestDefaultSketchColumn column1(TestDefaultSketchColumn::suggest_capacity(num_nodes), col_idx);
+    TestDefaultSketchColumn column2(TestDefaultSketchColumn::suggest_capacity(num_nodes), col_idx);
     for (vec_t i = 0; i < (1 << 11); i++) {
       column1.update(i);
       column2.update(i + 128);
@@ -523,8 +526,10 @@ TEST(SketchColumnTestSuite, TestSketchColumnMerging) {
 }
 
 TEST(SketchColumnTestSuite, TestSketchColumnMergeMany) {
-  ResizeableSketchColumn::set_seed(get_seed());
-  std::vector<ResizeableSketchColumn> columns(1 << 13, ResizeableSketchColumn(4, 0));
+  TestDefaultSketchColumn::set_seed(get_seed());
+  std::vector<TestDefaultSketchColumn> columns(
+      1 << 13, TestDefaultSketchColumn(
+                   TestDefaultSketchColumn::suggest_capacity(1 << 14), 0));
   for (size_t i = 0; i < columns.size(); i++) {
     columns[i].update(i);
   }
