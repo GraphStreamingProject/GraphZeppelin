@@ -77,7 +77,7 @@ public:
 class ResizeableSketchColumn {
 private:
   static uint64_t seed;
-  Bucket *aligned_buckets;
+  Bucket *buckets;
   Bucket deterministic_bucket = {0, 0};
   uint16_t col_idx; // determines column seeding
   uint8_t capacity;
@@ -115,7 +115,7 @@ public:
     os << "Column Index: " << (int)sketch.col_idx << std::endl;
     os << "Deterministic Bucket: " << sketch.deterministic_bucket << std::endl;
     for (size_t i = 0; i < sketch.capacity; ++i) {
-      os << "Bucket[" << i << "]: " << sketch.aligned_buckets[i] << std::endl;
+      os << "Bucket[" << i << "]: " << sketch.buckets[i] << std::endl;
     }
     return os;
   }
@@ -126,7 +126,7 @@ public:
       return false;
     }
     for (size_t i = 0; i < other_depth; ++i) {
-      if (aligned_buckets[i] != other.aligned_buckets[i]) {
+      if (buckets[i] != other.buckets[i]) {
         return false;
       }
     }

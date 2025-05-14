@@ -68,18 +68,18 @@ void FixedSizeSketchColumn::update(const vec_t update) {
 
 ResizeableSketchColumn::ResizeableSketchColumn(uint8_t start_capacity, uint16_t col_idx) :
     capacity(start_capacity), col_idx(col_idx) {
-    aligned_buckets = new Bucket[start_capacity];
-    std::memset(aligned_buckets, 0, capacity * sizeof(Bucket));
+    buckets = new Bucket[start_capacity];
+    std::memset(buckets, 0, capacity * sizeof(Bucket));
 }
 
 ResizeableSketchColumn::ResizeableSketchColumn(const ResizeableSketchColumn &other) :
     capacity(other.capacity), col_idx(other.col_idx), deterministic_bucket(other.deterministic_bucket) {
-  aligned_buckets = new Bucket[capacity];
-  std::memcpy(aligned_buckets, other.aligned_buckets, capacity * sizeof(Bucket));
+  buckets = new Bucket[capacity];
+  std::memcpy(buckets, other.buckets, capacity * sizeof(Bucket));
 }
 
 ResizeableSketchColumn::~ResizeableSketchColumn() {
-  delete[] aligned_buckets;
+  delete[] buckets;
 }
 
 /*
@@ -92,20 +92,20 @@ void ResizeableSketchColumn::reallocate(uint8_t new_capacity) {
     std::memset(new_buckets + capacity, 0,
                 (new_capacity - capacity) * sizeof(Bucket));
   }
-  std::memcpy(new_buckets, aligned_buckets,
+  std::memcpy(new_buckets, buckets,
               std::min(capacity, new_capacity) * sizeof(Bucket));
-  delete[] aligned_buckets;
+  delete[] buckets;
   
-  aligned_buckets = new_buckets;
+  buckets = new_buckets;
   capacity = new_capacity;
 }
 void ResizeableSketchColumn::clear() {
-  std::memset(aligned_buckets, 0, capacity * sizeof(Bucket));
+  std::memset(buckets, 0, capacity * sizeof(Bucket));
   deterministic_bucket = {0, 0};
 }
 
 void ResizeableSketchColumn::serialize(std::ostream &binary_out) const {
-  binary_out.write((char *) aligned_buckets, capacity * sizeof(Bucket));
+  binary_out.write((char *) buckets, capacity * sizeof(Bucket));
   binary_out.write((char *) &deterministic_bucket, sizeof(Bucket));
   binary_out.write((char *) &capacity, sizeof(uint8_t));
   binary_out.write((char *) &col_idx, sizeof(uint8_t));
@@ -116,8 +116,8 @@ SketchSample<vec_t> ResizeableSketchColumn::sample() const {
     return {0, ZERO};  // the "first" bucket is deterministic so if all zero then no edges to return
   }
   for (size_t i = capacity; i > 0; --i) {
-    if (Bucket_Boruvka::is_good(aligned_buckets[i - 1], seed)) {
-      return {aligned_buckets[i - 1].alpha, GOOD};
+    if (Bucket_Boruvka::is_good(buckets[i - 1], seed)) {
+      return {buckets[i - 1].alpha, GOOD};
     }
   }
   return {0, FAIL};
@@ -135,7 +135,7 @@ void ResizeableSketchColumn::update(const vec_t update) {
     size_t new_capacity = ((depth >> 2) << 2) + 4;
     reallocate(new_capacity); 
   }
-  aligned_buckets[depth] ^= {update, checksum};
+  buckets[depth] ^= {update, checksum};
 }
 
 void ResizeableSketchColumn::merge(ResizeableSketchColumn &other) {
@@ -144,14 +144,14 @@ void ResizeableSketchColumn::merge(ResizeableSketchColumn &other) {
     reallocate(other.capacity);
   }
   for (size_t i = 0; i < other.capacity; ++i) {
-    aligned_buckets[i] ^= other.aligned_buckets[i];
+    buckets[i] ^= other.buckets[i];
   }
 }
 
 uint8_t ResizeableSketchColumn::get_depth() const {
   // TODO - maybe rely on flag vectors
   for (size_t i = capacity; i > 0; --i) {
-    if (!Bucket_Boruvka::is_empty(aligned_buckets[i - 1])) {
+    if (!Bucket_Boruvka::is_empty(buckets[i - 1])) {
       return i;
     }
   }
