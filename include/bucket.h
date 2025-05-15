@@ -50,6 +50,13 @@ namespace Bucket_Boruvka {
   inline static col_hash_t get_index_depth(const vec_t update_idx, const long seed, const long col,
    const vec_hash_t max_depth);
 
+  
+  inline static col_hash_t get_index_depth_legacy(const vec_t update_idx, const long seed_and_col, const vec_hash_t max_depth) {
+    col_hash_t depth_hash = col_hash(&update_idx, sizeof(vec_t), seed_and_col);
+    depth_hash |= (1ull << max_depth); // assert not > max_depth by ORing
+    return __builtin_ctzll(depth_hash); 
+  }
+
   inline static void get_all_index_depths(
     const vec_t update_idx,
     uint32_t *depths_buffer, 
