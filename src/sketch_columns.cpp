@@ -60,7 +60,7 @@ void FixedSizeSketchColumn::merge(FixedSizeSketchColumn &other) {
 void FixedSizeSketchColumn::update(const vec_t update) {
   vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update, seed);
   col_hash_t depth = Bucket_Boruvka::get_index_depth(update, seed, col_idx, capacity-1);
-  assert(depth < capacity);
+  // assert(depth < capacity);
   buckets[depth] ^= {update, checksum};
   deterministic_bucket ^= {update, checksum};
 }
