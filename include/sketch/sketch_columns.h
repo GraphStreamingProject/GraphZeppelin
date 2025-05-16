@@ -38,9 +38,8 @@ public:
   uint8_t get_depth() const;
   void serialize(std::ostream &binary_out) const;
   
-  static uint8_t suggest_capacity(size_t num_vertices) {
-    size_t num_edges = num_vertices * (num_vertices - 1) / 2;
-    return static_cast<uint8_t>(1 + ceil(log2(num_edges)));
+  static uint8_t suggest_capacity(size_t num_indices) { 
+    return static_cast<uint8_t>(2 + ceil(log2(num_indices)));
   }
 
   void reset_sample_state() {
@@ -107,7 +106,7 @@ public:
     //no-op
   };
 
-  static uint8_t suggest_capacity(size_t num_vertices) {
+  static uint8_t suggest_capacity(size_t num_indices) {
     return 4;
   }
   
@@ -171,7 +170,7 @@ public:
     //no-op
   };
 
-  static uint8_t suggest_capacity(size_t num_vertices) {
+  static uint8_t suggest_capacity(size_t num_indices) {
     return 4;
   }
   
