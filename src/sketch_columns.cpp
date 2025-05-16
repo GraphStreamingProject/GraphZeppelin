@@ -2,19 +2,31 @@
 
 FixedSizeSketchColumn::FixedSizeSketchColumn(uint8_t capacity, uint64_t seed) :
     capacity(capacity), seed(seed) {
-  buckets = new Bucket[capacity];
-  std::memset(buckets, 0, capacity * sizeof(Bucket));
+  likely_if (capacity > 0) {
+    buckets = new Bucket[capacity];
+    std::memset(buckets, 0, capacity * sizeof(Bucket));
+  }
+  else {
+    buckets = nullptr;
+  }
 }
 
 FixedSizeSketchColumn::FixedSizeSketchColumn(const FixedSizeSketchColumn &other) :
     capacity(other.capacity), seed(other.seed), deterministic_bucket(other.deterministic_bucket) {
-  buckets = new Bucket[capacity];
-  std::memcpy(buckets, other.buckets, capacity * sizeof(Bucket));
+  likely_if (capacity > 0) {
+    buckets = new Bucket[capacity];
+    std::memcpy(buckets, other.buckets, capacity * sizeof(Bucket));
+  }
+  else {
+    buckets = nullptr;
+  }
 }
 
 FixedSizeSketchColumn::FixedSizeSketchColumn(FixedSizeSketchColumn &&other) :
     capacity(other.capacity), seed(other.seed), deterministic_bucket(other.deterministic_bucket) {
-    buckets = std::move(other.buckets);
+      buckets = other.buckets;
+      other.buckets = nullptr;
+      other.capacity = 0;
 }
 
 FixedSizeSketchColumn& FixedSizeSketchColumn::operator=(FixedSizeSketchColumn &&other) {
@@ -26,6 +38,7 @@ FixedSizeSketchColumn& FixedSizeSketchColumn::operator=(FixedSizeSketchColumn &&
     
     buckets = other.buckets;
     other.buckets = nullptr;
+    other.capacity = 0;
   }
   return *this;
 }
@@ -84,17 +97,27 @@ void FixedSizeSketchColumn::update(const vec_t update) {
   deterministic_bucket ^= {update, checksum};
 }
 
-
-ResizeableSketchColumn::ResizeableSketchColumn(uint8_t start_capacity, uint64_t seed) :
-    capacity(start_capacity), seed(seed) {
+ResizeableSketchColumn::ResizeableSketchColumn(uint8_t start_capacity,
+                                               uint64_t seed)
+    : capacity(start_capacity), seed(seed) {
+  likely_if(capacity > 0) {
     buckets = new Bucket[start_capacity];
     std::memset(buckets, 0, capacity * sizeof(Bucket));
+  }
+  else {
+    buckets = nullptr;
+  }
 }
 
 ResizeableSketchColumn::ResizeableSketchColumn(const ResizeableSketchColumn &other) :
     capacity(other.capacity), seed(other.seed), deterministic_bucket(other.deterministic_bucket) {
-  buckets = new Bucket[capacity];
-  std::memcpy(buckets, other.buckets, capacity * sizeof(Bucket));
+  likely_if(capacity > 0) {
+    buckets = new Bucket[capacity];
+    std::memcpy(buckets, other.buckets, capacity * sizeof(Bucket));
+  }
+  else {
+    buckets = nullptr;
+  }
 }
 
 ResizeableSketchColumn::ResizeableSketchColumn(ResizeableSketchColumn &&other) :
@@ -102,6 +125,7 @@ ResizeableSketchColumn::ResizeableSketchColumn(ResizeableSketchColumn &&other) :
     // move constructor
     buckets = other.buckets;
     other.buckets = nullptr;
+    other.capacity = 0;
 }
 
 ResizeableSketchColumn& ResizeableSketchColumn::operator=(ResizeableSketchColumn &&other) {
@@ -113,6 +137,7 @@ ResizeableSketchColumn& ResizeableSketchColumn::operator=(ResizeableSketchColumn
     
     buckets = other.buckets;
     other.buckets = nullptr;
+    other.capacity = 0;
   }
   return *this;
 }

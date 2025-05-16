@@ -46,6 +46,10 @@ public:
     //no-op
   };
 
+  inline bool is_initialized() const {
+    return buckets != nullptr;
+  }
+
   [[deprecated]]
   void zero_contents() {
     clear();
@@ -123,6 +127,10 @@ public:
     return os;
   }
   
+  inline bool is_initialized() const {
+    return buckets != nullptr;
+  }
+  
   bool operator==(const ResizeableSketchColumn &other) const {
     size_t other_depth = other.get_depth();
     if (get_depth() != other_depth) {
@@ -148,7 +156,7 @@ private:
   uint8_t capacity;
 public:
   void set_seed(uint64_t new_seed) { seed = new_seed; };
-  const uint64_t get_seed() { return seed; };
+  uint64_t get_seed() const { return seed; };
 
   ResizeableAlignedSketchColumn(uint8_t start_capacity, uint64_t seed);
   ResizeableAlignedSketchColumn(const ResizeableAlignedSketchColumn &other);
@@ -164,6 +172,10 @@ public:
   [[deprecated]]
   void zero_contents() {
     clear();
+  }
+
+  inline bool is_initialized() const {
+    return aligned_buckets != nullptr;
   }
 
   void reset_sample_state() {

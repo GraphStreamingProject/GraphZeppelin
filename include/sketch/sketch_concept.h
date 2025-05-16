@@ -40,6 +40,8 @@ concept SketchColumnConcept = requires(T t, T other) {
   { t.sample() } -> std::same_as<SketchSample<V>>;
   { t.update(std::declval<V>()) } -> std::same_as<void>;
   { t.merge(other) } -> std::same_as<void>;
+  
+  { t.is_initialized() } -> std::same_as<bool>;
 
   { t.clear()} -> std::same_as<void>;
   { t.zero_contents()} -> std::same_as<void>;
