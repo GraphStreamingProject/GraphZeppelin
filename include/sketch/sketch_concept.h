@@ -51,9 +51,13 @@ concept SketchColumnConcept = requires(T t, T other) {
   { t.reset_sample_state()} -> std::same_as<void>;
   { t == other } -> std::same_as<bool>;
   // copy constructor required
-  requires std::constructible_from<T, const T&>;
-  // constructor with capacity hint, column index for seeding
-  requires std::constructible_from<T, uint8_t, uint16_t>;
+  // requires std::constructible_from<T, const T&>;
+  requires std::copy_constructible<T>;
+  // move constructor and assignment required
+  requires std::move_constructible<T>;
+  requires std::assignable_from<T&, T>;
+  // constructor with capacity hint, and a seed
+  requires std::constructible_from<T, uint8_t, uint64_t>;
   { T::suggest_capacity(std::declval<size_t>()) } -> std::same_as<uint8_t>;
 };
 

@@ -1,18 +1,37 @@
 #include "sketch/sketch_columns.h"
 
-FixedSizeSketchColumn::FixedSizeSketchColumn(uint8_t capacity, uint16_t col_idx) :
-    capacity(capacity), col_idx(col_idx) {
+FixedSizeSketchColumn::FixedSizeSketchColumn(uint8_t capacity, uint64_t seed) :
+    capacity(capacity), seed(seed) {
   buckets = new Bucket[capacity];
   std::memset(buckets, 0, capacity * sizeof(Bucket));
 }
 
 FixedSizeSketchColumn::FixedSizeSketchColumn(const FixedSizeSketchColumn &other) :
-    capacity(other.capacity), col_idx(other.col_idx), deterministic_bucket(other.deterministic_bucket) {
+    capacity(other.capacity), seed(other.seed), deterministic_bucket(other.deterministic_bucket) {
   buckets = new Bucket[capacity];
   std::memcpy(buckets, other.buckets, capacity * sizeof(Bucket));
 }
 
+FixedSizeSketchColumn::FixedSizeSketchColumn(FixedSizeSketchColumn &&other) :
+    capacity(other.capacity), seed(other.seed), deterministic_bucket(other.deterministic_bucket) {
+    buckets = std::move(other.buckets);
+}
+
+FixedSizeSketchColumn& FixedSizeSketchColumn::operator=(FixedSizeSketchColumn &&other) {
+  if (this != &other) {
+    delete[] buckets;
+    capacity = other.capacity;
+    seed = other.seed;
+    deterministic_bucket = other.deterministic_bucket;
+    
+    buckets = other.buckets;
+    other.buckets = nullptr;
+  }
+  return *this;
+}
+
 FixedSizeSketchColumn::~FixedSizeSketchColumn() {
+  // note nullptr is safe to delete
   delete[] buckets;
 }
 
@@ -29,8 +48,8 @@ uint8_t FixedSizeSketchColumn::get_depth() const {
 void FixedSizeSketchColumn::serialize(std::ostream &binary_out) const {
   binary_out.write((char *) buckets, capacity * sizeof(Bucket));
   binary_out.write((char *) &deterministic_bucket, sizeof(Bucket));
+  binary_out.write((char *) &seed, sizeof(uint64_t));
   binary_out.write((char *) &capacity, sizeof(uint8_t));
-  binary_out.write((char *) &col_idx, sizeof(uint8_t));
 }
 
 SketchSample<vec_t> FixedSizeSketchColumn::sample() const {
@@ -59,23 +78,43 @@ void FixedSizeSketchColumn::merge(FixedSizeSketchColumn &other) {
 
 void FixedSizeSketchColumn::update(const vec_t update) {
   vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update, seed);
-  col_hash_t depth = Bucket_Boruvka::get_index_depth_legacy(update, seed + col_idx, capacity-1);
+  col_hash_t depth = Bucket_Boruvka::get_index_depth_legacy(update, seed, capacity-1);
   // assert(depth < capacity);
   buckets[depth] ^= {update, checksum};
   deterministic_bucket ^= {update, checksum};
 }
 
 
-ResizeableSketchColumn::ResizeableSketchColumn(uint8_t start_capacity, uint16_t col_idx) :
-    capacity(start_capacity), col_idx(col_idx) {
+ResizeableSketchColumn::ResizeableSketchColumn(uint8_t start_capacity, uint64_t seed) :
+    capacity(start_capacity), seed(seed) {
     buckets = new Bucket[start_capacity];
     std::memset(buckets, 0, capacity * sizeof(Bucket));
 }
 
 ResizeableSketchColumn::ResizeableSketchColumn(const ResizeableSketchColumn &other) :
-    capacity(other.capacity), col_idx(other.col_idx), deterministic_bucket(other.deterministic_bucket) {
+    capacity(other.capacity), seed(other.seed), deterministic_bucket(other.deterministic_bucket) {
   buckets = new Bucket[capacity];
   std::memcpy(buckets, other.buckets, capacity * sizeof(Bucket));
+}
+
+ResizeableSketchColumn::ResizeableSketchColumn(ResizeableSketchColumn &&other) :
+    capacity(other.capacity), seed(other.seed), deterministic_bucket(other.deterministic_bucket) {
+    // move constructor
+    buckets = other.buckets;
+    other.buckets = nullptr;
+}
+
+ResizeableSketchColumn& ResizeableSketchColumn::operator=(ResizeableSketchColumn &&other) {
+  if (this != &other) {
+    delete[] buckets;
+    capacity = other.capacity;
+    seed = other.seed;
+    deterministic_bucket = other.deterministic_bucket;
+    
+    buckets = other.buckets;
+    other.buckets = nullptr;
+  }
+  return *this;
 }
 
 ResizeableSketchColumn::~ResizeableSketchColumn() {
@@ -107,8 +146,8 @@ void ResizeableSketchColumn::clear() {
 void ResizeableSketchColumn::serialize(std::ostream &binary_out) const {
   binary_out.write((char *) buckets, capacity * sizeof(Bucket));
   binary_out.write((char *) &deterministic_bucket, sizeof(Bucket));
+  binary_out.write((char *) &seed, sizeof(uint64_t));
   binary_out.write((char *) &capacity, sizeof(uint8_t));
-  binary_out.write((char *) &col_idx, sizeof(uint8_t));
 }
 
 SketchSample<vec_t> ResizeableSketchColumn::sample() const {
@@ -128,7 +167,7 @@ void ResizeableSketchColumn::update(const vec_t update) {
   // TODO - remove magic number
   // TODO - get_index_depth needs to be fixed. hashes need to be longer
   // than 32 bits if we're not using the deep bucket buffer idea.
-  col_hash_t depth = Bucket_Boruvka::get_index_depth_legacy(update, seed + col_idx, 60);
+  col_hash_t depth = Bucket_Boruvka::get_index_depth_legacy(update, seed, 60);
   deterministic_bucket ^= {update, checksum};
 
   if (depth >= capacity) {
@@ -160,8 +199,8 @@ uint8_t ResizeableSketchColumn::get_depth() const {
 
 
 
-ResizeableAlignedSketchColumn::ResizeableAlignedSketchColumn(uint8_t start_capacity, uint16_t col_idx) :
-    capacity(start_capacity), col_idx(col_idx) {
+ResizeableAlignedSketchColumn::ResizeableAlignedSketchColumn(uint8_t start_capacity, uint64_t seed) :
+    capacity(start_capacity), seed(seed) {
       
     // auto aligned_memptr = hwy::MakeUniqueAlignedArray<Bucket>(start_capacity);
     aligned_buckets = hwy::AllocateAligned<Bucket>(start_capacity);
@@ -169,7 +208,7 @@ ResizeableAlignedSketchColumn::ResizeableAlignedSketchColumn(uint8_t start_capac
 }
 
 ResizeableAlignedSketchColumn::ResizeableAlignedSketchColumn(const ResizeableAlignedSketchColumn &other) :
-    capacity(other.capacity), col_idx(other.col_idx), deterministic_bucket(other.deterministic_bucket) {
+    capacity(other.capacity), seed(other.seed), deterministic_bucket(other.deterministic_bucket) {
   aligned_buckets = hwy::AllocateAligned<Bucket>(capacity);
   std::memcpy(aligned_buckets.get(), other.aligned_buckets.get(), capacity * sizeof(Bucket));
 }
@@ -200,8 +239,8 @@ void ResizeableAlignedSketchColumn::clear() {
 void ResizeableAlignedSketchColumn::serialize(std::ostream &binary_out) const {
   binary_out.write((char *) aligned_buckets.get(), capacity * sizeof(Bucket));
   binary_out.write((char *) &deterministic_bucket, sizeof(Bucket));
+  binary_out.write((char *) &seed, sizeof(uint64_t));
   binary_out.write((char *) &capacity, sizeof(uint8_t));
-  binary_out.write((char *) &col_idx, sizeof(uint8_t));
 }
 
 SketchSample<vec_t> ResizeableAlignedSketchColumn::sample() const {
@@ -221,7 +260,7 @@ void ResizeableAlignedSketchColumn::update(const vec_t update) {
   // TODO - remove magic number
   // TODO - get_index_depth needs to be fixed. hashes need to be longer
   // than 32 bits if we're not using the deep bucket buffer idea.
-  col_hash_t depth = Bucket_Boruvka::get_index_depth_legacy(update, seed + col_idx, 60);
+  col_hash_t depth = Bucket_Boruvka::get_index_depth_legacy(update, seed, 60);
   deterministic_bucket ^= {update, checksum};
 
   if (depth >= capacity) {
@@ -251,11 +290,6 @@ uint8_t ResizeableAlignedSketchColumn::get_depth() const {
   }
   return 0;
 }
-
-uint64_t ResizeableSketchColumn::seed = 0;
-uint64_t FixedSizeSketchColumn::seed = 0;
-uint64_t ResizeableAlignedSketchColumn::seed = 0;
-
 
 
 static_assert(SketchColumnConcept<FixedSizeSketchColumn, vec_t>,
