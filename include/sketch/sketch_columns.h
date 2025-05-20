@@ -28,7 +28,11 @@ public:
 
   FixedSizeSketchColumn(uint8_t capacity, uint64_t seed);
   FixedSizeSketchColumn(const FixedSizeSketchColumn &other);
+  FixedSizeSketchColumn& operator=(const FixedSizeSketchColumn &other);
+
   FixedSizeSketchColumn(FixedSizeSketchColumn &&other);
+  FixedSizeSketchColumn& operator=(FixedSizeSketchColumn &&other);
+
   ~FixedSizeSketchColumn();
   SketchSample<vec_t> sample() const;
   void clear();
@@ -63,8 +67,6 @@ public:
     }
     return true;
   }
-  // move assignment operator
-  FixedSizeSketchColumn& operator=(FixedSizeSketchColumn &&other);
 
   friend std::ostream& operator<<(std::ostream &os, const FixedSizeSketchColumn &sketch) {
     os << "FixedSizeSketchColumn: " << std::endl;
@@ -92,6 +94,8 @@ public:
 
   ResizeableSketchColumn(uint8_t start_capacity, uint64_t seed);
   ResizeableSketchColumn(const ResizeableSketchColumn &other);
+  ResizeableSketchColumn& operator=(const ResizeableSketchColumn &other);
+
   ResizeableSketchColumn(ResizeableSketchColumn &&other);
   ResizeableSketchColumn& operator=(ResizeableSketchColumn &&other);
   ~ResizeableSketchColumn();
@@ -160,6 +164,8 @@ public:
 
   ResizeableAlignedSketchColumn(uint8_t start_capacity, uint64_t seed);
   ResizeableAlignedSketchColumn(const ResizeableAlignedSketchColumn &other);
+  ResizeableAlignedSketchColumn& operator=(const ResizeableAlignedSketchColumn &other);
+
   ResizeableAlignedSketchColumn(ResizeableAlignedSketchColumn &&other);
   ResizeableAlignedSketchColumn& operator=(ResizeableAlignedSketchColumn &&other);
   ~ResizeableAlignedSketchColumn();

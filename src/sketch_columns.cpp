@@ -42,6 +42,19 @@ FixedSizeSketchColumn& FixedSizeSketchColumn::operator=(FixedSizeSketchColumn &&
   }
   return *this;
 }
+FixedSizeSketchColumn& FixedSizeSketchColumn::operator=(const FixedSizeSketchColumn &other) {
+  if (this != &other) {
+    delete[] buckets;
+    capacity = other.capacity;
+    seed = other.seed;
+    deterministic_bucket = other.deterministic_bucket;
+    
+    buckets = new Bucket[capacity];
+    std::memcpy(buckets, other.buckets, capacity * sizeof(Bucket));
+  }
+  // TODO - an else case?
+  return *this;
+}
 
 FixedSizeSketchColumn::~FixedSizeSketchColumn() {
   // note nullptr is safe to delete
@@ -139,6 +152,19 @@ ResizeableSketchColumn& ResizeableSketchColumn::operator=(ResizeableSketchColumn
     other.buckets = nullptr;
     other.capacity = 0;
   }
+  return *this;
+}
+ResizeableSketchColumn& ResizeableSketchColumn::operator=(const ResizeableSketchColumn &other) {
+  if (this != &other) {
+    delete[] buckets;
+    capacity = other.capacity;
+    seed = other.seed;
+    deterministic_bucket = other.deterministic_bucket;
+    
+    buckets = new Bucket[capacity];
+    std::memcpy(buckets, other.buckets, capacity * sizeof(Bucket));
+  }
+  // TODO - an else case?
   return *this;
 }
 
