@@ -34,7 +34,7 @@ public:
   void clear();
   
   void update(const vec_t update);
-  void merge(FixedSizeSketchColumn &other);
+  void merge(FixedSizeSketchColumn const& other);
   uint8_t get_depth() const;
   void serialize(std::ostream &binary_out) const;
   
@@ -98,7 +98,7 @@ public:
   SketchSample<vec_t> sample() const;
   void clear();
   void update(const vec_t update);
-  void merge(ResizeableSketchColumn &other);
+  void merge(ResizeableSketchColumn const& other);
   uint8_t get_depth() const;
 
   [[deprecated]]
@@ -166,7 +166,7 @@ public:
   SketchSample<vec_t> sample() const;
   void clear();
   void update(const vec_t update);
-  void merge(ResizeableAlignedSketchColumn &other);
+  void merge(ResizeableAlignedSketchColumn const& other);
   uint8_t get_depth() const;
 
   [[deprecated]]

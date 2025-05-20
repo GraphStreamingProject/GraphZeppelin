@@ -82,7 +82,7 @@ void FixedSizeSketchColumn::clear() {
   deterministic_bucket = {0, 0};
 }
 
-void FixedSizeSketchColumn::merge(FixedSizeSketchColumn &other) {
+void FixedSizeSketchColumn::merge(FixedSizeSketchColumn const& other) {
   for (size_t i = 0; i < capacity; ++i) {
     buckets[i] ^= other.buckets[i];
   }
@@ -202,7 +202,7 @@ void ResizeableSketchColumn::update(const vec_t update) {
   buckets[depth] ^= {update, checksum};
 }
 
-void ResizeableSketchColumn::merge(ResizeableSketchColumn &other) {
+void ResizeableSketchColumn::merge(ResizeableSketchColumn const& other) {
   deterministic_bucket ^= other.deterministic_bucket;
   if (other.capacity > capacity) {
     reallocate(other.capacity);
@@ -295,7 +295,7 @@ void ResizeableAlignedSketchColumn::update(const vec_t update) {
   aligned_buckets[depth] ^= {update, checksum};
 }
 
-void ResizeableAlignedSketchColumn::merge(ResizeableAlignedSketchColumn &other) {
+void ResizeableAlignedSketchColumn::merge(ResizeableAlignedSketchColumn const& other) {
   deterministic_bucket ^= other.deterministic_bucket;
   if (other.capacity > capacity) {
     reallocate(other.capacity);
