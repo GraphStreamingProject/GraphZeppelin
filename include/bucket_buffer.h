@@ -174,6 +174,11 @@ class BucketBuffer {
             }
         }
         _size = write_idx + 1;
+        if (_size >= entries.size()) {
+            // edge case - all unique entries fenceposting.
+            _compacted = true;
+            return;
+        }
 
         // get rid of entries with a value of 0
         write_idx = 0;
