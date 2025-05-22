@@ -30,8 +30,8 @@ public:
   FixedSizeSketchColumn(const FixedSizeSketchColumn &other);
   FixedSizeSketchColumn& operator=(const FixedSizeSketchColumn &other);
 
-  FixedSizeSketchColumn(FixedSizeSketchColumn &&other);
-  FixedSizeSketchColumn& operator=(FixedSizeSketchColumn &&other);
+  FixedSizeSketchColumn(FixedSizeSketchColumn &&other) noexcept;
+  FixedSizeSketchColumn& operator=(FixedSizeSketchColumn &&other) noexcept;
 
   ~FixedSizeSketchColumn();
   SketchSample<vec_t> sample() const;
@@ -96,8 +96,8 @@ public:
   ResizeableSketchColumn(const ResizeableSketchColumn &other);
   ResizeableSketchColumn& operator=(const ResizeableSketchColumn &other);
 
-  ResizeableSketchColumn(ResizeableSketchColumn &&other);
-  ResizeableSketchColumn& operator=(ResizeableSketchColumn &&other);
+  ResizeableSketchColumn(ResizeableSketchColumn &&other) noexcept;
+  ResizeableSketchColumn& operator=(ResizeableSketchColumn &&other) noexcept;
   ~ResizeableSketchColumn();
   SketchSample<vec_t> sample() const;
   void clear();
@@ -166,8 +166,8 @@ public:
   ResizeableAlignedSketchColumn(const ResizeableAlignedSketchColumn &other);
   ResizeableAlignedSketchColumn& operator=(const ResizeableAlignedSketchColumn &other);
 
-  ResizeableAlignedSketchColumn(ResizeableAlignedSketchColumn &&other);
-  ResizeableAlignedSketchColumn& operator=(ResizeableAlignedSketchColumn &&other);
+  ResizeableAlignedSketchColumn(ResizeableAlignedSketchColumn &&other) noexcept;
+  ResizeableAlignedSketchColumn& operator=(ResizeableAlignedSketchColumn &&other) noexcept;
   ~ResizeableAlignedSketchColumn();
   SketchSample<vec_t> sample() const;
   void clear();
