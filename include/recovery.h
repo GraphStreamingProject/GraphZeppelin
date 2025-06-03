@@ -18,6 +18,7 @@ class SparseRecovery {
         size_t universe_size;
         size_t max_recovery_size;
         size_t cleanup_sketch_support;
+        size_t updates_since_recovery_attempt = 0;
         // 1 - 1/2e. TODO - can do better. closer to 1-1/e. for the power-of-two-rounding, 
         // I'm gonna propose 0.69 (comfortably below sqrt(2) so we decrease the size every two levels)
         // static constexpr double reduction_factor = 0.82;
@@ -88,6 +89,7 @@ class SparseRecovery {
             return hash % level_size;
         }
         void update(const vec_t update) {
+            updates_since_recovery_attempt++;
             vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update, checksum_seed());
             deterministic_bucket ^= {update, checksum};
             for (size_t cfr_idx=0; cfr_idx < num_levels(); cfr_idx++) {
@@ -99,6 +101,7 @@ class SparseRecovery {
         }
         void reset() {
             // zero contents of the CFRs
+            updates_since_recovery_attempt = 0;
             deterministic_bucket = {0, 0};
             for (size_t i=0; i < recovery_buckets.size(); i++) {
                 recovery_buckets[i] = {0, 0};
@@ -108,7 +111,9 @@ class SparseRecovery {
         
 
         // THIS IS A NON_DESTRUCTIVE OPERATION
+        // (but cannot be marked const)
         RecoveryResult recover() {
+            updates_since_recovery_attempt = 0;
             // TODO - DYNAMIc allocation grossness
             std::vector<Bucket> recovered_indices;
             std::vector<vec_t> recovered_return_vals;
@@ -167,12 +172,20 @@ class SparseRecovery {
             return {FAILURE, recovered_return_vals};
         };
         void merge(const SparseRecovery &other) {
+            updates_since_recovery_attempt += other.updates_since_recovery_attempt;
             assert(other.recovery_buckets.size() == recovery_buckets.size());
             for (size_t i=0; i < recovery_buckets.size(); i++) {
                 recovery_buckets[i] ^= other.recovery_buckets[i];
             }
             cleanup_sketch->merge(*other.cleanup_sketch);
         };
+
+        bool worth_recovery_attempt() const {
+            // TODO - remove magic number; more complicated logic, etc.
+            // note that this could be done by looking at the cleanup sketch for a cardinality estimate
+            return updates_since_recovery_attempt > 1000;
+        };
+
         ~SparseRecovery() {
 
         };
