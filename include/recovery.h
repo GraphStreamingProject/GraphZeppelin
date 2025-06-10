@@ -113,6 +113,7 @@ class SparseRecovery {
         // THIS IS A NON_DESTRUCTIVE OPERATION
         // (but cannot be marked const)
         RecoveryResult recover() {
+            this->cleanup_sketch->reset_sample_state();
             updates_since_recovery_attempt = 0;
             // TODO - DYNAMIc allocation grossness
             std::vector<Bucket> recovered_indices;
