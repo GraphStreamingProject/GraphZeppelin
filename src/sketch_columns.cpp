@@ -133,7 +133,7 @@ ResizeableSketchColumn::ResizeableSketchColumn(const ResizeableSketchColumn &oth
   }
 }
 
-ResizeableSketchColumn::ResizeableSketchColumn(ResizeableSketchColumn &&other) :
+ResizeableSketchColumn::ResizeableSketchColumn(ResizeableSketchColumn &&other) noexcept :
     capacity(other.capacity), seed(other.seed), deterministic_bucket(other.deterministic_bucket) {
     // move constructor
     buckets = other.buckets;
@@ -141,7 +141,7 @@ ResizeableSketchColumn::ResizeableSketchColumn(ResizeableSketchColumn &&other) :
     other.capacity = 0;
 }
 
-ResizeableSketchColumn& ResizeableSketchColumn::operator=(ResizeableSketchColumn &&other) {
+ResizeableSketchColumn& ResizeableSketchColumn::operator=(ResizeableSketchColumn &&other) noexcept {
   if (this != &other) {
     delete[] buckets;
     capacity = other.capacity;
