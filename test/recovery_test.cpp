@@ -25,6 +25,27 @@ TEST(RecoveryTestSuite, RecoveryZeroOrOne) {
     ASSERT_EQ(result.result, SUCCESS);
 }
 
+TEST(RecoveryTestSuite, RecoveryExtremelySmall) {
+    SparseRecovery recovery(1 << 13, 16, 1, get_seed());
+    auto result = recovery.recover();
+    ASSERT_EQ(result.recovered_indices.size(), 0);
+    ASSERT_EQ(result.result, SUCCESS);
+    recovery.update(5);
+    ASSERT_EQ(recovery.recover().recovered_indices.size(), 1);  
+    ASSERT_EQ(recovery.recover().recovered_indices[0], 5);
+    std::unordered_set<vec_t> inserted;
+    for (vec_t i = 0; i < 8; i++) {
+        recovery.update(i);
+        inserted.insert(i);
+    }
+    inserted.erase(5); // 5 was already inserted
+    auto result2 = recovery.recover();
+    ASSERT_EQ(result2.result, SUCCESS);
+    ASSERT_EQ(result2.recovered_indices.size(), 7);
+    std::unordered_set<vec_t> recovered2(result2.recovered_indices.begin(), result2.recovered_indices.end());
+    ASSERT_EQ(recovered2, inserted);
+}
+
 TEST(RecoveryTestSuite, RecoveryMediumSize) {
     SparseRecovery recovery(1 << 20, 1 << 10, 1, get_seed());
     auto result = recovery.recover();
