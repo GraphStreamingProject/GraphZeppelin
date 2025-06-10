@@ -22,14 +22,14 @@ FixedSizeSketchColumn::FixedSizeSketchColumn(const FixedSizeSketchColumn &other)
   }
 }
 
-FixedSizeSketchColumn::FixedSizeSketchColumn(FixedSizeSketchColumn &&other) :
+FixedSizeSketchColumn::FixedSizeSketchColumn(FixedSizeSketchColumn &&other) noexcept :
     capacity(other.capacity), seed(other.seed), deterministic_bucket(other.deterministic_bucket) {
       buckets = other.buckets;
       other.buckets = nullptr;
       other.capacity = 0;
 }
 
-FixedSizeSketchColumn& FixedSizeSketchColumn::operator=(FixedSizeSketchColumn &&other) {
+FixedSizeSketchColumn& FixedSizeSketchColumn::operator=(FixedSizeSketchColumn &&other) noexcept {
   if (this != &other) {
     delete[] buckets;
     capacity = other.capacity;
