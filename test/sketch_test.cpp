@@ -478,8 +478,8 @@ TEST(SketchTestSuite, TestRawBucketUpdate) {
   ASSERT_GT(successes, 0);
 }
 
-using TestDefaultSketchColumn = FixedSizeSketchColumn;
-// using TestDefaultSketchColumn = ResizeableSketchColumn;
+// using TestDefaultSketchColumn = FixedSizeSketchColumn;
+using TestDefaultSketchColumn = ResizeableSketchColumn;
 
 TEST(SketchColumnTestSuite, TestSketchColumnSampling) {
   // ResizeableSketchColumn::seed = get_seed();
@@ -540,4 +540,20 @@ TEST(SketchColumnTestSuite, TestSketchColumnMergeMany) {
   auto sample = columns[0].sample();
   ASSERT_EQ(sample.result, GOOD);
   ASSERT_EQ(sample.idx, 0);
+}
+
+TEST(SketchColumnTestSuite, TestLogicalEquivalence) {
+  auto seed = get_seed();
+  ResizeableSketchColumn rcolumn(18, seed);
+  FixedSizeSketchColumn fcolumn(18, seed);
+  for (size_t j = 1; j< 1000; j++) {
+    rcolumn.update(j);
+    fcolumn.update(j);
+    if (j % 10 == 0) {
+      auto rsample = rcolumn.sample();
+      auto fsample = fcolumn.sample();
+      ASSERT_EQ(rsample.result, fsample.result);
+      ASSERT_EQ(rsample.idx, fsample.idx);
+    }
+  }
 }

@@ -82,11 +82,19 @@ SketchSample<vec_t> FixedSizeSketchColumn::sample() const {
   if (Bucket_Boruvka::is_empty(deterministic_bucket)) {
     return {0, ZERO};  // the "first" bucket is deterministic so if all zero then no edges to return
   }
+  /*
   for (size_t i = 0; i < capacity; ++i) {
     if (Bucket_Boruvka::is_good(buckets[i], seed)) {
       return {buckets[i].alpha, GOOD};
     }
   }
+  */
+  for (size_t i = capacity; i > 0; --i) {
+    if (Bucket_Boruvka::is_good(buckets[i - 1], seed)) {
+      return {buckets[i - 1].alpha, GOOD};
+    }
+  }
+
   return {0, FAIL};
 }
 
