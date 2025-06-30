@@ -542,18 +542,62 @@ TEST(SketchColumnTestSuite, TestSketchColumnMergeMany) {
   ASSERT_EQ(sample.idx, 0);
 }
 
+// verify logical equivalence between resizeable and fixed-size sketch columns. given the same seed and inputs, they should have the same output behavior.
+// note that I (david) changed the sample algorithm for fixed-size sketch columns for this test to work.
 TEST(SketchColumnTestSuite, TestLogicalEquivalence) {
-  auto seed = get_seed();
-  ResizeableSketchColumn rcolumn(18, seed);
-  FixedSizeSketchColumn fcolumn(18, seed);
-  for (size_t j = 1; j< 1000; j++) {
-    rcolumn.update(j);
-    fcolumn.update(j);
-    if (j % 10 == 0) {
-      auto rsample = rcolumn.sample();
-      auto fsample = fcolumn.sample();
-      ASSERT_EQ(rsample.result, fsample.result);
-      ASSERT_EQ(rsample.idx, fsample.idx);
+  for (size_t i = 0; i < 100; i++) {
+    auto seed = get_seed();
+    ResizeableSketchColumn rcolumn(18, seed);
+    FixedSizeSketchColumn fcolumn(18, seed);
+    for (size_t j = 1; j< 1000; j++) {
+      rcolumn.update(j);
+      fcolumn.update(j);
+      if (j % 10 == 0) {
+        auto rsample = rcolumn.sample();
+        auto fsample = fcolumn.sample();
+        ASSERT_EQ(rsample.result, fsample.result);
+        ASSERT_EQ(rsample.idx, fsample.idx);
+      }
     }
   }
+}
+
+TEST(SketchColumnTestSuite, TestMergeResizing) {
+  size_t num_nodes = 1 << 12;
+  auto seed = get_seed();
+  size_t capacity1 = 10;
+  size_t capacity2 = 14;
+  ResizeableSketchColumn column1(capacity1, seed);
+  ResizeableSketchColumn column2(capacity2, seed);
+  for (vec_t i = 0; i < (1 << 5); i++) {
+      column1.update(i);
+      column2.update(i + 128);
+  }
+  //ASSERT_EQ(column1.capacity, 10);
+  column1.merge(column2);
+  //ASSERT_EQ(column1.capacity, column2.capacity);
+
+
+  /*
+  for (size_t col_idx =0; col_idx < 16; col_idx++) {
+    TestDefaultSketchColumn column1(TestDefaultSketchColumn::suggest_capacity(num_nodes), seed + col_idx);
+    TestDefaultSketchColumn column2(TestDefaultSketchColumn::suggest_capacity(num_nodes), seed + col_idx);
+    for (vec_t i = 0; i < (1 << 11); i++) {
+      column1.update(i);
+      column2.update(i + 128);
+    }
+    column1.merge(column2);
+    // at this point, the value should be [0,127] or [1 << 11]
+    auto sample = column1.sample();
+    if (sample.result == GOOD) {
+      // std::cout << "sample.idx: " << sample.idx << std::endl;
+      ASSERT_TRUE(
+        sample.idx < 128 || (
+          sample.idx >= (1 << 11) && sample.idx < (1 << 11) + 128
+        )
+      );
+    }
+  }
+  */
+  
 }
