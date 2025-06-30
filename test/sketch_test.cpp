@@ -562,6 +562,8 @@ TEST(SketchColumnTestSuite, TestLogicalEquivalence) {
   }
 }
 
+// tests whether capacities are increased as required during merges of different-sized columns.
+// problem: capacity is currently private. ask Gil for advice.
 TEST(SketchColumnTestSuite, TestMergeResizing) {
   size_t num_nodes = 1 << 12;
   auto seed = get_seed();
@@ -573,31 +575,10 @@ TEST(SketchColumnTestSuite, TestMergeResizing) {
       column1.update(i);
       column2.update(i + 128);
   }
+  // uncomment below once i know how to access the capacity field correctly.
   //ASSERT_EQ(column1.capacity, 10);
   column1.merge(column2);
   //ASSERT_EQ(column1.capacity, column2.capacity);
 
-
-  /*
-  for (size_t col_idx =0; col_idx < 16; col_idx++) {
-    TestDefaultSketchColumn column1(TestDefaultSketchColumn::suggest_capacity(num_nodes), seed + col_idx);
-    TestDefaultSketchColumn column2(TestDefaultSketchColumn::suggest_capacity(num_nodes), seed + col_idx);
-    for (vec_t i = 0; i < (1 << 11); i++) {
-      column1.update(i);
-      column2.update(i + 128);
-    }
-    column1.merge(column2);
-    // at this point, the value should be [0,127] or [1 << 11]
-    auto sample = column1.sample();
-    if (sample.result == GOOD) {
-      // std::cout << "sample.idx: " << sample.idx << std::endl;
-      ASSERT_TRUE(
-        sample.idx < 128 || (
-          sample.idx >= (1 << 11) && sample.idx < (1 << 11) + 128
-        )
-      );
-    }
-  }
-  */
   
 }
