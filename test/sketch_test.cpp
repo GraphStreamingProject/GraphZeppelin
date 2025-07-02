@@ -547,8 +547,8 @@ TEST(SketchColumnTestSuite, TestSketchColumnMergeMany) {
 TEST(SketchColumnTestSuite, TestLogicalEquivalence) {
   for (size_t i = 0; i < 100; i++) {
     auto seed = get_seed();
-    ResizeableSketchColumn rcolumn(18, seed);
-    FixedSizeSketchColumn fcolumn(18, seed);
+    ResizeableSketchColumn rcolumn(32, seed);
+    FixedSizeSketchColumn fcolumn(32, seed);
     for (size_t j = 1; j< 1000; j++) {
       rcolumn.update(j);
       fcolumn.update(j);
@@ -563,7 +563,6 @@ TEST(SketchColumnTestSuite, TestLogicalEquivalence) {
 }
 
 // tests whether capacities are increased as required during merges of different-sized columns.
-// problem: capacity is currently private. ask Gil for advice.
 TEST(SketchColumnTestSuite, TestMergeResizing) {
   size_t num_nodes = 1 << 12;
   auto seed = get_seed();
@@ -571,14 +570,28 @@ TEST(SketchColumnTestSuite, TestMergeResizing) {
   size_t capacity2 = 14;
   ResizeableSketchColumn column1(capacity1, seed);
   ResizeableSketchColumn column2(capacity2, seed);
-  for (vec_t i = 0; i < (1 << 5); i++) {
+  for (size_t i = 0; i < (1 << 5); i++) {
       column1.update(i);
       column2.update(i + 128);
   }
-  // uncomment below once i know how to access the capacity field correctly.
-  //ASSERT_EQ(column1.capacity, 10);
+  ASSERT_EQ(column1.capacity, 10);
   column1.merge(column2);
-  //ASSERT_EQ(column1.capacity, column2.capacity);
+  ASSERT_EQ(column1.capacity, column2.capacity);
+}
 
-  
+// as we insert more unique items, maximum nonzero bucket depth should never decrease  
+TEST(SketchColumnTestSuite, TestDepthMonotonicity) {
+  auto seed = get_seed();
+  size_t capacity = 32;
+  ResizeableSketchColumn column(capacity, seed);
+  uint8_t current_depth = column.get_depth();
+  ASSERT_EQ(current_depth, 0);
+  for (size_t i = 0; i < (1 << 20); i++) {
+    column.update(i);
+    if (i % 1000 == 0) {
+      uint8_t new_depth = column.get_depth();
+      ASSERT_GE(new_depth, current_depth);
+      current_depth = new_depth;
+    }
+  }
 }

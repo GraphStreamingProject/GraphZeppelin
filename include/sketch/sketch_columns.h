@@ -9,6 +9,8 @@
 #include <hwy/highway.h>
 #include <hwy/aligned_allocator.h>
 
+#include <gtest/gtest.h>
+
 /*
  * FOR NOW - simplest possible design
 */
@@ -83,6 +85,8 @@ public:
 
 
 class ResizeableSketchColumn {
+
+FRIEND_TEST(SketchColumnTestSuite, TestMergeResizing);
 private:
   Bucket *buckets;
   Bucket deterministic_bucket = {0, 0};
