@@ -87,6 +87,9 @@ public:
 class ResizeableSketchColumn {
 
 FRIEND_TEST(SketchColumnTestSuite, TestMergeResizing);
+FRIEND_TEST(SketchColumnTestSuite, TestClear);
+FRIEND_TEST(SketchColumnTestSuite, TestClearMerge);
+FRIEND_TEST(SketchColumnTestSuite, TestUpdateReallocation);
 private:
   Bucket *buckets;
   Bucket deterministic_bucket = {0, 0};

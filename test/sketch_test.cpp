@@ -543,7 +543,6 @@ TEST(SketchColumnTestSuite, TestSketchColumnMergeMany) {
 }
 
 // verify logical equivalence between resizeable and fixed-size sketch columns. given the same seed and inputs, they should have the same output behavior.
-// note that I (david) changed the sample algorithm for fixed-size sketch columns for this test to work.
 TEST(SketchColumnTestSuite, TestLogicalEquivalence) {
   for (size_t i = 0; i < 100; i++) {
     auto seed = get_seed();
@@ -594,4 +593,68 @@ TEST(SketchColumnTestSuite, TestDepthMonotonicity) {
       current_depth = new_depth;
     }
   }
+}
+
+// make sure that clearing the sketch zeroes everything out
+TEST(SketchColumnTestSuite, TestClear) {
+  auto seed = get_seed();
+  size_t capacity = 32;
+  ResizeableSketchColumn column(capacity, seed);
+  for (size_t i = 0; i < (1 << 20); i++) {
+    column.update(i);
+  }
+  auto sample = column.sample();
+  ASSERT_EQ(sample.result, GOOD);
+  column.clear();
+  for (size_t i = 0; i < capacity; i++) {
+    bool good = Bucket_Boruvka::is_empty(column.buckets[i]);
+    ASSERT_EQ(good, true);
+  }
+}
+
+// make sure that if we merge two sketches, clearing one doesn't affect the other
+TEST(SketchColumnTestSuite, TestClearMerge) {
+  auto seed = get_seed();
+  size_t capacity = 32;
+  ResizeableSketchColumn column1(capacity, seed);
+  ResizeableSketchColumn column2(capacity, seed);
+  for (size_t i = 0; i < (1 << 20); i++) {
+    column1.update(i);
+    column2.update(i + (1 << 21));
+  }
+  column1.merge(column2);
+  column2.clear();
+  for (size_t i = 0; i < capacity; i++) {
+    bool good = Bucket_Boruvka::is_empty(column2.buckets[i]);
+    ASSERT_EQ(good, true);
+  }
+  auto sample = column1.sample();
+  ASSERT_EQ(sample.result, GOOD);
+
+  // now test the same thing, but clearing the merged-into column instead
+  ResizeableSketchColumn column3(capacity, seed);
+  ResizeableSketchColumn column4(capacity, seed);
+  for (size_t i = 0; i < (1 << 20); i++) {
+    column3.update(i);
+    column4.update(i + (1 << 21));
+  }
+  column3.merge(column4);
+  column3.clear();
+  for (size_t i = 0; i < capacity; i++) {
+    bool empty = Bucket_Boruvka::is_empty(column3.buckets[i]);
+    ASSERT_EQ(empty, true);
+  }
+  auto sample2 = column4.sample();
+  ASSERT_EQ(sample2.result, GOOD);
+}
+
+// test whether updates that are too deep cause reallocation to increase capacity
+TEST(SketchColumnTestSuite, TestUpdateReallocation) {
+  auto seed = get_seed();
+  size_t capacity = 6;
+  ResizeableSketchColumn column(capacity, seed);
+  for (size_t i = 0; i < (1 << 10); i++) {
+    column.update(i);
+  }
+  ASSERT_GE(column.capacity, capacity);
 }
