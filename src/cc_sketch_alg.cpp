@@ -10,14 +10,12 @@
 
 CCSketchAlg::CCSketchAlg(node_id_t num_vertices, size_t seed, CCAlgConfiguration config)
     : num_vertices(num_vertices), seed(seed), dsu(num_vertices), config(config) {
-  representatives = new std::set<node_id_t>();
   sketches = new Sketch *[num_vertices];
 
   vec_t sketch_vec_len = Sketch::calc_vector_length(num_vertices);
   size_t sketch_num_samples = Sketch::calc_cc_samples(num_vertices, config.get_sketches_factor());
 
   for (node_id_t i = 0; i < num_vertices; ++i) {
-    representatives->insert(i);
     sketches[i] = new Sketch(sketch_vec_len, seed, sketch_num_samples);
   }
 
@@ -45,14 +43,12 @@ CCSketchAlg *CCSketchAlg::construct_from_serialized_data(const std::string &inpu
 CCSketchAlg::CCSketchAlg(node_id_t num_vertices, size_t seed, std::ifstream &binary_stream,
                          CCAlgConfiguration config)
     : num_vertices(num_vertices), seed(seed), dsu(num_vertices), config(config) {
-  representatives = new std::set<node_id_t>();
   sketches = new Sketch *[num_vertices];
 
   vec_t sketch_vec_len = Sketch::calc_vector_length(num_vertices);
   size_t sketch_num_samples = Sketch::calc_cc_samples(num_vertices, config.get_sketches_factor());
 
   for (node_id_t i = 0; i < num_vertices; ++i) {
-    representatives->insert(i);
     sketches[i] = new Sketch(sketch_vec_len, seed, binary_stream, sketch_num_samples);
   }
   binary_stream.close();
@@ -71,7 +67,6 @@ CCSketchAlg::~CCSketchAlg() {
     delete[] delta_sketches;
   }
 
-  delete representatives;
   delete[] spanning_forest;
   delete[] spanning_forest_mtx;
 }

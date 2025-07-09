@@ -60,6 +60,7 @@ struct alignas(64) GlobalMergeData {
 enum QueryCode {
   CONNECTIVITY,     // connected components and spanning forest of graph
   KSPANNINGFORESTS, // k disjoint spanning forests
+  MINIMUMCUT,       // minimum cut query
 };
 
 /**
@@ -71,8 +72,6 @@ class CCSketchAlg {
   node_id_t num_vertices;
   size_t seed;
   bool update_locked = false;
-  // a set containing one "representative" from each supernode
-  std::set<node_id_t> *representatives;
   Sketch **sketches;
   // DSU representation of supernode relationship
   DisjointSetUnion_MT<node_id_t> dsu;

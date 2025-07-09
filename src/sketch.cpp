@@ -45,7 +45,20 @@ Sketch::Sketch(const Sketch &s) : seed(s.seed) {
   std::memcpy(buckets, s.buckets, bucket_array_bytes());
 }
 
-Sketch::~Sketch() { delete[] buckets; }
+Sketch& Sketch::operator=(Sketch &&oth) {
+  seed = oth.seed;
+  cols_per_sample = oth.cols_per_sample;
+  num_columns = oth.num_columns;
+  bkt_per_col = oth.bkt_per_col;
+  num_buckets = oth.num_buckets;
+  buckets = oth.buckets;
+
+  oth.buckets = nullptr;
+
+  return *this;
+}
+
+Sketch::~Sketch() { if (buckets != nullptr) delete[] buckets; }
 
 #ifdef L0_SAMPLING
 void Sketch::update(const vec_t update_idx) {

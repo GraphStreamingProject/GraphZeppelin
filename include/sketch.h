@@ -39,7 +39,7 @@ struct ExhaustiveSketchSample {
  */
 class Sketch {
  private:
-  const uint64_t seed;     // seed for hash functions
+  size_t seed;             // seed for hash functions
   size_t num_samples;      // number of samples we can perform
   size_t cols_per_sample;  // number of columns to use on each sample
   size_t num_columns;      // Total number of columns. (product of above 2)
@@ -49,15 +49,15 @@ class Sketch {
   size_t sample_idx = 0;   // number of samples performed so far
 
   // bucket data
-  Bucket* buckets;
+  Bucket* buckets = nullptr;
 
  public:
   /**
    * The below constructors use vector length as their input. However, in graph sketching our input
    * is the number of vertices. This function converts from number of graph vertices to vector
    * length.
-   * @param num_vertices  Number of graph vertices
-   * @return              The length of the vector to sketch
+   * param num_vertices  Number of graph vertices
+   * return              The length of the vector to sketch
    */
   static vec_t calc_vector_length(node_id_t num_vertices) {
     return ceil(double(num_vertices) * (num_vertices - 1) / 2);
@@ -67,59 +67,68 @@ class Sketch {
    * This function computes the number of samples a Sketch should support in order to solve
    * connected components. Optionally, can increase or decrease the number of samples by a
    * multiplicative factor.
-   * @param num_vertices   Number of graph vertices
-   * @param f              Multiplicative sample factor
-   * @return               The number of samples
+   * param num_vertices   Number of graph vertices
+   * param f              Multiplicative sample factor
+   * return               The number of samples
    */
   static size_t calc_cc_samples(node_id_t num_vertices, double f) {
     return std::max(size_t(18), (size_t) ceil(f * log2(num_vertices) / num_samples_div));
   }
 
+  // default constructor doesn't do anything, initialize later with operator=(Sketch &&)
+  Sketch(){};
+
   /**
    * Construct a sketch object
-   * @param vector_len       Length of the vector we are sketching
-   * @param seed             Random seed of the sketch
-   * @param num_samples      [Optional] Number of samples this sketch supports (default = 1)
-   * @param cols_per_sample  [Optional] Number of sketch columns for each sample (default = 1)
+   * param vector_len       Length of the vector we are sketching
+   * param seed             Random seed of the sketch
+   * param num_samples      [Optional] Number of samples this sketch supports (default = 1)
+   * param cols_per_sample  [Optional] Number of sketch columns for each sample (default = 1)
    */
   Sketch(vec_t vector_len, uint64_t seed, size_t num_samples = 1,
          size_t cols_per_sample = default_cols_per_sample);
 
   /**
    * Construct a sketch from a serialized stream
-   * @param vector_len       Length of the vector we are sketching
-   * @param seed             Random seed of the sketch
-   * @param binary_in        Stream holding serialized sketch object
-   * @param num_samples      [Optional] Number of samples this sketch supports (default = 1)
-   * @param cols_per_sample  [Optional] Number of sketch columns for each sample (default = 1)
+   * param vector_len       Length of the vector we are sketching
+   * param seed             Random seed of the sketch
+   * param binary_in        Stream holding serialized sketch object
+   * param num_samples      [Optional] Number of samples this sketch supports (default = 1)
+   * param cols_per_sample  [Optional] Number of sketch columns for each sample (default = 1)
    */
   Sketch(vec_t vector_len, uint64_t seed, std::istream& binary_in, size_t num_samples = 1,
          size_t cols_per_sample = default_cols_per_sample);
 
   /**
    * Sketch copy constructor
-   * @param s  The sketch to copy.
+   * param s  The sketch to copy.
    */
   Sketch(const Sketch& s);
+
+  /**
+   * Sketch move constructor
+   * param oth  The sketch to move into this one
+   */
+  Sketch& operator=(Sketch &&oth);
 
   ~Sketch();
 
   /**
    * Update a sketch based on information about one of its indices.
-   * @param update   the point update.
+   * param update   the point update.
    */
   void update(const vec_t update);
 
   /**
    * Function to sample from the sketch.
    * cols_per_sample determines the number of columns we allocate to this query
-   * @return   A pair with the result index and a code indicating the type of result.
+   * return   A pair with the result index and a code indicating the type of result.
    */
   SketchSample sample();
 
   /**
    * Function to sample from the appropriate columns to return 1 or more non-zero indices
-   * @return   A pair with the result indices and a code indicating the type of result.
+   * return   A pair with the result indices and a code indicating the type of result.
    */
   ExhaustiveSketchSample exhaustive_sample();
 
@@ -127,7 +136,7 @@ class Sketch {
 
   /**
    * In-place merge function.
-   * @param other  Sketch to merge into caller
+   * param other  Sketch to merge into caller
    */
   void merge(const Sketch &other);
 
@@ -135,9 +144,9 @@ class Sketch {
    * In-place range merge function. Updates the caller Sketch.
    * The range merge only merges some of the Sketches
    * This function should only be used if you know what you're doing
-   * @param other         Sketch to merge into caller
-   * @param start_sample  Index of first sample to merge
-   * @param n_samples     Number of samples to merge
+   * param other         Sketch to merge into caller
+   * param start_sample  Index of first sample to merge
+   * param n_samples     Number of samples to merge
    */
   void range_merge(const Sketch &other, size_t start_sample, size_t n_samples);
 
@@ -145,7 +154,7 @@ class Sketch {
    * Perform an in-place merge function without another Sketch and instead
    * use a raw bucket memory.
    * We also allow for only a portion of the buckets to be merge at once
-   * @param raw_bucket    Raw bucket data to merge into this sketch
+   * param raw_bucket    Raw bucket data to merge into this sketch
    */
   void merge_raw_bucket_buffer(const Bucket *raw_buckets);
 
@@ -159,12 +168,17 @@ class Sketch {
 
   /**
    * Serialize the sketch to a binary output stream.
-   * @param binary_out   the stream to write to.
+   * param binary_out   the stream to write to.
    */
   void serialize(std::ostream& binary_out) const;
 
   inline void reset_sample_state() {
     sample_idx = 0;
+  }
+
+  // return the size of a sketch given vector size n and number of samples s
+  static size_t estimate_bytes(size_t n, size_t s) { 
+    return calc_bkt_per_col(n) * s * default_cols_per_sample * sizeof(Bucket);
   }
 
   // return the size of the sketching datastructure in bytes (just the buckets, not the metadata)
