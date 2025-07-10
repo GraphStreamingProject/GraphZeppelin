@@ -115,7 +115,7 @@ class BucketBuffer {
     }
 
     public:
-    BucketBuffer(): _capacity(128) {
+    BucketBuffer(): _capacity(64) {
         entries = std::vector<BufferEntry>();
         entries.reserve(_capacity);
     }
