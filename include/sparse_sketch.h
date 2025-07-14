@@ -111,7 +111,7 @@ class SparseSketch {
     SparseBucket &ours = sparse_buckets[our_idx];
     ours.bkt.alpha ^= oth.bkt.alpha;
     ours.bkt.gamma ^= oth.bkt.gamma;
-    if (Bucket_Boruvka::is_empty(ours.bkt)) {
+    if (SketchBucket::is_empty(ours.bkt)) {
       if (prev_idx == uint8_t(-1)) 
         remove_ll_head(col);
       else 

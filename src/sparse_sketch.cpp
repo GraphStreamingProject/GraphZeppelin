@@ -93,7 +93,7 @@ void SparseSketch::dense_realloc(size_t new_num_dense_rows) {
     for (size_t c = 0; c < num_columns; c++) {
       for (size_t r = new_num_dense_rows; r < old_rows; r++) {
         Bucket bkt = bucket(c, r);
-        if (!Bucket_Boruvka::is_empty(bkt)) {
+        if (!SketchBucket::is_empty(bkt)) {
           uint8_t free_idx = claim_free_bucket();
           sparse_buckets[free_idx].row = r;
           sparse_buckets[free_idx].bkt = bkt;
@@ -231,7 +231,7 @@ SketchSample SparseSketch::sample_sparse(size_t first_col, size_t end_col) {
   for (size_t c = first_col; c < end_col; c++) {
     uint8_t idx = ll_metadata[c];
     while (idx != uint8_t(-1)) {
-      if (Bucket_Boruvka::is_good(sparse_buckets[idx].bkt, checksum_seed())) {
+      if (SketchBucket::is_good(sparse_buckets[idx].bkt, checksum_seed())) {
         return {sparse_buckets[idx].bkt.alpha, GOOD};
       }
       idx = sparse_buckets[idx].next;
@@ -245,17 +245,22 @@ SketchSample SparseSketch::sample_sparse(size_t first_col, size_t end_col) {
 
 
 void SparseSketch::update(const vec_t update_idx) {
-  vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update_idx, checksum_seed());
+  vec_hash_t checksum = SketchBucket::get_index_hash(update_idx, checksum_seed());
 
   // Update depth 0 bucket
-  Bucket_Boruvka::update(deterministic_bucket(), update_idx, checksum);
+  SketchBucket::update(deterministic_bucket(), update_idx, checksum);
+  ColumnDepths depths;
 
   // Update higher depth buckets
-  for (unsigned i = 0; i < num_columns; ++i) {
-    col_hash_t depth = Bucket_Boruvka::get_index_depth(update_idx, column_seed(i), bkt_per_col);
+  for (size_t i = 0; i < num_columns; i++) {
+    size_t bit = i & 0x1;
+    if (bit == 0) {
+      depths = SketchBucket::get_index_depths(update_idx, column_seed(i), bkt_per_col);
+    }
+    col_hash_t depth = depths[bit];
     likely_if(depth < bkt_per_col) {
       likely_if(depth < num_dense_rows) {
-        Bucket_Boruvka::update(bucket(i, depth), update_idx, checksum);
+        SketchBucket::update(bucket(i, depth), update_idx, checksum);
       } else {
         update_sparse(i, {uint8_t(-1), uint8_t(depth), {update_idx, checksum}});
       }
@@ -304,12 +309,12 @@ SketchSample SparseSketch::sample() {
   // std::cout << "end_col =   " << first_column + cols_per_sample << std::endl;
   // std::cout << *this << std::endl;
 
-  if (Bucket_Boruvka::is_empty(deterministic_bucket())) {
+  if (SketchBucket::is_empty(deterministic_bucket())) {
     // std::cout << "ZERO!" << std::endl;
     return {0, ZERO};  // the "first" bucket is deterministic so if all zero then no edges to return
   }
 
-  if (Bucket_Boruvka::is_good(deterministic_bucket(), checksum_seed())) {
+  if (SketchBucket::is_good(deterministic_bucket(), checksum_seed())) {
     // std::cout << "Deterministic GOOD" << std::endl;
     return {deterministic_bucket().alpha, GOOD};
   }
@@ -321,8 +326,8 @@ SketchSample SparseSketch::sample() {
   }
 
   for (size_t c = 0; c < cols_per_sample; ++c) {
-    for (int r = num_dense_rows - 1; r >= 0; --r) {
-      if (Bucket_Boruvka::is_good(bucket(c + first_column, r), checksum_seed())) {
+    for (int r = num_dense_rows - 1; r >= 0; --r) { // TODO: Consider reducing the number of dense rows checked to 1 or 2
+      if (SketchBucket::is_good(bucket(c + first_column, r), checksum_seed())) {
         // std::cout << "Found GOOD dense bucket" << std::endl;
         return {bucket(c + first_column, r).alpha, GOOD};
       }
@@ -344,17 +349,17 @@ ExhaustiveSketchSample SparseSketch::exhaustive_sample() {
   size_t idx = sample_idx++;
   size_t first_column = idx * cols_per_sample;
 
-  unlikely_if (Bucket_Boruvka::is_empty(deterministic_bucket()))
+  unlikely_if (SketchBucket::is_empty(deterministic_bucket()))
     return {ret, ZERO}; // the "first" bucket is deterministic so if zero then no edges to return
 
-  unlikely_if (Bucket_Boruvka::is_good(deterministic_bucket(), checksum_seed())) {
+  unlikely_if (SketchBucket::is_good(deterministic_bucket(), checksum_seed())) {
     ret.push_back(deterministic_bucket().alpha);
     return {ret, GOOD};
   }
 
   for (size_t c = 0; c < cols_per_sample; ++c) {
     for (size_t r = 0; r < num_dense_rows; ++r) {
-      unlikely_if (Bucket_Boruvka::is_good(bucket(c + first_column, r), checksum_seed())) {
+      unlikely_if (SketchBucket::is_good(bucket(c + first_column, r), checksum_seed())) {
         ret.push_back(bucket(c + first_column, r).alpha);
       }
     }
@@ -469,7 +474,7 @@ void SparseSketch::merge(const SparseSketch &other) {
       if (r < num_dense_rows) {
         bucket(c, r).alpha ^= other.bucket(c, r).alpha;
         bucket(c, r).gamma ^= other.bucket(c, r).gamma;
-      } else if (!Bucket_Boruvka::is_empty(other.bucket(c, r))) {
+      } else if (!SketchBucket::is_empty(other.bucket(c, r))) {
         SparseBucket sparse_bkt;
         sparse_bkt.row = r;
         sparse_bkt.bkt = other.bucket(c, r);
@@ -513,7 +518,7 @@ void SparseSketch::range_merge(const SparseSketch &other, size_t start_sample, s
       if (r < num_dense_rows) {
         bucket(c, r).alpha ^= other.bucket(c, r).alpha;
         bucket(c, r).gamma ^= other.bucket(c, r).gamma;
-      } else if (!Bucket_Boruvka::is_empty(other.bucket(c, r))) {
+      } else if (!SketchBucket::is_empty(other.bucket(c, r))) {
         SparseBucket sparse_bkt;
         sparse_bkt.row = r;
         sparse_bkt.bkt = other.bucket(c, r);
@@ -543,7 +548,7 @@ void SparseSketch::merge_raw_bucket_buffer(const Bucket *raw_buckets, size_t n_r
       if (r < num_dense_rows) {
         bucket(c, r).alpha ^= raw_buckets[position_func(c, r, raw_rows)].alpha;
         bucket(c, r).gamma ^= raw_buckets[position_func(c, r, raw_rows)].gamma;
-      } else if (!Bucket_Boruvka::is_empty(
+      } else if (!SketchBucket::is_empty(
                      raw_buckets[position_func(c, r, raw_rows)])) {
         SparseBucket sparse_bkt;
         sparse_bkt.row = r;
@@ -573,7 +578,7 @@ bool operator==(const SparseSketch &sketch1, const SparseSketch &sketch2) {
 
 std::ostream &operator<<(std::ostream &os, const SparseSketch &sketch) {
   Bucket bkt = sketch.deterministic_bucket();
-  bool good = Bucket_Boruvka::is_good(bkt, sketch.checksum_seed());
+  bool good = SketchBucket::is_good(bkt, sketch.checksum_seed());
   vec_t a = bkt.alpha;
   vec_hash_t c = bkt.gamma;
 
@@ -585,7 +590,7 @@ std::ostream &operator<<(std::ostream &os, const SparseSketch &sketch) {
       Bucket bkt = sketch.bucket(i, j);
       vec_t a = bkt.alpha;
       vec_hash_t c = bkt.gamma;
-      bool good = Bucket_Boruvka::is_good(bkt, sketch.checksum_seed());
+      bool good = SketchBucket::is_good(bkt, sketch.checksum_seed());
 
       os << " a:" << a << " c:" << c << (good ? " good" : " bad") << std::endl;
     }
@@ -597,7 +602,7 @@ std::ostream &operator<<(std::ostream &os, const SparseSketch &sketch) {
   for (size_t c = 0; c < sketch.num_columns; c++) {
     uint8_t idx = sketch.ll_metadata[c];
     while (idx != uint8_t(-1)) {
-      bool good = Bucket_Boruvka::is_good(sparse_buckets[idx].bkt, sketch.checksum_seed());
+      bool good = SketchBucket::is_good(sparse_buckets[idx].bkt, sketch.checksum_seed());
       os << "i: " << size_t(idx) << " n: " << size_t(sparse_buckets[idx].next) << " p:" << c << ", "
          << size_t(sparse_buckets[idx].row) << " := a:" << sparse_buckets[idx].bkt.alpha
          << " c:" << sparse_buckets[idx].bkt.gamma << (good ? " good" : " bad") << std::endl;
@@ -611,7 +616,7 @@ std::ostream &operator<<(std::ostream &os, const SparseSketch &sketch) {
   os << "Free Buckets" << std::endl;
   uint8_t idx = sketch.ll_metadata[sketch.num_columns];
   while (idx != uint8_t(-1)) {
-    bool good = Bucket_Boruvka::is_good(sparse_buckets[idx].bkt, sketch.checksum_seed());
+    bool good = SketchBucket::is_good(sparse_buckets[idx].bkt, sketch.checksum_seed());
     os << "i: " << size_t(idx) << " n: " << size_t(sparse_buckets[idx].next) << " r:"
        << size_t(sparse_buckets[idx].row) << " := a:" << sparse_buckets[idx].bkt.alpha
        << " c:" << sparse_buckets[idx].bkt.gamma << (good ? " good" : " bad") << std::endl;

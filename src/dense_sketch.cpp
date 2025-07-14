@@ -57,16 +57,16 @@ DenseSketch::~DenseSketch() { delete[] buckets; }
 
 
 void DenseSketch::update(const vec_t update_idx) {
-  vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update_idx, checksum_seed());
+  vec_hash_t checksum = SketchBucket::get_index_hash(update_idx, checksum_seed());
 
   // Update depth 0 bucket
-  Bucket_Boruvka::update(deterministic_bucket(), update_idx, checksum);
+  SketchBucket::update(deterministic_bucket(), update_idx, checksum);
 
   // Update higher depth buckets
   for (unsigned i = 0; i < num_columns; ++i) {
-    col_hash_t depth = Bucket_Boruvka::get_index_depth(update_idx, column_seed(i), bkt_per_col);
+    col_hash_t depth = SketchBucket::get_index_depth(update_idx, column_seed(i), bkt_per_col);
     likely_if(depth < bkt_per_col) {
-      Bucket_Boruvka::update(bucket(i, depth), update_idx, checksum);
+      SketchBucket::update(bucket(i, depth), update_idx, checksum);
     }
   }
 }
@@ -74,7 +74,7 @@ void DenseSketch::update(const vec_t update_idx) {
 static void is_empty(DenseSketch &skt) {
   const Bucket* buckets = skt.get_readonly_bucket_ptr();
   for (size_t i = 0; i < skt.get_buckets(); i++) {
-    if (!Bucket_Boruvka::is_empty(buckets[i])) {
+    if (!SketchBucket::is_empty(buckets[i])) {
       std::cerr << "FOUND NOT EMPTY BUCKET!" << std::endl;
     }
   }
@@ -103,17 +103,17 @@ SketchSample DenseSketch::sample() {
 
   // std::cout << *this << std::endl;
 
-  if (Bucket_Boruvka::is_empty(deterministic_bucket())) {
+  if (SketchBucket::is_empty(deterministic_bucket())) {
     is_empty(*this);
     return {0, ZERO};  // the "first" bucket is deterministic so if all zero then no edges to return
   }
 
-  if (Bucket_Boruvka::is_good(deterministic_bucket(), checksum_seed()))
+  if (SketchBucket::is_good(deterministic_bucket(), checksum_seed()))
     return {deterministic_bucket().alpha, GOOD};
 
   for (size_t i = 0; i < cols_per_sample; ++i) {
     for (size_t j = 0; j < bkt_per_col; ++j) {
-      if (Bucket_Boruvka::is_good(bucket(i + first_column, j), checksum_seed()))
+      if (SketchBucket::is_good(bucket(i + first_column, j), checksum_seed()))
         return {bucket(i + first_column, j).alpha, GOOD};
     }
   }
@@ -132,14 +132,14 @@ ExhaustiveSketchSample DenseSketch::exhaustive_sample() {
   unlikely_if (deterministic_bucket().alpha == 0 && deterministic_bucket().gamma == 0)
     return {ret, ZERO}; // the "first" bucket is deterministic so if zero then no edges to return
 
-  unlikely_if (Bucket_Boruvka::is_good(deterministic_bucket(), checksum_seed())) {
+  unlikely_if (SketchBucket::is_good(deterministic_bucket(), checksum_seed())) {
     ret.push_back(deterministic_bucket().alpha);
     return {ret, GOOD};
   }
 
   for (size_t i = 0; i < cols_per_sample; ++i) {
     for (size_t j = 0; j < bkt_per_col; ++j) {
-      unlikely_if (Bucket_Boruvka::is_good(bucket(i + first_column, j), checksum_seed())) {
+      unlikely_if (SketchBucket::is_good(bucket(i + first_column, j), checksum_seed())) {
         ret.push_back(bucket(i + first_column, j).alpha);
       }
     }
@@ -224,7 +224,7 @@ bool operator==(const DenseSketch &sketch1, const DenseSketch &sketch2) {
 
 std::ostream &operator<<(std::ostream &os, const DenseSketch &sketch) {
   Bucket bkt = sketch.buckets[sketch.num_buckets - 1];
-  bool good = Bucket_Boruvka::is_good(bkt, sketch.checksum_seed());
+  bool good = SketchBucket::is_good(bkt, sketch.checksum_seed());
   vec_t a = bkt.alpha;
   vec_hash_t c = bkt.gamma;
 
@@ -235,7 +235,7 @@ std::ostream &operator<<(std::ostream &os, const DenseSketch &sketch) {
       Bucket bkt = sketch.bucket(i, j);
       vec_t a = bkt.alpha;
       vec_hash_t c = bkt.gamma;
-      bool good = Bucket_Boruvka::is_good(bkt, sketch.checksum_seed());
+      bool good = SketchBucket::is_good(bkt, sketch.checksum_seed());
 
       os << " a:" << a << " c:" << c << (good ? " good" : " bad") << std::endl;
     }

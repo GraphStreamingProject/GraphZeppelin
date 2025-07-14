@@ -4,7 +4,7 @@
 #include <functional>
 #include <graph_stream.h>
 
-typedef uint64_t col_hash_t;
+typedef uint32_t col_hash_t;
 static const auto& vec_hash = XXH3_64bits_withSeed;
 static const auto& col_hash = XXH3_64bits_withSeed;
 
