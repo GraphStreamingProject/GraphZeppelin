@@ -57,6 +57,7 @@ void MinCutSketchAlg::apply_update_batch(size_t thr_id, node_id_t src_vertex,
   cc_sketches[0]->apply_update_batch(thr_id, src_vertex, dst_vertices);
 
   size_t num_mapped[max_subgraphs];
+  std::fill(&num_mapped[0], &num_mapped[max_subgraphs - 1], 0);
 
   std::vector<std::vector<node_id_t>> &buffers = thread_data[thr_id].cc_buffers;
   std::vector<SubgraphTaggedUpdate> &edge_buf = thread_data[thr_id].edge_store_buffer;
