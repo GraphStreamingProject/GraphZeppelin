@@ -249,7 +249,7 @@ void SparseSketch::update(const vec_t update_idx) {
 
   // Update depth 0 bucket
   SketchBucket::update(deterministic_bucket(), update_idx, checksum);
-  ColumnDepths depths;
+  SketchBucket::Depths depths;
 
   // Update higher depth buckets
   for (size_t i = 0; i < num_columns; i++) {

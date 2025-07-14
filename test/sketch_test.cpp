@@ -35,7 +35,7 @@ TEST(SketchTestSuite, TestSampleResults) {
         continue;
       }
 
-      col_hash_t depth = SketchBucket::get_index_depth(k, sketch2.column_seed(i), guesses);
+      col_hash_t depth = SketchBucket::get_index_depths(k, sketch2.column_seed(i - (i % 2)), guesses)[i & 0x1];
       if (depth >= 2) {
         vec_idx[k] = false; // force all updates to only touch depths <= 1
         i = 0;
