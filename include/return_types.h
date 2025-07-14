@@ -28,10 +28,19 @@ class ConnectedComponents {
 // This class defines a spanning forest of a graph
 class SpanningForest {
  private:
-  std::vector<Edge> edges;
   node_id_t num_vertices;
+  std::vector<Edge> edges;
+  std::vector<Edge> sorted_adjacency;
+  bool has_adjacency = false;
  public:
   SpanningForest(node_id_t num_vertices, const std::unordered_set<node_id_t> *spanning_forest);
 
   const std::vector<Edge>& get_edges() const { return edges; }
+  const std::vector<Edge>& get_sorted_adjacency();
+};
+
+struct MinCut {
+  std::set<node_id_t> left_vertices;
+  std::set<node_id_t> right_vertices;
+  size_t value;
 };

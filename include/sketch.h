@@ -117,7 +117,7 @@ class Sketch {
    * Update a sketch based on information about one of its indices.
    * param update   the point update.
    */
-  void update(const vec_t update);
+  void update(const vec_t update_idx);
 
   /**
    * Function to sample from the sketch.

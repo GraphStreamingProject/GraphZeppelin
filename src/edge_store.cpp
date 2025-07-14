@@ -54,23 +54,22 @@ TaggedUpdateBatch EdgeStore::insert_adj_edges(node_id_t src,
     auto idx = concat_pairing_fn(src, dst);
     tagged_updates[i] = {Bucket_Boruvka::get_index_depth(idx, seed, num_subgraphs), dst};
   }
-  return insert_adj_edges(src, 0, tagged_updates.data(), tagged_updates.size());
+  return insert_adj_edges(src, 0, tagged_updates);
 }
 
 TaggedUpdateBatch EdgeStore::insert_adj_edges(node_id_t src, node_id_t caller_first_es_subgraph,
-                                              SubgraphTaggedUpdate *dst_data,
-                                              size_t dst_data_size) {
+                                              std::vector<SubgraphTaggedUpdate> &dst_data) {
   std::vector<SubgraphTaggedUpdate> ret;
-  if (dst_data_size == 0) return {src, cur_subgraph - 1, cur_subgraph, ret};
+  if (dst_data.size() == 0) return {src, cur_subgraph - 1, cur_subgraph, ret};
   node_id_t cur_first_es_subgraph;
 
 #ifdef VERIFY_SAMPLES_F
-  num_inserted += dst_data_size;
+  num_inserted += dst_data.size();
 #endif
 
 
   // Sort the input data
-  std::sort(dst_data, dst_data + dst_data_size);
+  std::sort(dst_data.begin(), dst_data.end());
 
   // merge the input data into the vertex buffer
   {
@@ -91,7 +90,7 @@ TaggedUpdateBatch EdgeStore::insert_adj_edges(node_id_t src, node_id_t caller_fi
     // if the caller constructed the update buffer with bad info
     // copy the update buffer into ret
     if (caller_first_es_subgraph < cur_first_es_subgraph) {
-      ret.insert(ret.end(), dst_data, dst_data + dst_data_size);
+      ret.insert(ret.end(), dst_data.begin(), dst_data.end());
     }
 
     // place any updates that go to a smaller subgraph into ret
@@ -127,14 +126,14 @@ TaggedUpdateBatch EdgeStore::insert_adj_edges(node_id_t src, node_id_t caller_fi
 #endif
 
         // edge case introduced here. update_ptr can exceed bounds of dst_data
-        if (update_ptr >= dst_data_size) break;
+        if (update_ptr >= dst_data.size()) break;
       }
     }
 
     // place all remaining updates into the buffer
-    size_t new_size = out_ptr + (dst_data_size - update_ptr) + (orig_size - buffer_ptr);
+    size_t new_size = out_ptr + (dst_data.size() - update_ptr) + (orig_size - buffer_ptr);
     data_buffer.resize(std::max(new_size, orig_size));
-    while (update_ptr < dst_data_size) {
+    while (update_ptr < dst_data.size()) {
       data_buffer[out_ptr++] = dst_data[update_ptr++];
     }
     while (buffer_ptr < orig_size) {
@@ -155,13 +154,13 @@ TaggedUpdateBatch EdgeStore::insert_adj_edges(node_id_t src, node_id_t caller_fi
       }
     }
 
-    if (out_ptr != orig_size + dst_data_size - local_ignored) {
+    if (out_ptr != orig_size + dst_data.size() - local_ignored) {
       std::cerr << "ERROR: Number of updates incorrect!" << std::endl;
-      std::cerr << "Expected: " << orig_size + dst_data_size - local_ignored << std::endl;
+      std::cerr << "Expected: " << orig_size + dst_data.size() - local_ignored << std::endl;
       std::cerr << "Got: " << out_ptr << std::endl;
 
       std::cerr << "orig_size     = " << orig_size << std::endl;
-      std::cerr << "dst_data_size = " << dst_data_size << std::endl;
+      std::cerr << "dst_data_size = " << dst_data.size() << std::endl;
       std::cerr << "local_ignored = " << local_ignored << std::endl;
       exit(EXIT_FAILURE);
     }

@@ -131,6 +131,7 @@ void CCSketchAlg::update(GraphUpdate upd) {
 // that is, 1 or more vertices merged together during Boruvka
 inline bool CCSketchAlg::sample_supernode(Sketch &skt) {
   bool modified = false;
+
   SketchSample sample = skt.sample();
 
   Edge e = inv_concat_pairing_fn(sample.idx);
@@ -560,6 +561,90 @@ SpanningForest CCSketchAlg::calc_spanning_forest() {
   verifier->verify_spanning_forests(std::vector<SpanningForest>{ret});
 #endif
   return ret;
+}
+
+void CCSketchAlg::filter_sf_edges(SpanningForest &sf) {
+  // auto start = std::chrono::steady_clock::now();
+
+  dsu_valid = false;
+  shared_dsu_valid = false;
+
+  const std::vector<Edge> &edges = sf.get_sorted_adjacency();
+
+#pragma omp parallel
+  {
+    size_t thr_id = omp_get_thread_num();
+    size_t num_threads = omp_get_num_threads();
+
+    std::pair<size_t, size_t> partition = get_ith_partition(edges.size(), thr_id, num_threads);
+    size_t start = partition.first;
+    size_t end = partition.second;
+
+    // check if we collide with previous thread. If so lock and apply those updates.
+    if (start > 0 && edges[start].src == edges[start - 1].src) {
+      sketches[edges[start].src]->mutex.lock();
+      size_t orig_start = start;
+      while (edges[start].src == edges[orig_start].src) {
+        Edge edge = edges[start];
+        sketches[edge.src]->update(static_cast<vec_t>(concat_pairing_fn(edge.src, edge.dst)));
+        ++start;
+      }
+
+      sketches[edges[orig_start].src]->mutex.unlock();
+    }
+
+    // check if we collide with next thread. If so lock and apply those updates.
+    if (end < edges.size() && edges[end - 1].src == edges[end].src) {
+      sketches[edges[end - 1].src]->mutex.lock();
+      size_t orig_end = end;
+      while (edges[end - 1].src == edges[orig_end - 1].src) {
+        Edge edge = edges[end - 1];
+        sketches[edge.src]->update(static_cast<vec_t>(concat_pairing_fn(edge.src, edge.dst)));
+        --end;
+      }
+
+      sketches[edges[orig_end].src]->mutex.unlock();
+    }
+
+    for (size_t i = start; i < end; i++) {
+      Edge edge = edges[i];
+      sketches[edge.src]->update(static_cast<vec_t>(concat_pairing_fn(edge.src, edge.dst)));
+    }
+  }
+
+  // delete_time += std::chrono::steady_clock::now() - start;
+}
+
+std::vector<SpanningForest> CCSketchAlg::calc_disjoint_spanning_forests(size_t k) {
+  // sf_query_start = std::chrono::steady_clock::now();
+  std::vector<SpanningForest> SFs;
+  std::chrono::steady_clock::time_point start;
+  size_t max_rounds = 0;
+
+  for (size_t i = 0; i < k; i++) {
+    // start = std::chrono::steady_clock::now();
+    SFs.push_back(calc_spanning_forest());
+    // query_time += std::chrono::steady_clock::now() - start;
+    max_rounds = std::max(last_query_rounds, max_rounds);
+
+    filter_sf_edges(SFs[SFs.size() - 1]);
+  }
+
+  // revert the state of the sketches to remove all deletions
+  for (auto &sf : SFs) {
+    filter_sf_edges(sf);
+  }
+
+#ifdef VERIFY_SAMPLES_F
+  verifier->verify_spanning_forests(SFs);
+#endif
+
+  // number of rounds per SF may be non-monotonic, so we track the maximum number of rounds
+  // among all of the spanning forest queries.
+  last_query_rounds = max_rounds;
+  // sf_query_end = std::chrono::steady_clock::now();
+
+  return SFs;
 }
 
 bool CCSketchAlg::point_query(node_id_t a, node_id_t b) {

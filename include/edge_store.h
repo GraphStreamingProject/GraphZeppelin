@@ -59,7 +59,7 @@ class EdgeStore {
 
   // this function is called when there are some sketch subgraphs.
   TaggedUpdateBatch insert_adj_edges(node_id_t src, node_id_t caller_first_es_subgraph,
-                                     SubgraphTaggedUpdate* dst_data, size_t dst_data_size);
+                                     std::vector<SubgraphTaggedUpdate> &dst_data);
 
   // contract vertex data by removing all updates bound for lower subgraphs than the store
   // is responsible for

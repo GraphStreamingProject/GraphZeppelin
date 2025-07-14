@@ -3,7 +3,7 @@ project(GraphZeppelin)
 
 include (FetchContent)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
@@ -59,6 +59,22 @@ FetchContent_Declare(
   GIT_TAG         main
 )
 
+# Get VieCut
+FetchContent_Declare(
+  VieCut
+
+  GIT_REPOSITORY  https://github.com/etwest/VieCut.git
+  GIT_TAG         master
+)
+
+# Get tlx
+FetchContent_Declare(
+  tlx
+
+  GIT_REPOSITORY  https://github.com/tlx/tlx.git
+  GIT_TAG         master
+)
+
 if (BUILD_BENCH)
   # Get Google Benchmark
   FetchContent_Declare(
@@ -72,7 +88,7 @@ if (BUILD_BENCH)
   FetchContent_MakeAvailable(benchmark)
 endif()
 
-FetchContent_MakeAvailable(GutterTree StreamingUtilities)
+FetchContent_MakeAvailable(GutterTree StreamingUtilities VieCut tlx)
 
 # AVAILABLE COMPILATION DEFINITIONS:
 # VERIFY_SAMPLES_F   Use a deterministic connected-components
@@ -95,8 +111,8 @@ add_library(GraphZeppelin
   src/cc_alg_configuration.cpp
   src/sketch.cpp
   src/util.cpp)
-add_dependencies(GraphZeppelin GutterTree StreamingUtilities)
-target_link_libraries(GraphZeppelin PUBLIC xxhash GutterTree StreamingUtilities)
+add_dependencies(GraphZeppelin GutterTree StreamingUtilities VieCut tlx)
+target_link_libraries(GraphZeppelin PUBLIC xxhash GutterTree StreamingUtilities VieCut tlx)
 target_include_directories(GraphZeppelin PUBLIC include/)
 target_compile_options(GraphZeppelin PUBLIC -fopenmp)
 target_link_options(GraphZeppelin PUBLIC -fopenmp)
@@ -112,8 +128,8 @@ add_library(GraphZeppelinVerifyCC
   src/sketch.cpp
   src/util.cpp
   test/util/graph_verifier.cpp)
-add_dependencies(GraphZeppelinVerifyCC GutterTree StreamingUtilities)
-target_link_libraries(GraphZeppelinVerifyCC PUBLIC xxhash GutterTree StreamingUtilities)
+add_dependencies(GraphZeppelinVerifyCC GutterTree StreamingUtilities VieCut tlx)
+target_link_libraries(GraphZeppelinVerifyCC PUBLIC xxhash GutterTree StreamingUtilities VieCut tlx)
 target_include_directories(GraphZeppelinVerifyCC PUBLIC include/ include/test/)
 target_compile_options(GraphZeppelinVerifyCC PUBLIC -fopenmp)
 target_link_options(GraphZeppelinVerifyCC PUBLIC -fopenmp)

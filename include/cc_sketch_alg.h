@@ -83,6 +83,7 @@ class CCSketchAlg {
   // for accessing if the DSU is valid from threads that do not perform updates
   std::atomic<bool> shared_dsu_valid;
 
+  // Most recent spanning forest computed by algorithm and associated locks
   std::unordered_set<node_id_t> *spanning_forest;
   std::mutex *spanning_forest_mtx;
 
@@ -104,8 +105,8 @@ class CCSketchAlg {
   /**
    * Sample a single supernode represented by a single sketch containing one or more vertices.
    * Updates the dsu and spanning forest with query results if edge contains new connectivity info.
-   * @param skt   sketch to sample
-   * @return      [bool] true if the query result indicates we should run an additional round.
+   * param: skt   sketch to sample
+   * return:      [bool] true if the query result indicates we should run an additional round.
    */
   bool sample_supernode(Sketch &skt);
 
@@ -115,8 +116,8 @@ class CCSketchAlg {
   void create_merge_instructions(std::vector<MergeInstr> &merge_instr);
 
   /**
-   * @param reps         set containing the roots of each supernode
-   * @param merge_instr  a list of lists of supernodes to be merged
+   * param: reps         set containing the roots of each supernode
+   * param: merge_instr  a list of lists of supernodes to be merged
    */
   bool perform_boruvka_round(const size_t cur_round, const std::vector<MergeInstr> &merge_instr,
                              std::vector<GlobalMergeData> &global_merges);
@@ -126,6 +127,8 @@ class CCSketchAlg {
    * Ensures that the DSU represents the Connected Components of the stream when called
    */
   void boruvka_emulation();
+
+  void filter_sf_edges(SpanningForest &sf);
 
   // constructor for use when reading from a serialized file
   CCSketchAlg(node_id_t num_vertices, size_t seed, std::ifstream &binary_stream,
@@ -169,9 +172,9 @@ class CCSketchAlg {
 
   /**
    * Update all the sketches for a node, given a batch of updates.
-   * @param thr_id         The id of the thread performing the update [0, num_threads)
-   * @param src_vertex     The vertex where the edges originate.
-   * @param dst_vertices   A vector of destinations.
+   * param: thr_id         The id of the thread performing the update [0, num_threads)
+   * param: src_vertex     The vertex where the edges originate.
+   * param: dst_vertices   A vector of destinations.
    */
   void apply_update_batch(int thr_id, node_id_t src_vertex,
                           const std::vector<node_id_t> &dst_vertices);
@@ -198,8 +201,8 @@ class CCSketchAlg {
   /**
    * Apply a batch of updates that have already been processed into a sketch delta.
    * Specifically, the delta is in the form of a pointer to raw bucket data.
-   * @param src_vertex   The vertex where the all edges originate.
-   * @param raw_buckets  Pointer to the array of buckets from the delta sketch
+   * param: src_vertex   The vertex where the all edges originate.
+   * param: raw_buckets  Pointer to the array of buckets from the delta sketch
    */
   void apply_raw_buckets_update(node_id_t src_vertex, Bucket *raw_buckets);
 
@@ -213,15 +216,15 @@ class CCSketchAlg {
 
   /**
    * Main parallel query algorithm utilizing Boruvka and L_0 sampling.
-   * @return  the connected components in the graph.
+   * return:  the connected components in the graph.
    */
   ConnectedComponents connected_components();
 
   /**
    * Point query algorithm utilizing Boruvka and L_0 sampling.
    * Allows for additional updates when done.
-   * @param a, b
-   * @return true if a and b are in the same connected component, false otherwise.
+   * param:  a, b vertices of the graph. Check if these are connected.
+   * return: true if a and b are in the same connected component, false otherwise.
    */
   bool point_query(node_id_t a, node_id_t b);
 
@@ -229,9 +232,17 @@ class CCSketchAlg {
    * Return a spanning forest of the graph utilizing Boruvka and L_0 sampling
    * IMPORTANT: The updates to this algorithm MUST NOT be a function of the output of this query
    * that is, unless you really know what you're doing.
-   * @return  the spanning forest of the graph
+   * return:  the spanning forest of the graph
    */
   SpanningForest calc_spanning_forest();
+
+  /**
+   * Return k edge-disjoint spanning forests of the graph.
+   * IMPORTANT: The updates to this algorithm MUST NOT be a function of the output of this query
+   * that is, unless you really know what you're doing.
+   * return:  k edge-disjoint spanning forests of the graph.
+   */
+  std::vector<SpanningForest> calc_disjoint_spanning_forests(size_t k);
 
 #ifdef VERIFY_SAMPLES_F
   void set_verifier(std::unique_ptr<GraphVerifier> verifier) {
@@ -241,7 +252,7 @@ class CCSketchAlg {
 
   /**
    * Serialize the graph data to a binary file.
-   * @param filename the name of the file to (over)write data to.
+   * param: filename the name of the file to (over)write data to.
    */
   void write_binary(const std::string &filename);
 

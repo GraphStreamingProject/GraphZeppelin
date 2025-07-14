@@ -1,5 +1,6 @@
 #include "return_types.h"
 
+#include <algorithm>
 #include <map>
 
 ConnectedComponents::ConnectedComponents(node_id_t num_vertices,
@@ -38,4 +39,24 @@ SpanningForest::SpanningForest(node_id_t num_vertices,
       edges.push_back({src, dst});
     }
   }
+}
+
+const std::vector<Edge> &SpanningForest::get_sorted_adjacency() {
+  if (has_adjacency) return sorted_adjacency;
+
+  size_t num = edges.size();
+  sorted_adjacency.resize(edges.size() * 2);
+
+#pragma omp parallel for
+  for (size_t i = 0; i < num; i++) {
+    sorted_adjacency[i] = edges[i];
+    sorted_adjacency[i + num] = sorted_adjacency[i];
+    std::swap(sorted_adjacency[i + num].src, sorted_adjacency[i + num].dst);
+  }
+
+  // sort the edges
+  std::sort(sorted_adjacency.begin(), sorted_adjacency.end());
+
+  has_adjacency = true;
+  return sorted_adjacency;
 }
