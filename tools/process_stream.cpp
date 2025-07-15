@@ -88,8 +88,8 @@ int main(int argc, char **argv) {
                            .gutter_sys(CACHETREE)
                            .worker_threads(num_threads)
                            .stream_threads(reader_threads);
-  driver_config.gutter_conf().wq_batch_per_elm(2);
-  auto cc_config = CCAlgConfiguration().batch_factor(1.2);
+  driver_config.gutter_conf().wq_batch_per_elm(4);
+  auto cc_config = CCAlgConfiguration().batch_factor(1);
   CCSketchAlg cc_alg{num_nodes, get_seed(), cc_config};
   GraphSketchDriver<CCSketchAlg> driver{&cc_alg, &stream, driver_config};
 
