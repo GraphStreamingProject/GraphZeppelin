@@ -252,17 +252,28 @@ void SparseSketch::update(const vec_t update_idx) {
   SketchBucket::Depths depths;
 
   // Update higher depth buckets
-  for (size_t i = 0; i < num_columns; i++) {
-    size_t bit = i & 0x1;
-    if (bit == 0) {
-      depths = SketchBucket::get_index_depths(update_idx, column_seed(i), bkt_per_col);
+  for (size_t i = 0; i < num_columns - 1; i += 2) {
+    depths = SketchBucket::get_index_depths(update_idx, column_seed(i), bkt_per_col);
+    for (size_t j = 0; j < 2; j++) {
+      col_hash_t depth = depths[j];
+      likely_if(depth < bkt_per_col) {
+        likely_if(depth < num_dense_rows) {
+          SketchBucket::update(bucket(i + j, depth), update_idx, checksum);
+        } else {
+          update_sparse(i + j, {uint8_t(-1), uint8_t(depth), {update_idx, checksum}});
+        }
+      }
     }
-    col_hash_t depth = depths[bit];
+  }
+  if ((num_columns & 0x1) == 1) {
+    size_t col = num_columns - 1;
+
+    size_t depth = SketchBucket::get_index_depth(update_idx, column_seed(col), bkt_per_col);
     likely_if(depth < bkt_per_col) {
       likely_if(depth < num_dense_rows) {
-        SketchBucket::update(bucket(i, depth), update_idx, checksum);
+        SketchBucket::update(bucket(col, depth), update_idx, checksum);
       } else {
-        update_sparse(i, {uint8_t(-1), uint8_t(depth), {update_idx, checksum}});
+        update_sparse(col, {uint8_t(-1), uint8_t(depth), {update_idx, checksum}});
       }
     }
   }
@@ -325,8 +336,14 @@ SketchSample SparseSketch::sample() {
     return sample;
   }
 
+  // if dense region is densely populated then only check the "deepest" few rows 
+  int dense_row_min = 0;
+  if (number_of_sparse_buckets > num_columns || num_dense_rows > min_num_dense_rows) {
+    dense_row_min = num_dense_rows - num_dense_to_sample;
+  }
+
   for (size_t c = 0; c < cols_per_sample; ++c) {
-    for (int r = num_dense_rows - 1; r >= 0; --r) { // TODO: Consider reducing the number of dense rows checked to 1 or 2
+    for (int r = num_dense_rows - 1; r >= dense_row_min; --r) {
       if (SketchBucket::is_good(bucket(c + first_column, r), checksum_seed())) {
         // std::cout << "Found GOOD dense bucket" << std::endl;
         return {bucket(c + first_column, r).alpha, GOOD};

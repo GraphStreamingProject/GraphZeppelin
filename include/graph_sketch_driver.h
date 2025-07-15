@@ -85,9 +85,10 @@ class GraphSketchDriver {
 
   std::atomic<size_t> total_updates;
  public:
-  GraphSketchDriver(Alg *sketching_alg, GraphStream *stream, DriverConfiguration config,
-                    size_t num_stream_threads = 1)
-      : sketching_alg(sketching_alg), stream(stream), num_stream_threads(num_stream_threads) {
+  GraphSketchDriver(Alg *sketching_alg, GraphStream *stream, DriverConfiguration config)
+      : sketching_alg(sketching_alg),
+        stream(stream),
+        num_stream_threads(config.get_stream_threads()) {
     sketching_alg->allocate_worker_memory(config.get_worker_threads());
     // set the leaf size of the guttering system appropriately
     if (config.gutter_conf().get_gutter_bytes() == GutteringConfiguration::uninit_param) {

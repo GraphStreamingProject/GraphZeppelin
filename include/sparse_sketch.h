@@ -56,6 +56,10 @@ class SparseSketch {
   // Allocated buckets
   Bucket* buckets;
 
+  // number of dense buckets to sample from when sparse region is populated
+  static constexpr size_t num_dense_to_sample = 2;
+
+  // minimum number of dense rows in a sketch no matter how sparse the vector is.
   static constexpr size_t min_num_dense_rows = 6;
   size_t num_dense_rows = min_num_dense_rows;
 
@@ -131,7 +135,7 @@ class SparseSketch {
   }
 
   inline size_t position_func(size_t col, size_t row, size_t num_rows) const {
-    return col * num_rows + row + 1;
+    return col * num_rows + row + 1; // column-major
   }
 
   // return the bucket at a particular index in bucket array
