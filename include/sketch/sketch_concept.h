@@ -39,6 +39,11 @@ template <typename T, typename V>
 concept SketchColumnConcept = requires(T t, T other) {
   { t.sample() } -> std::same_as<SketchSample<V>>;
   { t.update(std::declval<V>()) } -> std::same_as<void>;
+  // require an atomic_update function. 
+  // up to implementer whether it uses locks or simply atomic XOR 
+  // (note that only the prior works for fixed size sketches)
+  { t.atomic_update(std::declval<V>()) } -> std::same_as<void>;
+  
   { t.merge(other) } -> std::same_as<void>;
   
   { t.is_initialized() } -> std::same_as<bool>;

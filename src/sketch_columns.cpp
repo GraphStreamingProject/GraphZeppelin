@@ -111,6 +111,23 @@ void FixedSizeSketchColumn::update(const vec_t update) {
   deterministic_bucket ^= {update, checksum};
 }
 
+void FixedSizeSketchColumn::atomic_update(const vec_t update) {
+  vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update, seed);
+  col_hash_t depth = Bucket_Boruvka::get_index_depth_legacy(update, seed, capacity-1);
+  
+  std::atomic_ref<vec_t> det_alpha(deterministic_bucket.alpha);
+  std::atomic_ref<vec_hash_t> det_gamma(deterministic_bucket.gamma);
+  
+  std::atomic_ref<vec_t> bucket_alpha(buckets[depth].alpha);
+  std::atomic_ref<vec_hash_t> bucket_gamma(buckets[depth].gamma);
+  
+  det_alpha.fetch_xor(update);
+  det_gamma.fetch_xor(checksum);
+  bucket_alpha.fetch_xor(update);
+  bucket_gamma.fetch_xor(checksum);
+
+}
+
 ResizeableSketchColumn::ResizeableSketchColumn(uint8_t start_capacity,
                                                uint64_t seed)
     : capacity(start_capacity), seed(seed) {
@@ -227,6 +244,44 @@ void ResizeableSketchColumn::update(const vec_t update) {
     reallocate(new_capacity); 
   }
   buckets[depth] ^= {update, checksum};
+}
+
+void ResizeableSketchColumn::atomic_update(const vec_t update) {
+  vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update, seed);
+  col_hash_t depth = Bucket_Boruvka::get_index_depth_legacy(update, seed, capacity-1);
+  
+
+  // grab reader lock
+  this->lock.lock_shared();
+  if (depth < capacity) {
+    // can atomically update as normal
+    std::atomic_ref<vec_t> det_alpha(deterministic_bucket.alpha);
+    std::atomic_ref<vec_hash_t> det_gamma(deterministic_bucket.gamma);
+    std::atomic_ref<vec_t> bucket_alpha(buckets[depth].alpha);
+    std::atomic_ref<vec_hash_t> bucket_gamma(buckets[depth].gamma);
+    det_alpha.fetch_xor(update);
+    det_gamma.fetch_xor(checksum);
+    bucket_alpha.fetch_xor(update);
+    bucket_gamma.fetch_xor(checksum);
+    this->lock.unlock_shared();    
+  } else {
+    // release the reader lock
+    this->lock.unlock_shared();
+    // grab writer lock
+    this->lock.lock();
+    // note: the alllocation may have shrunk OR grown.
+    // so we need to account for that
+    size_t desired_capacity = ((depth >> 2) << 2) + 4;
+    desired_capacity = std::max(desired_capacity, static_cast<size_t>(capacity));
+    if (desired_capacity != capacity) {
+      reallocate(desired_capacity);
+    }
+    // now we can update the buckets (non-atomically)
+    deterministic_bucket ^= {update, checksum};
+    buckets[depth] ^= {update, checksum};
+    this->lock.unlock();
+  }
+  
 }
 
 void ResizeableSketchColumn::merge(ResizeableSketchColumn const& other) {

@@ -11,6 +11,8 @@
 
 #include <gtest/gtest.h>
 
+#include <folly/synchronization/RWSpinLock.h>
+
 /*
  * FOR NOW - simplest possible design
 */
@@ -40,6 +42,7 @@ public:
   void clear();
   
   void update(const vec_t update);
+  void atomic_update(const vec_t update);
   void merge(FixedSizeSketchColumn const& other);
   uint8_t get_depth() const;
   void serialize(std::ostream &binary_out) const;
@@ -94,6 +97,7 @@ private:
   Bucket *buckets;
   Bucket deterministic_bucket = {0, 0};
   uint64_t seed;
+  folly::RWSpinLock lock;
   uint8_t capacity;
 public:
   void set_seed(uint64_t new_seed) { seed = new_seed; };
@@ -109,6 +113,7 @@ public:
   SketchSample<vec_t> sample() const;
   void clear();
   void update(const vec_t update);
+  void atomic_update(const vec_t update);
   void merge(ResizeableSketchColumn const& other);
   uint8_t get_depth() const;
 
@@ -179,6 +184,10 @@ public:
   SketchSample<vec_t> sample() const;
   void clear();
   void update(const vec_t update);
+  void atomic_update(const vec_t update) {
+    // TODO - implement later
+    this->update(update);
+  }
   void merge(ResizeableAlignedSketchColumn const& other);
   uint8_t get_depth() const;
 
