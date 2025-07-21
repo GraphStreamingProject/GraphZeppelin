@@ -125,6 +125,7 @@ void FixedSizeSketchColumn::atomic_update(const vec_t update) {
   det_gamma.fetch_xor(checksum);
   bucket_alpha.fetch_xor(update);
   bucket_gamma.fetch_xor(checksum);
+  // todo - gccc intrinsics?
 
 }
 
