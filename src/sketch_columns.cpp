@@ -121,10 +121,10 @@ void FixedSizeSketchColumn::atomic_update(const vec_t update) {
   std::atomic_ref<vec_t> bucket_alpha(buckets[depth].alpha);
   std::atomic_ref<vec_hash_t> bucket_gamma(buckets[depth].gamma);
   
-  det_alpha.fetch_xor(update);
-  det_gamma.fetch_xor(checksum);
-  bucket_alpha.fetch_xor(update);
-  bucket_gamma.fetch_xor(checksum);
+  det_alpha.fetch_xor(update, std::memory_order_relaxed);
+  det_gamma.fetch_xor(checksum, std::memory_order_relaxed);
+  bucket_alpha.fetch_xor(update, std::memory_order_relaxed);
+  bucket_gamma.fetch_xor(checksum, std::memory_order_relaxed);
   // todo - gccc intrinsics?
 
 }
@@ -260,11 +260,11 @@ void ResizeableSketchColumn::atomic_update(const vec_t update) {
     std::atomic_ref<vec_hash_t> det_gamma(deterministic_bucket.gamma);
     std::atomic_ref<vec_t> bucket_alpha(buckets[depth].alpha);
     std::atomic_ref<vec_hash_t> bucket_gamma(buckets[depth].gamma);
-    det_alpha.fetch_xor(update);
-    det_gamma.fetch_xor(checksum);
-    bucket_alpha.fetch_xor(update);
-    bucket_gamma.fetch_xor(checksum);
-    this->lock.unlock_shared();    
+    det_alpha.fetch_xor(update, std::memory_order_relaxed);
+    det_gamma.fetch_xor(checksum, std::memory_order_relaxed);
+    bucket_alpha.fetch_xor(update, std::memory_order_relaxed);
+    bucket_gamma.fetch_xor(checksum, std::memory_order_relaxed);
+    this->lock.unlock_shared();
   } else {
     // release the reader lock
     this->lock.unlock_shared();
