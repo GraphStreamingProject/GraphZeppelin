@@ -249,7 +249,7 @@ void ResizeableSketchColumn::update(const vec_t update) {
 
 void ResizeableSketchColumn::atomic_update(const vec_t update) {
   vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update, seed);
-  col_hash_t depth = Bucket_Boruvka::get_index_depth_legacy(update, seed, capacity-1);
+  col_hash_t depth = Bucket_Boruvka::get_index_depth_legacy(update, seed, 60);
   
 
   // grab reader lock
