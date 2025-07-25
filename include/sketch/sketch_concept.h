@@ -15,6 +15,11 @@ struct SketchSample {
   SampleResult result;
 };
 
+// TODO - figure out how to template this instead of using vec_t
+struct ColumnEntryDelta {
+  Bucket bucket;
+  uint16_t depth;
+};
 
 
 template <typename T = vec_t> requires(std::integral<T>)
@@ -38,6 +43,8 @@ concept ConnectivitySketchConcept = requires(T t, T other) {
 template <typename T, typename V>
 concept SketchColumnConcept = requires(T t, T other) {
   { t.sample() } -> std::same_as<SketchSample<V>>;
+  { t.generate_entry_delta(std::declval<V>()) } -> std::same_as<const ColumnEntryDelta>;
+  { t.apply_entry_delta(std::declval<const ColumnEntryDelta>()) } -> std::same_as<void>;
   { t.update(std::declval<V>()) } -> std::same_as<void>;
   // require an atomic_update function. 
   // up to implementer whether it uses locks or simply atomic XOR 

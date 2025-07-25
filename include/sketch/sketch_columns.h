@@ -54,6 +54,10 @@ public:
   void reset_sample_state() {
     //no-op
   };
+  
+  const ColumnEntryDelta generate_entry_delta(vec_t update) const;
+  void apply_entry_delta(const ColumnEntryDelta &delta);
+  
 
   inline bool is_initialized() const {
     return buckets != nullptr;
@@ -113,6 +117,10 @@ public:
   SketchSample<vec_t> sample() const;
   void clear();
   void update(const vec_t update);
+  
+  const ColumnEntryDelta generate_entry_delta(vec_t update) const;
+  void apply_entry_delta(const ColumnEntryDelta &delta);
+  
   void atomic_update(const vec_t update);
   void merge(ResizeableSketchColumn const& other);
   uint8_t get_depth() const;
@@ -184,6 +192,10 @@ public:
   SketchSample<vec_t> sample() const;
   void clear();
   void update(const vec_t update);
+
+  const ColumnEntryDelta generate_entry_delta(vec_t update) const;
+  void apply_entry_delta(const ColumnEntryDelta &delta);
+
   void atomic_update(const vec_t update) {
     // TODO - implement later
     this->update(update);

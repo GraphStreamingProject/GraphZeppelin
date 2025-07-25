@@ -111,6 +111,18 @@ void FixedSizeSketchColumn::update(const vec_t update) {
   deterministic_bucket ^= {update, checksum};
 }
 
+const ColumnEntryDelta FixedSizeSketchColumn::generate_entry_delta(vec_t update) const {
+  vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update, seed);
+  col_hash_t depth = Bucket_Boruvka::get_index_depth_legacy(update, seed, capacity-1);
+  return {Bucket{update, checksum}, static_cast<uint16_t>(depth)};
+}
+
+void FixedSizeSketchColumn::apply_entry_delta(const ColumnEntryDelta &delta) {
+  assert(delta.depth < capacity);
+  buckets[delta.depth] ^= delta.bucket;
+  deterministic_bucket ^= delta.bucket;
+}
+
 void FixedSizeSketchColumn::atomic_update(const vec_t update) {
   vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update, seed);
   col_hash_t depth = Bucket_Boruvka::get_index_depth_legacy(update, seed, capacity-1);
@@ -247,6 +259,23 @@ void ResizeableSketchColumn::update(const vec_t update) {
   buckets[depth] ^= {update, checksum};
 }
 
+const ColumnEntryDelta ResizeableSketchColumn::generate_entry_delta(vec_t update) const {
+  vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update, seed);
+  col_hash_t depth = Bucket_Boruvka::get_index_depth_legacy(update, seed, 60);
+  return {Bucket{update, checksum}, static_cast<uint16_t>(depth)};
+}
+
+void ResizeableSketchColumn::apply_entry_delta(const ColumnEntryDelta &delta) {
+  assert(delta.depth < capacity);
+  deterministic_bucket ^= delta.bucket;
+
+  if (delta.depth >= capacity) {
+    size_t new_capacity = ((delta.depth >> 2) << 2) + 4;
+    reallocate(new_capacity);
+  }
+  buckets[delta.depth] ^= delta.bucket;
+}
+
 void ResizeableSketchColumn::atomic_update(const vec_t update) {
   vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update, seed);
   col_hash_t depth = Bucket_Boruvka::get_index_depth_legacy(update, seed, 60);
@@ -376,6 +405,23 @@ void ResizeableAlignedSketchColumn::update(const vec_t update) {
     reallocate(new_capacity); 
   }
   aligned_buckets[depth] ^= {update, checksum};
+}
+
+const ColumnEntryDelta ResizeableAlignedSketchColumn::generate_entry_delta(vec_t update) const {
+  vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update, seed);
+  col_hash_t depth = Bucket_Boruvka::get_index_depth_legacy(update, seed, 60);
+  return {Bucket{update, checksum}, static_cast<uint16_t>(depth)};
+}
+
+void ResizeableAlignedSketchColumn::apply_entry_delta(const ColumnEntryDelta &delta) {
+  assert(delta.depth < capacity);
+  deterministic_bucket ^= delta.bucket;
+
+  if (delta.depth >= capacity) {
+    size_t new_capacity = ((delta.depth >> 2) << 2) + 4;
+    reallocate(new_capacity);
+  }
+  aligned_buckets[delta.depth] ^= delta.bucket;
 }
 
 void ResizeableAlignedSketchColumn::merge(ResizeableAlignedSketchColumn const& other) {
