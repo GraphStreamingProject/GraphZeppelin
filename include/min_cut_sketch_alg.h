@@ -17,9 +17,12 @@ class MinCutSketchAlg {
 
   const node_id_t num_vertices;
   const size_t seed;
+  const size_t subgraph_seed;
   MCAlgConfiguration config;
   const size_t max_subgraphs;
-  size_t cur_subgraphs;
+  const size_t k;
+  std::atomic<size_t> cur_subgraphs;
+  std::mutex advance_subgraph_lock;
 
   const double sketch_factor;
   const size_t sketch_samples;
@@ -35,9 +38,14 @@ class MinCutSketchAlg {
 
 #ifdef VERIFY_SAMPLES_F
   std::unique_ptr<GraphVerifier> verifier;
+  std::unique_ptr<GraphVerifier> adj_verifier;
 #endif
 
   CCAlgConfiguration cc_config;
+
+  void advance_cur_subgraph(size_t new_cur_subgraphs);
+
+  void create_subgraph_verifiers();
  public:
   /**
    * Construct an instance of the Minimum Cut Sketching Algorithm
@@ -59,7 +67,7 @@ class MinCutSketchAlg {
    * Returns the number of buffered updates we would like to have in the update batches
    */
   size_t get_desired_updates_per_batch() {
-    return config._batch_factor; // TODO: Fill in correctly
+    return cc_sketches[0]->get_desired_updates_per_batch();
   }
 
   /**
@@ -80,12 +88,10 @@ class MinCutSketchAlg {
 
   /**
    * Set the verifier this algorithm will use to check its correctness
-   * TODO: What is the right way to use verifier for minimum cut?
+   * param: _verifier   the verifier to use, should contain all edges processed at this point
    */
 #ifdef VERIFY_SAMPLES_F
-  void set_verifier(std::unique_ptr<GraphVerifier> verifier) {
-    this->verifier = std::move(verifier);
-  }
+  void set_verifier(std::unique_ptr<GraphVerifier> _verifier);
 #endif
 
   /**
@@ -110,8 +116,15 @@ class MinCutSketchAlg {
    * Print the configuration of minimum cut graph sketching algorithm.
    */
   void print_configuration() {
-    std::cout << config << std::endl;
+    std::cout << config;
+    std::cout << "MCAlg using the following CCAlg config:" << std::endl;
+    std::cout << cc_config << std::endl;
   }
 
   node_id_t get_num_vertices() { return num_vertices; }
+
+  // time hooks for experiments
+  std::chrono::duration<double> total_mc_duration;
+  std::chrono::duration<double> sf_total_duration;
+  std::chrono::duration<double> viecut_duration;
 };

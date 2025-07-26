@@ -140,6 +140,7 @@ if (BUILD_EXE)
     test/test_runner.cpp
     test/cc_alg_test.cpp
     test/min_cut_test.cpp
+    test/edge_store_test.cpp
     test/sketch_test.cpp
     test/dsu_test.cpp
     test/util_test.cpp
@@ -157,6 +158,11 @@ if (BUILD_EXE)
   add_executable(process_stream
     tools/process_stream.cpp)
   target_link_libraries(process_stream PRIVATE GraphZeppelin)
+
+  # executable for processing a binary graph stream
+  add_executable(min_cut_exe
+    tools/minimum_cut.cpp)
+  target_link_libraries(min_cut_exe PRIVATE GraphZeppelin)
 
   # executable for performing in depth correctness testing
   add_executable(test_correctness

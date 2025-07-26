@@ -76,6 +76,9 @@ class CCSketchAlg {
   // DSU representation of supernode relationship
   DisjointSetUnion_MT<node_id_t> dsu;
 
+  // TODO: Remove this variable later
+  std::atomic<size_t> num_updates;
+
   // if dsu valid then we have a cached query answer. Additionally, we need to update the DSU in
   // pre_insert()
   bool dsu_valid = true;
@@ -123,10 +126,15 @@ class CCSketchAlg {
                              std::vector<GlobalMergeData> &global_merges);
 
   /**
-   * Main parallel algorithm utilizing Boruvka and L_0 sampling.
-   * Ensures that the DSU represents the Connected Components of the stream when called
+   * Main parallel algorithm subroutine for query computation
    */
   void boruvka_emulation();
+
+  /**
+   * Ensures that the DSU represents the Connected Components of the stream when called
+   * and that spanning_forest is correct.
+   */
+  void compute_dsu();
 
   void filter_sf_edges(SpanningForest &sf);
 
@@ -265,4 +273,10 @@ class CCSketchAlg {
   inline node_id_t get_num_vertices() { return num_vertices; }
   inline size_t get_seed() { return seed; }
   inline size_t max_rounds() { return sketches[0]->get_num_samples(); }
+  inline size_t get_num_updates() { return num_updates.load(); }
+
+  void invalidate_dsu() { 
+    dsu_valid = false;
+    shared_dsu_valid = false;
+  }
 };

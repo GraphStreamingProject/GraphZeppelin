@@ -46,7 +46,14 @@ class EdgeStore {
   std::atomic<size_t> num_returned;
 #endif
  public:
-  // Constructor
+  /**
+   * EdgeStore Constructor
+   * param: seed            seed to depth hash function. (MUST be the same as the MinCutAlgorithm's)
+   * param: num_vertices    number of vertices in the graph
+   * param: sketch_bytes    number of bytes per vertex in sketch data-structure
+   * param: num_subgraphs   maximum number of subgraphs
+   * param: start_subgraph  Number of subgraphs we start with sketches for (updates don't go here)
+   */
   EdgeStore(size_t seed, node_id_t num_vertices, size_t sketch_bytes, size_t num_subgraphs,
             size_t start_subgraph = 0);
   ~EdgeStore();

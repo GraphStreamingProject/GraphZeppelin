@@ -23,6 +23,8 @@ CCSketchAlg::CCSketchAlg(node_id_t num_vertices, size_t seed, CCAlgConfiguration
   spanning_forest_mtx = new std::mutex[num_vertices];
   dsu_valid = true;
   shared_dsu_valid = true;
+
+  num_updates = 0;
 }
 
 CCSketchAlg *CCSketchAlg::construct_from_serialized_data(const std::string &input_file,
@@ -103,6 +105,9 @@ void CCSketchAlg::apply_update_batch(int thr_id, node_id_t src_vertex,
   if (update_locked) throw UpdateLockedException();
   Sketch &delta_sketch = *delta_sketches[thr_id];
   delta_sketch.zero_contents();
+
+  // TODO: Remove this later
+  num_updates += dst_vertices.size();
 
   for (const auto &dst : dst_vertices) {
     delta_sketch.update(static_cast<vec_t>(concat_pairing_fn(src_vertex, dst)));
@@ -217,6 +222,8 @@ inline bool merge_global(const size_t cur_round, const Sketch &local_sketch,
 
 // faster query procedure optimized for when we know there is no merging to do (i.e. round 0)
 inline bool CCSketchAlg::run_round_zero() {
+  // std::cout << "Running round zero! " << "num_vertices = " << num_vertices << std::endl;
+
   bool modified = false;
   bool except = false;
   std::exception_ptr err;
@@ -508,9 +515,7 @@ void CCSketchAlg::boruvka_emulation() {
   update_locked = false;
 }
 
-ConnectedComponents CCSketchAlg::connected_components() {
-  cc_alg_start = std::chrono::steady_clock::now();
-
+void CCSketchAlg::compute_dsu() {
   // if the DSU holds the answer, use that
   if (shared_dsu_valid) {
 #ifdef VERIFY_SAMPLES_F
@@ -520,30 +525,34 @@ ConnectedComponents CCSketchAlg::connected_components() {
       }
     }
 #endif
+    return;
   }
   // The DSU does not hold the answer, make it so
-  else {
-    bool except = false;
-    std::exception_ptr err;
-    try {
-      // auto start = std::chrono::steady_clock::now();
-      boruvka_emulation();
-      // std::cout << " boruvka's algorithm = "
-      //         << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
-      //         << std::endl;
-    } catch (...) {
-      except = true;
-      err = std::current_exception();
-    }
-
-    // get ready for ingesting more from the stream by resetting the sketches sample state
-    for (node_id_t i = 0; i < num_vertices; i++) {
-      sketches[i]->reset_sample_state();
-    }
-
-    if (except) std::rethrow_exception(err);
+  bool except = false;
+  std::exception_ptr err;
+  try {
+    // auto start = std::chrono::steady_clock::now();
+    boruvka_emulation();
+    // std::cout << " boruvka's algorithm = "
+    //         << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count()
+    //         << std::endl;
+  } catch (...) {
+    except = true;
+    err = std::current_exception();
   }
 
+  // get ready for ingesting more from the stream by resetting the sketches sample state
+  for (node_id_t i = 0; i < num_vertices; i++) {
+    sketches[i]->reset_sample_state();
+  }
+
+  if (except) std::rethrow_exception(err);
+}
+
+ConnectedComponents CCSketchAlg::connected_components() {
+  cc_alg_start = std::chrono::steady_clock::now();
+
+  compute_dsu();
   ConnectedComponents cc(num_vertices, dsu);
 #ifdef VERIFY_SAMPLES_F
   verifier->verify_connected_components(cc);
@@ -553,8 +562,7 @@ ConnectedComponents CCSketchAlg::connected_components() {
 }
 
 SpanningForest CCSketchAlg::calc_spanning_forest() {
-  // TODO: Could probably optimize this a bit by writing new code
-  connected_components();
+  compute_dsu();
 
   SpanningForest ret(num_vertices, spanning_forest);
 #ifdef VERIFY_SAMPLES_F
@@ -584,7 +592,7 @@ void CCSketchAlg::filter_sf_edges(SpanningForest &sf) {
     if (start > 0 && edges[start].src == edges[start - 1].src) {
       sketches[edges[start].src]->mutex.lock();
       size_t orig_start = start;
-      while (edges[start].src == edges[orig_start].src) {
+      while (start < end && edges[start].src == edges[orig_start].src) {
         Edge edge = edges[start];
         sketches[edge.src]->update(static_cast<vec_t>(concat_pairing_fn(edge.src, edge.dst)));
         ++start;
@@ -594,7 +602,7 @@ void CCSketchAlg::filter_sf_edges(SpanningForest &sf) {
     }
 
     // check if we collide with next thread. If so lock and apply those updates.
-    if (end < edges.size() && edges[end - 1].src == edges[end].src) {
+    if (end > start && end < edges.size() && edges[end - 1].src == edges[end].src) {
       sketches[edges[end - 1].src]->mutex.lock();
       size_t orig_end = end;
       while (edges[end - 1].src == edges[orig_end - 1].src) {
@@ -616,18 +624,20 @@ void CCSketchAlg::filter_sf_edges(SpanningForest &sf) {
 }
 
 std::vector<SpanningForest> CCSketchAlg::calc_disjoint_spanning_forests(size_t k) {
+  std::cout << "Spanning forests query begins. Number of updates = " << num_updates.load() << std::endl;
+
   // sf_query_start = std::chrono::steady_clock::now();
   std::vector<SpanningForest> SFs;
-  std::chrono::steady_clock::time_point start;
   size_t max_rounds = 0;
 
   for (size_t i = 0; i < k; i++) {
-    // start = std::chrono::steady_clock::now();
-    SFs.push_back(calc_spanning_forest());
-    // query_time += std::chrono::steady_clock::now() - start;
+    compute_dsu();
+
+    SFs.emplace_back(num_vertices, spanning_forest);
     max_rounds = std::max(last_query_rounds, max_rounds);
 
     filter_sf_edges(SFs[SFs.size() - 1]);
+    if (SFs[SFs.size() - 1].get_edges().size() == 0) break;
   }
 
   // revert the state of the sketches to remove all deletions
@@ -642,7 +652,6 @@ std::vector<SpanningForest> CCSketchAlg::calc_disjoint_spanning_forests(size_t k
   // number of rounds per SF may be non-monotonic, so we track the maximum number of rounds
   // among all of the spanning forest queries.
   last_query_rounds = max_rounds;
-  // sf_query_end = std::chrono::steady_clock::now();
 
   return SFs;
 }

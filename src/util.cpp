@@ -8,8 +8,9 @@
 typedef uint32_t ul;
 typedef uint64_t ull;
 
-constexpr ull ULLMAX = std::numeric_limits<ull>::max();
-constexpr uint8_t num_bits = sizeof(node_id_t) * 8;
+static constexpr ull ULLMAX = std::numeric_limits<ull>::max();
+static constexpr uint8_t num_bits = sizeof(node_id_t) * 8;
+static constexpr size_t mask = (size_t(1) << num_bits) - 1;
 
 unsigned long long int double_to_ull(double d, double epsilon) {
   return (unsigned long long) (d + epsilon);
@@ -42,16 +43,13 @@ Edge inv_nondir_non_self_edge_pairing_fn(uint64_t idx) {
   return {(node_id_t)i, (node_id_t)j};
 }
 
+// smaller node_id concatenated with larger node_id
 edge_id_t concat_pairing_fn(node_id_t i, node_id_t j) {
-  // swap i,j if necessary
-  if (i > j) {
-    std::swap(i,j);
-  }
-  return ((edge_id_t)i << num_bits) | j;
+  return ((edge_id_t)std::min(i, j) << num_bits) | std::max(i, j);
 }
 
 Edge inv_concat_pairing_fn(ull idx) {
-  node_id_t j = idx & 0xFFFFFFFF;
+  node_id_t j = idx & mask;
   node_id_t i = idx >> num_bits;
   return {i, j};
 }

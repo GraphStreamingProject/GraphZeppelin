@@ -140,8 +140,8 @@ class GraphSketchDriver {
    */
   void process_stream_until(edge_id_t break_edge_idx) {
     if (!stream->set_break_point(break_edge_idx)) {
-      DriverException("Could not correctly set breakpoint: " + std::to_string(break_edge_idx));
-      exit(EXIT_FAILURE);
+      throw DriverException("Could not correctly set breakpoint: " +
+                            std::to_string(break_edge_idx));
     }
     worker_threads->resume_workers();
 

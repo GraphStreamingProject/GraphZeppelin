@@ -178,7 +178,7 @@ class Sketch {
 
   // return the size of a sketch given vector size n and number of samples s
   static size_t estimate_bytes(size_t n, size_t s) { 
-    return calc_bkt_per_col(n) * s * default_cols_per_sample * sizeof(Bucket);
+    return (1 + calc_bkt_per_col(n) * s * default_cols_per_sample) * sizeof(Bucket);
   }
 
   // return the size of the sketching datastructure in bytes (just the buckets, not the metadata)
