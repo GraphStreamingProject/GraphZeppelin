@@ -588,35 +588,37 @@ void CCSketchAlg::filter_sf_edges(SpanningForest &sf) {
     size_t start = partition.first;
     size_t end = partition.second;
 
-    // check if we collide with previous thread. If so lock and apply those updates.
-    if (start > 0 && edges[start].src == edges[start - 1].src) {
-      sketches[edges[start].src]->mutex.lock();
-      size_t orig_start = start;
-      while (start < end && edges[start].src == edges[orig_start].src) {
-        Edge edge = edges[start];
-        sketches[edge.src]->update(static_cast<vec_t>(concat_pairing_fn(edge.src, edge.dst)));
-        ++start;
+    if (start != end) {
+      // check if we collide with previous thread. If so lock and apply those updates.
+      if (start > 0 && edges[start].src == edges[start - 1].src) {
+        sketches[edges[start].src]->mutex.lock();
+        size_t orig_start = start;
+        while (start < end && edges[start].src == edges[orig_start].src) {
+          Edge edge = edges[start];
+          sketches[edge.src]->update(static_cast<vec_t>(concat_pairing_fn(edge.src, edge.dst)));
+          ++start;
+        }
+
+        sketches[edges[orig_start].src]->mutex.unlock();
       }
 
-      sketches[edges[orig_start].src]->mutex.unlock();
-    }
+      // check if we collide with next thread. If so lock and apply those updates.
+      if (end > start && end < edges.size() && edges[end - 1].src == edges[end].src) {
+        sketches[edges[end - 1].src]->mutex.lock();
+        size_t orig_end = end;
+        while (end > start && edges[end - 1].src == edges[orig_end - 1].src) {
+          Edge edge = edges[end - 1];
+          sketches[edge.src]->update(static_cast<vec_t>(concat_pairing_fn(edge.src, edge.dst)));
+          --end;
+        }
 
-    // check if we collide with next thread. If so lock and apply those updates.
-    if (end > start && end < edges.size() && edges[end - 1].src == edges[end].src) {
-      sketches[edges[end - 1].src]->mutex.lock();
-      size_t orig_end = end;
-      while (edges[end - 1].src == edges[orig_end - 1].src) {
-        Edge edge = edges[end - 1];
-        sketches[edge.src]->update(static_cast<vec_t>(concat_pairing_fn(edge.src, edge.dst)));
-        --end;
+        sketches[edges[orig_end].src]->mutex.unlock();
       }
 
-      sketches[edges[orig_end].src]->mutex.unlock();
-    }
-
-    for (size_t i = start; i < end; i++) {
-      Edge edge = edges[i];
-      sketches[edge.src]->update(static_cast<vec_t>(concat_pairing_fn(edge.src, edge.dst)));
+      for (size_t i = start; i < end; i++) {
+        Edge edge = edges[i];
+        sketches[edge.src]->update(static_cast<vec_t>(concat_pairing_fn(edge.src, edge.dst)));
+      }
     }
   }
 
@@ -624,7 +626,7 @@ void CCSketchAlg::filter_sf_edges(SpanningForest &sf) {
 }
 
 std::vector<SpanningForest> CCSketchAlg::calc_disjoint_spanning_forests(size_t k) {
-  std::cout << "Spanning forests query begins. Number of updates = " << num_updates.load() << std::endl;
+  std::cout << "Spanning forests query. Number of updates = " << num_updates.load() << std::endl;
 
   // sf_query_start = std::chrono::steady_clock::now();
   std::vector<SpanningForest> SFs;
