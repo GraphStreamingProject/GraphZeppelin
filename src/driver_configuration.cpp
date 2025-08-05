@@ -12,12 +12,22 @@ DriverConfiguration& DriverConfiguration::disk_dir(std::string disk_dir) {
   return *this;
 }
 
-DriverConfiguration& DriverConfiguration::worker_threads(size_t num_worker_threads) {
-  _num_worker_threads = num_worker_threads;
-  if (_num_worker_threads < 1) {
-    std::cout << "num_worker_threads="<< _num_worker_threads << " is out of bounds. [1, infty)"
+DriverConfiguration& DriverConfiguration::worker_threads(size_t num_threads) {
+  if (num_threads < 1) {
+    std::cout << "num_worker_threads = "<< num_threads << " is out of bounds. [1, infty)"
               << "Defaulting to 1." << std::endl;
-    _num_worker_threads = 1;
+  } else {
+    _num_worker_threads = num_threads;
+  }
+  return *this;
+}
+
+DriverConfiguration& DriverConfiguration::stream_threads(size_t num_threads) {
+  if (num_threads < 1) {
+    std::cout << "num_stream_threads = "<< num_threads << " is out of bounds. [1, infty)"
+              << "Defaulting to 1." << std::endl;
+  } else {
+    _num_stream_threads = num_threads;
   }
   return *this;
 }
@@ -35,6 +45,7 @@ std::ostream& operator<< (std::ostream &out, const DriverConfiguration &conf) {
       gutter_system = "CacheTree";
     out << " Guttering system      = " << gutter_system << std::endl;
     out << " Worker thread count   = " << conf._num_worker_threads << std::endl;
+    out << " Stream thread count   = " << conf._num_stream_threads << std::endl;
     out << " On disk data location = " << conf._disk_dir;
     return out;
   }

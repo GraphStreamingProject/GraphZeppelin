@@ -92,10 +92,13 @@ int main(int argc, char **argv) {
   std::cout << "num_updates = " << num_updates << std::endl;
   std::cout << std::endl;
 
-  auto driver_config = DriverConfiguration().gutter_sys(CACHETREE).worker_threads(num_threads);
+  auto driver_config = DriverConfiguration()
+                           .gutter_sys(CACHETREE)
+                           .worker_threads(num_threads)
+                           .stream_threads(reader_threads);
   auto mc_config = MCAlgConfiguration().batch_factor(1.0);
   MinCutSketchAlg mc_alg{num_nodes, get_seed(), mc_config};
-  GraphSketchDriver<MinCutSketchAlg> driver{&mc_alg, &stream, driver_config, reader_threads};
+  GraphSketchDriver<MinCutSketchAlg> driver{&mc_alg, &stream, driver_config};
 
   auto ins_start = std::chrono::steady_clock::now();
   std::thread querier(track_insertions, num_updates, &driver, ins_start);

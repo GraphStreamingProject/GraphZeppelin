@@ -62,35 +62,35 @@ Sketch::~Sketch() { if (buckets != nullptr) delete[] buckets; }
 
 #ifdef L0_SAMPLING
 void Sketch::update(const vec_t update_idx) {
-  vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update_idx, checksum_seed());
+  vec_hash_t checksum = SketchBucket::get_index_hash(update_idx, checksum_seed());
 
   // Update depth 0 bucket
-  Bucket_Boruvka::update(buckets[num_buckets - 1], update_idx, checksum);
+  SketchBucket::update(buckets[num_buckets - 1], update_idx, checksum);
 
   // Update higher depth buckets
   for (unsigned i = 0; i < num_columns; ++i) {
-    col_hash_t depth = Bucket_Boruvka::get_index_depth(update_idx, column_seed(i), bkt_per_col);
+    col_hash_t depth = SketchBucket::get_index_depth(update_idx, column_seed(i), bkt_per_col);
     likely_if(depth < bkt_per_col) {
       for (col_hash_t j = 0; j <= depth; ++j) {
         size_t bucket_id = i * bkt_per_col + j;
-        Bucket_Boruvka::update(buckets[bucket_id], update_idx, checksum);
+        SketchBucket::update(buckets[bucket_id], update_idx, checksum);
       }
     }
   }
 }
 #else  // Use support finding algorithm instead. Faster but no guarantee of uniform sample.
 void Sketch::update(const vec_t update_idx) {
-  vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update_idx, checksum_seed());
+  vec_hash_t checksum = SketchBucket::get_index_hash(update_idx, checksum_seed());
 
   // Update depth 0 bucket
-  Bucket_Boruvka::update(buckets[num_buckets - 1], update_idx, checksum);
+  SketchBucket::update(buckets[num_buckets - 1], update_idx, checksum);
 
   // Update higher depth buckets
   for (unsigned i = 0; i < num_columns; ++i) {
-    col_hash_t depth = Bucket_Boruvka::get_index_depth(update_idx, column_seed(i), bkt_per_col);
+    col_hash_t depth = SketchBucket::get_index_depth(update_idx, column_seed(i), bkt_per_col);
     size_t bucket_id = i * bkt_per_col + depth;
     likely_if(depth < bkt_per_col) {
-      Bucket_Boruvka::update(buckets[bucket_id], update_idx, checksum);
+      SketchBucket::update(buckets[bucket_id], update_idx, checksum);
     }
   }
 }
@@ -115,13 +115,13 @@ SketchSample Sketch::sample() {
   if (buckets[num_buckets - 1].alpha == 0 && buckets[num_buckets - 1].gamma == 0)
     return {0, ZERO};  // the "first" bucket is deterministic so if all zero then no edges to return
 
-  if (Bucket_Boruvka::is_good(buckets[num_buckets - 1], checksum_seed()))
+  if (SketchBucket::is_good(buckets[num_buckets - 1], checksum_seed()))
     return {buckets[num_buckets - 1].alpha, GOOD};
 
   for (size_t i = 0; i < cols_per_sample; ++i) {
     for (size_t j = 0; j < bkt_per_col; ++j) {
       size_t bucket_id = (i + first_column) * bkt_per_col + j;
-      if (Bucket_Boruvka::is_good(buckets[bucket_id], checksum_seed()))
+      if (SketchBucket::is_good(buckets[bucket_id], checksum_seed()))
         return {buckets[bucket_id].alpha, GOOD};
     }
   }
@@ -140,7 +140,7 @@ ExhaustiveSketchSample Sketch::exhaustive_sample() {
   unlikely_if (buckets[num_buckets - 1].alpha == 0 && buckets[num_buckets - 1].gamma == 0)
     return {ret, ZERO}; // the "first" bucket is deterministic so if zero then no edges to return
 
-  unlikely_if (Bucket_Boruvka::is_good(buckets[num_buckets - 1], checksum_seed())) {
+  unlikely_if (SketchBucket::is_good(buckets[num_buckets - 1], checksum_seed())) {
     ret.insert(buckets[num_buckets - 1].alpha);
     return {ret, GOOD};
   }
@@ -148,7 +148,7 @@ ExhaustiveSketchSample Sketch::exhaustive_sample() {
   for (size_t i = 0; i < cols_per_sample; ++i) {
     for (size_t j = 0; j < bkt_per_col; ++j) {
       size_t bucket_id = (i + first_column) * bkt_per_col + j;
-      unlikely_if (Bucket_Boruvka::is_good(buckets[bucket_id], checksum_seed())) {
+      unlikely_if (SketchBucket::is_good(buckets[bucket_id], checksum_seed())) {
         ret.insert(buckets[bucket_id].alpha);
       }
     }
@@ -218,7 +218,7 @@ bool operator==(const Sketch &sketch1, const Sketch &sketch2) {
 
 std::ostream &operator<<(std::ostream &os, const Sketch &sketch) {
   Bucket bkt = sketch.buckets[sketch.num_buckets - 1];
-  bool good = Bucket_Boruvka::is_good(bkt, sketch.checksum_seed());
+  bool good = SketchBucket::is_good(bkt, sketch.checksum_seed());
   vec_t a = bkt.alpha;
   vec_hash_t c = bkt.gamma;
 
@@ -230,7 +230,7 @@ std::ostream &operator<<(std::ostream &os, const Sketch &sketch) {
       Bucket bkt = sketch.buckets[bucket_id];
       vec_t a = bkt.alpha;
       vec_hash_t c = bkt.gamma;
-      bool good = Bucket_Boruvka::is_good(bkt, sketch.checksum_seed());
+      bool good = SketchBucket::is_good(bkt, sketch.checksum_seed());
 
       os << " a:" << a << " c:" << c << (good ? " good" : " bad") << std::endl;
     }

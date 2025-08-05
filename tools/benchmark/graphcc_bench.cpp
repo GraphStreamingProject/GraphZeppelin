@@ -170,7 +170,7 @@ static void BM_index_depth_hash(benchmark::State& state) {
   uint64_t input = 100'000;
   for (auto _ : state) {
     ++input;
-    benchmark::DoNotOptimize(Bucket_Boruvka::get_index_depth(input, seed, 20));
+    benchmark::DoNotOptimize(SketchBucket::get_index_depth(input, seed, 20));
   }
   state.counters["Hash Rate"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
 }
@@ -180,7 +180,7 @@ static void BM_index_hash(benchmark::State& state) {
   uint64_t input = 100'000;
   for (auto _ : state) {
     ++input;
-    benchmark::DoNotOptimize(Bucket_Boruvka::get_index_hash(input, seed));
+    benchmark::DoNotOptimize(SketchBucket::get_index_hash(input, seed));
   }
   state.counters["Hash Rate"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
 }
@@ -194,7 +194,7 @@ static void BM_update_bucket(benchmark::State& state) {
   for (auto _ : state) {
     ++input;
     ++checksum;
-    Bucket_Boruvka::update(bkt, input, checksum);
+    SketchBucket::update(bkt, input, checksum);
     benchmark::DoNotOptimize(bkt);
   }
 }

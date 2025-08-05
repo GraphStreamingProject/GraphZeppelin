@@ -14,7 +14,7 @@ Finally, `UserCounters` gives performance information unique to each benchmark.
 
 ## Benchmarks
 ### Hashing
-Measures the performance of a variety of hashing methods against the current method used by `Bucket_Boruvka`. 
+Measures the performance of a variety of hashing methods against the current method used by `SketchBucket`. 
 All methods hash a single 64 bit input 8 times using different hash seeds.
 
 Example output:

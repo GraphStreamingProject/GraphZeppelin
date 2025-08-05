@@ -299,7 +299,7 @@ TEST(CCAlgTest, InsertOnlyStream) {
 
 TEST(CCAlgTest, MTStreamWithMultipleQueries) {
   for (int t = 1; t <= 3; t++) {
-    auto driver_config = DriverConfiguration().gutter_sys(STANDALONE);
+    auto driver_config = DriverConfiguration().gutter_sys(STANDALONE).stream_threads(4);
 
     const std::string fname = __FILE__;
     size_t pos = fname.find_last_of("\\/");
@@ -313,7 +313,7 @@ TEST(CCAlgTest, MTStreamWithMultipleQueries) {
     std::cerr << num_nodes << " " << num_edges << std::endl;
 
     CCSketchAlg cc_alg{num_nodes, get_seed()};
-    GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, driver_config, 4);
+    GraphSketchDriver<CCSketchAlg> driver(&cc_alg, &stream, driver_config);
     GraphVerifier verify(num_nodes);
 
     size_t num_queries = 10;

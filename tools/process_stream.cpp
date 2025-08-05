@@ -92,10 +92,14 @@ int main(int argc, char **argv) {
   std::cout << "num_updates = " << num_updates << std::endl;
   std::cout << std::endl;
 
-  auto driver_config = DriverConfiguration().gutter_sys(CACHETREE).worker_threads(num_threads);
-  auto cc_config = CCAlgConfiguration().batch_factor(1.0);
+  auto driver_config = DriverConfiguration()
+                           .gutter_sys(CACHETREE)
+                           .worker_threads(num_threads)
+                           .stream_threads(reader_threads);
+  driver_config.gutter_conf().wq_batch_per_elm(4);
+  auto cc_config = CCAlgConfiguration().batch_factor(1);
   CCSketchAlg cc_alg{num_nodes, get_seed(), cc_config};
-  GraphSketchDriver<CCSketchAlg> driver{&cc_alg, &stream, driver_config, reader_threads};
+  GraphSketchDriver<CCSketchAlg> driver{&cc_alg, &stream, driver_config};
 
   auto ins_start = std::chrono::steady_clock::now();
   std::thread querier(track_insertions, num_updates, &driver, ins_start);

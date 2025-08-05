@@ -101,7 +101,7 @@ void MinCutSketchAlg::apply_update_batch(size_t thr_id, node_id_t src_vertex,
   // map the updates to one of the subgraphs
   for (size_t i = 0; i < dst_vertices.size(); i++) {
     vec_t idx = concat_pairing_fn(src_vertex, dst_vertices[i]);
-    node_id_t subgraph_idx = Bucket_Boruvka::get_index_depth(idx, subgraph_seed, max_subgraphs - 1) + 1;
+    node_id_t subgraph_idx = SketchBucket::get_index_depth(idx, subgraph_seed, max_subgraphs - 1) + 1;
 
     if (subgraph_idx < our_cur_subgraphs) {
       // goes in a sketch!
@@ -278,7 +278,7 @@ void MinCutSketchAlg::create_subgraph_verifiers() {
 
         non_zero++;
         vec_t idx = concat_pairing_fn(i, dst); // edge is 
-        node_id_t subgraph_idx = Bucket_Boruvka::get_index_depth(idx, subgraph_seed, max_subgraphs - 1) + 1;
+        node_id_t subgraph_idx = SketchBucket::get_index_depth(idx, subgraph_seed, max_subgraphs - 1) + 1;
         if (subgraph_idx < cur_subgraphs) {
           subgraph_verifiers[subgraph_idx]->edge_update({i, dst});
           subgraph_sizes[subgraph_idx]++;

@@ -120,7 +120,7 @@ TEST(EdgeStoreTest, contract) {
       node_id_t src = std::min(i, j);
       node_id_t dst = std::max(i, j);
       auto idx = concat_pairing_fn(src, dst);
-      size_t depth = Bucket_Boruvka::get_index_depth(idx, seed, num_subgraphs - 1) + 1;
+      size_t depth = SketchBucket::get_index_depth(idx, seed, num_subgraphs - 1) + 1;
 
       ++num_in_subgraphs[std::min(size_t(5), depth)];
 
@@ -193,7 +193,7 @@ TEST(EdgeStoreTest, contract_parallel) {
       node_id_t src = std::min(i, j);
       node_id_t dst = std::max(i, j);
       auto idx = concat_pairing_fn(src, dst);
-      size_t depth = Bucket_Boruvka::get_index_depth(idx, seed, num_subgraphs - 1) + 1;
+      size_t depth = SketchBucket::get_index_depth(idx, seed, num_subgraphs - 1) + 1;
       
       ++num_in_subgraphs[std::min(size_t(5), depth)];
 

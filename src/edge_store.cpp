@@ -51,7 +51,7 @@ TaggedUpdateBatch EdgeStore::insert_adj_edges(node_id_t src,
   for (node_id_t i = 0; i < dst_vertices.size(); i++) {
     node_id_t dst = dst_vertices[i];
     auto idx = concat_pairing_fn(src, dst);
-    tagged_updates[i] = {Bucket_Boruvka::get_index_depth(idx, seed, num_subgraphs), dst};
+    tagged_updates[i] = {SketchBucket::get_index_depth(idx, seed, num_subgraphs), dst};
   }
   return insert_adj_edges(src, 0, tagged_updates);
 }
