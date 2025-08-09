@@ -13,6 +13,8 @@
 #include "bucket.h"
 #include "sketch_types.h"
 
+class SparseSketch;
+
 /**
  * Sketch for graph processing, either CubeSketch or CameoSketch.
  * Sub-linear representation of a vector.
@@ -151,6 +153,7 @@ class DenseSketch {
   void zero_contents();
 
   friend bool operator==(const DenseSketch& sketch1, const DenseSketch& sketch2);
+  friend bool operator==(const SparseSketch& sparse, const DenseSketch& dense);
   friend std::ostream& operator<<(std::ostream& os, const DenseSketch& sketch);
 
   /**
@@ -175,7 +178,7 @@ class DenseSketch {
 
   inline const Bucket* get_readonly_bucket_ptr() const { return (const Bucket*) buckets; }
   inline uint64_t get_seed() const { return seed; }
-  inline size_t column_seed(size_t column_idx) const { return seed + column_idx * 5; }
+  inline size_t column_seed(size_t column_idx) const { return seed + (5 * column_idx); }
   inline size_t checksum_seed() const { return seed; }
   inline size_t get_columns() const { return num_columns; }
   inline size_t get_buckets() const { return num_buckets; }

@@ -146,7 +146,7 @@ inline bool CCSketchAlg::sample_supernode(Sketch &skt) {
   Edge e = inv_concat_pairing_fn(sample.idx);
   SampleResult result_type = sample.result;
 
-  // std::cout << " " << result_type << " e:" << e.src << " " << e.dst << std::endl;
+  // std::cerr << " " << result_type << " e:" << e.src << " " << e.dst << std::endl;
 
   if (result_type == FAIL) {
     modified = true;
@@ -495,7 +495,7 @@ void CCSketchAlg::boruvka_emulation() {
   //             << std::endl;
 
   while (true) {
-    // std::cout << "   Round: " << round_num << std::endl;
+    // std::cerr << "   Round: " << round_num << std::endl;
     // start = std::chrono::steady_clock::now();
     modified = perform_boruvka_round(round_num, merge_instr, global_merges);
     // std::cout << "     perform_boruvka_round = "
@@ -637,12 +637,16 @@ std::vector<SpanningForest> CCSketchAlg::calc_disjoint_spanning_forests(size_t k
   size_t max_rounds = 0;
 
   for (size_t i = 0; i < k; i++) {
+    std::cout << " Spanning forest: " << i << std::endl;
     compute_dsu();
 
     SFs.emplace_back(num_vertices, spanning_forest);
     max_rounds = std::max(last_query_rounds, max_rounds);
 
     filter_sf_edges(SFs[SFs.size() - 1]);
+
+    std::cout << "Spanning Forest " << i << " size = " << SFs[SFs.size() - 1].get_edges().size() << std::endl;
+    std::cout << "Last query rounds = " << last_query_rounds << std::endl;
     if (SFs[SFs.size() - 1].get_edges().size() == 0) break;
   }
 

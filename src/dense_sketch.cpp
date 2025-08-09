@@ -63,10 +63,21 @@ void DenseSketch::update(const vec_t update_idx) {
   SketchBucket::update(deterministic_bucket(), update_idx, checksum);
 
   // Update higher depth buckets
-  for (unsigned i = 0; i < num_columns; ++i) {
-    col_hash_t depth = SketchBucket::get_index_depth(update_idx, column_seed(i), bkt_per_col);
+  SketchBucket::Depths depths;
+  for (size_t i = 0; i < num_columns - 1; i += 2) {
+    depths = SketchBucket::get_index_depths(update_idx, column_seed(i), bkt_per_col);
+    for (size_t j = 0; j < 2; j++) {
+      col_hash_t depth = depths[j];
+      likely_if(depth < bkt_per_col) {
+        SketchBucket::update(bucket(i + j, depth), update_idx, checksum);
+      }
+    }
+  }
+  if ((num_columns & 0x1) == 1) {
+    size_t col = num_columns - 1;
+    size_t depth = SketchBucket::get_index_depth(update_idx, column_seed(col), bkt_per_col);
     likely_if(depth < bkt_per_col) {
-      SketchBucket::update(bucket(i, depth), update_idx, checksum);
+      SketchBucket::update(bucket(col, depth), update_idx, checksum);
     }
   }
 }
@@ -223,7 +234,7 @@ bool operator==(const DenseSketch &sketch1, const DenseSketch &sketch2) {
 }
 
 std::ostream &operator<<(std::ostream &os, const DenseSketch &sketch) {
-  Bucket bkt = sketch.buckets[sketch.num_buckets - 1];
+  Bucket bkt = sketch.deterministic_bucket();
   bool good = SketchBucket::is_good(bkt, sketch.checksum_seed());
   vec_t a = bkt.alpha;
   vec_hash_t c = bkt.gamma;

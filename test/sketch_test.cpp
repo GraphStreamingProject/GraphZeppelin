@@ -76,6 +76,24 @@ TEST(SketchTestSuite, TestSketchSizeEstimate) {
   ASSERT_EQ(ss.bucket_array_bytes(), sparse_est);
 }
 
+TEST(SketchTestSuite, SparseDenseEquivalence) {
+  size_t n = 1 << 16;
+  size_t u = 1 << 13;
+  size_t samples = 4;
+  size_t seed = get_seed();
+
+  DenseSketch dense(n, seed, samples);
+  SparseSketch sparse(n, seed, samples);
+
+  // perform some updates to both sketches
+  for (vec_t i = 0; i < u; i++) {
+    dense.update(i);
+    sparse.update(i);
+  }
+
+  ASSERT_EQ(sparse, dense);
+}
+
 TEST(SketchTestSuite, GIVENonlyIndexZeroUpdatedTHENitWorks) {
   // GIVEN only the index 0 is updated
   Sketch sketch(40, get_seed(), 1, num_columns);

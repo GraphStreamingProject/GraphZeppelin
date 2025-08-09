@@ -137,9 +137,16 @@ void MinCutSketchAlg::apply_update_batch(size_t thr_id, node_id_t src_vertex,
 
     std::fill(&num_mapped[0], &num_mapped[max_subgraphs - 1], 0);
     for (auto tagged_edge : batch.dsts_data) {
-      assert(tagged_edge.subgraph < cur_subgraphs);
-      
-      buffers[tagged_edge.subgraph][num_mapped[tagged_edge.subgraph]++] = tagged_edge.dst;
+      size_t subgraph = tagged_edge.subgraph;
+      assert(subgraph < cur_subgraphs);
+
+      buffers[subgraph][num_mapped[subgraph]++] = tagged_edge.dst;
+      assert(num_mapped[subgraph] <= buffers[subgraph].capacity());
+
+      unlikely_if (num_mapped[subgraph] >= buffer_elms) {
+        cc_sketches[subgraph]->apply_update_batch(thr_id, batch.src, buffers[subgraph]);
+        num_mapped[subgraph] = 0;
+      }
     }
 
     for (size_t i = 1; i < batch.edge_store_subgraph; i++) {

@@ -265,7 +265,7 @@ static void BM_Sketch_Merge(benchmark::State& state) {
     s1.merge(s2);
   }
 }
-BENCHMARK(BM_Sketch_Merge)->RangeMultiplier(10)->Range(1e3, 1e6);
+BENCHMARK(BM_Sketch_Merge)->RangeMultiplier(4)->Range(KB << 4, MB << 4);
 
 static void BM_Sketch_Serialize(benchmark::State& state) {
   size_t n = state.range(0);

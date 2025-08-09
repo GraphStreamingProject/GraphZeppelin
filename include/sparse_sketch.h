@@ -13,11 +13,13 @@
 #include "bucket.h"
 #include "sketch_types.h"
 
+class DenseSketch;
+
 #pragma pack(push,1)
 struct SparseBucket {
-  uint8_t next; // index of next sparse bucket in this column
-  uint8_t row;  // row of sparse bucket
-  Bucket bkt;   // actual bucket content
+  uint16_t next; // index of next sparse bucket in this column
+  uint8_t row;   // row of sparse bucket
+  Bucket bkt;    // actual bucket content
 };
 #pragma pack(pop)
 
@@ -67,9 +69,10 @@ class SparseSketch {
   // TODO: evaluate implications of this constant
   static constexpr double sparse_bucket_constant = 3;            // constant factor c (see diagram)
   SparseBucket* sparse_buckets;                                  // a pointer into the buckets array
-  uint8_t *ll_metadata;                                          // pointer to heads of column LLs
+  uint16_t *ll_metadata;                                         // pointer to heads of column LLs
   size_t number_of_sparse_buckets = 0;                           // cur number of sparse buckets
   size_t sparse_capacity = sparse_bucket_constant * num_columns; // max number of sparse buckets
+	static constexpr size_t max_columns = uint16_t(-1) / sparse_bucket_constant - 1;
 
   /**
    * Reallocates the bucket array if necessary to either grow or shrink the dense region
@@ -80,43 +83,43 @@ class SparseSketch {
   // These variables let us know how many Buckets to allocate to make space for the SparseBuckets
   // and the LL metadata that will use that space
   size_t sparse_data_size = ceil(double(sparse_capacity) * sizeof(SparseBucket) / sizeof(Bucket));
-  size_t ll_metadata_size = ceil((double(num_columns) + 1) * sizeof(uint8_t) / sizeof(Bucket));
+  size_t ll_metadata_size = ceil((double(num_columns) + 1) * sizeof(uint16_t) / sizeof(Bucket));
 
-  void update_sparse(uint8_t col, const SparseBucket &to_add);
+  void update_sparse(uint16_t col, const SparseBucket &to_add);
   SketchSample sample_sparse(size_t first_col, size_t end_col);
 
-  inline uint8_t remove_ll_head(size_t col) {
-    uint8_t temp = ll_metadata[col];
+  inline uint16_t remove_ll_head(size_t col) {
+    uint16_t temp = ll_metadata[col];
     ll_metadata[col] = sparse_buckets[ll_metadata[col]].next;
     return temp;
   }
-  inline uint8_t claim_free_bucket() {
-    assert(ll_metadata[num_columns] != uint8_t(-1));
+  inline uint16_t claim_free_bucket() {
+    assert(ll_metadata[num_columns] != uint16_t(-1));
     return remove_ll_head(num_columns);
   }
-  inline void insert_to_ll_head(size_t col, uint8_t add_idx) {
+  inline void insert_to_ll_head(size_t col, uint16_t add_idx) {
     sparse_buckets[add_idx].next = ll_metadata[col];
     ll_metadata[col] = add_idx;
   }
-  inline void free_bucket(uint8_t bkt_idx) {
+  inline void free_bucket(uint16_t bkt_idx) {
     sparse_buckets[bkt_idx].row = 0;
     sparse_buckets[bkt_idx].bkt = {0, 0};
     insert_to_ll_head(num_columns, bkt_idx);
   }
-  inline void insert_to_ll(uint8_t add_idx, SparseBucket &prev) {
+  inline void insert_to_ll(uint16_t add_idx, SparseBucket &prev) {
     sparse_buckets[add_idx].next = prev.next;
     prev.next = add_idx;
   }
   inline void remove_from_ll(SparseBucket& bkt_to_remove, SparseBucket &prev) {
     prev.next = bkt_to_remove.next;
   }
-  inline bool merge_sparse_bkt(uint8_t our_idx, const SparseBucket& oth, uint8_t prev_idx,
+  inline bool merge_sparse_bkt(uint16_t our_idx, const SparseBucket& oth, uint16_t prev_idx,
                                size_t col) {
     SparseBucket &ours = sparse_buckets[our_idx];
     ours.bkt.alpha ^= oth.bkt.alpha;
     ours.bkt.gamma ^= oth.bkt.gamma;
     if (SketchBucket::is_empty(ours.bkt)) {
-      if (prev_idx == uint8_t(-1)) 
+      if (prev_idx == uint16_t(-1)) 
         remove_ll_head(col);
       else 
         remove_from_ll(ours, sparse_buckets[prev_idx]);
@@ -162,11 +165,11 @@ class SparseSketch {
 
   void upd_sparse_ptrs() {
     sparse_buckets = (SparseBucket *) &buckets[calc_sparse_index(num_dense_rows)];
-    ll_metadata = (uint8_t *) &buckets[calc_metadata_index(num_dense_rows)];
+    ll_metadata = (uint16_t *) &buckets[calc_metadata_index(num_dense_rows)];
   }
 
   // given another SparseSketch column, merge it into ours
-  void merge_sparse_column(const SparseBucket* oth_sparse_buckets, const uint8_t* oth_ll_metadata,
+  void merge_sparse_column(const SparseBucket* oth_sparse_buckets, const uint16_t* oth_ll_metadata,
                            size_t col);
  public:
   /**
@@ -274,6 +277,7 @@ class SparseSketch {
   void zero_contents();
 
   friend bool operator==(const SparseSketch& sketch1, const SparseSketch& sketch2);
+  friend bool operator==(const SparseSketch& sparse, const DenseSketch& dense);
   friend std::ostream& operator<<(std::ostream& os, const SparseSketch& sketch);
 
   /**
@@ -294,7 +298,7 @@ class SparseSketch {
   // return the size of a sketch given vector size n and number of samples s
   static size_t estimate_bytes(size_t /*n*/, size_t s) {
     size_t num_cols = s * default_cols_per_sample;
-    size_t metadata_size = ceil(double(num_cols + 1) * sizeof(uint8_t) / sizeof(Bucket)) * sizeof(Bucket);
+    size_t metadata_size = ceil(double(num_cols + 1) * sizeof(uint16_t) / sizeof(Bucket)) * sizeof(Bucket);
     size_t sparse_size =
         ceil(double(num_cols) * sparse_bucket_constant * sizeof(SparseBucket) / sizeof(Bucket)) *
         sizeof(Bucket);

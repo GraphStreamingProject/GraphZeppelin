@@ -188,6 +188,17 @@ class CCSketchAlg {
                           const std::vector<node_id_t> &dst_vertices);
 
   /**
+   * Update the sketches for a particular vertex, given a batch of edge indices. These indices must
+   * be constructed using concat_pairing_fn() and must all be associated with a particular graph
+   * vertex.
+   * param: thr_id         The id of the thread performing the update [0, num_threads)
+   * param: src_vertex     The vertex where the edges originate.
+   * param: idxs           A vector of concatenated edges.
+   */
+  void apply_concat_update_batch(int thr_id, node_id_t src_vertex,
+                                 const std::vector<edge_id_t> &idxs);
+
+  /**
    * Return if we have cached an answer to query.
    * This allows the driver to avoid flushing the gutters before calling query functions.
    */

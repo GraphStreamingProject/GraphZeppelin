@@ -1,4 +1,5 @@
 #include "sparse_sketch.h"
+#include "dense_sketch.h"
 
 #include <cassert>
 #include <cstring>
@@ -11,6 +12,10 @@ SparseSketch::SparseSketch(vec_t vector_len, uint64_t seed, size_t _samples, siz
       cols_per_sample(_cols),
       num_columns(cols_per_sample * num_samples),
       bkt_per_col(calc_bkt_per_col(vector_len)) {
+
+	if (num_columns > max_columns) {
+		throw std::invalid_argument("SparseSketch: Number of columns to high!");
+	}
 
   // plus 1, deterministic bucket
   num_buckets = calc_num_buckets(num_dense_rows);
@@ -28,11 +33,11 @@ SparseSketch::SparseSketch(vec_t vector_len, uint64_t seed, size_t _samples, siz
   for (size_t i = 0; i < sparse_capacity; i++) {
     sparse_buckets[i].next = i + 1;
   }
-  sparse_buckets[sparse_capacity - 1].next = uint8_t(-1);
+  sparse_buckets[sparse_capacity - 1].next = uint16_t(-1);
 
   // initialize LL metadata
   for (size_t i = 0; i < num_columns; i++) {
-    ll_metadata[i] = uint8_t(-1); // head of each column points nowhere (empty)
+    ll_metadata[i] = uint16_t(-1); // head of each column points nowhere (empty)
   }
   ll_metadata[num_columns] = 0; // free list head
 }
@@ -72,7 +77,6 @@ SparseSketch::~SparseSketch() {
   delete[] buckets; 
 }
 
-
 // Helper functions for interfacing with SparseBuckets
 void SparseSketch::dense_realloc(size_t new_num_dense_rows) {
   // we are performing a reallocation
@@ -94,7 +98,7 @@ void SparseSketch::dense_realloc(size_t new_num_dense_rows) {
       for (size_t r = new_num_dense_rows; r < old_rows; r++) {
         Bucket bkt = bucket(c, r);
         if (!SketchBucket::is_empty(bkt)) {
-          uint8_t free_idx = claim_free_bucket();
+          uint16_t free_idx = claim_free_bucket();
           sparse_buckets[free_idx].row = r;
           sparse_buckets[free_idx].bkt = bkt;
           insert_to_ll_head(c, free_idx);
@@ -140,9 +144,9 @@ void SparseSketch::dense_realloc(size_t new_num_dense_rows) {
     // Scan sparse buckets and move all updates of depth num_dense_rows-1
     // to the new dense row
     for (size_t c = 0; c < num_columns; c++) {
-      while (ll_metadata[c] != uint8_t(-1) && sparse_buckets[ll_metadata[c]].row < num_dense_rows) {
+      while (ll_metadata[c] != uint16_t(-1) && sparse_buckets[ll_metadata[c]].row < num_dense_rows) {
         // remove this bucket from column ll
-        uint8_t idx = remove_ll_head(c);
+        uint16_t idx = remove_ll_head(c);
         number_of_sparse_buckets -= 1;
 
         // add this bucket to dense region
@@ -183,10 +187,10 @@ void SparseSketch::reallocate_if_needed(int delta) {
 //    +1 if we added a new bucket value
 //     0 if the bucket was found and update (but not cleared)
 //    -1 if the bucket was found and cleared of all content
-void SparseSketch::update_sparse(uint8_t col, const SparseBucket &to_add) {
-  uint8_t next_ptr = ll_metadata[col];
-  uint8_t prev = uint8_t(-1);
-  while (next_ptr != uint8_t(-1)) {
+void SparseSketch::update_sparse(uint16_t col, const SparseBucket &to_add) {
+  uint16_t next_ptr = ll_metadata[col];
+  uint16_t prev = uint16_t(-1);
+  while (next_ptr != uint16_t(-1)) {
     if (sparse_buckets[next_ptr].row == to_add.row) {
       bool removed = merge_sparse_bkt(next_ptr, to_add, prev, col);
       if (removed) {
@@ -202,7 +206,7 @@ void SparseSketch::update_sparse(uint8_t col, const SparseBucket &to_add) {
   }
 
   // pull a bucket off the free list and set it equal to to_add
-  uint8_t free_bucket = claim_free_bucket();
+  uint16_t free_bucket = claim_free_bucket();
   // std::cerr << "free bucket = " << size_t(free_bucket) << std::endl;
   // std::cerr << "next bucket = " << size_t(next_ptr) << std::endl;
   // std::cerr << "free head = " << size_t(ll_metadata[num_columns]) << std::endl;
@@ -213,7 +217,7 @@ void SparseSketch::update_sparse(uint8_t col, const SparseBucket &to_add) {
   // std::cerr << "new bucket " << size_t(sparse_buckets[free_bucket].row) << " n = " << size_t(sparse_buckets[free_bucket].next) << std::endl;
 
   // update column ll
-  if (prev == uint8_t(-1)) {
+  if (prev == uint16_t(-1)) {
     insert_to_ll_head(col, free_bucket);
     // std::cerr << "Set column head to new bucket " << size_t(ll_metadata[col]) << std::endl;
   } else {
@@ -229,8 +233,8 @@ void SparseSketch::update_sparse(uint8_t col, const SparseBucket &to_add) {
 SketchSample SparseSketch::sample_sparse(size_t first_col, size_t end_col) {
   // std::cerr << "sample_sparse" << std::endl;
   for (size_t c = first_col; c < end_col; c++) {
-    uint8_t idx = ll_metadata[c];
-    while (idx != uint8_t(-1)) {
+    uint16_t idx = ll_metadata[c];
+    while (idx != uint16_t(-1)) {
       if (SketchBucket::is_good(sparse_buckets[idx].bkt, checksum_seed())) {
         return {sparse_buckets[idx].bkt.alpha, GOOD};
       }
@@ -242,7 +246,6 @@ SketchSample SparseSketch::sample_sparse(size_t first_col, size_t end_col) {
   // std::cout << "Sketch FAIL" << std::endl;
   return {0, FAIL};
 }
-
 
 void SparseSketch::update(const vec_t update_idx) {
   vec_hash_t checksum = SketchBucket::get_index_hash(update_idx, checksum_seed());
@@ -260,7 +263,7 @@ void SparseSketch::update(const vec_t update_idx) {
         likely_if(depth < num_dense_rows) {
           SketchBucket::update(bucket(i + j, depth), update_idx, checksum);
         } else {
-          update_sparse(i + j, {uint8_t(-1), uint8_t(depth), {update_idx, checksum}});
+          update_sparse(i + j, {uint16_t(-1), uint8_t(depth), {update_idx, checksum}});
         }
       }
     }
@@ -273,7 +276,7 @@ void SparseSketch::update(const vec_t update_idx) {
       likely_if(depth < num_dense_rows) {
         SketchBucket::update(bucket(col, depth), update_idx, checksum);
       } else {
-        update_sparse(col, {uint8_t(-1), uint8_t(depth), {update_idx, checksum}});
+        update_sparse(col, {uint16_t(-1), uint8_t(depth), {update_idx, checksum}});
       }
     }
   }
@@ -293,11 +296,11 @@ void SparseSketch::zero_contents() {
   for (size_t i = 0; i < sparse_capacity; i++) {
     sparse_buckets[i].next = i + 1;
   }
-  sparse_buckets[sparse_capacity - 1].next = uint8_t(-1);
+  sparse_buckets[sparse_capacity - 1].next = uint16_t(-1);
 
   // initialize LL metadata
   for (size_t i = 0; i < num_columns; i++) {
-    ll_metadata[i] = uint8_t(-1); // head of each column points nowhere (empty)
+    ll_metadata[i] = uint16_t(-1); // head of each column points nowhere (empty)
   }
   ll_metadata[num_columns] = 0; // free list head
   
@@ -394,14 +397,14 @@ ExhaustiveSketchSample SparseSketch::exhaustive_sample() {
 }
 
 void SparseSketch::merge_sparse_column(const SparseBucket *oth_sparse_buckets,
-                                       const uint8_t *oth_ll_metadata, size_t col) {
+                                       const uint16_t *oth_ll_metadata, size_t col) {
   // std::cerr << "Merging sparse column: " << col << std::endl;
-  uint8_t oth_idx = oth_ll_metadata[col];
-  uint8_t our_idx = ll_metadata[col];
-  uint8_t prev = uint8_t(-1);
+  uint16_t oth_idx = oth_ll_metadata[col];
+  uint16_t our_idx = ll_metadata[col];
+  uint16_t prev = uint16_t(-1);
 
   // merge column until one runs out
-  while (oth_idx != uint8_t(-1) && our_idx != uint8_t(-1)) {
+  while (oth_idx != uint16_t(-1) && our_idx != uint16_t(-1)) {
     const SparseBucket& oth_sparse = oth_sparse_buckets[oth_idx];
     SparseBucket& our_sparse = sparse_buckets[our_idx];
 
@@ -419,11 +422,11 @@ void SparseSketch::merge_sparse_column(const SparseBucket *oth_sparse_buckets,
       our_idx = our_sparse.next;
     } else if (oth_sparse.row < our_sparse.row) {
       // oth has a bucket we don't have, insert it
-      uint8_t free_bucket = claim_free_bucket();
+      uint16_t free_bucket = claim_free_bucket();
       // std::cerr << "ours = " << size_t(our_idx) << " free = " << size_t(free_bucket) << std::endl;
 
       sparse_buckets[free_bucket] = oth_sparse;
-      if (prev == uint8_t(-1)) {
+      if (prev == uint16_t(-1)) {
         insert_to_ll_head(col, free_bucket);
       } else {
         insert_to_ll(free_bucket, sparse_buckets[prev]);
@@ -432,11 +435,11 @@ void SparseSketch::merge_sparse_column(const SparseBucket *oth_sparse_buckets,
       reallocate_if_needed(1);
       oth_idx = oth_sparse.next;
       prev = free_bucket;
-      if (ll_metadata[col] == uint8_t(-1) || ll_metadata[col] == our_idx) prev = uint8_t(-1);
+      if (ll_metadata[col] == uint16_t(-1) || ll_metadata[col] == our_idx) prev = uint16_t(-1);
     } else {
       // they are equal, merge them!
-      uint8_t our_next = our_sparse.next;
-      uint8_t oth_next = oth_sparse.next;
+      uint16_t our_next = our_sparse.next;
+      uint16_t oth_next = oth_sparse.next;
       bool removed = merge_sparse_bkt(our_idx, oth_sparse, prev, col);
       if (removed) {
         number_of_sparse_buckets -= 1;
@@ -450,7 +453,7 @@ void SparseSketch::merge_sparse_column(const SparseBucket *oth_sparse_buckets,
   }
 
   // if there's more in the other column, merge that stuff in
-  while (oth_idx != uint8_t(-1)) {
+  while (oth_idx != uint16_t(-1)) {
     const SparseBucket& oth_sparse = oth_sparse_buckets[oth_idx];
     if (oth_sparse.row < num_dense_rows) {
       bucket(col, oth_sparse.row).alpha ^= oth_sparse.bkt.alpha;
@@ -459,9 +462,9 @@ void SparseSketch::merge_sparse_column(const SparseBucket *oth_sparse_buckets,
       continue;
     }
 
-    uint8_t free_bucket = claim_free_bucket();
+    uint16_t free_bucket = claim_free_bucket();
     sparse_buckets[free_bucket] = oth_sparse;
-    if (prev == uint8_t(-1)) {
+    if (prev == uint16_t(-1)) {
       insert_to_ll_head(col, free_bucket);
     } else {
       insert_to_ll(free_bucket, sparse_buckets[prev]);
@@ -469,7 +472,7 @@ void SparseSketch::merge_sparse_column(const SparseBucket *oth_sparse_buckets,
     number_of_sparse_buckets += 1;
     reallocate_if_needed(1);
     prev = free_bucket;
-    if (ll_metadata[col] == uint8_t(-1)) prev = uint8_t(-1);
+    if (ll_metadata[col] == uint16_t(-1)) prev = uint16_t(-1);
     oth_idx = oth_sparse.next;
   }
 }
@@ -555,7 +558,7 @@ void SparseSketch::range_merge(const SparseSketch &other, size_t start_sample, s
 void SparseSketch::merge_raw_bucket_buffer(const Bucket *raw_buckets, size_t n_raw_buckets) {
   size_t raw_rows = (n_raw_buckets - sparse_data_size - ll_metadata_size - 1) / num_columns;
   const SparseBucket *raw_sparse = (const SparseBucket *) &raw_buckets[calc_sparse_index(raw_rows)];
-  const uint8_t *raw_metadata = (const uint8_t *) &raw_buckets[calc_metadata_index(raw_rows)];
+  const uint16_t *raw_metadata = (const uint16_t *) &raw_buckets[calc_metadata_index(raw_rows)];
 
   deterministic_bucket().alpha ^= raw_buckets[0].alpha;
   deterministic_bucket().gamma ^= raw_buckets[0].gamma;
@@ -593,6 +596,48 @@ bool operator==(const SparseSketch &sketch1, const SparseSketch &sketch2) {
                 sketch1.bucket_array_bytes() - sketch1.ll_metadata_size * sizeof(Bucket)) == 0;
 }
 
+bool operator==(const SparseSketch& sparse, const DenseSketch& dense) {
+  if (sparse.num_columns != dense.num_columns) return false;
+  if (sparse.num_dense_rows > dense.bkt_per_col) return false;
+
+  for (size_t c = 0; c < sparse.num_columns; c++) {
+    for (size_t r = 0; r < sparse.num_dense_rows; r++) {
+      if (sparse.bucket(c, r).alpha != dense.bucket(c, r).alpha ||
+          sparse.bucket(c, r).gamma != dense.bucket(c, r).gamma) {
+        std::cout << "Dense bucket " << c << "," << r << " not equal!" << std::endl;
+        return false;
+      }
+        
+    }
+  }
+
+  const auto sparse_buckets = sparse.sparse_buckets;
+  for (size_t c = 0; c < sparse.num_columns; c++) {
+    SparseBucket sparse_bkt = sparse_buckets[sparse.ll_metadata[c]];
+    for (size_t r = sparse.num_dense_rows; r < dense.bkt_per_col; r++) {
+      if (sparse_bkt.row != r) {
+        if (!SketchBucket::is_empty(dense.bucket(c,r)) != 0) {
+          std::cout << "expected " << c << "," << r << " empty. it is not." << std::endl;
+          return false;
+        }
+      } else {
+        if (sparse_bkt.bkt.alpha != dense.bucket(c, r).alpha ||
+                 sparse_bkt.bkt.gamma != dense.bucket(c, r).gamma) {
+          std::cout << "sparse bucket " << c << "," << r << " not equal to dense" << std::endl;
+          return false;
+        }
+        if (sparse_bkt.next == uint16_t(-1)) {
+          sparse_bkt = {uint16_t(-1), 0, {0,0}};
+        } else {
+          sparse_bkt = sparse_buckets[sparse_bkt.next];
+        }
+      }
+    }
+  }
+
+  return true;
+}
+
 std::ostream &operator<<(std::ostream &os, const SparseSketch &sketch) {
   Bucket bkt = sketch.deterministic_bucket();
   bool good = SketchBucket::is_good(bkt, sketch.checksum_seed());
@@ -617,8 +662,8 @@ std::ostream &operator<<(std::ostream &os, const SparseSketch &sketch) {
   os << "Sparse Buckets" << std::endl;
   const auto sparse_buckets = sketch.sparse_buckets;
   for (size_t c = 0; c < sketch.num_columns; c++) {
-    uint8_t idx = sketch.ll_metadata[c];
-    while (idx != uint8_t(-1)) {
+    uint16_t idx = sketch.ll_metadata[c];
+    while (idx != uint16_t(-1)) {
       bool good = SketchBucket::is_good(sparse_buckets[idx].bkt, sketch.checksum_seed());
       os << "i: " << size_t(idx) << " n: " << size_t(sparse_buckets[idx].next) << " p:" << c << ", "
          << size_t(sparse_buckets[idx].row) << " := a:" << sparse_buckets[idx].bkt.alpha
@@ -631,8 +676,8 @@ std::ostream &operator<<(std::ostream &os, const SparseSketch &sketch) {
     }
   }
   os << "Free Buckets" << std::endl;
-  uint8_t idx = sketch.ll_metadata[sketch.num_columns];
-  while (idx != uint8_t(-1)) {
+  uint16_t idx = sketch.ll_metadata[sketch.num_columns];
+  while (idx != uint16_t(-1)) {
     bool good = SketchBucket::is_good(sparse_buckets[idx].bkt, sketch.checksum_seed());
     os << "i: " << size_t(idx) << " n: " << size_t(sparse_buckets[idx].next) << " r:"
        << size_t(sparse_buckets[idx].row) << " := a:" << sparse_buckets[idx].bkt.alpha

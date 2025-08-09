@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <vector>
+#include <bitset>
 
 #include "types.h"
 
@@ -42,13 +43,12 @@ inline static Depths get_index_depths(vec_t update_idx, size_t seed, col_hash_t 
   uint64_t depth_hash = col_hash(&update_idx, sizeof(vec_t), seed);
   Depths ret;
 
-  depth_hash |= (1ull << max_depth);  // assert not > max_depth by ORing
-  ret[0] = __builtin_ctzll(depth_hash);
+  // assert not > max_depth by ORing
+  ret[0] = __builtin_ctzll(depth_hash | (1ull << max_depth));
 
-  // shift hash over and reassert max_depth
-  depth_hash >>= 32;
-  depth_hash |= (1ull << max_depth);
-  ret[1] = __builtin_ctzll(depth_hash);
+  // shift hash over, reassert max_depth, and grab another depth
+  depth_hash >>= max_depth;
+  ret[1] = __builtin_ctzll(depth_hash | (1ull << max_depth));
 
   return ret;
 }
