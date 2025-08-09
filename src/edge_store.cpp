@@ -262,7 +262,7 @@ TaggedUpdateBatch EdgeStore::vertex_advance_subgraph(node_id_t cur_first_es_subg
         verify_contract_complete();
 #endif
         ++true_min_subgraph;
-        std::cerr << "EdgeStore: Contraction complete" << std::endl;
+        std::cerr << "EdgeStore: Contraction complete                             " << std::endl;
       }
       return {0, cur_first_es_subgraph, std::vector<SubgraphTaggedUpdate>()};
     }

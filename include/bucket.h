@@ -47,7 +47,7 @@ inline static Depths get_index_depths(vec_t update_idx, size_t seed, col_hash_t 
   ret[0] = __builtin_ctzll(depth_hash | (1ull << max_depth));
 
   // shift hash over, reassert max_depth, and grab another depth
-  depth_hash >>= max_depth;
+  depth_hash >>= (ret[0] + 1);
   ret[1] = __builtin_ctzll(depth_hash | (1ull << max_depth));
 
   return ret;
