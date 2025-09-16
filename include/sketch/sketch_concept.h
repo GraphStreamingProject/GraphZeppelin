@@ -49,6 +49,7 @@ concept SketchColumnConcept = requires(T t, T other) {
   // require an atomic_update function. 
   // up to implementer whether it uses locks or simply atomic XOR 
   // (note that only the prior works for fixed size sketches)
+  { t.atomic_apply_entry_delta(std::declval<const ColumnEntryDelta>()) } -> std::same_as<void>;
   { t.atomic_update(std::declval<V>()) } -> std::same_as<void>;
   
   { t.merge(other) } -> std::same_as<void>;

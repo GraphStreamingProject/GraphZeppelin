@@ -140,6 +140,21 @@ void FixedSizeSketchColumn::atomic_update(const vec_t update) {
   // todo - gccc intrinsics?
 
 }
+void FixedSizeSketchColumn::atomic_apply_entry_delta(const ColumnEntryDelta &delta) {
+  assert(delta.depth < capacity);
+  
+  std::atomic_ref<vec_t> det_alpha(deterministic_bucket.alpha);
+  std::atomic_ref<vec_hash_t> det_gamma(deterministic_bucket.gamma);
+  
+  std::atomic_ref<vec_t> bucket_alpha(buckets[delta.depth].alpha);
+  std::atomic_ref<vec_hash_t> bucket_gamma(buckets[delta.depth].gamma);
+  
+  det_alpha.fetch_xor(delta.bucket.alpha, std::memory_order_relaxed);
+  det_gamma.fetch_xor(delta.bucket.gamma, std::memory_order_relaxed);
+  bucket_alpha.fetch_xor(delta.bucket.alpha, std::memory_order_relaxed);
+  bucket_gamma.fetch_xor(delta.bucket.gamma, std::memory_order_relaxed);
+  // todo - gccc intrinsics?
+}
 
 ResizeableSketchColumn::ResizeableSketchColumn(uint8_t start_capacity,
                                                uint64_t seed)
@@ -277,6 +292,7 @@ void ResizeableSketchColumn::apply_entry_delta(const ColumnEntryDelta &delta) {
 }
 
 void ResizeableSketchColumn::atomic_update(const vec_t update) {
+  // TODO - there's code duplication with apply entry delta.
   vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update, seed);
   col_hash_t depth = Bucket_Boruvka::get_index_depth_legacy(update, seed, 60);
   
@@ -309,6 +325,40 @@ void ResizeableSketchColumn::atomic_update(const vec_t update) {
     // now we can update the buckets (non-atomically)
     deterministic_bucket ^= {update, checksum};
     buckets[depth] ^= {update, checksum};
+    this->lock.unlock();
+  }
+  
+}
+void ResizeableSketchColumn::atomic_apply_entry_delta(const ColumnEntryDelta &delta) {
+  
+  // grab reader lock
+  this->lock.lock_shared();
+  if (delta.depth < capacity) {
+    // can atomically update as normal
+    std::atomic_ref<vec_t> det_alpha(deterministic_bucket.alpha);
+    std::atomic_ref<vec_hash_t> det_gamma(deterministic_bucket.gamma);
+    std::atomic_ref<vec_t> bucket_alpha(buckets[delta.depth].alpha);
+    std::atomic_ref<vec_hash_t> bucket_gamma(buckets[delta.depth].gamma);
+    det_alpha.fetch_xor(delta.bucket.alpha, std::memory_order_relaxed);
+    det_gamma.fetch_xor(delta.bucket.gamma, std::memory_order_relaxed);
+    bucket_alpha.fetch_xor(delta.bucket.alpha, std::memory_order_relaxed);
+    bucket_gamma.fetch_xor(delta.bucket.gamma, std::memory_order_relaxed);
+    this->lock.unlock_shared();
+  } else {
+    // release the reader lock
+    this->lock.unlock_shared();
+    // grab writer lock
+    this->lock.lock();
+    // note: the alllocation may have shrunk OR grown.
+    // so we need to account for that
+    size_t desired_capacity = ((delta.depth >> 2) << 2) + 4;
+    desired_capacity = std::max(desired_capacity, static_cast<size_t>(capacity));
+    if (desired_capacity != capacity) {
+      reallocate(desired_capacity);
+    }
+    // now we can update the buckets (non-atomically)
+    deterministic_bucket ^= delta.bucket;
+    buckets[delta.depth] ^= delta.bucket;
     this->lock.unlock();
   }
   

@@ -57,6 +57,7 @@ public:
   
   const ColumnEntryDelta generate_entry_delta(vec_t update) const;
   void apply_entry_delta(const ColumnEntryDelta &delta);
+  void atomic_apply_entry_delta(const ColumnEntryDelta &delta);
   
 
   inline bool is_initialized() const {
@@ -122,6 +123,7 @@ public:
   void apply_entry_delta(const ColumnEntryDelta &delta);
   
   void atomic_update(const vec_t update);
+  void atomic_apply_entry_delta(const ColumnEntryDelta &delta);
   void merge(ResizeableSketchColumn const& other);
   uint8_t get_depth() const;
 
@@ -196,6 +198,10 @@ public:
   const ColumnEntryDelta generate_entry_delta(vec_t update) const;
   void apply_entry_delta(const ColumnEntryDelta &delta);
 
+  // TODO - implement later
+  void atomic_apply_entry_delta(const ColumnEntryDelta &delta) {
+    this->apply_entry_delta(delta);
+  }
   void atomic_update(const vec_t update) {
     // TODO - implement later
     this->update(update);
