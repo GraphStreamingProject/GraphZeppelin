@@ -71,11 +71,11 @@ FetchContent_Declare(
 # FetchContent_MakeAvailable(fast_float)
 
 
-FetchContent_Declare(
-  folly
-  GIT_REPOSITORY https://github.com/facebook/folly.git
-  GIT_TAG   v2025.07.14.00
-)
+# FetchContent_Declare(
+#   folly
+#   GIT_REPOSITORY https://github.com/facebook/folly.git
+#   GIT_TAG   v2025.07.14.00
+# )
 
 # Get GutterTree Project
 FetchContent_Declare(
@@ -103,7 +103,7 @@ add_compile_definitions(GLOG_USE_GLOG_EXPORT)
 
 # Get google highway and folly
 FetchContent_MakeAvailable(hwy)
-FetchContent_MakeAvailable(folly)
+# FetchContent_MakeAvailable(folly)
 
 # Ensure highway target is explicitly added
 #add_library(highway INTERFACE IMPORTED)
@@ -146,8 +146,8 @@ add_library(GraphZeppelin
   src/sketch_columns.cpp
   src/recovery.cpp
   src/util.cpp)
-add_dependencies(GraphZeppelin GutterTree StreamingUtilities hwy folly)
-target_link_libraries(GraphZeppelin PUBLIC xxhash GutterTree StreamingUtilities hwy folly)
+add_dependencies(GraphZeppelin GutterTree StreamingUtilities hwy)
+target_link_libraries(GraphZeppelin PUBLIC xxhash GutterTree StreamingUtilities hwy)
 target_include_directories(GraphZeppelin PUBLIC include/)
 target_compile_options(GraphZeppelin PUBLIC -fopenmp)
 target_link_options(GraphZeppelin PUBLIC -fopenmp)
@@ -164,7 +164,7 @@ add_library(GraphZeppelinVerifyCC
   src/util.cpp
   test/util/graph_verifier.cpp)
 add_dependencies(GraphZeppelinVerifyCC GutterTree StreamingUtilities hwy)
-target_link_libraries(GraphZeppelinVerifyCC PUBLIC xxhash GutterTree StreamingUtilities hwy folly)
+target_link_libraries(GraphZeppelinVerifyCC PUBLIC xxhash GutterTree StreamingUtilities hwy)
 target_include_directories(GraphZeppelinVerifyCC PUBLIC include/ include/test/)
 target_compile_options(GraphZeppelinVerifyCC PUBLIC -fopenmp)
 target_link_options(GraphZeppelinVerifyCC PUBLIC -fopenmp)
@@ -203,5 +203,5 @@ if (BUILD_BENCH)
   add_executable(bench_cc
     tools/benchmark/graphcc_bench.cpp)
   add_dependencies(bench_cc GraphZeppelin benchmark)
-  target_link_libraries(bench_cc GraphZeppelin benchmark::benchmark xxhash folly)
+  target_link_libraries(bench_cc GraphZeppelin benchmark::benchmark xxhash)
 endif()

@@ -11,7 +11,8 @@
 
 #include <gtest/gtest.h>
 
-#include <folly/synchronization/RWSpinLock.h>
+// #include /* <folly/synchronization/RWSpinLock.h> */
+#include "RWSpinLock.h"
 
 /*
  * FOR NOW - simplest possible design
@@ -102,7 +103,7 @@ private:
   Bucket *buckets;
   Bucket deterministic_bucket = {0, 0};
   uint64_t seed;
-  folly::RWSpinLock lock;
+  from_folly::RWSpinLock lock;
   uint8_t capacity;
 public:
   void set_seed(uint64_t new_seed) { seed = new_seed; };
