@@ -19,8 +19,8 @@
 */
 class FixedSizeSketchColumn {
 private:
-  Bucket *buckets;
   Bucket deterministic_bucket = {0, 0};
+  Bucket *buckets;
   uint64_t seed;
   uint8_t capacity;
 public:
@@ -41,6 +41,8 @@ public:
   ~FixedSizeSketchColumn();
   SketchSample<vec_t> sample() const;
   void clear();
+  
+  void prefetch();
   
   void update(const vec_t update);
   void atomic_update(const vec_t update);
@@ -100,8 +102,8 @@ FRIEND_TEST(SketchColumnTestSuite, TestClear);
 FRIEND_TEST(SketchColumnTestSuite, TestClearMerge);
 FRIEND_TEST(SketchColumnTestSuite, TestUpdateReallocation);
 private:
-  Bucket *buckets;
   Bucket deterministic_bucket = {0, 0};
+  Bucket *buckets;
   uint64_t seed;
   from_folly::RWSpinLock lock;
   uint8_t capacity;
@@ -119,6 +121,8 @@ public:
   SketchSample<vec_t> sample() const;
   void clear();
   void update(const vec_t update);
+  
+  void prefetch();
   
   const ColumnEntryDelta generate_entry_delta(vec_t update) const;
   void apply_entry_delta(const ColumnEntryDelta &delta);
@@ -195,6 +199,7 @@ public:
   SketchSample<vec_t> sample() const;
   void clear();
   void update(const vec_t update);
+  void prefetch() {}; // TODO - implement prefetching 
 
   const ColumnEntryDelta generate_entry_delta(vec_t update) const;
   void apply_entry_delta(const ColumnEntryDelta &delta);

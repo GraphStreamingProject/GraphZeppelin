@@ -96,6 +96,14 @@ void FixedSizeSketchColumn::clear() {
   deterministic_bucket = {0, 0};
 }
 
+void FixedSizeSketchColumn::prefetch() {
+  constexpr size_t cache_line_size = 64; // assuming 64 byte cache lines
+  size_t num_lines = (capacity * sizeof(Bucket) + cache_line_size - 1) / cache_line_size;
+  for (size_t i = 0; i < num_lines; ++i) {
+    _mm_prefetch(reinterpret_cast<const char*>(buckets) + i * cache_line_size, _MM_HINT_T0);
+  }
+}
+
 void FixedSizeSketchColumn::merge(FixedSizeSketchColumn const& other) {
   for (size_t i = 0; i < capacity; ++i) {
     buckets[i] ^= other.buckets[i];
@@ -238,6 +246,15 @@ void ResizeableSketchColumn::reallocate(uint8_t new_capacity) {
 void ResizeableSketchColumn::clear() {
   std::memset(buckets, 0, capacity * sizeof(Bucket));
   deterministic_bucket = {0, 0};
+}
+
+void ResizeableSketchColumn::prefetch() {
+  constexpr size_t cache_line = 64; // bytes
+  size_t num_lines = (capacity * sizeof(Bucket) + cache_line - 1) / cache_line;
+  // prefetch all buckets
+  for (size_t i = 0; i < num_lines; ++i) {
+    _mm_prefetch(reinterpret_cast<const char*>(buckets) + (i * cache_line), _MM_HINT_T0);
+  }
 }
 
 void ResizeableSketchColumn::serialize(std::ostream &binary_out) const {

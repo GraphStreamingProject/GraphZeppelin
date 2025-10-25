@@ -53,6 +53,7 @@ concept SketchColumnConcept = requires(T t, T other) {
   { t.atomic_update(std::declval<V>()) } -> std::same_as<void>;
   
   { t.merge(other) } -> std::same_as<void>;
+  { t.prefetch() } -> std::same_as<void>; 
   
   { t.is_initialized() } -> std::same_as<bool>;
 
