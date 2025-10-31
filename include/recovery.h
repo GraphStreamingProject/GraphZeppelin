@@ -77,6 +77,15 @@ class SparseRecovery {
         }
 
     public:
+        size_t space_usage_bytes(bool include_cleanup_sketch) const {
+            size_t total = sizeof(SparseRecovery);
+            total += recovery_buckets.capacity() * sizeof(Bucket);
+            if (include_cleanup_sketch) {
+                total += sizeof(Sketch);
+                total += cleanup_sketch->bucket_array_bytes();
+            }
+            return total;
+        }
         inline uint64_t get_seed() const { return seed; }
         inline uint64_t level_seed(size_t level) const {
           return seed * (2 + seed) + level * 30;
