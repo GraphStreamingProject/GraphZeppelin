@@ -48,6 +48,7 @@ public:
   void atomic_update(const vec_t update);
   void merge(FixedSizeSketchColumn const& other);
   uint8_t get_depth() const;
+  size_t space_usage_bytes() const;
   void serialize(std::ostream &binary_out) const;
   
   static uint8_t suggest_capacity(size_t num_indices) { 
@@ -131,6 +132,7 @@ public:
   void atomic_apply_entry_delta(const ColumnEntryDelta &delta);
   void merge(ResizeableSketchColumn const& other);
   uint8_t get_depth() const;
+  size_t space_usage_bytes() const;
 
   [[deprecated]]
   void zero_contents() {
@@ -214,6 +216,7 @@ public:
   }
   void merge(ResizeableAlignedSketchColumn const& other);
   uint8_t get_depth() const;
+  size_t space_usage_bytes() const;
 
   [[deprecated]]
   void zero_contents() {

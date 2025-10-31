@@ -56,6 +56,7 @@ concept SketchColumnConcept = requires(T t, T other) {
   { t.prefetch() } -> std::same_as<void>; 
   
   { t.is_initialized() } -> std::same_as<bool>;
+  { t.space_usage_bytes() } -> std::same_as<size_t>;
 
   { t.clear()} -> std::same_as<void>;
   { t.zero_contents()} -> std::same_as<void>;

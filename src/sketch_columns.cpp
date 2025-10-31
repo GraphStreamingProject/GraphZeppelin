@@ -69,6 +69,9 @@ uint8_t FixedSizeSketchColumn::get_depth() const {
   }
   return 0;
 }
+size_t FixedSizeSketchColumn::space_usage_bytes() const {
+  return sizeof(FixedSizeSketchColumn) + (capacity * sizeof(Bucket));
+}
 
 // TODO - implement actual deserialization
 void FixedSizeSketchColumn::serialize(std::ostream &binary_out) const {
@@ -400,6 +403,9 @@ uint8_t ResizeableSketchColumn::get_depth() const {
   }
   return 0;
 }
+size_t ResizeableSketchColumn::space_usage_bytes() const {
+  return sizeof(ResizeableSketchColumn) + (this->capacity * sizeof(Bucket));
+}
 
 
 
@@ -510,6 +516,9 @@ uint8_t ResizeableAlignedSketchColumn::get_depth() const {
     }
   }
   return 0;
+}
+size_t ResizeableAlignedSketchColumn::space_usage_bytes() const{
+  return sizeof(ResizeableAlignedSketchColumn) + (this->capacity * sizeof(Bucket));
 }
 
 
