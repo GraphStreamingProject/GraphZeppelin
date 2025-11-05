@@ -301,7 +301,6 @@ const ColumnEntryDelta ResizeableSketchColumn::generate_entry_delta(vec_t update
 }
 
 void ResizeableSketchColumn::apply_entry_delta(const ColumnEntryDelta &delta) {
-  assert(delta.depth < capacity);
   deterministic_bucket ^= delta.bucket;
 
   if (delta.depth >= capacity) {
