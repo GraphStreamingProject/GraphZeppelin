@@ -51,10 +51,11 @@ class SparseRecovery {
             size_t current_cfr_size = max_recovery_size;
             size_t current_cfr_idx = 0;
             while (current_cfr_size > cleanup_sketch_support) {
-                size_t power_of_two_rounded_size = 1 << (size_t) ceil(log2(current_cfr_size));
+                // size_t power_of_two_rounded_size = 1 << (size_t) ceil(log2(current_cfr_size));
                 // TODO - examine whether it's better to do something else.
                 // ROUND THE SIZE TO A POWER OF TWO -- important for maintaining uniformity.
-                auto current_start_idx = starter_indices[current_cfr_idx++] + power_of_two_rounded_size;
+                // auto current_start_idx = starter_indices[current_cfr_idx++] + power_of_two_rounded_size;
+                auto current_start_idx = starter_indices.back() + current_cfr_size;
                 starter_indices.push_back(current_start_idx);
                 current_cfr_size = ceil(current_cfr_size * reduction_factor);
             }
