@@ -391,6 +391,15 @@ void ResizeableSketchColumn::merge(ResizeableSketchColumn const& other) {
   for (size_t i = 0; i < other.capacity; ++i) {
     buckets[i] ^= other.buckets[i];
   }
+
+  // Shrink after merge when the resulting column is shallower.
+  // Keep only a small safety margin above observed depth.
+  constexpr size_t merge_slack = 1;
+  size_t depth = get_depth();
+  size_t target_capacity = std::max<size_t>(1, depth + merge_slack);
+  if (target_capacity < capacity) {
+    reallocate(static_cast<uint8_t>(target_capacity));
+  }
 }
 
 uint8_t ResizeableSketchColumn::get_depth() const {

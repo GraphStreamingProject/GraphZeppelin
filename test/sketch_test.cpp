@@ -575,7 +575,10 @@ TEST(SketchColumnTestSuite, TestMergeResizing) {
   }
   ASSERT_EQ(column1.capacity, 10);
   column1.merge(column2);
-  ASSERT_EQ(column1.capacity, column2.capacity);
+  ASSERT_LE(column1.capacity, column2.capacity);
+  ASSERT_GE(column1.capacity, 1);
+  auto sample = column1.sample();
+  ASSERT_EQ(sample.result, GOOD);
 }
 
 // as we insert more unique items, maximum nonzero bucket depth should never decrease  
@@ -606,7 +609,7 @@ TEST(SketchColumnTestSuite, TestClear) {
   auto sample = column.sample();
   ASSERT_EQ(sample.result, GOOD);
   column.clear();
-  for (size_t i = 0; i < capacity; i++) {
+  for (size_t i = 0; i < column.capacity; i++) {
     bool good = Bucket_Boruvka::is_empty(column.buckets[i]);
     ASSERT_EQ(good, true);
   }
@@ -624,7 +627,7 @@ TEST(SketchColumnTestSuite, TestClearMerge) {
   }
   column1.merge(column2);
   column2.clear();
-  for (size_t i = 0; i < capacity; i++) {
+  for (size_t i = 0; i < column2.capacity; i++) {
     bool good = Bucket_Boruvka::is_empty(column2.buckets[i]);
     ASSERT_EQ(good, true);
   }
@@ -640,7 +643,7 @@ TEST(SketchColumnTestSuite, TestClearMerge) {
   }
   column3.merge(column4);
   column3.clear();
-  for (size_t i = 0; i < capacity; i++) {
+  for (size_t i = 0; i < column3.capacity; i++) {
     bool empty = Bucket_Boruvka::is_empty(column3.buckets[i]);
     ASSERT_EQ(empty, true);
   }
