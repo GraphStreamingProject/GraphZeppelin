@@ -160,3 +160,34 @@ TEST(RecoveryTestSuite, RecoveryManyFailureProbability) {
     }
     
 }
+
+TEST(RecoveryTestSuite, RecoveryWithoutCleanupSketch) {
+    SparseRecovery recovery(1 << 20, 1 << 10, 1, get_seed(), false);
+    auto empty_result = recovery.recover();
+    ASSERT_EQ(empty_result.result, SUCCESS);
+    ASSERT_EQ(empty_result.recovered_indices.size(), 0);
+
+    recovery.update(5);
+    auto result = recovery.recover();
+    ASSERT_EQ(result.result, SUCCESS);
+    ASSERT_EQ(result.recovered_indices.size(), 1);
+    ASSERT_EQ(result.recovered_indices[0], 5);
+}
+
+TEST(RecoveryTestSuite, PartialRecoveryAPIWithoutCleanupPhase) {
+    SparseRecovery recovery(1 << 20, 2, 1, get_seed(), false);
+    recovery.update(42);
+
+    auto full_recover_result = recovery.recover();
+    ASSERT_EQ(full_recover_result.result, FAILURE);
+
+    auto partial_result = recovery.recover(true);
+    ASSERT_NE(partial_result.result, FAILURE);
+    ASSERT_TRUE(partial_result.result == SUCCESS || partial_result.result == PARTIAL_RECOVERY);
+
+    // Partial recovery is non-destructive, so repeated calls are consistent.
+    auto partial_result_again = recovery.recover(true);
+    ASSERT_NE(partial_result_again.result, FAILURE);
+    ASSERT_TRUE(partial_result_again.result == SUCCESS || partial_result_again.result == PARTIAL_RECOVERY);
+    ASSERT_EQ(partial_result_again.recovered_indices, partial_result.recovered_indices);
+}
