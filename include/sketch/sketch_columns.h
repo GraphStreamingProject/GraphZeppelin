@@ -10,6 +10,7 @@
 #include <hwy/aligned_allocator.h>
 
 #include <gtest/gtest.h>
+#include <cstdint>
 
 // #include /* <folly/synchronization/RWSpinLock.h> */
 #include "RWSpinLock.h"
@@ -19,10 +20,37 @@
 */
 class FixedSizeSketchColumn {
 private:
-  Bucket deterministic_bucket = {0, 0};
-  Bucket *buckets;
+  uintptr_t buckets_tagged = 0;
   uint64_t seed;
-  uint8_t capacity;
+
+  static constexpr uintptr_t kCapacityMask = 0xFFu;
+  static constexpr uintptr_t kPointerMask = ~kCapacityMask;
+
+  Bucket *buckets_raw() {
+    return reinterpret_cast<Bucket*>(buckets_tagged & kPointerMask);
+  }
+  const Bucket *buckets_raw() const {
+    return reinterpret_cast<const Bucket*>(buckets_tagged & kPointerMask);
+  }
+  Bucket *buckets() {
+    return buckets_raw() + 1;
+  }
+  const Bucket *buckets() const {
+    return buckets_raw() + 1;
+  }
+  Bucket &deterministic_bucket_ref() {
+    return buckets_raw()[0];
+  }
+  const Bucket &deterministic_bucket_ref() const {
+    return buckets_raw()[0];
+  }
+  uint8_t capacity() const {
+    return static_cast<uint8_t>(buckets_tagged & kCapacityMask);
+  }
+
+  void set_tagged_buckets(Bucket *raw_buckets, uint8_t capacity);
+  static Bucket *allocate_bucket_block(uint8_t capacity);
+  static void free_bucket_block(Bucket *raw_buckets);
 public:
   void set_seed(uint64_t new_seed) {
     seed = new_seed;
@@ -65,7 +93,7 @@ public:
   
 
   inline bool is_initialized() const {
-    return buckets != nullptr;
+    return buckets_raw() != nullptr;
   }
 
   [[deprecated]]
@@ -74,21 +102,27 @@ public:
   }
 
   bool operator==(const FixedSizeSketchColumn &other) const {
-    for (size_t i = 0; i < capacity; ++i) {
-      if (buckets[i] != other.buckets[i]) {
+    if (capacity() != other.capacity()) {
+      return false;
+    }
+    for (size_t i = 0; i < capacity(); ++i) {
+      if (buckets()[i] != other.buckets()[i]) {
         return false;
       }
+    }
+    if (deterministic_bucket_ref() != other.deterministic_bucket_ref()) {
+      return false;
     }
     return true;
   }
 
   friend std::ostream& operator<<(std::ostream &os, const FixedSizeSketchColumn &sketch) {
     os << "FixedSizeSketchColumn: " << std::endl;
-    os << "Capacity: " << (int)sketch.capacity << std::endl;
+    os << "Capacity: " << (int)sketch.capacity() << std::endl;
     os << "Column Seed: " << (int)sketch.seed << std::endl;
-    os << "Deterministic Bucket: " << sketch.deterministic_bucket << std::endl;
-    for (size_t i = 0; i < sketch.capacity; ++i) {
-      os << "Bucket[" << i << "]: " << sketch.buckets[i] << std::endl;
+    os << "Deterministic Bucket: " << sketch.deterministic_bucket_ref() << std::endl;
+    for (size_t i = 0; i < sketch.capacity(); ++i) {
+      os << "Bucket[" << i << "]: " << sketch.buckets()[i] << std::endl;
     }
     return os;
   }
@@ -103,11 +137,38 @@ FRIEND_TEST(SketchColumnTestSuite, TestClear);
 FRIEND_TEST(SketchColumnTestSuite, TestClearMerge);
 FRIEND_TEST(SketchColumnTestSuite, TestUpdateReallocation);
 private:
-  Bucket deterministic_bucket = {0, 0};
-  Bucket *buckets;
+  uintptr_t buckets_tagged = 0;
   uint64_t seed;
   from_folly::RWSpinLock lock;
-  uint8_t capacity;
+
+  static constexpr uintptr_t kCapacityMask = 0xFFu;
+  static constexpr uintptr_t kPointerMask = ~kCapacityMask;
+
+  Bucket *buckets_raw() {
+    return reinterpret_cast<Bucket*>(buckets_tagged & kPointerMask);
+  }
+  const Bucket *buckets_raw() const {
+    return reinterpret_cast<const Bucket*>(buckets_tagged & kPointerMask);
+  }
+  Bucket *buckets() {
+    return buckets_raw() + 1;
+  }
+  const Bucket *buckets() const {
+    return buckets_raw() + 1;
+  }
+  Bucket &deterministic_bucket_ref() {
+    return buckets_raw()[0];
+  }
+  const Bucket &deterministic_bucket_ref() const {
+    return buckets_raw()[0];
+  }
+  uint8_t capacity() const {
+    return static_cast<uint8_t>(buckets_tagged & kCapacityMask);
+  }
+
+  void set_tagged_buckets(Bucket *raw_buckets, uint8_t capacity);
+  static Bucket *allocate_bucket_block(uint8_t capacity);
+  static void free_bucket_block(Bucket *raw_buckets);
 public:
   void set_seed(uint64_t new_seed) { seed = new_seed; };
   uint64_t get_seed() const { return seed; };
@@ -151,17 +212,17 @@ public:
   
   friend std::ostream& operator<<(std::ostream &os, const ResizeableSketchColumn&sketch) {
     os << "ResizeableSketchColumn: " << std::endl;
-    os << "Capacity: " << (int)sketch.capacity << std::endl;
+    os << "Capacity: " << (int)sketch.capacity() << std::endl;
     os << "Column Seed: " << (int)sketch.seed << std::endl;
-    os << "Deterministic Bucket: " << sketch.deterministic_bucket << std::endl;
-    for (size_t i = 0; i < sketch.capacity; ++i) {
-      os << "Bucket[" << i << "]: " << sketch.buckets[i] << std::endl;
+    os << "Deterministic Bucket: " << sketch.deterministic_bucket_ref() << std::endl;
+    for (size_t i = 0; i < sketch.capacity(); ++i) {
+      os << "Bucket[" << i << "]: " << sketch.buckets()[i] << std::endl;
     }
     return os;
   }
   
   inline bool is_initialized() const {
-    return buckets != nullptr;
+    return buckets_raw() != nullptr;
   }
   
   bool operator==(const ResizeableSketchColumn &other) const {
@@ -170,9 +231,12 @@ public:
       return false;
     }
     for (size_t i = 0; i < other_depth; ++i) {
-      if (buckets[i] != other.buckets[i]) {
+      if (buckets()[i] != other.buckets()[i]) {
         return false;
       }
+    }
+    if (deterministic_bucket_ref() != other.deterministic_bucket_ref()) {
+      return false;
     }
     return true;
   }
@@ -183,10 +247,37 @@ private:
 
 class ResizeableAlignedSketchColumn {
 private:
-  hwy::AlignedFreeUniquePtr<Bucket[]> aligned_buckets;
-  Bucket deterministic_bucket = {0, 0};
+  uintptr_t buckets_tagged = 0;
   uint64_t seed;
-  uint8_t capacity;
+
+  static constexpr uintptr_t kCapacityMask = 0xFFu;
+  static constexpr uintptr_t kPointerMask = ~kCapacityMask;
+
+  Bucket *buckets_raw() {
+    return reinterpret_cast<Bucket*>(buckets_tagged & kPointerMask);
+  }
+  const Bucket *buckets_raw() const {
+    return reinterpret_cast<const Bucket*>(buckets_tagged & kPointerMask);
+  }
+  Bucket *buckets() {
+    return buckets_raw() + 1;
+  }
+  const Bucket *buckets() const {
+    return buckets_raw() + 1;
+  }
+  Bucket &deterministic_bucket_ref() {
+    return buckets_raw()[0];
+  }
+  const Bucket &deterministic_bucket_ref() const {
+    return buckets_raw()[0];
+  }
+  uint8_t capacity() const {
+    return static_cast<uint8_t>(buckets_tagged & kCapacityMask);
+  }
+
+  void set_tagged_buckets(Bucket *raw_buckets, uint8_t capacity);
+  static Bucket *allocate_bucket_block(uint8_t capacity);
+  static void free_bucket_block(Bucket *raw_buckets);
 public:
   void set_seed(uint64_t new_seed) { seed = new_seed; };
   uint64_t get_seed() const { return seed; };
@@ -224,7 +315,7 @@ public:
   }
 
   inline bool is_initialized() const {
-    return aligned_buckets != nullptr;
+    return buckets_raw() != nullptr;
   }
 
   void reset_sample_state() {
@@ -239,11 +330,11 @@ public:
   
   friend std::ostream& operator<<(std::ostream &os, const ResizeableAlignedSketchColumn&sketch) {
     os << "ResizeableSketchColumn: " << std::endl;
-    os << "Capacity: " << (int)sketch.capacity << std::endl;
+    os << "Capacity: " << (int)sketch.capacity() << std::endl;
     os << "Column Seed: " << (int)sketch.seed << std::endl;
-    os << "Deterministic Bucket: " << sketch.deterministic_bucket << std::endl;
-    for (size_t i = 0; i < sketch.capacity; ++i) {
-      os << "Bucket[" << i << "]: " << sketch.aligned_buckets[i] << std::endl;
+    os << "Deterministic Bucket: " << sketch.deterministic_bucket_ref() << std::endl;
+    for (size_t i = 0; i < sketch.capacity(); ++i) {
+      os << "Bucket[" << i << "]: " << sketch.buckets()[i] << std::endl;
     }
     return os;
   }
@@ -254,9 +345,12 @@ public:
       return false;
     }
     for (size_t i = 0; i < other_depth; ++i) {
-      if (aligned_buckets[i] != other.aligned_buckets[i]) {
+      if (buckets()[i] != other.buckets()[i]) {
         return false;
       }
+    }
+    if (deterministic_bucket_ref() != other.deterministic_bucket_ref()) {
+      return false;
     }
     return true;
   }

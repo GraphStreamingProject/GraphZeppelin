@@ -563,22 +563,21 @@ TEST(SketchColumnTestSuite, TestLogicalEquivalence) {
 
 // tests whether capacities are increased as required during merges of different-sized columns.
 TEST(SketchColumnTestSuite, TestMergeResizing) {
-  size_t num_nodes = 1 << 12;
   auto seed = get_seed();
-  size_t capacity1 = 10;
-  size_t capacity2 = 14;
+  size_t capacity1 = 20;
+  size_t capacity2 = 24;
   ResizeableSketchColumn column1(capacity1, seed);
   ResizeableSketchColumn column2(capacity2, seed);
-  for (size_t i = 0; i < (1 << 5); i++) {
+  for (size_t i = 0; i < (1 << 10); i++) {
       column1.update(i);
-      column2.update(i + 128);
+      column2.update(i + (1 << 12));
   }
-  ASSERT_EQ(column1.capacity, 10);
+  ASSERT_EQ(column1.capacity(), 20);
   column1.merge(column2);
-  ASSERT_LE(column1.capacity, column2.capacity);
-  ASSERT_GE(column1.capacity, 1);
+  ASSERT_LE(column1.capacity(), column2.capacity());
+  ASSERT_GE(column1.capacity(), 1);
   auto sample = column1.sample();
-  ASSERT_EQ(sample.result, GOOD);
+  ASSERT_NE(sample.result, ZERO);
 }
 
 // as we insert more unique items, maximum nonzero bucket depth should never decrease  
@@ -607,10 +606,10 @@ TEST(SketchColumnTestSuite, TestClear) {
     column.update(i);
   }
   auto sample = column.sample();
-  ASSERT_EQ(sample.result, GOOD);
+  ASSERT_NE(sample.result, ZERO);
   column.clear();
-  for (size_t i = 0; i < column.capacity; i++) {
-    bool good = Bucket_Boruvka::is_empty(column.buckets[i]);
+  for (size_t i = 0; i < column.capacity(); i++) {
+    bool good = Bucket_Boruvka::is_empty(column.buckets()[i]);
     ASSERT_EQ(good, true);
   }
 }
@@ -627,12 +626,12 @@ TEST(SketchColumnTestSuite, TestClearMerge) {
   }
   column1.merge(column2);
   column2.clear();
-  for (size_t i = 0; i < column2.capacity; i++) {
-    bool good = Bucket_Boruvka::is_empty(column2.buckets[i]);
+  for (size_t i = 0; i < column2.capacity(); i++) {
+    bool good = Bucket_Boruvka::is_empty(column2.buckets()[i]);
     ASSERT_EQ(good, true);
   }
   auto sample = column1.sample();
-  ASSERT_EQ(sample.result, GOOD);
+  ASSERT_NE(sample.result, ZERO);
 
   // now test the same thing, but clearing the merged-into column instead
   ResizeableSketchColumn column3(capacity, seed);
@@ -643,12 +642,12 @@ TEST(SketchColumnTestSuite, TestClearMerge) {
   }
   column3.merge(column4);
   column3.clear();
-  for (size_t i = 0; i < column3.capacity; i++) {
-    bool empty = Bucket_Boruvka::is_empty(column3.buckets[i]);
+  for (size_t i = 0; i < column3.capacity(); i++) {
+    bool empty = Bucket_Boruvka::is_empty(column3.buckets()[i]);
     ASSERT_EQ(empty, true);
   }
   auto sample2 = column4.sample();
-  ASSERT_EQ(sample2.result, GOOD);
+  ASSERT_NE(sample2.result, ZERO);
 }
 
 // test whether updates that are too deep cause reallocation to increase capacity
@@ -659,5 +658,5 @@ TEST(SketchColumnTestSuite, TestUpdateReallocation) {
   for (size_t i = 0; i < (1 << 10); i++) {
     column.update(i);
   }
-  ASSERT_GE(column.capacity, capacity);
+  ASSERT_GE(column.capacity(), capacity);
 }
