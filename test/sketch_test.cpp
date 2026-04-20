@@ -313,6 +313,25 @@ TEST(SketchTestSuite, TestSerialization) {
   ASSERT_EQ(sketch, reheated);
 }
 
+TEST(SketchTestSuite, TestCompressedSerialize) {
+  unsigned long vec_size = 1 << 10;
+  unsigned long num_updates = 10000;
+  Testing_Vector test_vec = Testing_Vector(vec_size, num_updates);
+  auto seed = get_seed();
+  Sketch sketch(vec_size, seed, 3, num_columns);
+  for (unsigned long j = 0; j < num_updates; j++){
+    sketch.update(test_vec.get_update(j));
+  }
+  auto file = std::fstream("./out_sketch_comp.txt", std::ios::out | std::ios::binary | std::ios::trunc);
+  sketch.compressed_serialize(file);
+  file.close();
+
+  auto in_file = std::fstream("./out_sketch_comp.txt", std::ios::in | std::ios::binary);
+  Sketch reheated(vec_size, seed, true, in_file, 3, num_columns);
+
+  ASSERT_EQ(sketch, reheated);
+}
+
 TEST(SketchTestSuite, TestSamplesHaveUniqueSeed) {
   size_t num_samples = 50;
   size_t cols_per_sample = 3;

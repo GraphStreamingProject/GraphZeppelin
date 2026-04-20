@@ -9,6 +9,8 @@ set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 
+
+
 # Make the default build type Release. If user or another
 # project sets a different value than use that
 if(NOT CMAKE_BUILD_TYPE)
@@ -26,6 +28,12 @@ elseif(STATUS "${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Wall")
 else()
   message(STATUS "${CMAKE_CXX_COMPILER_ID} not recognized, no flags added")
+endif()
+
+include(CheckCXXCompilerFlag)
+CHECK_CXX_COMPILER_FLAG("-march=native" COMPILER_SUPPORTS_MARCH_NATIVE)
+if(COMPILER_SUPPORTS_MARCH_NATIVE)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
 endif()
 
 #add_compile_options(-fsanitize=address)
