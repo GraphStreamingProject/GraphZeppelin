@@ -50,6 +50,13 @@ class Sketch {
 
   // bucket data
   Bucket* buckets;
+  // vec_t* alpha;
+  // vec_hash_t* gamma;
+
+  #ifdef EAGER_BUCKET_CHECK
+  vec_t *good_buckets;
+  #endif
+
 
  public:
   /**
@@ -117,6 +124,21 @@ class Sketch {
    */
   SketchSample sample();
 
+
+  /**
+   * Function to sample from the sketch.
+   * cols_per_sample determines the number of columns we allocate to this query
+   * @return   A pair with the result index and a code indicating the type of result.
+   */
+  SketchSample doubling_sample();
+
+  /**
+   * Function to quickly sample from the sketch.
+   * cols_per_sample determines the number of columns we allocate to this query
+   * @return   A pair with the result index and a code indicating the type of result.
+   */
+  SketchSample fast_sample();
+
   /**
    * Function to sample from the appropriate columns to return 1 or more non-zero indices
    * @return   A pair with the result indices and a code indicating the type of result.
@@ -124,6 +146,16 @@ class Sketch {
   ExhaustiveSketchSample exhaustive_sample();
 
   std::mutex mutex; // lock the sketch for applying updates in multithreaded processing
+
+  /**
+   * Gets the 1-index of the deepest non-zero bucket. 
+   * @return  The depth of the non-zero'th bucket + 1. If the bucket is entirely empty, returns 0
+  */
+ uint8_t effective_size(size_t col_idx) const;
+
+ #ifdef EAGER_BUCKET_CHECK
+ void update_flags(size_t col_idx, size_t start_row, size_t end_row);
+ #endif
 
   /**
    * In-place merge function.
@@ -178,7 +210,7 @@ class Sketch {
   inline size_t get_buckets() const { return num_buckets; }
   inline size_t get_num_samples() const { return num_samples; }
 
-  static size_t calc_bkt_per_col(size_t n) { return ceil(log2(n)) + 1; }
+  static size_t calc_bkt_per_col(size_t n) { return ceil(log2(n)) + 3; }
 
 #ifdef L0_SAMPLING
   static constexpr size_t default_cols_per_sample = 7;
